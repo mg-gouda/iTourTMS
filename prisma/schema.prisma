@@ -10,7 +10,7 @@ datasource db {
 // AUTH MODELS (Auth.js v5)
 // ============================================================================
 
-model Account {
+model AuthAccount {
   id                String  @id @default(cuid())
   userId            String
   type              String
@@ -28,6 +28,7 @@ model Account {
 
   @@unique([provider, providerAccountId])
   @@index([userId])
+  @@map("Account")
 }
 
 model Session {
@@ -81,6 +82,14 @@ model Company {
   installedModules  InstalledModule[]
   setup             CompanySetup?
 
+  // Finance relations
+  accountGroups     AccountGroup[]
+  finAccounts       FinAccount[]
+  journals          Journal[]
+  taxes             Tax[]
+  taxGroups         TaxGroup[]
+  paymentTerms      PaymentTerm[]
+
   @@index([countryId])
   @@index([baseCurrencyId])
 }
@@ -117,7 +126,7 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   company   Company?    @relation(fields: [companyId], references: [id])
-  accounts  Account[]
+  accounts  AuthAccount[]
   sessions  Session[]
   userRoles UserRole[]
 
@@ -235,6 +244,10 @@ model Currency {
 
   companies     Company[]
   rates         CurrencyRate[]
+
+  // Finance relations
+  finAccounts   FinAccount[]
+  journals      Journal[]
 
   @@index([code])
 }
@@ -359,4 +372,265 @@ model InstalledModule {
   @@unique([name, companyId])
   @@index([companyId])
   @@index([companyId, isInstalled])
+}
+
+// ============================================================================
+// FINANCE MODULE — Enums
+// ============================================================================
+
+enum AccountType {
+  ASSET_RECEIVABLE
+  ASSET_CASH
+  ASSET_CURRENT
+  ASSET_NON_CURRENT
+  ASSET_PREPAYMENTS
+  ASSET_FIXED
+  LIABILITY_PAYABLE
+  LIABILITY_CREDIT_CARD
+  LIABILITY_CURRENT
+  LIABILITY_NON_CURRENT
+  EQUITY
+  EQUITY_UNAFFECTED
+  INCOME
+  INCOME_OTHER
+  EXPENSE
+  EXPENSE_DEPRECIATION
+  EXPENSE_DIRECT_COST
+  OFF_BALANCE
+}
+
+enum JournalType {
+  SALE
+  PURCHASE
+  CASH
+  BANK
+  CREDIT_CARD
+  GENERAL
+}
+
+enum TaxUse {
+  SALE
+  PURCHASE
+  NONE
+}
+
+enum TaxAmountType {
+  PERCENT
+  FIXED
+  GROUP
+  DIVISION
+}
+
+enum TaxScope {
+  SERVICE
+  PRODUCT
+}
+
+enum TaxDocType {
+  INVOICE
+  REFUND
+}
+
+enum TermValueType {
+  BALANCE
+  PERCENT
+  FIXED
+}
+
+enum DelayType {
+  DAYS_AFTER
+  DAYS_AFTER_END_OF_MONTH
+  DAYS_AFTER_END_OF_NEXT_MONTH
+}
+
+// ============================================================================
+// FINANCE MODULE — Chart of Accounts
+// ============================================================================
+
+model AccountGroup {
+  id              String  @id @default(cuid())
+  companyId       String
+  name            String
+  codePrefixStart String
+  codePrefixEnd   String
+  parentId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent   AccountGroup? @relation("AccountGroupHierarchy", fields: [parentId], references: [id])
+  children AccountGroup[] @relation("AccountGroupHierarchy")
+  accounts FinAccount[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+}
+
+model AccountTag {
+  id    String @id @default(cuid())
+  name  String @unique
+  color Int    @default(0)
+
+  accounts FinAccount[]
+}
+
+model FinAccount {
+  id          String      @id @default(cuid())
+  companyId   String
+  code        String
+  name        String
+  accountType AccountType
+  reconcile   Boolean     @default(false)
+  deprecated  Boolean     @default(false)
+  groupId     String?
+  currencyId  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  group       AccountGroup? @relation(fields: [groupId], references: [id])
+  currency    Currency?     @relation(fields: [currencyId], references: [id])
+  tags        AccountTag[]
+  defaultTaxes Tax[]        @relation("AccountDefaultTaxes")
+
+  // Reverse relations for journal defaults
+  journalDefaults       Journal[] @relation("JournalDefaultAccount")
+  journalSuspense       Journal[] @relation("JournalSuspenseAccount")
+  journalProfit         Journal[] @relation("JournalProfitAccount")
+  journalLoss           Journal[] @relation("JournalLossAccount")
+  taxRepartitionLines   TaxRepartitionLine[]
+
+  @@unique([code, companyId])
+  @@index([companyId])
+  @@index([companyId, accountType])
+  @@index([code])
+  @@map("fin_account")
+}
+
+// ============================================================================
+// FINANCE MODULE — Journals
+// ============================================================================
+
+model Journal {
+  id                  String      @id @default(cuid())
+  companyId           String
+  name                String
+  code                String
+  type                JournalType
+  defaultAccountId    String?
+  suspenseAccountId   String?
+  profitAccountId     String?
+  lossAccountId       String?
+  currencyId          String?
+  sequencePrefix      String?
+  sequenceNextNumber  Int         @default(1)
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  company          Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  defaultAccount   FinAccount? @relation("JournalDefaultAccount", fields: [defaultAccountId], references: [id])
+  suspenseAccount  FinAccount? @relation("JournalSuspenseAccount", fields: [suspenseAccountId], references: [id])
+  profitAccount    FinAccount? @relation("JournalProfitAccount", fields: [profitAccountId], references: [id])
+  lossAccount      FinAccount? @relation("JournalLossAccount", fields: [lossAccountId], references: [id])
+  currency         Currency?   @relation(fields: [currencyId], references: [id])
+
+  @@unique([code, companyId])
+  @@index([companyId])
+  @@index([companyId, type])
+}
+
+// ============================================================================
+// FINANCE MODULE — Taxes
+// ============================================================================
+
+model TaxGroup {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  sequence  Int      @default(10)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taxes   Tax[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+}
+
+model Tax {
+  id               String        @id @default(cuid())
+  companyId        String
+  name             String
+  typeTaxUse       TaxUse        @default(SALE)
+  amountType       TaxAmountType @default(PERCENT)
+  amount           Decimal       @db.Decimal(12, 4) // the rate or fixed amount
+  priceInclude     Boolean       @default(false)
+  includeBaseAmount Boolean      @default(false)
+  taxGroupId       String?
+  taxScope         TaxScope?
+  isActive         Boolean       @default(true)
+  sequence         Int           @default(10)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  company          Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taxGroup         TaxGroup?            @relation(fields: [taxGroupId], references: [id])
+  repartitionLines TaxRepartitionLine[]
+  defaultForAccounts FinAccount[]       @relation("AccountDefaultTaxes")
+
+  @@index([companyId])
+  @@index([companyId, typeTaxUse])
+}
+
+model TaxRepartitionLine {
+  id             String     @id @default(cuid())
+  taxId          String
+  factorPercent  Decimal    @db.Decimal(8, 4) @default(100)
+  accountId      String?
+  useInTaxClosing Boolean   @default(true)
+  documentType   TaxDocType @default(INVOICE)
+  sequence       Int        @default(10)
+
+  tax     Tax        @relation(fields: [taxId], references: [id], onDelete: Cascade)
+  account FinAccount? @relation(fields: [accountId], references: [id])
+
+  @@index([taxId])
+}
+
+// ============================================================================
+// FINANCE MODULE — Payment Terms
+// ============================================================================
+
+model PaymentTerm {
+  id              String   @id @default(cuid())
+  companyId       String
+  name            String
+  note            String?
+  earlyDiscount   Boolean  @default(false)
+  discountPercent Decimal? @db.Decimal(5, 2)
+  discountDays    Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   PaymentTermLine[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+}
+
+model PaymentTermLine {
+  id            String        @id @default(cuid())
+  paymentTermId String
+  valueType     TermValueType @default(BALANCE)
+  valueAmount   Decimal       @db.Decimal(12, 4) @default(0)
+  nbDays        Int           @default(0)
+  delayType     DelayType     @default(DAYS_AFTER)
+  sequence      Int           @default(10)
+
+  paymentTerm PaymentTerm @relation(fields: [paymentTermId], references: [id], onDelete: Cascade)
+
+  @@index([paymentTermId])
 }

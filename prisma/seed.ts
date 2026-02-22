@@ -300,6 +300,283 @@ async function main() {
   console.log("\nSeed completed successfully!");
 }
 
+// ── Finance seed data — called per-company when finance module is installed ──
+
+export async function seedFinance(companyId: string) {
+  console.log("  Seeding finance data...");
+
+  // ── Permissions ──
+  const financePermissions = [
+    { code: "finance:account:read", module: "finance", resource: "account", action: "read", displayName: "View Accounts" },
+    { code: "finance:account:create", module: "finance", resource: "account", action: "create", displayName: "Create Accounts" },
+    { code: "finance:account:update", module: "finance", resource: "account", action: "update", displayName: "Update Accounts" },
+    { code: "finance:account:delete", module: "finance", resource: "account", action: "delete", displayName: "Delete Accounts" },
+    { code: "finance:journal:read", module: "finance", resource: "journal", action: "read", displayName: "View Journals" },
+    { code: "finance:journal:create", module: "finance", resource: "journal", action: "create", displayName: "Create Journals" },
+    { code: "finance:journal:update", module: "finance", resource: "journal", action: "update", displayName: "Update Journals" },
+    { code: "finance:journal:delete", module: "finance", resource: "journal", action: "delete", displayName: "Delete Journals" },
+    { code: "finance:tax:read", module: "finance", resource: "tax", action: "read", displayName: "View Taxes" },
+    { code: "finance:tax:create", module: "finance", resource: "tax", action: "create", displayName: "Create Taxes" },
+    { code: "finance:tax:update", module: "finance", resource: "tax", action: "update", displayName: "Update Taxes" },
+    { code: "finance:tax:delete", module: "finance", resource: "tax", action: "delete", displayName: "Delete Taxes" },
+    { code: "finance:paymentTerm:read", module: "finance", resource: "paymentTerm", action: "read", displayName: "View Payment Terms" },
+    { code: "finance:paymentTerm:create", module: "finance", resource: "paymentTerm", action: "create", displayName: "Create Payment Terms" },
+    { code: "finance:paymentTerm:update", module: "finance", resource: "paymentTerm", action: "update", displayName: "Update Payment Terms" },
+    { code: "finance:paymentTerm:delete", module: "finance", resource: "paymentTerm", action: "delete", displayName: "Delete Payment Terms" },
+    { code: "finance:settings:manage", module: "finance", resource: "settings", action: "manage", displayName: "Manage Finance Settings" },
+  ];
+
+  for (const perm of financePermissions) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: {},
+      create: perm,
+    });
+  }
+  console.log(`    ✓ ${financePermissions.length} finance permissions seeded`);
+
+  // ── Roles ──
+  const managerRole = await prisma.role.upsert({
+    where: { name_companyId: { name: "finance_manager", companyId } },
+    update: {},
+    create: {
+      name: "finance_manager",
+      displayName: "Finance Manager",
+      description: "Full access to all finance module features",
+      isSystem: true,
+      companyId,
+    },
+  });
+
+  const accountantRole = await prisma.role.upsert({
+    where: { name_companyId: { name: "finance_accountant", companyId } },
+    update: {},
+    create: {
+      name: "finance_accountant",
+      displayName: "Finance Accountant",
+      description: "Read/create access to finance operations, no delete",
+      isSystem: true,
+      companyId,
+    },
+  });
+
+  // Assign all finance perms to manager
+  const allPerms = await prisma.permission.findMany({
+    where: { module: "finance" },
+  });
+  for (const perm of allPerms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: managerRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: managerRole.id, permissionId: perm.id },
+    });
+  }
+
+  // Assign read + create perms to accountant
+  const accountantPerms = allPerms.filter(
+    (p) => p.action === "read" || p.action === "create",
+  );
+  for (const perm of accountantPerms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: accountantRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: accountantRole.id, permissionId: perm.id },
+    });
+  }
+  console.log("    ✓ finance_manager and finance_accountant roles seeded");
+
+  // ── Account Groups ──
+  const groups = [
+    { name: "Assets", codePrefixStart: "1000", codePrefixEnd: "1999", companyId },
+    { name: "Liabilities", codePrefixStart: "2000", codePrefixEnd: "2999", companyId },
+    { name: "Equity", codePrefixStart: "3000", codePrefixEnd: "3999", companyId },
+    { name: "Income", codePrefixStart: "4000", codePrefixEnd: "4999", companyId },
+    { name: "Expenses", codePrefixStart: "5000", codePrefixEnd: "6999", companyId },
+  ];
+
+  const groupMap: Record<string, string> = {};
+  for (const g of groups) {
+    const created = await prisma.accountGroup.upsert({
+      where: { name_companyId: { name: g.name, companyId } },
+      update: {},
+      create: g,
+    });
+    groupMap[g.name] = created.id;
+  }
+  console.log(`    ✓ ${groups.length} account groups seeded`);
+
+  // ── Chart of Accounts ──
+  const accounts = [
+    // Assets
+    { code: "1100", name: "Accounts Receivable", accountType: "ASSET_RECEIVABLE", reconcile: true, groupId: groupMap["Assets"] },
+    { code: "1200", name: "Bank Account", accountType: "ASSET_CASH", reconcile: true, groupId: groupMap["Assets"] },
+    { code: "1210", name: "Cash on Hand", accountType: "ASSET_CASH", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1300", name: "Prepaid Expenses", accountType: "ASSET_PREPAYMENTS", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1400", name: "Inventory", accountType: "ASSET_CURRENT", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1500", name: "Office Equipment", accountType: "ASSET_FIXED", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1510", name: "Furniture & Fixtures", accountType: "ASSET_FIXED", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1520", name: "Computer Equipment", accountType: "ASSET_FIXED", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1530", name: "Vehicles", accountType: "ASSET_FIXED", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1600", name: "Accumulated Depreciation", accountType: "ASSET_FIXED", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1700", name: "Other Current Assets", accountType: "ASSET_CURRENT", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "1800", name: "Other Non-Current Assets", accountType: "ASSET_NON_CURRENT", reconcile: false, groupId: groupMap["Assets"] },
+    // Liabilities
+    { code: "2100", name: "Accounts Payable", accountType: "LIABILITY_PAYABLE", reconcile: true, groupId: groupMap["Liabilities"] },
+    { code: "2200", name: "Credit Card", accountType: "LIABILITY_CREDIT_CARD", reconcile: true, groupId: groupMap["Liabilities"] },
+    { code: "2300", name: "Accrued Expenses", accountType: "LIABILITY_CURRENT", reconcile: false, groupId: groupMap["Liabilities"] },
+    { code: "2400", name: "VAT Payable", accountType: "LIABILITY_CURRENT", reconcile: false, groupId: groupMap["Liabilities"] },
+    { code: "2410", name: "VAT Receivable", accountType: "ASSET_CURRENT", reconcile: false, groupId: groupMap["Assets"] },
+    { code: "2500", name: "Unearned Revenue", accountType: "LIABILITY_CURRENT", reconcile: false, groupId: groupMap["Liabilities"] },
+    { code: "2600", name: "Short-Term Loans", accountType: "LIABILITY_CURRENT", reconcile: true, groupId: groupMap["Liabilities"] },
+    { code: "2700", name: "Long-Term Loans", accountType: "LIABILITY_NON_CURRENT", reconcile: true, groupId: groupMap["Liabilities"] },
+    // Equity
+    { code: "3000", name: "Share Capital", accountType: "EQUITY", reconcile: false, groupId: groupMap["Equity"] },
+    { code: "3100", name: "Retained Earnings", accountType: "EQUITY", reconcile: false, groupId: groupMap["Equity"] },
+    { code: "3200", name: "Current Year Earnings", accountType: "EQUITY_UNAFFECTED", reconcile: false, groupId: groupMap["Equity"] },
+    // Income
+    { code: "4000", name: "Sales Revenue", accountType: "INCOME", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4100", name: "Service Revenue", accountType: "INCOME", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4200", name: "Tour Package Revenue", accountType: "INCOME", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4300", name: "Hotel Booking Commission", accountType: "INCOME", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4400", name: "Transport Revenue", accountType: "INCOME", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4500", name: "Visa Processing Fees", accountType: "INCOME", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4900", name: "Other Income", accountType: "INCOME_OTHER", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4910", name: "Interest Income", accountType: "INCOME_OTHER", reconcile: false, groupId: groupMap["Income"] },
+    { code: "4920", name: "Foreign Exchange Gain", accountType: "INCOME_OTHER", reconcile: false, groupId: groupMap["Income"] },
+    // Expenses
+    { code: "5000", name: "Cost of Goods Sold", accountType: "EXPENSE_DIRECT_COST", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "5100", name: "Hotel Costs", accountType: "EXPENSE_DIRECT_COST", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "5200", name: "Transport Costs", accountType: "EXPENSE_DIRECT_COST", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "5300", name: "Guide & Excursion Costs", accountType: "EXPENSE_DIRECT_COST", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6000", name: "Salaries & Wages", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6100", name: "Rent Expense", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6200", name: "Utilities", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6300", name: "Office Supplies", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6400", name: "Marketing & Advertising", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6500", name: "Insurance Expense", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6600", name: "Depreciation Expense", accountType: "EXPENSE_DEPRECIATION", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6700", name: "Bank Charges", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6800", name: "Foreign Exchange Loss", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+    { code: "6900", name: "Miscellaneous Expenses", accountType: "EXPENSE", reconcile: false, groupId: groupMap["Expenses"] },
+  ];
+
+  const accountMap: Record<string, string> = {};
+  for (const acc of accounts) {
+    const created = await prisma.finAccount.upsert({
+      where: { code_companyId: { code: acc.code, companyId } },
+      update: {},
+      create: { ...acc, companyId, deprecated: false } as any,
+    });
+    accountMap[acc.code] = created.id;
+  }
+  console.log(`    ✓ ${accounts.length} accounts seeded`);
+
+  // ── Journals ──
+  const journals = [
+    { code: "SAJ", name: "Sales Journal", type: "SALE", defaultAccountId: accountMap["1100"] },
+    { code: "EXJ", name: "Purchase Journal", type: "PURCHASE", defaultAccountId: accountMap["2100"] },
+    { code: "BNK1", name: "Bank", type: "BANK", defaultAccountId: accountMap["1200"] },
+    { code: "CSH1", name: "Cash", type: "CASH", defaultAccountId: accountMap["1210"] },
+    { code: "MISC", name: "Miscellaneous Operations", type: "GENERAL" },
+    { code: "EXCH", name: "Exchange Difference", type: "GENERAL", defaultAccountId: accountMap["4920"] },
+  ];
+
+  for (const j of journals) {
+    await prisma.journal.upsert({
+      where: { code_companyId: { code: j.code, companyId } },
+      update: {},
+      create: { ...j, companyId } as any,
+    });
+  }
+  console.log(`    ✓ ${journals.length} journals seeded`);
+
+  // ── Tax Group ──
+  const vatGroup = await prisma.taxGroup.create({
+    data: { name: "VAT", sequence: 10, companyId },
+  });
+
+  // ── Taxes ──
+  const vatSale = await prisma.tax.create({
+    data: {
+      name: "VAT 14% (Sales)",
+      typeTaxUse: "SALE",
+      amountType: "PERCENT",
+      amount: 14,
+      priceInclude: false,
+      includeBaseAmount: false,
+      isActive: true,
+      sequence: 10,
+      companyId,
+      taxGroupId: vatGroup.id,
+      repartitionLines: {
+        create: [
+          { factorPercent: 100, accountId: accountMap["2400"], useInTaxClosing: true, documentType: "INVOICE", sequence: 10 },
+          { factorPercent: 100, accountId: accountMap["2400"], useInTaxClosing: true, documentType: "REFUND", sequence: 20 },
+        ],
+      },
+    },
+  });
+
+  const vatPurchase = await prisma.tax.create({
+    data: {
+      name: "VAT 14% (Purchases)",
+      typeTaxUse: "PURCHASE",
+      amountType: "PERCENT",
+      amount: 14,
+      priceInclude: false,
+      includeBaseAmount: false,
+      isActive: true,
+      sequence: 20,
+      companyId,
+      taxGroupId: vatGroup.id,
+      repartitionLines: {
+        create: [
+          { factorPercent: 100, accountId: accountMap["2410"], useInTaxClosing: true, documentType: "INVOICE", sequence: 10 },
+          { factorPercent: 100, accountId: accountMap["2410"], useInTaxClosing: true, documentType: "REFUND", sequence: 20 },
+        ],
+      },
+    },
+  });
+  console.log("    ✓ Tax group (VAT) and 2 taxes seeded");
+
+  // ── Payment Terms ──
+  const paymentTerms = [
+    {
+      name: "Immediate Payment",
+      lines: [{ valueType: "BALANCE", valueAmount: 0, nbDays: 0, delayType: "DAYS_AFTER", sequence: 10 }],
+    },
+    {
+      name: "Net 30",
+      lines: [{ valueType: "BALANCE", valueAmount: 0, nbDays: 30, delayType: "DAYS_AFTER", sequence: 10 }],
+    },
+    {
+      name: "Net 60",
+      lines: [{ valueType: "BALANCE", valueAmount: 0, nbDays: 60, delayType: "DAYS_AFTER", sequence: 10 }],
+    },
+    {
+      name: "2/10 Net 30",
+      earlyDiscount: true,
+      discountPercent: 2,
+      discountDays: 10,
+      lines: [{ valueType: "BALANCE", valueAmount: 0, nbDays: 30, delayType: "DAYS_AFTER", sequence: 10 }],
+    },
+  ];
+
+  for (const pt of paymentTerms) {
+    const { lines, ...data } = pt;
+    await prisma.paymentTerm.create({
+      data: {
+        ...data,
+        companyId,
+        lines: { create: lines as any },
+      },
+    });
+  }
+  console.log(`    ✓ ${paymentTerms.length} payment terms seeded`);
+
+  console.log("  ✓ Finance seed completed");
+}
+
 main()
   .catch((e) => {
     console.error("Seed error:", e);

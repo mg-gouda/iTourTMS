@@ -56,8 +56,15 @@ const moduleRoutes: Record<string, { label: string; href: string }[]> = {
   finance: [
     { label: "Dashboard", href: "/finance" },
     { label: "Invoices", href: "/finance/invoices" },
-    { label: "Journal Entries", href: "/finance/journal-entries" },
+    { label: "Credit Notes", href: "/finance/credit-notes" },
+    { label: "Bills", href: "/finance/bills" },
     { label: "Payments", href: "/finance/payments" },
+    { label: "Journal Entries", href: "/finance/journal-entries" },
+    { label: "Chart of Accounts", href: "/finance/configuration/chart-of-accounts" },
+    { label: "Journals", href: "/finance/configuration/journals" },
+    { label: "Taxes", href: "/finance/configuration/taxes" },
+    { label: "Tax Groups", href: "/finance/configuration/tax-groups" },
+    { label: "Payment Terms", href: "/finance/configuration/payment-terms" },
   ],
   contracting: [
     { label: "Dashboard", href: "/contracting" },
