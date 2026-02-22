@@ -12,6 +12,7 @@ import {
   type TaxWithRepartition,
   type ComputedLine,
 } from "@/server/services/finance/move-engine";
+import { applyFiscalPosition } from "@/server/services/finance/fiscal-position";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
 const financeProcedure = moduleProcedure("finance");
@@ -183,6 +184,41 @@ export const moveRouter = createTRPCRouter({
           }));
         }
 
+        // Apply fiscal position remapping if provided
+        if (input.fiscalPositionId) {
+          const fp = await ctx.db.fiscalPosition.findUnique({
+            where: { id: input.fiscalPositionId },
+            include: { taxMaps: true, accountMaps: true },
+          });
+          if (fp) {
+            for (const line of inputLines) {
+              if (line.taxIds.length > 0 || line.accountId) {
+                const result = applyFiscalPosition(fp, line.taxIds, line.accountId);
+                line.taxIds = result.mappedTaxIds;
+                line.accountId = result.mappedAccountId;
+              }
+            }
+            // Re-gather taxes after remapping
+            const remappedTaxIds = [...new Set(inputLines.flatMap((l) => l.taxIds))];
+            if (remappedTaxIds.length > 0) {
+              const remappedTaxRecords = await ctx.db.tax.findMany({
+                where: { id: { in: remappedTaxIds }, companyId: ctx.companyId },
+                include: { repartitionLines: true },
+              });
+              taxesWithRepart = remappedTaxRecords.map((t: any) => ({
+                id: t.id, name: t.name, amountType: t.amountType, amount: t.amount,
+                priceInclude: t.priceInclude, includeBaseAmount: t.includeBaseAmount,
+                taxGroupId: t.taxGroupId, sequence: t.sequence,
+                repartitionLines: t.repartitionLines.map((r: any) => ({
+                  factorPercent: r.factorPercent, accountId: r.accountId, documentType: r.documentType,
+                })),
+              }));
+            } else {
+              taxesWithRepart = [];
+            }
+          }
+        }
+
         // Get payment term lines if applicable
         let ptLines: any[] | null = null;
         if (input.paymentTermId) {
@@ -347,6 +383,41 @@ export const moveRouter = createTRPCRouter({
               factorPercent: r.factorPercent, accountId: r.accountId, documentType: r.documentType,
             })),
           }));
+        }
+
+        // Apply fiscal position remapping if provided
+        const fpId = moveData.fiscalPositionId ?? existing.fiscalPositionId;
+        if (fpId) {
+          const fp = await ctx.db.fiscalPosition.findUnique({
+            where: { id: fpId },
+            include: { taxMaps: true, accountMaps: true },
+          });
+          if (fp) {
+            for (const line of inputLines) {
+              if (line.taxIds.length > 0 || line.accountId) {
+                const result = applyFiscalPosition(fp, line.taxIds, line.accountId);
+                line.taxIds = result.mappedTaxIds;
+                line.accountId = result.mappedAccountId;
+              }
+            }
+            const remappedTaxIds = [...new Set(inputLines.flatMap((l) => l.taxIds))];
+            if (remappedTaxIds.length > 0) {
+              const remappedTaxRecords = await ctx.db.tax.findMany({
+                where: { id: { in: remappedTaxIds }, companyId: ctx.companyId },
+                include: { repartitionLines: true },
+              });
+              taxesWithRepart = remappedTaxRecords.map((t: any) => ({
+                id: t.id, name: t.name, amountType: t.amountType, amount: t.amount,
+                priceInclude: t.priceInclude, includeBaseAmount: t.includeBaseAmount,
+                taxGroupId: t.taxGroupId, sequence: t.sequence,
+                repartitionLines: t.repartitionLines.map((r: any) => ({
+                  factorPercent: r.factorPercent, accountId: r.accountId, documentType: r.documentType,
+                })),
+              }));
+            } else {
+              taxesWithRepart = [];
+            }
+          }
         }
 
         let ptLines: any[] | null = null;

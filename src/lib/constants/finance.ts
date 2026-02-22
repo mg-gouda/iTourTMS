@@ -106,3 +106,10 @@ export const DISPLAY_TYPE_LABELS: Record<string, string> = {
   LINE_SECTION: "Section",
   LINE_NOTE: "Note",
 };
+
+// ── Payment Labels ──
+
+export const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  INBOUND: "Customer Payment",
+  OUTBOUND: "Vendor Payment",
+};

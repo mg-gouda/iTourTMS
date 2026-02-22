@@ -637,6 +637,111 @@ export async function seedFinance(companyId: string) {
     });
   }
 
+  // ── Payment Sequence ──
+  await prisma.sequence.upsert({
+    where: { companyId_code: { companyId, code: "payment" } },
+    update: {},
+    create: { code: "payment", prefix: "PAY", separator: "/", padding: 5, resetPolicy: "yearly", companyId },
+  });
+  console.log("    ✓ Payment sequence seeded");
+
+  // ── Fiscal Position & Payment Permissions ──
+  const phase3Permissions = [
+    { code: "finance:fiscalPosition:read", module: "finance", resource: "fiscalPosition", action: "read", displayName: "View Fiscal Positions" },
+    { code: "finance:fiscalPosition:create", module: "finance", resource: "fiscalPosition", action: "create", displayName: "Create Fiscal Positions" },
+    { code: "finance:fiscalPosition:update", module: "finance", resource: "fiscalPosition", action: "update", displayName: "Update Fiscal Positions" },
+    { code: "finance:fiscalPosition:delete", module: "finance", resource: "fiscalPosition", action: "delete", displayName: "Delete Fiscal Positions" },
+    { code: "finance:payment:read", module: "finance", resource: "payment", action: "read", displayName: "View Payments" },
+    { code: "finance:payment:create", module: "finance", resource: "payment", action: "create", displayName: "Create Payments" },
+    { code: "finance:payment:confirm", module: "finance", resource: "payment", action: "confirm", displayName: "Confirm Payments" },
+    { code: "finance:payment:cancel", module: "finance", resource: "payment", action: "cancel", displayName: "Cancel Payments" },
+    { code: "finance:payment:delete", module: "finance", resource: "payment", action: "delete", displayName: "Delete Payments" },
+  ];
+
+  for (const perm of phase3Permissions) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: {},
+      create: perm,
+    });
+  }
+  console.log(`    ✓ ${phase3Permissions.length} fiscal position & payment permissions seeded`);
+
+  // Assign new perms to roles
+  const newPhase3Perms = await prisma.permission.findMany({
+    where: { code: { in: phase3Permissions.map((p) => p.code) } },
+  });
+  for (const perm of newPhase3Perms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: managerRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: managerRole.id, permissionId: perm.id },
+    });
+  }
+  const accountantPhase3Perms = newPhase3Perms.filter(
+    (p) => p.action === "read" || p.action === "create",
+  );
+  for (const perm of accountantPhase3Perms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: accountantRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: accountantRole.id, permissionId: perm.id },
+    });
+  }
+
+  // ── Sample Fiscal Positions ──
+  await prisma.fiscalPosition.upsert({
+    where: { name_companyId: { name: "Domestic", companyId } },
+    update: {},
+    create: {
+      name: "Domestic",
+      autoApply: false,
+      vatRequired: false,
+      isActive: true,
+      companyId,
+    },
+  });
+
+  // EU B2B: remap VAT 14% Sale → 0% (exempt)
+  const zeroVatSale = await prisma.tax.create({
+    data: {
+      name: "VAT 0% (EU B2B)",
+      typeTaxUse: "SALE",
+      amountType: "PERCENT",
+      amount: 0,
+      priceInclude: false,
+      includeBaseAmount: false,
+      isActive: true,
+      sequence: 15,
+      companyId,
+      taxGroupId: vatGroup.id,
+      repartitionLines: {
+        create: [
+          { factorPercent: 100, accountId: accountMap["2400"], useInTaxClosing: true, documentType: "INVOICE", sequence: 10 },
+          { factorPercent: 100, accountId: accountMap["2400"], useInTaxClosing: true, documentType: "REFUND", sequence: 20 },
+        ],
+      },
+    },
+  });
+
+  await prisma.fiscalPosition.upsert({
+    where: { name_companyId: { name: "EU B2B", companyId } },
+    update: {},
+    create: {
+      name: "EU B2B",
+      autoApply: false,
+      vatRequired: true,
+      isActive: true,
+      companyId,
+      taxMaps: {
+        create: [
+          { taxSrcId: vatSale.id, taxDestId: zeroVatSale.id },
+        ],
+      },
+    },
+  });
+  console.log("    ✓ 2 sample fiscal positions seeded (Domestic, EU B2B)");
+
   console.log("  ✓ Finance seed completed");
 }
 

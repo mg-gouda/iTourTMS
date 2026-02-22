@@ -90,6 +90,9 @@ model Company {
   taxGroups         TaxGroup[]
   paymentTerms      PaymentTerm[]
   moves             Move[]
+  fiscalPositions   FiscalPosition[]
+  payments          Payment[]
+  partialReconciles PartialReconcile[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -211,9 +214,10 @@ model Country {
   continent String?
   isActive  Boolean @default(true)
 
-  states    CountryState[]
-  companies Company[]
-  partners  Partner[]
+  states          CountryState[]
+  companies       Company[]
+  partners        Partner[]
+  fiscalPositions FiscalPosition[]
 
   @@index([code])
   @@index([name])
@@ -254,6 +258,7 @@ model Currency {
   movesAsCurrency        Move[] @relation("MoveCurrency")
   movesAsCompanyCurrency Move[] @relation("MoveCompanyCurrency")
   moveLineItems          MoveLineItem[]
+  payments               Payment[]
 
   @@index([code])
 }
@@ -329,6 +334,7 @@ model Partner {
 
   moves          Move[]
   moveLineItems  MoveLineItem[]
+  payments       Payment[]
 
   @@index([companyId])
   @@index([companyId, type])
@@ -483,6 +489,11 @@ enum DisplayType {
   LINE_NOTE
 }
 
+enum PaymentType {
+  INBOUND
+  OUTBOUND
+}
+
 // ============================================================================
 // FINANCE MODULE — Chart of Accounts
 // ============================================================================
@@ -541,6 +552,10 @@ model FinAccount {
   taxRepartitionLines   TaxRepartitionLine[]
   moveLineItems         MoveLineItem[]
 
+  // Fiscal position relations
+  fpAccountSrcMaps  FiscalPositionAccountMap[] @relation("FPAccountSrc")
+  fpAccountDestMaps FiscalPositionAccountMap[] @relation("FPAccountDest")
+
   @@unique([code, companyId])
   @@index([companyId])
   @@index([companyId, accountType])
@@ -576,6 +591,7 @@ model Journal {
   lossAccount      FinAccount? @relation("JournalLossAccount", fields: [lossAccountId], references: [id])
   currency         Currency?   @relation(fields: [currencyId], references: [id])
   moves            Move[]
+  payments         Payment[]
 
   @@unique([code, companyId])
   @@index([companyId])
@@ -625,6 +641,10 @@ model Tax {
   // Move relations
   taxSourceLines      MoveLineItem[] @relation("TaxLineSource")
   moveLineItemTaxes   MoveLineItem[] @relation("MoveLineItemTaxes")
+
+  // Fiscal position relations
+  fpTaxSrcMaps  FiscalPositionTaxMap[] @relation("FPTaxSrc")
+  fpTaxDestMaps FiscalPositionTaxMap[] @relation("FPTaxDest")
 
   @@index([companyId])
   @@index([companyId, typeTaxUse])
@@ -708,19 +728,24 @@ model Move {
   ref               String?
   narration         String?       @db.Text
   reversedEntryId   String?
+  fiscalPositionId  String?
   postedAt          DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  journal         Journal      @relation(fields: [journalId], references: [id])
-  partner         Partner?     @relation(fields: [partnerId], references: [id])
-  currency        Currency     @relation("MoveCurrency", fields: [currencyId], references: [id])
-  companyCurrency Currency     @relation("MoveCompanyCurrency", fields: [companyCurrencyId], references: [id])
-  paymentTerm     PaymentTerm? @relation(fields: [paymentTermId], references: [id])
-  reversedEntry   Move?        @relation("MoveReversal", fields: [reversedEntryId], references: [id])
-  reversals       Move[]       @relation("MoveReversal")
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journal         Journal         @relation(fields: [journalId], references: [id])
+  partner         Partner?        @relation(fields: [partnerId], references: [id])
+  currency        Currency        @relation("MoveCurrency", fields: [currencyId], references: [id])
+  companyCurrency Currency        @relation("MoveCompanyCurrency", fields: [companyCurrencyId], references: [id])
+  paymentTerm     PaymentTerm?    @relation(fields: [paymentTermId], references: [id])
+  reversedEntry   Move?           @relation("MoveReversal", fields: [reversedEntryId], references: [id])
+  reversals       Move[]          @relation("MoveReversal")
+  fiscalPosition  FiscalPosition? @relation(fields: [fiscalPositionId], references: [id])
   lineItems       MoveLineItem[]
+  paymentInvoices Payment[]       @relation("PaymentInvoices")
+  paymentMove     Payment?        @relation("PaymentMove")
+  exchangeReconciles PartialReconcile[] @relation("ExchangeMove")
 
   @@index([companyId])
   @@index([companyId, moveType])
@@ -759,8 +784,122 @@ model MoveLineItem {
   taxLine   Tax?        @relation("TaxLineSource", fields: [taxLineId], references: [id])
   taxes     Tax[]       @relation("MoveLineItemTaxes")
 
+  debitReconciles  PartialReconcile[] @relation("DebitReconcileLine")
+  creditReconciles PartialReconcile[] @relation("CreditReconcileLine")
+
   @@index([moveId])
   @@index([accountId])
   @@index([displayType])
   @@map("fin_move_line_item")
+}
+
+// ============================================================================
+// FINANCE MODULE — Fiscal Positions
+// ============================================================================
+
+model FiscalPosition {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  autoApply   Boolean  @default(false)
+  countryId   String?
+  vatRequired Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country     Country?                 @relation(fields: [countryId], references: [id])
+  taxMaps     FiscalPositionTaxMap[]
+  accountMaps FiscalPositionAccountMap[]
+  moves       Move[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+  @@map("fin_fiscal_position")
+}
+
+model FiscalPositionTaxMap {
+  id               String @id @default(cuid())
+  fiscalPositionId String
+  taxSrcId         String
+  taxDestId        String
+
+  fiscalPosition FiscalPosition @relation(fields: [fiscalPositionId], references: [id], onDelete: Cascade)
+  taxSrc         Tax            @relation("FPTaxSrc", fields: [taxSrcId], references: [id])
+  taxDest        Tax            @relation("FPTaxDest", fields: [taxDestId], references: [id])
+
+  @@index([fiscalPositionId])
+  @@map("fin_fiscal_position_tax_map")
+}
+
+model FiscalPositionAccountMap {
+  id               String @id @default(cuid())
+  fiscalPositionId String
+  accountSrcId     String
+  accountDestId    String
+
+  fiscalPosition FiscalPosition @relation(fields: [fiscalPositionId], references: [id], onDelete: Cascade)
+  accountSrc     FinAccount     @relation("FPAccountSrc", fields: [accountSrcId], references: [id])
+  accountDest    FinAccount     @relation("FPAccountDest", fields: [accountDestId], references: [id])
+
+  @@index([fiscalPositionId])
+  @@map("fin_fiscal_position_account_map")
+}
+
+// ============================================================================
+// FINANCE MODULE — Payments
+// ============================================================================
+
+model Payment {
+  id          String      @id @default(cuid())
+  companyId   String
+  name        String?
+  paymentType PaymentType
+  partnerId   String?
+  amount      Decimal     @db.Decimal(12, 4)
+  currencyId  String
+  date        DateTime    @db.Date
+  journalId   String
+  moveId      String?     @unique
+  ref         String?
+  state       MoveState   @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partner  Partner? @relation(fields: [partnerId], references: [id])
+  currency Currency @relation(fields: [currencyId], references: [id])
+  journal  Journal  @relation(fields: [journalId], references: [id])
+  move     Move?    @relation("PaymentMove", fields: [moveId], references: [id])
+  invoices Move[]   @relation("PaymentInvoices")
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@index([partnerId])
+  @@map("fin_payment")
+}
+
+// ============================================================================
+// FINANCE MODULE — Reconciliation
+// ============================================================================
+
+model PartialReconcile {
+  id               String   @id @default(cuid())
+  companyId        String
+  debitMoveLineId  String
+  creditMoveLineId String
+  amount           Decimal  @db.Decimal(12, 4)
+  exchangeMoveId   String?
+  createdAt        DateTime @default(now())
+
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  debitMoveLine   MoveLineItem @relation("DebitReconcileLine", fields: [debitMoveLineId], references: [id])
+  creditMoveLine  MoveLineItem @relation("CreditReconcileLine", fields: [creditMoveLineId], references: [id])
+  exchangeMove    Move?        @relation("ExchangeMove", fields: [exchangeMoveId], references: [id])
+
+  @@index([companyId])
+  @@index([debitMoveLineId])
+  @@index([creditMoveLineId])
+  @@map("fin_partial_reconcile")
 }

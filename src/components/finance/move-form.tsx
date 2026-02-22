@@ -2,12 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import type { z } from "zod";
 
 import { InvoiceLineEditor } from "@/components/finance/invoice-line-editor";
 import { JournalItemEditor } from "@/components/finance/journal-item-editor";
 import { MoveStatusBar } from "@/components/finance/move-status-bar";
+import { RegisterPaymentDialog } from "@/components/finance/register-payment-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,6 +72,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
   const isDraft = !defaultValues?.state || defaultValues.state === "DRAFT";
   const isPosted = defaultValues?.state === "POSTED";
   const isCancelled = defaultValues?.state === "CANCELLED";
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const form = useForm<MoveFormValues>({
     resolver: zodResolver(moveCreateSchema),
@@ -84,6 +87,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
       invoiceDate: null,
       invoiceDateDue: null,
       paymentTermId: null,
+      fiscalPositionId: null,
       lineItems: [defaultLine],
       ...defaultValues,
     },
@@ -96,6 +100,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
   const { data: currencies } = trpc.finance.account.list.useQuery({}); // Placeholder
   const { data: taxList } = trpc.finance.tax.list.useQuery();
   const { data: paymentTerms } = trpc.finance.paymentTerm.list.useQuery();
+  const { data: fiscalPositions } = trpc.finance.fiscalPosition.list.useQuery();
 
   // We need partners — let's fetch them separately
   // For now, use a simple approach using the existing tRPC context
@@ -366,6 +371,38 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="fiscalPositionId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fiscal Position</FormLabel>
+                    <Select
+                      onValueChange={(v) =>
+                        field.onChange(v === "__none" ? null : v)
+                      }
+                      value={field.value ?? "__none"}
+                      disabled={!isDraft}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none">None</SelectItem>
+                        {(fiscalPositions ?? []).map((fp: any) => (
+                          <SelectItem key={fp.id} value={fp.id}>
+                            {fp.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </>
           )}
 
@@ -503,18 +540,29 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
                 {cancelMutation.isPending ? "Cancelling..." : "Cancel Entry"}
               </Button>
               {isInvoice && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={creditNoteMutation.isPending}
-                  onClick={() =>
-                    creditNoteMutation.mutate({ id: defaultValues.id! })
-                  }
-                >
-                  {creditNoteMutation.isPending
-                    ? "Creating..."
-                    : "Create Credit Note"}
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={creditNoteMutation.isPending}
+                    onClick={() =>
+                      creditNoteMutation.mutate({ id: defaultValues.id! })
+                    }
+                  >
+                    {creditNoteMutation.isPending
+                      ? "Creating..."
+                      : "Create Credit Note"}
+                  </Button>
+                  {(defaultValues?.amountResidual ?? 0) > 0 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setPaymentDialogOpen(true)}
+                    >
+                      Register Payment
+                    </Button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -539,6 +587,16 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
           </Button>
         </div>
       </form>
+
+      {/* Register Payment Dialog */}
+      {isPosted && isInvoice && defaultValues?.id && (
+        <RegisterPaymentDialog
+          open={paymentDialogOpen}
+          onOpenChange={setPaymentDialogOpen}
+          invoiceMoveId={defaultValues.id}
+          amountResidual={Number(defaultValues?.amountResidual ?? 0)}
+        />
+      )}
     </FormProvider>
   );
 }

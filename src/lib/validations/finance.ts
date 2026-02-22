@@ -120,9 +120,53 @@ export const moveCreateSchema = z.object({
   invoiceDate: z.coerce.date().nullish(),
   invoiceDateDue: z.coerce.date().nullish(),
   paymentTermId: z.string().nullish(),
+  fiscalPositionId: z.string().nullish(),
   lineItems: z.array(moveLineItemSchema).min(1, "At least one line item is required"),
 });
 
 export const moveUpdateSchema = moveCreateSchema.partial().extend({
   lineItems: z.array(moveLineItemSchema).min(1, "At least one line item is required").optional(),
+});
+
+// ── Fiscal Position Schemas ──
+
+export const fiscalPositionTaxMapSchema = z.object({
+  taxSrcId: z.string().min(1, "Source tax is required"),
+  taxDestId: z.string().min(1, "Destination tax is required"),
+});
+
+export const fiscalPositionAccountMapSchema = z.object({
+  accountSrcId: z.string().min(1, "Source account is required"),
+  accountDestId: z.string().min(1, "Destination account is required"),
+});
+
+export const fiscalPositionSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  autoApply: z.boolean().default(false),
+  countryId: z.string().nullish(),
+  vatRequired: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+  taxMaps: z.array(fiscalPositionTaxMapSchema).default([]),
+  accountMaps: z.array(fiscalPositionAccountMapSchema).default([]),
+});
+
+// ── Payment Schemas ──
+
+export const paymentCreateSchema = z.object({
+  paymentType: z.enum(["INBOUND", "OUTBOUND"]),
+  partnerId: z.string().nullish(),
+  amount: z.number().positive("Amount must be positive"),
+  currencyId: z.string().min(1, "Currency is required"),
+  date: z.coerce.date(),
+  journalId: z.string().min(1, "Journal is required"),
+  ref: z.string().nullish(),
+  invoiceMoveIds: z.array(z.string()).default([]),
+});
+
+export const registerPaymentSchema = z.object({
+  invoiceMoveId: z.string().min(1, "Invoice is required"),
+  amount: z.number().positive("Amount must be positive"),
+  date: z.coerce.date(),
+  journalId: z.string().min(1, "Journal is required"),
+  ref: z.string().nullish(),
 });
