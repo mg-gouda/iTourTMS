@@ -1,0 +1,362 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// AUTH MODELS (Auth.js v5)
+// ============================================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================================================
+// COMPANY & TENANT
+// ============================================================================
+
+model Company {
+  id              String   @id @default(cuid())
+  name            String
+  legalName       String?
+  taxId           String?
+  phone           String?
+  email           String?
+  website         String?
+  logoUrl         String?
+  countryId       String?
+  baseCurrencyId  String?
+  fiscalYearStart Int      @default(1) // month 1-12
+  fiscalYearEnd   Int      @default(12)
+  timezone        String   @default("UTC")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  country      Country?  @relation(fields: [countryId], references: [id])
+  baseCurrency Currency? @relation(fields: [baseCurrencyId], references: [id])
+
+  users             User[]
+  roles             Role[]
+  partners          Partner[]
+  currencyRates     CurrencyRate[]
+  sequences         Sequence[]
+  installedModules  InstalledModule[]
+  setup             CompanySetup?
+
+  @@index([countryId])
+  @@index([baseCurrencyId])
+}
+
+model CompanySetup {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  isComplete      Boolean  @default(false)
+  currentStep     Int      @default(1)
+  completedSteps  Json     @default("[]") // array of completed step numbers
+  moduleConfig    Json?    // module-specific config from setup wizard
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// USERS & RBAC
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // bcrypt hash for credentials auth
+  isActive      Boolean   @default(true)
+  companyId     String?
+  locale        String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company   Company?    @relation(fields: [companyId], references: [id])
+  accounts  Account[]
+  sessions  Session[]
+  userRoles UserRole[]
+
+  @@index([companyId])
+  @@index([email])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "super_admin", "finance_manager"
+  displayName String
+  description String?
+  isSystem    Boolean  @default(false) // system roles cannot be deleted
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. "finance:invoice:create"
+  module      String   // e.g. "finance"
+  resource    String   // e.g. "invoice"
+  action      String   // e.g. "create"
+  displayName String
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@index([module, resource])
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+// ============================================================================
+// REFERENCE DATA
+// ============================================================================
+
+model Country {
+  id        String  @id @default(cuid())
+  code      String  @unique // ISO 3166-1 alpha-2
+  code3     String? @unique // ISO 3166-1 alpha-3
+  name      String
+  nameAr    String? // Arabic name
+  phone     String? // phone code e.g. "+20"
+  continent String?
+  isActive  Boolean @default(true)
+
+  states    CountryState[]
+  companies Company[]
+  partners  Partner[]
+
+  @@index([code])
+  @@index([name])
+}
+
+model CountryState {
+  id        String  @id @default(cuid())
+  code      String
+  name      String
+  nameAr    String?
+  countryId String
+  isActive  Boolean @default(true)
+
+  country  Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  partners Partner[]
+
+  @@unique([code, countryId])
+  @@index([countryId])
+}
+
+model Currency {
+  id        String  @id @default(cuid())
+  code      String  @unique // ISO 4217
+  name      String
+  nameAr    String?
+  symbol    String
+  decimals  Int     @default(2)
+  isActive  Boolean @default(true)
+
+  companies     Company[]
+  rates         CurrencyRate[]
+
+  @@index([code])
+}
+
+model CurrencyRate {
+  id         String   @id @default(cuid())
+  currencyId String
+  companyId  String
+  rate       Decimal  @db.Decimal(18, 6) // rate to base currency
+  date       DateTime @db.Date
+  source     String   @default("manual") // "manual", "api", "import"
+  createdAt  DateTime @default(now())
+
+  currency Currency @relation(fields: [currencyId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([currencyId, companyId, date])
+  @@index([companyId, date])
+  @@index([currencyId])
+}
+
+model Language {
+  id       String  @id @default(cuid())
+  code     String  @unique // e.g. "en", "ar", "fr"
+  name     String           // e.g. "English"
+  nameAr   String?          // e.g. "الإنجليزية"
+  isRTL    Boolean @default(false)
+  isActive Boolean @default(true)
+
+  @@index([code])
+}
+
+model PartnerTitle {
+  id       String  @id @default(cuid())
+  name     String  @unique // e.g. "Mr.", "Mrs.", "Dr."
+  nameAr   String?
+  isActive Boolean @default(true)
+
+  partners Partner[]
+}
+
+// ============================================================================
+// PARTNER (Unified: Customer, Supplier, Tour Operator, Corporate)
+// ============================================================================
+
+model Partner {
+  id            String   @id @default(cuid())
+  companyId     String
+  type          String   @default("customer") // customer, supplier, tour_operator, corporate, individual
+  isCompany     Boolean  @default(false) // true = organization, false = individual
+  name          String
+  displayName   String?
+  titleId       String?
+  email         String?
+  phone         String?
+  mobile        String?
+  website       String?
+  taxId         String?
+  notes         String?  @db.Text
+  countryId     String?
+  stateId       String?
+  city          String?
+  street        String?
+  zip           String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title    PartnerTitle?  @relation(fields: [titleId], references: [id])
+  country  Country?       @relation(fields: [countryId], references: [id])
+  state    CountryState?  @relation(fields: [stateId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, type])
+  @@index([name])
+  @@index([email])
+  @@index([countryId])
+}
+
+// ============================================================================
+// SEQUENCE GENERATOR
+// ============================================================================
+
+model Sequence {
+  id          String   @id @default(cuid())
+  companyId   String
+  code        String   // e.g. "invoice", "booking", "contract"
+  prefix      String   // e.g. "INV", "BK", "CTR"
+  separator   String   @default("-") // e.g. "-", "/"
+  padding     Int      @default(5)   // number padding e.g. 00001
+  nextNumber  Int      @default(1)
+  resetPolicy String   @default("yearly") // "yearly", "monthly", "never"
+  lastReset   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+// ============================================================================
+// MODULE REGISTRY
+// ============================================================================
+
+model InstalledModule {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String    // "finance", "contracting", "crm", "reservations", "traffic"
+  displayName String    // "Finance & Accounting"
+  version     String    @default("1.0.0")
+  isInstalled Boolean   @default(false)
+  installedAt DateTime?
+  config      Json?     // module-specific config from setup wizard
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([name, companyId])
+  @@index([companyId])
+  @@index([companyId, isInstalled])
+}

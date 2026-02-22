@@ -1,0 +1,72 @@
+{
+  "common": {
+    "appName": "iTourTMS",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "status": "Status",
+    "noResults": "No results found",
+    "required": "Required"
+  },
+  "auth": {
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to your account",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "setup": {
+    "welcome": "Welcome to iTourTMS",
+    "companySetup": "Company Setup",
+    "installModules": "Install Modules",
+    "moduleConfig": "Module Configuration",
+    "adminAccount": "Administrator Account",
+    "companyName": "Company Name",
+    "legalName": "Legal Name",
+    "taxId": "Tax ID / VAT",
+    "country": "Country",
+    "baseCurrency": "Base Currency",
+    "fiscalYear": "Fiscal Year",
+    "timezone": "Timezone",
+    "launch": "Launch iTourTMS",
+    "selectModules": "Choose Modules to Install",
+    "moduleDependency": "Requires {modules} to be installed",
+    "comingSoon": "Coming Soon",
+    "fullName": "Full Name",
+    "confirmPassword": "Confirm Password",
+    "createAdmin": "Create Administrator Account"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "modules": "Modules",
+    "users": "Users",
+    "roles": "Roles & Permissions",
+    "company": "Company",
+    "finance": "Finance",
+    "contracting": "Contracting",
+    "crm": "CRM",
+    "reservations": "Reservations"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcomeMessage": "Welcome, {name}"
+  }
+}

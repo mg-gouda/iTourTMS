@@ -1,0 +1,72 @@
+{
+  "common": {
+    "appName": "iTourTMS",
+    "loading": "جاري التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "confirm": "تأكيد",
+    "yes": "نعم",
+    "no": "لا",
+    "actions": "إجراءات",
+    "status": "الحالة",
+    "noResults": "لا توجد نتائج",
+    "required": "مطلوب"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "loginTitle": "مرحباً بعودتك",
+    "loginSubtitle": "سجل الدخول إلى حسابك",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+  },
+  "setup": {
+    "welcome": "مرحباً بك في iTourTMS",
+    "companySetup": "إعداد الشركة",
+    "installModules": "تثبيت الوحدات",
+    "moduleConfig": "إعداد الوحدات",
+    "adminAccount": "حساب المدير",
+    "companyName": "اسم الشركة",
+    "legalName": "الاسم القانوني",
+    "taxId": "الرقم الضريبي",
+    "country": "الدولة",
+    "baseCurrency": "العملة الأساسية",
+    "fiscalYear": "السنة المالية",
+    "timezone": "المنطقة الزمنية",
+    "launch": "إطلاق iTourTMS",
+    "selectModules": "اختر الوحدات للتثبيت",
+    "moduleDependency": "يتطلب تثبيت {modules}",
+    "comingSoon": "قريباً",
+    "fullName": "الاسم الكامل",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "createAdmin": "إنشاء حساب المدير"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "settings": "الإعدادات",
+    "modules": "الوحدات",
+    "users": "المستخدمون",
+    "roles": "الأدوار والصلاحيات",
+    "company": "الشركة",
+    "finance": "المالية",
+    "contracting": "التعاقدات",
+    "crm": "إدارة العلاقات",
+    "reservations": "الحجوزات"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "welcomeMessage": "مرحباً، {name}"
+  }
+}
