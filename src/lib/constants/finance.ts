@@ -73,3 +73,36 @@ export const DELAY_TYPE_LABELS: Record<string, string> = {
   DAYS_AFTER_END_OF_MONTH: "Days after end of month",
   DAYS_AFTER_END_OF_NEXT_MONTH: "Days after end of next month",
 };
+
+// ── Move Labels ──
+
+export const MOVE_TYPE_LABELS: Record<string, string> = {
+  ENTRY: "Journal Entry",
+  OUT_INVOICE: "Customer Invoice",
+  OUT_REFUND: "Credit Note",
+  IN_INVOICE: "Vendor Bill",
+  IN_REFUND: "Vendor Refund",
+};
+
+export const MOVE_STATE_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  POSTED: "Posted",
+  CANCELLED: "Cancelled",
+};
+
+export const PAYMENT_STATE_LABELS: Record<string, string> = {
+  NOT_PAID: "Not Paid",
+  IN_PAYMENT: "In Payment",
+  PAID: "Paid",
+  PARTIAL: "Partially Paid",
+  REVERSED: "Reversed",
+};
+
+export const DISPLAY_TYPE_LABELS: Record<string, string> = {
+  PRODUCT: "Product",
+  TAX: "Tax",
+  ROUNDING: "Rounding",
+  PAYMENT_TERM: "Payment Term",
+  LINE_SECTION: "Section",
+  LINE_NOTE: "Note",
+};

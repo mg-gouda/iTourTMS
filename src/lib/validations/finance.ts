@@ -91,3 +91,38 @@ export const paymentTermSchema = z.object({
   discountDays: z.number().int().min(0).nullish(),
   lines: z.array(paymentTermLineSchema).min(1, "At least one line is required"),
 });
+
+// ── Move Schemas ──
+
+export const moveLineItemSchema = z.object({
+  accountId: z.string().min(1, "Account is required"),
+  partnerId: z.string().nullish(),
+  name: z.string().nullish(),
+  displayType: z.enum(["PRODUCT", "TAX", "ROUNDING", "PAYMENT_TERM", "LINE_SECTION", "LINE_NOTE"]).default("PRODUCT"),
+  debit: z.number().min(0).default(0),
+  credit: z.number().min(0).default(0),
+  quantity: z.number().default(1),
+  priceUnit: z.number().default(0),
+  discount: z.number().min(0).max(100).default(0),
+  taxIds: z.array(z.string()).default([]),
+  dateMaturity: z.coerce.date().nullish(),
+  sequence: z.number().int().default(10),
+});
+
+export const moveCreateSchema = z.object({
+  moveType: z.enum(["ENTRY", "OUT_INVOICE", "OUT_REFUND", "IN_INVOICE", "IN_REFUND"]),
+  date: z.coerce.date(),
+  journalId: z.string().min(1, "Journal is required"),
+  partnerId: z.string().nullish(),
+  currencyId: z.string().min(1, "Currency is required"),
+  ref: z.string().nullish(),
+  narration: z.string().nullish(),
+  invoiceDate: z.coerce.date().nullish(),
+  invoiceDateDue: z.coerce.date().nullish(),
+  paymentTermId: z.string().nullish(),
+  lineItems: z.array(moveLineItemSchema).min(1, "At least one line item is required"),
+});
+
+export const moveUpdateSchema = moveCreateSchema.partial().extend({
+  lineItems: z.array(moveLineItemSchema).min(1, "At least one line item is required").optional(),
+});

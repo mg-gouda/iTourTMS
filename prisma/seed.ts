@@ -574,6 +574,69 @@ export async function seedFinance(companyId: string) {
   }
   console.log(`    ✓ ${paymentTerms.length} payment terms seeded`);
 
+  // ── Sequences for Moves ──
+  const moveSequences = [
+    { code: "out_invoice", prefix: "INV", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "in_invoice", prefix: "BILL", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "out_refund", prefix: "RINV", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "in_refund", prefix: "RBILL", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "journal_entry", prefix: "MISC", separator: "/", padding: 5, resetPolicy: "yearly" },
+  ];
+
+  for (const seq of moveSequences) {
+    await prisma.sequence.upsert({
+      where: { companyId_code: { companyId, code: seq.code } },
+      update: {},
+      create: { ...seq, companyId },
+    });
+  }
+  console.log(`    ✓ ${moveSequences.length} move sequences seeded`);
+
+  // ── Move Permissions ──
+  const movePermissions = [
+    { code: "finance:move:read", module: "finance", resource: "move", action: "read", displayName: "View Journal Entries" },
+    { code: "finance:move:create", module: "finance", resource: "move", action: "create", displayName: "Create Journal Entries" },
+    { code: "finance:move:update", module: "finance", resource: "move", action: "update", displayName: "Update Journal Entries" },
+    { code: "finance:move:delete", module: "finance", resource: "move", action: "delete", displayName: "Delete Journal Entries" },
+    { code: "finance:move:confirm", module: "finance", resource: "move", action: "confirm", displayName: "Confirm Journal Entries" },
+    { code: "finance:move:cancel", module: "finance", resource: "move", action: "cancel", displayName: "Cancel Journal Entries" },
+    { code: "finance:invoice:read", module: "finance", resource: "invoice", action: "read", displayName: "View Invoices" },
+    { code: "finance:invoice:create", module: "finance", resource: "invoice", action: "create", displayName: "Create Invoices" },
+    { code: "finance:invoice:update", module: "finance", resource: "invoice", action: "update", displayName: "Update Invoices" },
+  ];
+
+  for (const perm of movePermissions) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: {},
+      create: perm,
+    });
+  }
+  console.log(`    ✓ ${movePermissions.length} move permissions seeded`);
+
+  // Assign new move perms to finance_manager
+  const newMovePerms = await prisma.permission.findMany({
+    where: { code: { in: movePermissions.map((p) => p.code) } },
+  });
+  for (const perm of newMovePerms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: managerRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: managerRole.id, permissionId: perm.id },
+    });
+  }
+  // Assign read + create move perms to accountant
+  const accountantMovePerms = newMovePerms.filter(
+    (p) => p.action === "read" || p.action === "create",
+  );
+  for (const perm of accountantMovePerms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: accountantRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: accountantRole.id, permissionId: perm.id },
+    });
+  }
+
   console.log("  ✓ Finance seed completed");
 }
 

@@ -55,11 +55,11 @@ const mainNav = [
 const moduleRoutes: Record<string, { label: string; href: string }[]> = {
   finance: [
     { label: "Dashboard", href: "/finance" },
-    { label: "Invoices", href: "/finance/invoices" },
-    { label: "Credit Notes", href: "/finance/credit-notes" },
-    { label: "Bills", href: "/finance/bills" },
-    { label: "Payments", href: "/finance/payments" },
-    { label: "Journal Entries", href: "/finance/journal-entries" },
+    { label: "Invoices", href: "/finance/customers/invoices" },
+    { label: "Credit Notes", href: "/finance/customers/credit-notes" },
+    { label: "Bills", href: "/finance/vendors/bills" },
+    { label: "Refunds", href: "/finance/vendors/refunds" },
+    { label: "Journal Entries", href: "/finance/accounting/journal-entries" },
     { label: "Chart of Accounts", href: "/finance/configuration/chart-of-accounts" },
     { label: "Journals", href: "/finance/configuration/journals" },
     { label: "Taxes", href: "/finance/configuration/taxes" },
