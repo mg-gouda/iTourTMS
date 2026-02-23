@@ -1404,6 +1404,8 @@ model HotelRoomType {
   contractRoomTypes   ContractRoomType[]
   baseForContracts    Contract[]          @relation("ContractBaseRoom")
   contractSupplements ContractSupplement[]
+  contractAllotments  ContractAllotment[]
+  contractStopSales   ContractStopSale[]
 
   @@unique([hotelId, code])
   @@index([hotelId])
@@ -1515,6 +1517,8 @@ model Contract {
   baseRates     ContractBaseRate[]
   supplements   ContractSupplement[]
   specialOffers ContractSpecialOffer[]
+  allotments    ContractAllotment[]
+  stopSales     ContractStopSale[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1538,6 +1542,7 @@ model ContractSeason {
   contract    Contract             @relation(fields: [contractId], references: [id], onDelete: Cascade)
   baseRates   ContractBaseRate[]
   supplements ContractSupplement[]
+  allotments  ContractAllotment[]
 
   @@unique([contractId, code])
   @@index([contractId])
@@ -1660,4 +1665,43 @@ model ContractSpecialOffer {
 
   @@index([contractId])
   @@map("ct_contract_special_offer")
+}
+
+model ContractAllotment {
+  id         String   @id @default(cuid())
+  contractId String
+  seasonId   String
+  roomTypeId String
+  totalRooms Int
+  freeSale   Boolean  @default(false)
+  soldRooms  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  season   ContractSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  roomType HotelRoomType  @relation(fields: [roomTypeId], references: [id])
+
+  @@unique([contractId, seasonId, roomTypeId])
+  @@index([contractId])
+  @@index([seasonId])
+  @@map("ct_contract_allotment")
+}
+
+model ContractStopSale {
+  id         String    @id @default(cuid())
+  contractId String
+  roomTypeId String?
+  dateFrom   DateTime  @db.Date
+  dateTo     DateTime  @db.Date
+  reason     String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  roomType HotelRoomType? @relation(fields: [roomTypeId], references: [id])
+
+  @@index([contractId])
+  @@index([contractId, dateFrom, dateTo])
+  @@map("ct_contract_stop_sale")
 }

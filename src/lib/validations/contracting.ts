@@ -387,3 +387,28 @@ export const specialOfferUpdateSchema = z.object({
   active: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
 });
+
+// ── Allotment Schemas ──
+
+export const allotmentBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    seasonId: z.string().min(1),
+    roomTypeId: z.string().min(1),
+    totalRooms: z.number().int().min(0),
+    freeSale: z.boolean().default(false),
+  })),
+});
+
+// ── Stop Sale Schemas ──
+
+export const stopSaleCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  roomTypeId: z.string().nullish(),
+  dateFrom: z.string().min(1, "Date from is required"),
+  dateTo: z.string().min(1, "Date to is required"),
+  reason: z.string().nullish(),
+}).refine((d) => d.dateTo >= d.dateFrom, {
+  message: "Date To must be on or after Date From",
+  path: ["dateTo"],
+});

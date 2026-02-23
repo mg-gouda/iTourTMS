@@ -296,6 +296,7 @@ export default function ContractDetailPage() {
           <TabsTrigger value="supplements">Supplements</TabsTrigger>
           <TabsTrigger value="rateSheet">Rate Sheet</TabsTrigger>
           <TabsTrigger value="specialOffers">Special Offers</TabsTrigger>
+          <TabsTrigger value="allotments">Allotments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -321,6 +322,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="specialOffers">
           <SpecialOffersTab contractId={id} />
+        </TabsContent>
+        <TabsContent value="allotments">
+          <AllotmentsTab contractId={id} contract={contract} />
         </TabsContent>
       </Tabs>
 
@@ -2746,6 +2750,351 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
               </Button>
               <Button onClick={handleSubmit} disabled={!name || createMutation.isPending || updateMutation.isPending}>
                 {editing ? "Update" : "Create"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Allotments Tab ──────────────────────────────────────
+
+type AllotmentCellValue = {
+  totalRooms: string;
+  freeSale: boolean;
+};
+type AllotmentGridState = Record<string, AllotmentCellValue>;
+
+type StopSaleData = {
+  id: string;
+  contractId: string;
+  roomTypeId: string | null;
+  dateFrom: string | Date;
+  dateTo: string | Date;
+  reason: string | null;
+  roomType: { id: string; name: string; code: string } | null;
+};
+
+function AllotmentsTab({
+  contractId,
+  contract,
+}: {
+  contractId: string;
+  contract: ContractData;
+}) {
+  return (
+    <div className="space-y-6">
+      <AllotmentGrid
+        contractId={contractId}
+        seasons={contract.seasons}
+        roomTypes={contract.roomTypes}
+      />
+      <StopSalesSection
+        contractId={contractId}
+        roomTypes={contract.roomTypes}
+      />
+    </div>
+  );
+}
+
+function AllotmentGrid({
+  contractId,
+  seasons,
+  roomTypes,
+}: {
+  contractId: string;
+  seasons: SeasonData[];
+  roomTypes: ContractRoomTypeData[];
+}) {
+  const utils = trpc.useUtils();
+
+  const { data: allotments } =
+    trpc.contracting.contractAllotment.listByContract.useQuery({ contractId });
+
+  const [grid, setGrid] = useState<AllotmentGridState>({});
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!allotments) return;
+    const init: AllotmentGridState = {};
+    for (const a of allotments) {
+      init[cellKey(a.roomTypeId, a.seasonId)] = {
+        totalRooms: a.freeSale ? "" : String(a.totalRooms),
+        freeSale: a.freeSale,
+      };
+    }
+    setGrid(init);
+    setInitialized(true);
+  }, [allotments]);
+
+  const saveMutation = trpc.contracting.contractAllotment.bulkSave.useMutation({
+    onSuccess: () => {
+      utils.contracting.contractAllotment.listByContract.invalidate({ contractId });
+    },
+  });
+
+  function handleSave() {
+    const items: { seasonId: string; roomTypeId: string; totalRooms: number; freeSale: boolean }[] = [];
+    for (const rt of roomTypes) {
+      for (const season of seasons) {
+        const cell = grid[cellKey(rt.roomTypeId, season.id)];
+        if (cell && (cell.freeSale || (cell.totalRooms && Number(cell.totalRooms) > 0))) {
+          items.push({
+            seasonId: season.id,
+            roomTypeId: rt.roomTypeId,
+            totalRooms: cell.freeSale ? 0 : (Number(cell.totalRooms) || 0),
+            freeSale: cell.freeSale,
+          });
+        }
+      }
+    }
+    saveMutation.mutate({ contractId, items });
+  }
+
+  function updateCell(key: string, field: "totalRooms" | "freeSale", value: string | boolean) {
+    setGrid((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key] ?? { totalRooms: "", freeSale: false },
+        [field]: value,
+      },
+    }));
+  }
+
+  if (seasons.length === 0 || roomTypes.length === 0) {
+    return (
+      <div className="py-10 text-center text-muted-foreground">
+        Configure seasons and room types first to set up allotments.
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Room Allotments</CardTitle>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={saveMutation.isPending || !initialized}
+        >
+          {saveMutation.isPending ? "Saving..." : "Save Allotments"}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px]">Room Type</TableHead>
+              {seasons.map((s) => (
+                <TableHead key={s.id} className="text-center">
+                  {s.name}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {roomTypes.map((rt) => (
+              <TableRow key={rt.roomTypeId}>
+                <TableCell className="font-medium">
+                  {rt.roomType.name}
+                  {rt.isBase && (
+                    <Badge variant="secondary" className="ml-2">
+                      Base
+                    </Badge>
+                  )}
+                </TableCell>
+                {seasons.map((s) => {
+                  const key = cellKey(rt.roomTypeId, s.id);
+                  const cell = grid[key] ?? { totalRooms: "", freeSale: false };
+                  return (
+                    <TableCell key={s.id}>
+                      <div className="flex items-center gap-2">
+                        {cell.freeSale ? (
+                          <div className="flex h-9 w-20 items-center justify-center rounded-md border bg-muted text-lg font-semibold text-muted-foreground">
+                            &infin;
+                          </div>
+                        ) : (
+                          <Input
+                            type="number"
+                            min={0}
+                            className="w-20"
+                            value={cell.totalRooms}
+                            onChange={(e) => updateCell(key, "totalRooms", e.target.value)}
+                          />
+                        )}
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            checked={cell.freeSale}
+                            onCheckedChange={(checked) =>
+                              updateCell(key, "freeSale", checked === true)
+                            }
+                          />
+                          <span className="text-xs text-muted-foreground">Free</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StopSalesSection({
+  contractId,
+  roomTypes,
+}: {
+  contractId: string;
+  roomTypes: ContractRoomTypeData[];
+}) {
+  const utils = trpc.useUtils();
+  const [showDialog, setShowDialog] = useState(false);
+  const [roomTypeId, setRoomTypeId] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [reason, setReason] = useState("");
+
+  const { data: stopSales } =
+    trpc.contracting.contractAllotment.listStopSales.useQuery({ contractId });
+
+  const createMutation = trpc.contracting.contractAllotment.createStopSale.useMutation({
+    onSuccess: () => {
+      utils.contracting.contractAllotment.listStopSales.invalidate({ contractId });
+      setShowDialog(false);
+      resetForm();
+    },
+  });
+
+  const deleteMutation = trpc.contracting.contractAllotment.deleteStopSale.useMutation({
+    onSuccess: () => utils.contracting.contractAllotment.listStopSales.invalidate({ contractId }),
+  });
+
+  function resetForm() {
+    setRoomTypeId(null);
+    setDateFrom("");
+    setDateTo("");
+    setReason("");
+  }
+
+  function handleCreate() {
+    createMutation.mutate({
+      contractId,
+      roomTypeId: roomTypeId || null,
+      dateFrom,
+      dateTo,
+      reason: reason || null,
+    });
+  }
+
+  const typedStopSales = (stopSales ?? []) as unknown as StopSaleData[];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Stop Sales</CardTitle>
+        <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}>
+          Add Stop Sale
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {typedStopSales.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            No stop sales configured.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Room Type</TableHead>
+                <TableHead>Date From</TableHead>
+                <TableHead>Date To</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {typedStopSales.map((ss) => (
+                <TableRow key={ss.id}>
+                  <TableCell className="font-medium">
+                    {ss.roomType ? ss.roomType.name : (
+                      <span className="text-muted-foreground">All Room Types</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{format(new Date(ss.dateFrom), "dd MMM yyyy")}</TableCell>
+                  <TableCell>{format(new Date(ss.dateTo), "dd MMM yyyy")}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {ss.reason || "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => deleteMutation.mutate({ id: ss.id })}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Stop Sale</DialogTitle>
+              <DialogDescription>
+                Stop sales for a specific room type or all room types during a date range.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div>
+                <label className="text-sm font-medium">Room Type</label>
+                <Select
+                  value={roomTypeId ?? "__all__"}
+                  onValueChange={(v) => setRoomTypeId(v === "__all__" ? null : v)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Room Types</SelectItem>
+                    {roomTypes.map((rt) => (
+                      <SelectItem key={rt.roomTypeId} value={rt.roomTypeId}>
+                        {rt.roomType.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Date From</label>
+                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Date To</label>
+                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Reason</label>
+                <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Optional reason for stop sale" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreate} disabled={!dateFrom || !dateTo || createMutation.isPending}>
+                {createMutation.isPending ? "Creating..." : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>

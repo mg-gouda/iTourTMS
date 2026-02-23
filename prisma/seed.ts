@@ -1439,7 +1439,46 @@ export async function seedContracting(companyId: string) {
           ],
         });
 
-        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, supplements, and special offers");
+        // Allotments
+        const allotmentData: { contractId: string; seasonId: string; roomTypeId: string; totalRooms: number; freeSale: boolean }[] = [
+          { contractId: contract.id, seasonId: lowSeason.id, roomTypeId: baseRoom.id, totalRooms: 10, freeSale: false },
+          { contractId: contract.id, seasonId: highSeason.id, roomTypeId: baseRoom.id, totalRooms: 10, freeSale: false },
+        ];
+        if (dlxRoom) {
+          allotmentData.push(
+            { contractId: contract.id, seasonId: lowSeason.id, roomTypeId: dlxRoom.id, totalRooms: 5, freeSale: false },
+            { contractId: contract.id, seasonId: highSeason.id, roomTypeId: dlxRoom.id, totalRooms: 5, freeSale: false },
+          );
+        }
+        if (steRoom) {
+          allotmentData.push(
+            { contractId: contract.id, seasonId: lowSeason.id, roomTypeId: steRoom.id, totalRooms: 0, freeSale: true },
+            { contractId: contract.id, seasonId: highSeason.id, roomTypeId: steRoom.id, totalRooms: 2, freeSale: false },
+          );
+        }
+        await prisma.contractAllotment.createMany({ data: allotmentData });
+
+        // Stop Sales
+        await prisma.contractStopSale.createMany({
+          data: [
+            {
+              contractId: contract.id,
+              roomTypeId: null,
+              dateFrom: new Date("2026-07-20"),
+              dateTo: new Date("2026-07-25"),
+              reason: "Hotel full due to special event",
+            },
+            {
+              contractId: contract.id,
+              roomTypeId: steRoom?.id ?? null,
+              dateFrom: new Date("2026-08-10"),
+              dateTo: new Date("2026-08-15"),
+              reason: "Suite renovation",
+            },
+          ],
+        });
+
+        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, supplements, special offers, allotments, and stop sales");
       }
     } else {
       console.log("    ✓ Sample contract already exists, skipping");
