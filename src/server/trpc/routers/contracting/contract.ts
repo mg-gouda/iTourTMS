@@ -529,4 +529,84 @@ export const contractRouter = createTRPCRouter({
 
       return results.sort((a, b) => a.version - b.version);
     }),
+
+  dashboard: proc.query(async ({ ctx }) => {
+    const now = new Date();
+    const sixtyDaysFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalContracts,
+      statusGroups,
+      expiringSoon,
+      recentContracts,
+      allContracts,
+    ] = await Promise.all([
+      ctx.db.contract.count({ where: { companyId: ctx.companyId } }),
+      ctx.db.contract.groupBy({
+        by: ["status"],
+        _count: true,
+        where: { companyId: ctx.companyId },
+      }),
+      ctx.db.contract.findMany({
+        where: {
+          companyId: ctx.companyId,
+          validTo: { gte: now, lte: sixtyDaysFromNow },
+        },
+        include: { hotel: { select: { name: true } } },
+        orderBy: { validTo: "asc" },
+        take: 10,
+      }),
+      ctx.db.contract.findMany({
+        where: { companyId: ctx.companyId },
+        include: { hotel: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+      ctx.db.contract.findMany({
+        where: { companyId: ctx.companyId },
+        select: { hotelId: true, hotel: { select: { name: true } } },
+      }),
+    ]);
+
+    // Compute hotel counts
+    const hotelCounts = new Map<string, { name: string; count: number }>();
+    for (const c of allContracts) {
+      const entry = hotelCounts.get(c.hotelId);
+      if (entry) {
+        entry.count++;
+      } else {
+        hotelCounts.set(c.hotelId, { name: c.hotel.name, count: 1 });
+      }
+    }
+    const byHotel = Array.from(hotelCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    return {
+      totalContracts,
+      byStatus: statusGroups.map((g) => ({
+        status: g.status,
+        count: g._count,
+      })),
+      totalHotels: hotelCounts.size,
+      expiringSoonCount: expiringSoon.length,
+      expiringSoon: expiringSoon.map((c) => ({
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        status: c.status,
+        hotelName: c.hotel.name,
+        validTo: c.validTo,
+      })),
+      recentContracts: recentContracts.map((c) => ({
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        status: c.status,
+        hotelName: c.hotel.name,
+        createdAt: c.createdAt,
+      })),
+      byHotel,
+    };
+  }),
 });
