@@ -64,3 +64,11 @@ export const OCCUPANCY_SUPPLEMENT_LABELS: Record<number, string> = {
   1: "Single (SGL) Supplement",
   3: "3rd Adult Reduction",
 };
+
+export const OFFER_TYPE_LABELS: Record<string, string> = {
+  EARLY_BIRD: "Early Bird",
+  LONG_STAY: "Long Stay",
+  FREE_NIGHTS: "Free Nights",
+  HONEYMOON: "Honeymoon",
+  GROUP_DISCOUNT: "Group Discount",
+};

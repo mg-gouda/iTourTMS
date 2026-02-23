@@ -618,6 +618,16 @@ enum SupplementValueType {
   PERCENTAGE
 }
 
+enum OfferType {
+  EARLY_BIRD
+  LONG_STAY
+  FREE_NIGHTS
+  HONEYMOON
+  GROUP_DISCOUNT
+
+  @@map("offer_type")
+}
+
 // ============================================================================
 // FINANCE MODULE — Chart of Accounts
 // ============================================================================
@@ -1504,6 +1514,7 @@ model Contract {
   mealBases     ContractMealBasis[]
   baseRates     ContractBaseRate[]
   supplements   ContractSupplement[]
+  specialOffers ContractSpecialOffer[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1612,4 +1623,41 @@ model ContractSupplement {
   @@index([contractId, supplementType])
   @@index([seasonId])
   @@map("ct_contract_supplement")
+}
+
+model ContractSpecialOffer {
+  id              String              @id @default(cuid())
+  contractId      String
+  name            String
+  offerType       OfferType
+  description     String?             @db.Text
+
+  // Eligibility
+  validFrom       DateTime?           @db.Date
+  validTo         DateTime?           @db.Date
+  bookByDate      DateTime?           @db.Date
+  minimumNights   Int?
+  minimumRooms    Int?
+  advanceBookDays Int?
+
+  // Discount
+  discountType    SupplementValueType @default(FIXED)
+  discountValue   Decimal             @db.Decimal(12, 4)
+
+  // Free nights (stay X, pay Y)
+  stayNights      Int?
+  payNights       Int?
+
+  // Flags
+  combinable      Boolean             @default(true)
+  active          Boolean             @default(true)
+  sortOrder       Int                 @default(0)
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("ct_contract_special_offer")
 }

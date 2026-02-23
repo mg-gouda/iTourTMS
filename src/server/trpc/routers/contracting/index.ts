@@ -8,6 +8,7 @@ import { contractRoomTypeRouter } from "./contract-room-type";
 import { contractSeasonRouter } from "./contract-season";
 import { contractSupplementRouter } from "./contract-supplement";
 import { rateCalculatorRouter } from "./rate-calculator";
+import { specialOfferRouter } from "./special-offer";
 import { destinationRouter } from "./destination";
 import { hotelRouter } from "./hotel";
 import { mealBasisRouter } from "./meal-basis";
@@ -22,6 +23,7 @@ export const contractingRouter = createTRPCRouter({
   contractSeason: contractSeasonRouter,
   contractSupplement: contractSupplementRouter,
   rateCalculator: rateCalculatorRouter,
+  specialOffer: specialOfferRouter,
   destination: destinationRouter,
   hotel: hotelRouter,
   mealBasis: mealBasisRouter,

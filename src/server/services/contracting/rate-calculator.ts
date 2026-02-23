@@ -45,6 +45,23 @@ export interface RateContractData {
     maxFreePerRoom: number;
     extraBedAllowed: boolean;
   }[];
+  specialOffers: {
+    id: string;
+    name: string;
+    offerType: string;
+    validFrom: string | null;
+    validTo: string | null;
+    bookByDate: string | null;
+    minimumNights: number | null;
+    minimumRooms: number | null;
+    advanceBookDays: number | null;
+    discountType: string;
+    discountValue: string | number;
+    stayNights: number | null;
+    payNights: number | null;
+    combinable: boolean;
+    active: boolean;
+  }[];
 }
 
 export interface BookingScenario {
@@ -56,6 +73,8 @@ export interface BookingScenario {
   extraBed: boolean;
   viewLabel: string | null;
   nights: number;
+  bookingDate: string | null;
+  checkInDate: string | null;
 }
 
 // ── Output Types ──
@@ -72,6 +91,13 @@ export interface ChildChargeLine {
   isFree: boolean;
 }
 
+export interface OfferDiscountLine {
+  offerName: string;
+  offerType: string;
+  discount: number;
+  description: string;
+}
+
 export interface RateBreakdown {
   baseRate: number;
   baseRateLabel: string;
@@ -85,6 +111,9 @@ export interface RateBreakdown {
   childTotalPerNight: number;
   totalPerNight: number;
   totalStay: number;
+  offerDiscounts: OfferDiscountLine[];
+  totalStayBeforeOffers: number;
+  totalStayAfterOffers: number;
   nights: number;
   rateBasis: string;
 }
@@ -154,6 +183,135 @@ function findSupplement(
   return supplements.find(
     (s) => s.seasonId === seasonId && s.supplementType === type && match(s),
   );
+}
+
+// ── Special Offer Helpers ──
+
+function differenceInDays(from: string, to: string): number {
+  const a = new Date(from);
+  const b = new Date(to);
+  return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function isDateInRange(
+  date: string | null,
+  from: string | null,
+  to: string | null,
+): boolean {
+  if (!date) return true;
+  if (from && date < from) return false;
+  if (to && date > to) return false;
+  return true;
+}
+
+function applySpecialOffers(
+  contract: RateContractData,
+  scenario: BookingScenario,
+  totalPerNight: number,
+  totalStay: number,
+): { offerDiscounts: OfferDiscountLine[]; totalStayAfterOffers: number } {
+  const offers = contract.specialOffers.filter((o) => o.active);
+  const discounts: OfferDiscountLine[] = [];
+  let running = new Decimal(totalStay);
+
+  for (const offer of offers) {
+    let eligible = true;
+    let description = "";
+    let discount = new Decimal(0);
+
+    // Check date validity
+    if (!isDateInRange(scenario.checkInDate, offer.validFrom, offer.validTo)) {
+      eligible = false;
+      description = "Check-in date outside offer period";
+    }
+
+    // Check book-by date
+    if (eligible && offer.bookByDate && scenario.bookingDate) {
+      if (scenario.bookingDate > offer.bookByDate) {
+        eligible = false;
+        description = `Must book by ${offer.bookByDate}`;
+      }
+    }
+
+    if (eligible) {
+      switch (offer.offerType) {
+        case "EARLY_BIRD": {
+          if (!scenario.bookingDate || !scenario.checkInDate) {
+            eligible = false;
+            description = "Booking and check-in dates required";
+          } else {
+            const days = differenceInDays(scenario.bookingDate, scenario.checkInDate);
+            if (days < (offer.advanceBookDays ?? 0)) {
+              eligible = false;
+              description = `Requires ${offer.advanceBookDays}+ days advance booking (${days} days)`;
+            } else {
+              description = `${offer.advanceBookDays}+ days advance booking`;
+            }
+          }
+          break;
+        }
+        case "LONG_STAY": {
+          if (scenario.nights < (offer.minimumNights ?? 0)) {
+            eligible = false;
+            description = `Requires ${offer.minimumNights}+ nights (${scenario.nights} nights)`;
+          } else {
+            description = `${offer.minimumNights}+ night stay`;
+          }
+          break;
+        }
+        case "FREE_NIGHTS": {
+          const stay = offer.stayNights ?? 0;
+          const pay = offer.payNights ?? 0;
+          if (stay > 0 && scenario.nights >= stay) {
+            const freeNights = Math.floor(scenario.nights / stay) * (stay - pay);
+            discount = new Decimal(totalPerNight).times(freeNights);
+            description = `Stay ${stay}, Pay ${pay} (${freeNights} free night${freeNights !== 1 ? "s" : ""})`;
+          } else {
+            eligible = false;
+            description = `Requires ${stay}+ nights (${scenario.nights} nights)`;
+          }
+          break;
+        }
+        case "HONEYMOON": {
+          description = "Honeymoon package";
+          break;
+        }
+        case "GROUP_DISCOUNT": {
+          eligible = false;
+          description = `Requires ${offer.minimumRooms}+ rooms`;
+          break;
+        }
+      }
+    }
+
+    // Calculate discount for non-FREE_NIGHTS types
+    if (eligible && offer.offerType !== "FREE_NIGHTS") {
+      const val = new Decimal(offer.discountValue);
+      if (offer.discountType === "PERCENTAGE") {
+        discount = running.times(val).div(100);
+        description += ` (${val.toNumber()}% off)`;
+      } else {
+        discount = val;
+        description += ` (${val.toNumber()} off)`;
+      }
+    }
+
+    discounts.push({
+      offerName: offer.name,
+      offerType: offer.offerType,
+      discount: eligible ? discount.toDecimalPlaces(4).toNumber() : 0,
+      description: eligible ? description : `Not eligible: ${description}`,
+    });
+
+    if (eligible && discount.gt(0)) {
+      running = running.minus(discount);
+    }
+  }
+
+  return {
+    offerDiscounts: discounts,
+    totalStayAfterOffers: running.toDecimalPlaces(4).toNumber(),
+  };
 }
 
 // ── Main Calculation ──
@@ -337,6 +495,14 @@ export function calculateRate(
   const totalPerNight = new Decimal(adultTotalPerNight).plus(childTotalPerNight).toDecimalPlaces(4).toNumber();
   const totalStay = new Decimal(totalPerNight).times(nights).toDecimalPlaces(4).toNumber();
 
+  // 9. Special offers
+  const { offerDiscounts, totalStayAfterOffers } = applySpecialOffers(
+    contract,
+    scenario,
+    totalPerNight,
+    totalStay,
+  );
+
   return {
     baseRate: baseRate.toDecimalPlaces(4).toNumber(),
     baseRateLabel,
@@ -350,6 +516,9 @@ export function calculateRate(
     childTotalPerNight,
     totalPerNight,
     totalStay,
+    offerDiscounts,
+    totalStayBeforeOffers: totalStay,
+    totalStayAfterOffers,
     nights,
     rateBasis: contract.rateBasis,
   };
@@ -372,6 +541,8 @@ export function computeRateSheet(contract: RateContractData): RateSheetData {
           extraBed: false,
           viewLabel: null,
           nights: 1,
+          bookingDate: null,
+          checkInDate: null,
         });
 
         cells.push({

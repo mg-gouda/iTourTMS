@@ -32,6 +32,7 @@ async function fetchContractData(
       },
       baseRates: true,
       supplements: true,
+      specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" } },
       hotel: {
         include: {
           childrenPolicies: { orderBy: { ageFrom: "asc" } },
@@ -87,6 +88,23 @@ async function fetchContractData(
       maxFreePerRoom: cp.maxFreePerRoom,
       extraBedAllowed: cp.extraBedAllowed,
     })),
+    specialOffers: contract.specialOffers.map((o) => ({
+      id: o.id,
+      name: o.name,
+      offerType: o.offerType,
+      validFrom: o.validFrom?.toISOString().slice(0, 10) ?? null,
+      validTo: o.validTo?.toISOString().slice(0, 10) ?? null,
+      bookByDate: o.bookByDate?.toISOString().slice(0, 10) ?? null,
+      minimumNights: o.minimumNights,
+      minimumRooms: o.minimumRooms,
+      advanceBookDays: o.advanceBookDays,
+      discountType: o.discountType,
+      discountValue: o.discountValue.toString(),
+      stayNights: o.stayNights,
+      payNights: o.payNights,
+      combinable: o.combinable,
+      active: o.active,
+    })),
   };
 }
 
@@ -108,6 +126,8 @@ export const rateCalculatorRouter = createTRPCRouter({
         extraBed: input.extraBed,
         viewLabel: input.viewLabel ?? null,
         nights: input.nights,
+        bookingDate: input.bookingDate ?? null,
+        checkInDate: input.checkInDate ?? null,
       });
     }),
 

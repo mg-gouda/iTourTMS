@@ -1373,7 +1373,73 @@ export async function seedContracting(companyId: string) {
           })),
         });
 
-        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, and supplements");
+        // Special offers
+        await prisma.contractSpecialOffer.createMany({
+          data: [
+            {
+              contractId: contract.id,
+              name: "Early Bird 60 Days",
+              offerType: "EARLY_BIRD",
+              description: "Book 60+ days before check-in for 15% off",
+              advanceBookDays: 60,
+              discountType: "PERCENTAGE",
+              discountValue: 15,
+              combinable: true,
+              active: true,
+              sortOrder: 0,
+            },
+            {
+              contractId: contract.id,
+              name: "Long Stay Discount",
+              offerType: "LONG_STAY",
+              description: "Stay 7+ nights and save 10%",
+              minimumNights: 7,
+              discountType: "PERCENTAGE",
+              discountValue: 10,
+              combinable: true,
+              active: true,
+              sortOrder: 1,
+            },
+            {
+              contractId: contract.id,
+              name: "Stay 7 Pay 5",
+              offerType: "FREE_NIGHTS",
+              description: "Stay 7 nights but only pay for 5",
+              stayNights: 7,
+              payNights: 5,
+              discountType: "FIXED",
+              discountValue: 0,
+              combinable: false,
+              active: true,
+              sortOrder: 2,
+            },
+            {
+              contractId: contract.id,
+              name: "Honeymoon Package",
+              offerType: "HONEYMOON",
+              description: "Special honeymoon rate — 20% discount",
+              discountType: "PERCENTAGE",
+              discountValue: 20,
+              combinable: true,
+              active: true,
+              sortOrder: 3,
+            },
+            {
+              contractId: contract.id,
+              name: "Group Discount",
+              offerType: "GROUP_DISCOUNT",
+              description: "Book 5+ rooms for 12% off",
+              minimumRooms: 5,
+              discountType: "PERCENTAGE",
+              discountValue: 12,
+              combinable: false,
+              active: true,
+              sortOrder: 4,
+            },
+          ],
+        });
+
+        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, supplements, and special offers");
       }
     } else {
       console.log("    ✓ Sample contract already exists, skipping");

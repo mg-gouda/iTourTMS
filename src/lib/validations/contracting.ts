@@ -318,8 +318,72 @@ export const rateCalculatorInputSchema = z.object({
   extraBed: z.boolean().default(false),
   viewLabel: z.string().nullish(),
   nights: z.number().int().min(1).default(1),
+  bookingDate: z.string().nullish(),
+  checkInDate: z.string().nullish(),
 });
 
 export const rateSheetInputSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
+});
+
+// ── Special Offer Schemas ──
+
+export const specialOfferCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  name: z.string().min(1, "Name is required"),
+  offerType: z.enum(["EARLY_BIRD", "LONG_STAY", "FREE_NIGHTS", "HONEYMOON", "GROUP_DISCOUNT"]),
+  description: z.string().nullish(),
+  validFrom: z.string().nullish(),
+  validTo: z.string().nullish(),
+  bookByDate: z.string().nullish(),
+  minimumNights: z.number().int().min(1).nullish(),
+  minimumRooms: z.number().int().min(1).nullish(),
+  advanceBookDays: z.number().int().min(1).nullish(),
+  discountType: z.enum(["FIXED", "PERCENTAGE"]).default("PERCENTAGE"),
+  discountValue: z.number().min(0, "Discount must be non-negative"),
+  stayNights: z.number().int().min(2).nullish(),
+  payNights: z.number().int().min(1).nullish(),
+  combinable: z.boolean().default(true),
+  active: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
+}).superRefine((data, ctx) => {
+  if (data.offerType === "FREE_NIGHTS") {
+    if (!data.stayNights) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stay nights is required for Free Nights offers", path: ["stayNights"] });
+    }
+    if (!data.payNights) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pay nights is required for Free Nights offers", path: ["payNights"] });
+    }
+    if (data.stayNights && data.payNights && data.payNights >= data.stayNights) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pay nights must be less than stay nights", path: ["payNights"] });
+    }
+  }
+  if (data.offerType === "EARLY_BIRD" && !data.advanceBookDays) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Advance booking days is required for Early Bird offers", path: ["advanceBookDays"] });
+  }
+  if (data.offerType === "GROUP_DISCOUNT" && !data.minimumRooms) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Minimum rooms is required for Group Discount offers", path: ["minimumRooms"] });
+  }
+  if (data.offerType === "LONG_STAY" && !data.minimumNights) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Minimum nights is required for Long Stay offers", path: ["minimumNights"] });
+  }
+});
+
+export const specialOfferUpdateSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  offerType: z.enum(["EARLY_BIRD", "LONG_STAY", "FREE_NIGHTS", "HONEYMOON", "GROUP_DISCOUNT"]).optional(),
+  description: z.string().nullish(),
+  validFrom: z.string().nullish(),
+  validTo: z.string().nullish(),
+  bookByDate: z.string().nullish(),
+  minimumNights: z.number().int().min(1).nullish(),
+  minimumRooms: z.number().int().min(1).nullish(),
+  advanceBookDays: z.number().int().min(1).nullish(),
+  discountType: z.enum(["FIXED", "PERCENTAGE"]).optional(),
+  discountValue: z.number().min(0).optional(),
+  stayNights: z.number().int().min(2).nullish(),
+  payNights: z.number().int().min(1).nullish(),
+  combinable: z.boolean().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
 });

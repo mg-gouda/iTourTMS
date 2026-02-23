@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -56,6 +57,7 @@ import {
   CHILD_BEDDING_LABELS,
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_VARIANTS,
+  OFFER_TYPE_LABELS,
   OCCUPANCY_SUPPLEMENT_LABELS,
   RATE_BASIS_LABELS,
   SUPPLEMENT_VALUE_TYPE_LABELS,
@@ -293,6 +295,7 @@ export default function ContractDetailPage() {
           <TabsTrigger value="baseRates">Base Rates</TabsTrigger>
           <TabsTrigger value="supplements">Supplements</TabsTrigger>
           <TabsTrigger value="rateSheet">Rate Sheet</TabsTrigger>
+          <TabsTrigger value="specialOffers">Special Offers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -315,6 +318,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="rateSheet">
           <RateSheetTab contractId={id} contract={contract} />
+        </TabsContent>
+        <TabsContent value="specialOffers">
+          <SpecialOffersTab contractId={id} />
         </TabsContent>
       </Tabs>
 
@@ -2386,6 +2392,369 @@ function ViewSupplementSection({
   );
 }
 
+// ─── Special Offers Tab ──────────────────────────────────
+
+type SpecialOfferData = {
+  id: string;
+  contractId: string;
+  name: string;
+  offerType: string;
+  description: string | null;
+  validFrom: string | Date | null;
+  validTo: string | Date | null;
+  bookByDate: string | Date | null;
+  minimumNights: number | null;
+  minimumRooms: number | null;
+  advanceBookDays: number | null;
+  discountType: string;
+  discountValue: string | number;
+  stayNights: number | null;
+  payNights: number | null;
+  combinable: boolean;
+  active: boolean;
+  sortOrder: number;
+};
+
+function SpecialOffersTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const [showDialog, setShowDialog] = useState(false);
+  const [editing, setEditing] = useState<SpecialOfferData | null>(null);
+
+  // Form state
+  const [name, setName] = useState("");
+  const [offerType, setOfferType] = useState("EARLY_BIRD");
+  const [description, setDescription] = useState("");
+  const [discountType, setDiscountType] = useState("PERCENTAGE");
+  const [discountValue, setDiscountValue] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [validTo, setValidTo] = useState("");
+  const [bookByDate, setBookByDate] = useState("");
+  const [minimumNights, setMinimumNights] = useState("");
+  const [minimumRooms, setMinimumRooms] = useState("");
+  const [advanceBookDays, setAdvanceBookDays] = useState("");
+  const [stayNights, setStayNights] = useState("");
+  const [payNights, setPayNights] = useState("");
+  const [combinable, setCombinable] = useState(true);
+
+  const { data: offers, isLoading } = trpc.contracting.specialOffer.listByContract.useQuery(
+    { contractId },
+  );
+
+  const createMutation = trpc.contracting.specialOffer.create.useMutation({
+    onSuccess: () => {
+      utils.contracting.specialOffer.listByContract.invalidate({ contractId });
+      setShowDialog(false);
+      resetForm();
+    },
+  });
+
+  const updateMutation = trpc.contracting.specialOffer.update.useMutation({
+    onSuccess: () => {
+      utils.contracting.specialOffer.listByContract.invalidate({ contractId });
+      setShowDialog(false);
+      setEditing(null);
+      resetForm();
+    },
+  });
+
+  const deleteMutation = trpc.contracting.specialOffer.delete.useMutation({
+    onSuccess: () => utils.contracting.specialOffer.listByContract.invalidate({ contractId }),
+  });
+
+  const toggleMutation = trpc.contracting.specialOffer.toggleActive.useMutation({
+    onSuccess: () => utils.contracting.specialOffer.listByContract.invalidate({ contractId }),
+  });
+
+  function resetForm() {
+    setName("");
+    setOfferType("EARLY_BIRD");
+    setDescription("");
+    setDiscountType("PERCENTAGE");
+    setDiscountValue("");
+    setValidFrom("");
+    setValidTo("");
+    setBookByDate("");
+    setMinimumNights("");
+    setMinimumRooms("");
+    setAdvanceBookDays("");
+    setStayNights("");
+    setPayNights("");
+    setCombinable(true);
+  }
+
+  function openCreate() {
+    resetForm();
+    setEditing(null);
+    setShowDialog(true);
+  }
+
+  function openEdit(o: SpecialOfferData) {
+    setEditing(o);
+    setName(o.name);
+    setOfferType(o.offerType);
+    setDescription(o.description ?? "");
+    setDiscountType(o.discountType);
+    setDiscountValue(String(Number(o.discountValue)));
+    setValidFrom(o.validFrom ? format(new Date(o.validFrom), "yyyy-MM-dd") : "");
+    setValidTo(o.validTo ? format(new Date(o.validTo), "yyyy-MM-dd") : "");
+    setBookByDate(o.bookByDate ? format(new Date(o.bookByDate), "yyyy-MM-dd") : "");
+    setMinimumNights(o.minimumNights ? String(o.minimumNights) : "");
+    setMinimumRooms(o.minimumRooms ? String(o.minimumRooms) : "");
+    setAdvanceBookDays(o.advanceBookDays ? String(o.advanceBookDays) : "");
+    setStayNights(o.stayNights ? String(o.stayNights) : "");
+    setPayNights(o.payNights ? String(o.payNights) : "");
+    setCombinable(o.combinable);
+    setShowDialog(true);
+  }
+
+  function handleSubmit() {
+    const base = {
+      name,
+      offerType: offerType as "EARLY_BIRD" | "LONG_STAY" | "FREE_NIGHTS" | "HONEYMOON" | "GROUP_DISCOUNT",
+      description: description || null,
+      discountType: discountType as "FIXED" | "PERCENTAGE",
+      discountValue: Number(discountValue) || 0,
+      validFrom: validFrom || null,
+      validTo: validTo || null,
+      bookByDate: bookByDate || null,
+      minimumNights: minimumNights ? Number(minimumNights) : null,
+      minimumRooms: minimumRooms ? Number(minimumRooms) : null,
+      advanceBookDays: advanceBookDays ? Number(advanceBookDays) : null,
+      stayNights: stayNights ? Number(stayNights) : null,
+      payNights: payNights ? Number(payNights) : null,
+      combinable,
+    };
+
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, data: base });
+    } else {
+      createMutation.mutate({
+        ...base,
+        contractId,
+        active: true,
+        sortOrder: (offers?.length ?? 0),
+      });
+    }
+  }
+
+  const typedOffers = (offers ?? []) as unknown as SpecialOfferData[];
+
+  function formatDiscount(o: SpecialOfferData) {
+    if (o.offerType === "FREE_NIGHTS") {
+      return `Stay ${o.stayNights}, Pay ${o.payNights}`;
+    }
+    const val = Number(o.discountValue);
+    return o.discountType === "PERCENTAGE" ? `${val}%` : formatCurrency(val);
+  }
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading special offers...</div>;
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Special Offers</CardTitle>
+        <Button size="sm" onClick={openCreate}>
+          Add Offer
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {typedOffers.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            No special offers configured. Click &quot;Add Offer&quot; to create one.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Discount</TableHead>
+                <TableHead>Conditions</TableHead>
+                <TableHead>Valid Period</TableHead>
+                <TableHead>Active</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {typedOffers.map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {OFFER_TYPE_LABELS[o.offerType] ?? o.offerType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDiscount(o)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {o.offerType === "EARLY_BIRD" && o.advanceBookDays && `${o.advanceBookDays}+ days advance`}
+                    {o.offerType === "LONG_STAY" && o.minimumNights && `${o.minimumNights}+ nights`}
+                    {o.offerType === "FREE_NIGHTS" && `${o.stayNights}+ nights`}
+                    {o.offerType === "GROUP_DISCOUNT" && o.minimumRooms && `${o.minimumRooms}+ rooms`}
+                    {o.offerType === "HONEYMOON" && "—"}
+                    {o.combinable ? "" : " (non-combinable)"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {o.validFrom || o.validTo ? (
+                      <>
+                        {o.validFrom ? format(new Date(o.validFrom), "dd MMM yyyy") : "—"}{" "}
+                        to{" "}
+                        {o.validTo ? format(new Date(o.validTo), "dd MMM yyyy") : "—"}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">Always</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={o.active}
+                      onCheckedChange={() => toggleMutation.mutate({ id: o.id })}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(o)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => deleteMutation.mutate({ id: o.id })}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editing ? "Edit Offer" : "Add Special Offer"}</DialogTitle>
+              <DialogDescription>
+                {editing ? "Update offer details." : "Configure a new special offer for this contract."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Name</label>
+                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Early Bird 60 Days" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Type</label>
+                  <Select value={offerType} onValueChange={setOfferType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(OFFER_TYPE_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+              </div>
+
+              {/* Discount */}
+              {offerType !== "FREE_NIGHTS" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Discount Value</label>
+                    <Input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} min={0} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Discount Type</label>
+                    <Select value={discountType} onValueChange={setDiscountType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
+                        <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* Free Nights */}
+              {offerType === "FREE_NIGHTS" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Stay Nights</label>
+                    <Input type="number" value={stayNights} onChange={(e) => setStayNights(e.target.value)} min={2} placeholder="e.g. 7" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Pay Nights</label>
+                    <Input type="number" value={payNights} onChange={(e) => setPayNights(e.target.value)} min={1} placeholder="e.g. 5" />
+                  </div>
+                </div>
+              )}
+
+              {/* Conditional fields */}
+              {offerType === "EARLY_BIRD" && (
+                <div>
+                  <label className="text-sm font-medium">Advance Booking Days</label>
+                  <Input type="number" value={advanceBookDays} onChange={(e) => setAdvanceBookDays(e.target.value)} min={1} placeholder="e.g. 60" />
+                </div>
+              )}
+
+              {offerType === "LONG_STAY" && (
+                <div>
+                  <label className="text-sm font-medium">Minimum Nights</label>
+                  <Input type="number" value={minimumNights} onChange={(e) => setMinimumNights(e.target.value)} min={1} placeholder="e.g. 7" />
+                </div>
+              )}
+
+              {offerType === "GROUP_DISCOUNT" && (
+                <div>
+                  <label className="text-sm font-medium">Minimum Rooms</label>
+                  <Input type="number" value={minimumRooms} onChange={(e) => setMinimumRooms(e.target.value)} min={1} placeholder="e.g. 5" />
+                </div>
+              )}
+
+              {/* Date range */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Valid From</label>
+                  <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Valid To</label>
+                  <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Book By</label>
+                  <Input type="date" value={bookByDate} onChange={(e) => setBookByDate(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch checked={combinable} onCheckedChange={setCombinable} />
+                <label className="text-sm font-medium">Combinable with other offers</label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={!name || createMutation.isPending || updateMutation.isPending}>
+                {editing ? "Update" : "Create"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Rate Sheet Tab ──────────────────────────────────────
 
 function RateSheetTab({
@@ -2407,6 +2776,8 @@ function RateSheetTab({
   const [extraBed, setExtraBed] = useState(false);
   const [viewLabel, setViewLabel] = useState<string | null>(null);
   const [children, setChildren] = useState<{ category: string; bedding: string }[]>([]);
+  const [bookingDate, setBookingDate] = useState("");
+  const [checkInDate, setCheckInDate] = useState("");
 
   const { data: breakdown, isLoading: isCalculating } =
     trpc.contracting.rateCalculator.calculate.useQuery(
@@ -2423,6 +2794,8 @@ function RateSheetTab({
         extraBed,
         viewLabel,
         nights,
+        bookingDate: bookingDate || null,
+        checkInDate: checkInDate || null,
       },
       { enabled: !!seasonId && !!roomTypeId && !!mealBasisId },
     );
@@ -2617,6 +2990,25 @@ function RateSheetTab({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <label className="text-sm font-medium">Booking Date</label>
+              <Input
+                type="date"
+                value={bookingDate}
+                onChange={(e) => setBookingDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Check-in Date</label>
+              <Input
+                type="date"
+                value={checkInDate}
+                onChange={(e) => setCheckInDate(e.target.value)}
+              />
+            </div>
+          </div>
+
           {/* Children */}
           <div>
             <div className="mb-2 flex items-center justify-between">
@@ -2726,6 +3118,9 @@ type BreakdownData = {
   childTotalPerNight: number;
   totalPerNight: number;
   totalStay: number;
+  offerDiscounts: { offerName: string; offerType: string; discount: number; description: string }[];
+  totalStayBeforeOffers: number;
+  totalStayAfterOffers: number;
   nights: number;
   rateBasis: string;
 };
@@ -2843,6 +3238,42 @@ function RateBreakdownDisplay({
           <span>Total Stay ({breakdown.nights} nights)</span>
           <span className="font-mono">{fmt(breakdown.totalStay)}</span>
         </div>
+      )}
+
+      {breakdown.offerDiscounts.length > 0 && (
+        <>
+          <Separator className="my-2" />
+          <p className="text-xs font-medium text-muted-foreground">Special Offers</p>
+          <div className="mt-1 space-y-1">
+            {breakdown.offerDiscounts.map((od, idx) => {
+              const isEligible = od.discount > 0;
+              return (
+                <div
+                  key={idx}
+                  className={`flex justify-between text-sm ${isEligible ? "text-green-600" : "text-muted-foreground"}`}
+                >
+                  <span>
+                    {isEligible ? "−" : ""} {od.offerName}
+                    <span className="ml-1 text-xs">({od.description})</span>
+                  </span>
+                  <span className="font-mono">
+                    {isEligible ? `−${fmt(od.discount)}` : "—"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {breakdown.totalStayAfterOffers !== breakdown.totalStayBeforeOffers && (
+            <>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-lg font-bold text-green-600">
+                <span>Final Total</span>
+                <span className="font-mono">{fmt(breakdown.totalStayAfterOffers)}</span>
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );
