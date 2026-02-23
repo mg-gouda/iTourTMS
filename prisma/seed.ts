@@ -1144,6 +1144,114 @@ export async function seedContracting(companyId: string) {
     console.log("    ✓ Sample hotel already exists, skipping");
   }
 
+  // ── Sample Contract: Summer 2026 ──
+  const hotel = await prisma.hotel.findFirst({
+    where: { companyId, code: "GSR" },
+  });
+  const usd = await prisma.currency.findFirst({ where: { code: "USD" } });
+
+  if (hotel && usd) {
+    const existingContract = await prisma.contract.findFirst({
+      where: { companyId, code: "SUM26" },
+    });
+
+    if (!existingContract) {
+      // Get base room type and meal basis
+      const baseRoom = await prisma.hotelRoomType.findFirst({
+        where: { hotelId: hotel.id, code: "STD" },
+      });
+      const baseMeal = await prisma.hotelMealBasis.findFirst({
+        where: { hotelId: hotel.id, mealCode: "BB" },
+      });
+
+      // Get the first user for audit fields
+      const firstUser = await prisma.user.findFirst({
+        where: { companyId },
+      });
+
+      if (baseRoom && baseMeal && firstUser) {
+        const contract = await prisma.contract.create({
+          data: {
+            companyId,
+            name: "Summer 2026",
+            code: "SUM26",
+            status: "DRAFT",
+            hotelId: hotel.id,
+            validFrom: new Date("2026-06-01"),
+            validTo: new Date("2026-08-31"),
+            rateBasis: "PER_PERSON",
+            baseCurrencyId: usd.id,
+            baseRoomTypeId: baseRoom.id,
+            baseMealBasisId: baseMeal.id,
+            minimumStay: 2,
+            terms: "Standard terms and conditions apply. Cancellation policy: 14 days prior to arrival.",
+            createdById: firstUser.id,
+          },
+        });
+
+        // Auto-create base room type and meal basis assignments
+        await prisma.contractRoomType.create({
+          data: { contractId: contract.id, roomTypeId: baseRoom.id, isBase: true, sortOrder: 0 },
+        });
+        await prisma.contractMealBasis.create({
+          data: { contractId: contract.id, mealBasisId: baseMeal.id, isBase: true, sortOrder: 0 },
+        });
+
+        // Seasons
+        const highSeason = await prisma.contractSeason.create({
+          data: {
+            contractId: contract.id,
+            name: "High Season",
+            code: "HIGH",
+            dateFrom: new Date("2026-07-01"),
+            dateTo: new Date("2026-08-31"),
+            sortOrder: 1,
+            releaseDays: 21,
+            minimumStay: 3,
+          },
+        });
+
+        const lowSeason = await prisma.contractSeason.create({
+          data: {
+            contractId: contract.id,
+            name: "Low Season",
+            code: "LOW",
+            dateFrom: new Date("2026-06-01"),
+            dateTo: new Date("2026-06-30"),
+            sortOrder: 0,
+            releaseDays: 14,
+          },
+        });
+
+        // Base rates
+        await prisma.contractBaseRate.createMany({
+          data: [
+            {
+              contractId: contract.id,
+              seasonId: highSeason.id,
+              rate: 250,
+              singleRate: 200,
+              doubleRate: 250,
+              tripleRate: 300,
+            },
+            {
+              contractId: contract.id,
+              seasonId: lowSeason.id,
+              rate: 150,
+              singleRate: 120,
+              doubleRate: 150,
+              tripleRate: 180,
+            },
+          ],
+        });
+
+        console.log("    ✓ Sample contract 'Summer 2026' seeded with 2 seasons and base rates");
+      }
+    } else {
+      console.log("    ✓ Sample contract already exists, skipping");
+    }
+  }
+
   console.log("  ✓ Contracting seed completed");
 }
 

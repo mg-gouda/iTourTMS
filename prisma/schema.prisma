@@ -103,6 +103,7 @@ model Company {
   destinations     Destination[]
   hotelAmenities   HotelAmenity[]
   hotels           Hotel[]
+  contracts        Contract[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -145,6 +146,11 @@ model User {
   userRoles UserRole[]
   closedFiscalYears   FiscalYear[]   @relation("FiscalYearClosedBy")
   lockedFiscalPeriods FiscalPeriod[] @relation("FiscalPeriodLockedBy")
+
+  // Contracting relations
+  contractsCreated   Contract[] @relation("ContractCreator")
+  contractsPosted    Contract[] @relation("ContractPoster")
+  contractsPublished Contract[] @relation("ContractPublisher")
 
   @@index([companyId])
   @@index([email])
@@ -278,6 +284,9 @@ model Currency {
   movesAsCompanyCurrency Move[] @relation("MoveCompanyCurrency")
   moveLineItems          MoveLineItem[]
   payments               Payment[]
+
+  // Contracting relations
+  contracts              Contract[] @relation("ContractBaseCurrency")
 
   @@index([code])
 }
@@ -588,6 +597,11 @@ enum ContractStatus {
   DRAFT
   POSTED
   PUBLISHED
+}
+
+enum RateBasis {
+  PER_PERSON
+  PER_ROOM
 }
 
 // ============================================================================
@@ -1319,6 +1333,7 @@ model Hotel {
   childrenPolicies ChildPolicy[]
   mealBasis        HotelMealBasis[]
   images           HotelImage[]
+  contracts        Contract[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1360,8 +1375,10 @@ model HotelRoomType {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  hotel          Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  occupancyTable RoomTypeOccupancy[]
+  hotel              Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  occupancyTable     RoomTypeOccupancy[]
+  contractRoomTypes  ContractRoomType[]
+  baseForContracts   Contract[]          @relation("ContractBaseRoom")
 
   @@unique([hotelId, code])
   @@index([hotelId])
@@ -1420,9 +1437,129 @@ model HotelMealBasis {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotel             Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  contractMealBasis ContractMealBasis[]
+  baseForContracts  Contract[]         @relation("ContractBaseMeal")
 
   @@unique([hotelId, mealCode])
   @@index([hotelId])
   @@map("ct_hotel_meal_basis")
+}
+
+// ─── Contract Core ───────────────────────────────────────
+
+model Contract {
+  id              String         @id @default(cuid())
+  companyId       String
+  name            String
+  code            String
+  status          ContractStatus @default(DRAFT)
+  hotelId         String
+  validFrom       DateTime       @db.Date
+  validTo         DateTime       @db.Date
+  rateBasis       RateBasis
+  baseCurrencyId  String
+  baseRoomTypeId  String
+  baseMealBasisId String
+  minimumStay     Int            @default(1)
+  maximumStay     Int?
+  terms           String?        @db.Text
+  internalNotes   String?        @db.Text
+  hotelNotes      String?        @db.Text
+  createdById     String
+  postedById      String?
+  postedAt        DateTime?
+  publishedById   String?
+  publishedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  hotel         Hotel          @relation(fields: [hotelId], references: [id])
+  baseCurrency  Currency       @relation("ContractBaseCurrency", fields: [baseCurrencyId], references: [id])
+  baseRoomType  HotelRoomType  @relation("ContractBaseRoom", fields: [baseRoomTypeId], references: [id])
+  baseMealBasis HotelMealBasis @relation("ContractBaseMeal", fields: [baseMealBasisId], references: [id])
+  createdBy     User           @relation("ContractCreator", fields: [createdById], references: [id])
+  postedBy      User?          @relation("ContractPoster", fields: [postedById], references: [id])
+  publishedBy   User?          @relation("ContractPublisher", fields: [publishedById], references: [id])
+
+  seasons       ContractSeason[]
+  roomTypes     ContractRoomType[]
+  mealBases     ContractMealBasis[]
+  baseRates     ContractBaseRate[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([hotelId])
+  @@map("ct_contract")
+}
+
+model ContractSeason {
+  id          String   @id @default(cuid())
+  contractId  String
+  name        String
+  code        String
+  dateFrom    DateTime @db.Date
+  dateTo      DateTime @db.Date
+  sortOrder   Int      @default(0)
+  releaseDays Int      @default(21)
+  minimumStay Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contract  Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  baseRates ContractBaseRate[]
+
+  @@unique([contractId, code])
+  @@index([contractId])
+  @@map("ct_contract_season")
+}
+
+model ContractRoomType {
+  id         String  @id @default(cuid())
+  contractId String
+  roomTypeId String
+  isBase     Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  contract Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  roomType HotelRoomType @relation(fields: [roomTypeId], references: [id])
+
+  @@unique([contractId, roomTypeId])
+  @@index([contractId])
+  @@map("ct_contract_room_type")
+}
+
+model ContractMealBasis {
+  id          String  @id @default(cuid())
+  contractId  String
+  mealBasisId String
+  isBase      Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  contract  Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  mealBasis HotelMealBasis @relation(fields: [mealBasisId], references: [id])
+
+  @@unique([contractId, mealBasisId])
+  @@index([contractId])
+  @@map("ct_contract_meal_basis")
+}
+
+model ContractBaseRate {
+  id         String   @id @default(cuid())
+  contractId String
+  seasonId   String
+  rate       Decimal  @db.Decimal(12, 4)
+  singleRate Decimal? @db.Decimal(12, 4)
+  doubleRate Decimal? @db.Decimal(12, 4)
+  tripleRate Decimal? @db.Decimal(12, 4)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  season   ContractSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, seasonId])
+  @@index([contractId])
+  @@map("ct_contract_base_rate")
 }

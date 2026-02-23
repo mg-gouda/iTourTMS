@@ -34,3 +34,14 @@ export const CONTRACT_STATUS_LABELS: Record<string, string> = {
   POSTED: "Posted",
   PUBLISHED: "Published",
 };
+
+export const CONTRACT_STATUS_VARIANTS: Record<string, string> = {
+  DRAFT: "secondary",
+  POSTED: "outline",
+  PUBLISHED: "default",
+};
+
+export const RATE_BASIS_LABELS: Record<string, string> = {
+  PER_PERSON: "Per Person",
+  PER_ROOM: "Per Room",
+};

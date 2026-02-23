@@ -121,3 +121,100 @@ export const hotelImageCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
   isPrimary: z.boolean().default(false),
 });
+
+// ── Contract Schemas ──
+
+export const contractCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required").max(20),
+  hotelId: z.string().min(1, "Hotel is required"),
+  validFrom: z.string().min(1, "Valid from is required"),
+  validTo: z.string().min(1, "Valid to is required"),
+  rateBasis: z.enum(["PER_PERSON", "PER_ROOM"]),
+  baseCurrencyId: z.string().min(1, "Currency is required"),
+  baseRoomTypeId: z.string().min(1, "Base room type is required"),
+  baseMealBasisId: z.string().min(1, "Base meal basis is required"),
+  minimumStay: z.number().int().min(1).default(1),
+  maximumStay: z.number().int().min(1).nullish(),
+  terms: z.string().nullish(),
+  internalNotes: z.string().nullish(),
+  hotelNotes: z.string().nullish(),
+}).refine((d) => d.validTo > d.validFrom, {
+  message: "Valid To must be after Valid From",
+  path: ["validTo"],
+});
+
+export const contractUpdateSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  code: z.string().min(1, "Code is required").max(20).optional(),
+  validFrom: z.string().optional(),
+  validTo: z.string().optional(),
+  rateBasis: z.enum(["PER_PERSON", "PER_ROOM"]).optional(),
+  baseCurrencyId: z.string().min(1).optional(),
+  baseRoomTypeId: z.string().min(1).optional(),
+  baseMealBasisId: z.string().min(1).optional(),
+  minimumStay: z.number().int().min(1).optional(),
+  maximumStay: z.number().int().min(1).nullish(),
+  terms: z.string().nullish(),
+  internalNotes: z.string().nullish(),
+  hotelNotes: z.string().nullish(),
+});
+
+// ── Contract Season Schemas ──
+
+export const contractSeasonCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required").max(20),
+  dateFrom: z.string().min(1, "Date from is required"),
+  dateTo: z.string().min(1, "Date to is required"),
+  sortOrder: z.number().int().default(0),
+  releaseDays: z.number().int().min(0).default(21),
+  minimumStay: z.number().int().min(1).nullish(),
+}).refine((d) => d.dateTo >= d.dateFrom, {
+  message: "Date To must be on or after Date From",
+  path: ["dateTo"],
+});
+
+export const contractSeasonUpdateSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  code: z.string().min(1, "Code is required").max(20).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+  releaseDays: z.number().int().min(0).optional(),
+  minimumStay: z.number().int().min(1).nullish(),
+});
+
+// ── Contract Room Type Schemas ──
+
+export const contractRoomTypeCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  roomTypeId: z.string().min(1, "Room type is required"),
+  isBase: z.boolean().default(false),
+  sortOrder: z.number().int().default(0),
+});
+
+// ── Contract Meal Basis Schemas ──
+
+export const contractMealBasisCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  mealBasisId: z.string().min(1, "Meal basis is required"),
+  isBase: z.boolean().default(false),
+  sortOrder: z.number().int().default(0),
+});
+
+// ── Contract Base Rate Schemas ──
+
+export const contractBaseRateSchema = z.object({
+  seasonId: z.string().min(1, "Season is required"),
+  rate: z.number().min(0, "Rate must be non-negative"),
+  singleRate: z.number().min(0).nullish(),
+  doubleRate: z.number().min(0).nullish(),
+  tripleRate: z.number().min(0).nullish(),
+});
+
+export const contractBaseRateBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  rates: z.array(contractBaseRateSchema),
+});

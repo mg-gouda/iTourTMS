@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -53,6 +54,8 @@ import {
   STAR_RATING_LABELS,
   MEAL_CODE_LABELS,
   CHILD_AGE_CATEGORY_LABELS,
+  CONTRACT_STATUS_LABELS,
+  CONTRACT_STATUS_VARIANTS,
 } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import {
@@ -138,6 +141,7 @@ export default function HotelDetailPage() {
           <TabsTrigger value="gallery">
             Gallery ({hotel.images?.length ?? 0})
           </TabsTrigger>
+          <TabsTrigger value="contracts">Contracts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -161,6 +165,10 @@ export default function HotelDetailPage() {
 
         <TabsContent value="gallery" className="mt-4">
           <GalleryTab hotelId={id} images={hotel.images ?? []} />
+        </TabsContent>
+
+        <TabsContent value="contracts" className="mt-4">
+          <HotelContractsTab hotelId={id} />
         </TabsContent>
       </Tabs>
 
@@ -1194,6 +1202,77 @@ function MealBasisTab({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ============================================================================
+// Contracts Tab
+// ============================================================================
+
+function HotelContractsTab({ hotelId }: { hotelId: string }) {
+  const router = useRouter();
+  const { data: contracts, isLoading } =
+    trpc.contracting.contract.list.useQuery();
+
+  // Filter to this hotel's contracts
+  const hotelContracts = (contracts ?? []).filter(
+    (c) => c.hotelId === hotelId,
+  );
+
+  if (isLoading) {
+    return (
+      <div className="py-8 text-center text-muted-foreground">Loading...</div>
+    );
+  }
+
+  if (hotelContracts.length === 0) {
+    return (
+      <div className="py-8 text-center text-muted-foreground">
+        No contracts for this hotel yet.
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Code</TableHead>
+          <TableHead>Period</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {hotelContracts.map((c) => (
+          <TableRow
+            key={c.id}
+            className="cursor-pointer"
+            onClick={() => router.push(`/contracting/contracts/${c.id}`)}
+          >
+            <TableCell className="font-medium">{c.name}</TableCell>
+            <TableCell className="font-mono">{c.code}</TableCell>
+            <TableCell>
+              {format(new Date(c.validFrom), "dd MMM yyyy")} —{" "}
+              {format(new Date(c.validTo), "dd MMM yyyy")}
+            </TableCell>
+            <TableCell>
+              <Badge
+                variant={
+                  (CONTRACT_STATUS_VARIANTS[c.status] as
+                    | "default"
+                    | "secondary"
+                    | "outline"
+                    | "destructive") ?? "secondary"
+                }
+              >
+                {CONTRACT_STATUS_LABELS[c.status] ?? c.status}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
