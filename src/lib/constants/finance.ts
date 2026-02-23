@@ -163,3 +163,36 @@ export const AGING_BUCKETS = [
   { key: "days61to90", label: "61-90 Days", min: 61, max: 90 },
   { key: "days90plus", label: "90+ Days", min: 91, max: Infinity },
 ] as const;
+
+// ── Recurring Entry Labels ──
+
+export const RECURRING_FREQUENCY_LABELS: Record<string, string> = {
+  MONTHLY: "Monthly",
+  QUARTERLY: "Quarterly",
+  YEARLY: "Yearly",
+};
+
+export const RECURRING_STATE_LABELS: Record<string, string> = {
+  ACTIVE: "Active",
+  PAUSED: "Paused",
+  DONE: "Done",
+};
+
+// ── Budget Labels ──
+
+export const BUDGET_STATE_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  APPROVED: "Approved",
+  CANCELLED: "Cancelled",
+};
+
+export const BUDGET_MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
+export const BUDGET_AMOUNT_KEYS = [
+  "amount01", "amount02", "amount03", "amount04",
+  "amount05", "amount06", "amount07", "amount08",
+  "amount09", "amount10", "amount11", "amount12",
+] as const;

@@ -64,6 +64,8 @@ const moduleRoutes: Record<string, { label: string; href: string }[]> = {
     { label: "Reconciliation", href: "/finance/banking/reconciliation" },
     { label: "Batch Payments", href: "/finance/banking/batch-payments" },
     { label: "Journal Entries", href: "/finance/accounting/journal-entries" },
+    { label: "Recurring Entries", href: "/finance/accounting/recurring-entries" },
+    { label: "Budgets", href: "/finance/accounting/budgets" },
     { label: "Chart of Accounts", href: "/finance/configuration/chart-of-accounts" },
     { label: "Journals", href: "/finance/configuration/journals" },
     { label: "Taxes", href: "/finance/configuration/taxes" },
@@ -78,6 +80,7 @@ const moduleRoutes: Record<string, { label: string; href: string }[]> = {
     { label: "General Ledger", href: "/finance/reports/general-ledger" },
     { label: "Aged Receivable", href: "/finance/reports/aged-receivable" },
     { label: "Aged Payable", href: "/finance/reports/aged-payable" },
+    { label: "Budget vs Actuals", href: "/finance/reports/budget-vs-actuals" },
   ],
   contracting: [
     { label: "Dashboard", href: "/contracting" },

@@ -96,6 +96,8 @@ model Company {
   bankStatements    BankStatement[]
   batchPayments     BatchPayment[]
   fiscalYears       FiscalYear[]
+  recurringEntries  RecurringEntry[]
+  budgets           Budget[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -341,6 +343,7 @@ model Partner {
   moveLineItems      MoveLineItem[]
   payments           Payment[]
   bankStatementLines BankStatementLine[]
+  recurringEntries   RecurringEntry[]
 
   @@index([companyId])
   @@index([companyId, type])
@@ -516,6 +519,24 @@ enum FiscalPeriodState {
   CLOSED
 }
 
+enum RecurringFrequency {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum RecurringState {
+  ACTIVE
+  PAUSED
+  DONE
+}
+
+enum BudgetState {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
 // ============================================================================
 // FINANCE MODULE — Chart of Accounts
 // ============================================================================
@@ -577,6 +598,8 @@ model FinAccount {
   // Fiscal position relations
   fpAccountSrcMaps  FiscalPositionAccountMap[] @relation("FPAccountSrc")
   fpAccountDestMaps FiscalPositionAccountMap[] @relation("FPAccountDest")
+  recurringEntryLines RecurringEntryLine[]
+  budgetLines         BudgetLine[]
 
   @@unique([code, companyId])
   @@index([companyId])
@@ -616,6 +639,7 @@ model Journal {
   payments         Payment[]
   bankStatements   BankStatement[]
   batchPayments    BatchPayment[]
+  recurringEntries RecurringEntry[]
 
   @@unique([code, companyId])
   @@index([companyId])
@@ -1032,6 +1056,7 @@ model FiscalYear {
   closingMove  Move?          @relation("YearClosingMove", fields: [closingMoveId], references: [id])
   closedByUser User?          @relation("FiscalYearClosedBy", fields: [closedBy], references: [id])
   periods      FiscalPeriod[]
+  budgets      Budget[]
 
   @@unique([companyId, code])
   @@unique([companyId, dateFrom])
@@ -1062,4 +1087,98 @@ model FiscalPeriod {
   @@index([fiscalYearId])
   @@index([fiscalYearId, state])
   @@map("fin_fiscal_period")
+}
+
+// ── FINANCE MODULE — Recurring Entries ──
+
+model RecurringEntry {
+  id             String             @id @default(cuid())
+  companyId      String
+  name           String
+  journalId      String
+  partnerId      String?
+  currencyId     String
+  ref            String?
+  frequency      RecurringFrequency @default(MONTHLY)
+  state          RecurringState     @default(ACTIVE)
+  nextRunDate    DateTime           @db.Date
+  endDate        DateTime?          @db.Date
+  lastRunDate    DateTime?          @db.Date
+  totalGenerated Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journal       Journal              @relation(fields: [journalId], references: [id])
+  partner       Partner?             @relation(fields: [partnerId], references: [id])
+  lineTemplates RecurringEntryLine[]
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@index([nextRunDate])
+  @@map("fin_recurring_entry")
+}
+
+model RecurringEntryLine {
+  id               String  @id @default(cuid())
+  recurringEntryId String
+  accountId        String
+  partnerId        String?
+  name             String?
+  debit            Decimal @default(0) @db.Decimal(12, 4)
+  credit           Decimal @default(0) @db.Decimal(12, 4)
+  sequence         Int     @default(10)
+
+  recurringEntry RecurringEntry @relation(fields: [recurringEntryId], references: [id], onDelete: Cascade)
+  account        FinAccount     @relation(fields: [accountId], references: [id])
+
+  @@index([recurringEntryId])
+  @@map("fin_recurring_entry_line")
+}
+
+// ── FINANCE MODULE — Budgets ──
+
+model Budget {
+  id           String      @id @default(cuid())
+  companyId    String
+  name         String
+  fiscalYearId String
+  state        BudgetState @default(DRAFT)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fiscalYear FiscalYear  @relation(fields: [fiscalYearId], references: [id])
+  lines      BudgetLine[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+  @@index([companyId, fiscalYearId])
+  @@map("fin_budget")
+}
+
+model BudgetLine {
+  id           String  @id @default(cuid())
+  budgetId     String
+  accountId    String
+  amount01     Decimal @default(0) @db.Decimal(12, 4)
+  amount02     Decimal @default(0) @db.Decimal(12, 4)
+  amount03     Decimal @default(0) @db.Decimal(12, 4)
+  amount04     Decimal @default(0) @db.Decimal(12, 4)
+  amount05     Decimal @default(0) @db.Decimal(12, 4)
+  amount06     Decimal @default(0) @db.Decimal(12, 4)
+  amount07     Decimal @default(0) @db.Decimal(12, 4)
+  amount08     Decimal @default(0) @db.Decimal(12, 4)
+  amount09     Decimal @default(0) @db.Decimal(12, 4)
+  amount10     Decimal @default(0) @db.Decimal(12, 4)
+  amount11     Decimal @default(0) @db.Decimal(12, 4)
+  amount12     Decimal @default(0) @db.Decimal(12, 4)
+  annualAmount Decimal @default(0) @db.Decimal(12, 4)
+
+  budget  Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  account FinAccount @relation(fields: [accountId], references: [id])
+
+  @@unique([budgetId, accountId])
+  @@index([budgetId])
+  @@map("fin_budget_line")
 }

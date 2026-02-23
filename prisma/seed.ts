@@ -891,6 +891,95 @@ export async function seedFinance(companyId: string) {
 
   console.log(`  ✓ Fiscal year FY ${currentYear} with 12 periods seeded`);
 
+  // ── Phase 8: Sample Recurring Entry ──
+
+  const miscJournal = await prisma.journal.findFirst({
+    where: { code: "MISC", companyId },
+  });
+  const usd = await prisma.currency.findFirst({ where: { code: "USD" } });
+
+  if (miscJournal && usd) {
+    const existingRecurring = await prisma.recurringEntry.findFirst({
+      where: { name: "Monthly Rent", companyId },
+    });
+
+    if (!existingRecurring) {
+      await prisma.recurringEntry.create({
+        data: {
+          companyId,
+          name: "Monthly Rent",
+          journalId: miscJournal.id,
+          currencyId: usd.id,
+          frequency: "MONTHLY",
+          state: "ACTIVE",
+          nextRunDate: new Date(currentYear, new Date().getMonth(), 1),
+          totalGenerated: 0,
+          lineTemplates: {
+            create: [
+              {
+                accountId: accountMap["6100"],
+                name: "Office rent",
+                debit: 5000,
+                credit: 0,
+                sequence: 10,
+              },
+              {
+                accountId: accountMap["1200"],
+                name: "Bank payment",
+                debit: 0,
+                credit: 5000,
+                sequence: 20,
+              },
+            ],
+          },
+        },
+      });
+      console.log("    ✓ Sample recurring entry (Monthly Rent) seeded");
+    }
+
+    // ── Sample Budget ──
+    const existingBudget = await prisma.budget.findFirst({
+      where: { name: `Operating Budget ${currentYear}`, companyId },
+    });
+
+    if (!existingBudget) {
+      await prisma.budget.create({
+        data: {
+          companyId,
+          name: `Operating Budget ${currentYear}`,
+          fiscalYearId: fy.id,
+          state: "DRAFT",
+          lines: {
+            create: [
+              {
+                accountId: accountMap["6000"],
+                amount01: 10000, amount02: 10000, amount03: 10000, amount04: 10000,
+                amount05: 10000, amount06: 10000, amount07: 10000, amount08: 10000,
+                amount09: 10000, amount10: 10000, amount11: 10000, amount12: 10000,
+                annualAmount: 120000,
+              },
+              {
+                accountId: accountMap["6100"],
+                amount01: 5000, amount02: 5000, amount03: 5000, amount04: 5000,
+                amount05: 5000, amount06: 5000, amount07: 5000, amount08: 5000,
+                amount09: 5000, amount10: 5000, amount11: 5000, amount12: 5000,
+                annualAmount: 60000,
+              },
+              {
+                accountId: accountMap["6400"],
+                amount01: 2000, amount02: 2000, amount03: 3000, amount04: 3000,
+                amount05: 4000, amount06: 4000, amount07: 3000, amount08: 3000,
+                amount09: 2000, amount10: 2000, amount11: 3000, amount12: 5000,
+                annualAmount: 36000,
+              },
+            ],
+          },
+        },
+      });
+      console.log(`    ✓ Sample budget (Operating Budget ${currentYear}) seeded`);
+    }
+  }
+
   console.log("  ✓ Finance seed completed");
 }
 

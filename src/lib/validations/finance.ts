@@ -262,3 +262,64 @@ export const fiscalPeriodLockSchema = z.object({
 export const fiscalPeriodUnlockSchema = z.object({
   periodId: z.string().min(1, "Period is required"),
 });
+
+// ── Recurring Entry Schemas ──
+
+export const recurringEntryLineSchema = z.object({
+  accountId: z.string().min(1, "Account is required"),
+  partnerId: z.string().nullish(),
+  name: z.string().nullish(),
+  debit: z.number().min(0).default(0),
+  credit: z.number().min(0).default(0),
+  sequence: z.number().int().default(10),
+});
+
+export const recurringEntryCreateSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  journalId: z.string().min(1, "Journal is required"),
+  partnerId: z.string().nullish(),
+  currencyId: z.string().min(1, "Currency is required"),
+  ref: z.string().nullish(),
+  frequency: z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]).default("MONTHLY"),
+  nextRunDate: z.coerce.date(),
+  endDate: z.coerce.date().nullish(),
+  lineTemplates: z
+    .array(recurringEntryLineSchema)
+    .min(1, "At least one line is required"),
+});
+
+export const recurringEntryUpdateSchema = recurringEntryCreateSchema
+  .partial()
+  .extend({
+    lineTemplates: z.array(recurringEntryLineSchema).min(1).optional(),
+  });
+
+// ── Budget Schemas ──
+
+export const budgetLineSchema = z.object({
+  accountId: z.string().min(1, "Account is required"),
+  amount01: z.number().default(0),
+  amount02: z.number().default(0),
+  amount03: z.number().default(0),
+  amount04: z.number().default(0),
+  amount05: z.number().default(0),
+  amount06: z.number().default(0),
+  amount07: z.number().default(0),
+  amount08: z.number().default(0),
+  amount09: z.number().default(0),
+  amount10: z.number().default(0),
+  amount11: z.number().default(0),
+  amount12: z.number().default(0),
+});
+
+export const budgetCreateSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  fiscalYearId: z.string().min(1, "Fiscal year is required"),
+  lines: z
+    .array(budgetLineSchema)
+    .min(1, "At least one budget line is required"),
+});
+
+export const budgetUpdateSchema = budgetCreateSchema.partial().extend({
+  lines: z.array(budgetLineSchema).min(1).optional(),
+});
