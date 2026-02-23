@@ -45,3 +45,22 @@ export const RATE_BASIS_LABELS: Record<string, string> = {
   PER_PERSON: "Per Person",
   PER_ROOM: "Per Room",
 };
+
+export const SUPPLEMENT_TYPE_LABELS: Record<string, string> = {
+  ROOM_TYPE: "Room Type",
+  MEAL: "Meal Plan",
+  OCCUPANCY: "Occupancy",
+  CHILD: "Child",
+  VIEW: "View",
+  EXTRA_BED: "Extra Bed",
+};
+
+export const SUPPLEMENT_VALUE_TYPE_LABELS: Record<string, string> = {
+  FIXED: "Fixed",
+  PERCENTAGE: "%",
+};
+
+export const OCCUPANCY_SUPPLEMENT_LABELS: Record<number, string> = {
+  1: "Single (SGL) Supplement",
+  3: "3rd Adult Reduction",
+};

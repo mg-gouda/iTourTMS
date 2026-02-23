@@ -604,6 +604,20 @@ enum RateBasis {
   PER_ROOM
 }
 
+enum SupplementType {
+  ROOM_TYPE
+  MEAL
+  OCCUPANCY
+  CHILD
+  VIEW
+  EXTRA_BED
+}
+
+enum SupplementValueType {
+  FIXED
+  PERCENTAGE
+}
+
 // ============================================================================
 // FINANCE MODULE — Chart of Accounts
 // ============================================================================
@@ -1377,8 +1391,9 @@ model HotelRoomType {
 
   hotel              Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   occupancyTable     RoomTypeOccupancy[]
-  contractRoomTypes  ContractRoomType[]
-  baseForContracts   Contract[]          @relation("ContractBaseRoom")
+  contractRoomTypes   ContractRoomType[]
+  baseForContracts    Contract[]          @relation("ContractBaseRoom")
+  contractSupplements ContractSupplement[]
 
   @@unique([hotelId, code])
   @@index([hotelId])
@@ -1438,8 +1453,9 @@ model HotelMealBasis {
   updatedAt   DateTime @updatedAt
 
   hotel             Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  contractMealBasis ContractMealBasis[]
-  baseForContracts  Contract[]         @relation("ContractBaseMeal")
+  contractMealBasis   ContractMealBasis[]
+  baseForContracts    Contract[]         @relation("ContractBaseMeal")
+  contractSupplements ContractSupplement[]
 
   @@unique([hotelId, mealCode])
   @@index([hotelId])
@@ -1487,6 +1503,7 @@ model Contract {
   roomTypes     ContractRoomType[]
   mealBases     ContractMealBasis[]
   baseRates     ContractBaseRate[]
+  supplements   ContractSupplement[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1507,8 +1524,9 @@ model ContractSeason {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  contract  Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  baseRates ContractBaseRate[]
+  contract    Contract             @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  baseRates   ContractBaseRate[]
+  supplements ContractSupplement[]
 
   @@unique([contractId, code])
   @@index([contractId])
@@ -1562,4 +1580,36 @@ model ContractBaseRate {
   @@unique([contractId, seasonId])
   @@index([contractId])
   @@map("ct_contract_base_rate")
+}
+
+model ContractSupplement {
+  id               String              @id @default(cuid())
+  contractId       String
+  seasonId         String
+  supplementType   SupplementType
+  roomTypeId       String?
+  mealBasisId      String?
+  forAdults        Int?
+  forChildCategory ChildAgeCategory?
+  forChildBedding  ChildBedding?
+  valueType        SupplementValueType @default(FIXED)
+  value            Decimal             @db.Decimal(12, 4)
+  isReduction      Boolean             @default(false)
+  perPerson        Boolean             @default(true)
+  perNight         Boolean             @default(true)
+  label            String?
+  notes            String?             @db.Text
+  sortOrder        Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  contract  Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  season    ContractSeason  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  roomType  HotelRoomType?  @relation(fields: [roomTypeId], references: [id])
+  mealBasis HotelMealBasis? @relation(fields: [mealBasisId], references: [id])
+
+  @@index([contractId])
+  @@index([contractId, supplementType])
+  @@index([seasonId])
+  @@map("ct_contract_supplement")
 }

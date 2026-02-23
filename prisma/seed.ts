@@ -1245,7 +1245,135 @@ export async function seedContracting(companyId: string) {
           ],
         });
 
-        console.log("    ✓ Sample contract 'Summer 2026' seeded with 2 seasons and base rates");
+        // Assign additional (non-base) room types and meal basis
+        const dlxRoom = await prisma.hotelRoomType.findFirst({
+          where: { hotelId: hotel.id, code: "DLX" },
+        });
+        const steRoom = await prisma.hotelRoomType.findFirst({
+          where: { hotelId: hotel.id, code: "STE" },
+        });
+        const hbMeal = await prisma.hotelMealBasis.findFirst({
+          where: { hotelId: hotel.id, mealCode: "HB" },
+        });
+        const fbMeal = await prisma.hotelMealBasis.findFirst({
+          where: { hotelId: hotel.id, mealCode: "FB" },
+        });
+
+        if (dlxRoom) {
+          await prisma.contractRoomType.create({
+            data: { contractId: contract.id, roomTypeId: dlxRoom.id, isBase: false, sortOrder: 1 },
+          });
+        }
+        if (steRoom) {
+          await prisma.contractRoomType.create({
+            data: { contractId: contract.id, roomTypeId: steRoom.id, isBase: false, sortOrder: 2 },
+          });
+        }
+        if (hbMeal) {
+          await prisma.contractMealBasis.create({
+            data: { contractId: contract.id, mealBasisId: hbMeal.id, isBase: false, sortOrder: 1 },
+          });
+        }
+        if (fbMeal) {
+          await prisma.contractMealBasis.create({
+            data: { contractId: contract.id, mealBasisId: fbMeal.id, isBase: false, sortOrder: 2 },
+          });
+        }
+
+        // Supplements
+        const supplementData: {
+          contractId: string;
+          seasonId: string;
+          supplementType: "ROOM_TYPE" | "MEAL" | "OCCUPANCY" | "CHILD" | "VIEW" | "EXTRA_BED";
+          roomTypeId?: string;
+          mealBasisId?: string;
+          forAdults?: number;
+          forChildCategory?: "INFANT" | "CHILD" | "TEEN";
+          forChildBedding?: "SHARING_WITH_PARENTS" | "EXTRA_BED" | "OWN_BED";
+          valueType?: "FIXED" | "PERCENTAGE";
+          value: number;
+          isReduction?: boolean;
+          perPerson?: boolean;
+          perNight?: boolean;
+          label?: string;
+        }[] = [];
+
+        // Room Type supplements: DLX and STE per season
+        if (dlxRoom) {
+          supplementData.push(
+            { contractId: contract.id, seasonId: lowSeason.id, supplementType: "ROOM_TYPE", roomTypeId: dlxRoom.id, value: 30 },
+            { contractId: contract.id, seasonId: highSeason.id, supplementType: "ROOM_TYPE", roomTypeId: dlxRoom.id, value: 50 },
+          );
+        }
+        if (steRoom) {
+          supplementData.push(
+            { contractId: contract.id, seasonId: lowSeason.id, supplementType: "ROOM_TYPE", roomTypeId: steRoom.id, value: 100 },
+            { contractId: contract.id, seasonId: highSeason.id, supplementType: "ROOM_TYPE", roomTypeId: steRoom.id, value: 150 },
+          );
+        }
+
+        // Meal supplements: HB and FB per season
+        if (hbMeal) {
+          supplementData.push(
+            { contractId: contract.id, seasonId: lowSeason.id, supplementType: "MEAL", mealBasisId: hbMeal.id, value: 25 },
+            { contractId: contract.id, seasonId: highSeason.id, supplementType: "MEAL", mealBasisId: hbMeal.id, value: 35 },
+          );
+        }
+        if (fbMeal) {
+          supplementData.push(
+            { contractId: contract.id, seasonId: lowSeason.id, supplementType: "MEAL", mealBasisId: fbMeal.id, value: 45 },
+            { contractId: contract.id, seasonId: highSeason.id, supplementType: "MEAL", mealBasisId: fbMeal.id, value: 60 },
+          );
+        }
+
+        // Occupancy supplements: SGL supplement and 3rd adult reduction
+        supplementData.push(
+          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "OCCUPANCY", forAdults: 1, value: 25, valueType: "PERCENTAGE" },
+          { contractId: contract.id, seasonId: highSeason.id, supplementType: "OCCUPANCY", forAdults: 1, value: 30, valueType: "PERCENTAGE" },
+          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "OCCUPANCY", forAdults: 3, value: 10, valueType: "PERCENTAGE", isReduction: true },
+          { contractId: contract.id, seasonId: highSeason.id, supplementType: "OCCUPANCY", forAdults: 3, value: 15, valueType: "PERCENTAGE", isReduction: true },
+        );
+
+        // Child supplements: CHILD sharing
+        supplementData.push(
+          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "SHARING_WITH_PARENTS", value: 0 },
+          { contractId: contract.id, seasonId: highSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "SHARING_WITH_PARENTS", value: 0 },
+          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "EXTRA_BED", value: 30 },
+          { contractId: contract.id, seasonId: highSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "EXTRA_BED", value: 40 },
+        );
+
+        // View supplements: Sea View
+        supplementData.push(
+          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "VIEW", label: "Sea View", value: 15 },
+          { contractId: contract.id, seasonId: highSeason.id, supplementType: "VIEW", label: "Sea View", value: 25 },
+        );
+
+        // Extra Bed supplements
+        supplementData.push(
+          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "EXTRA_BED", value: 35 },
+          { contractId: contract.id, seasonId: highSeason.id, supplementType: "EXTRA_BED", value: 45 },
+        );
+
+        await prisma.contractSupplement.createMany({
+          data: supplementData.map((s) => ({
+            contractId: s.contractId,
+            seasonId: s.seasonId,
+            supplementType: s.supplementType,
+            roomTypeId: s.roomTypeId ?? null,
+            mealBasisId: s.mealBasisId ?? null,
+            forAdults: s.forAdults ?? null,
+            forChildCategory: s.forChildCategory ?? null,
+            forChildBedding: s.forChildBedding ?? null,
+            valueType: s.valueType ?? "FIXED",
+            value: s.value,
+            isReduction: s.isReduction ?? false,
+            perPerson: s.perPerson ?? true,
+            perNight: s.perNight ?? true,
+            label: s.label ?? null,
+          })),
+        });
+
+        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, and supplements");
       }
     } else {
       console.log("    ✓ Sample contract already exists, skipping");

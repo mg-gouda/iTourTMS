@@ -6,6 +6,7 @@ import { contractBaseRateRouter } from "./contract-base-rate";
 import { contractMealBasisRouter } from "./contract-meal-basis";
 import { contractRoomTypeRouter } from "./contract-room-type";
 import { contractSeasonRouter } from "./contract-season";
+import { contractSupplementRouter } from "./contract-supplement";
 import { destinationRouter } from "./destination";
 import { hotelRouter } from "./hotel";
 import { mealBasisRouter } from "./meal-basis";
@@ -18,6 +19,7 @@ export const contractingRouter = createTRPCRouter({
   contractMealBasis: contractMealBasisRouter,
   contractRoomType: contractRoomTypeRouter,
   contractSeason: contractSeasonRouter,
+  contractSupplement: contractSupplementRouter,
   destination: destinationRouter,
   hotel: hotelRouter,
   mealBasis: mealBasisRouter,

@@ -218,3 +218,87 @@ export const contractBaseRateBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   rates: z.array(contractBaseRateSchema),
 });
+
+// ── Supplement Schemas ──
+
+export const supplementRoomTypeBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    seasonId: z.string().min(1),
+    roomTypeId: z.string().min(1),
+    value: z.number(),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    perPerson: z.boolean().default(true),
+    perNight: z.boolean().default(true),
+  })),
+});
+
+export const supplementMealBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    seasonId: z.string().min(1),
+    mealBasisId: z.string().min(1),
+    value: z.number(),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    isReduction: z.boolean().default(false),
+    perPerson: z.boolean().default(true),
+    perNight: z.boolean().default(true),
+  })),
+});
+
+export const supplementOccupancyBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    seasonId: z.string().min(1),
+    forAdults: z.number().int().min(1),
+    value: z.number(),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    isReduction: z.boolean().default(false),
+    perNight: z.boolean().default(true),
+  })),
+});
+
+export const supplementChildBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    seasonId: z.string().min(1),
+    forChildCategory: z.enum(["INFANT", "CHILD", "TEEN"]),
+    forChildBedding: z.enum(["SHARING_WITH_PARENTS", "EXTRA_BED", "OWN_BED"]),
+    value: z.number(),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    perNight: z.boolean().default(true),
+  })),
+});
+
+export const supplementExtraBedBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    seasonId: z.string().min(1),
+    value: z.number(),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    perNight: z.boolean().default(true),
+  })),
+});
+
+export const supplementViewCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  seasonId: z.string().min(1, "Season is required"),
+  label: z.string().min(1, "Label is required"),
+  value: z.number(),
+  valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+  perPerson: z.boolean().default(true),
+  perNight: z.boolean().default(true),
+  notes: z.string().nullish(),
+  sortOrder: z.number().int().default(0),
+});
+
+export const supplementViewUpdateSchema = z.object({
+  label: z.string().min(1, "Label is required").optional(),
+  seasonId: z.string().min(1).optional(),
+  value: z.number().optional(),
+  valueType: z.enum(["FIXED", "PERCENTAGE"]).optional(),
+  perPerson: z.boolean().optional(),
+  perNight: z.boolean().optional(),
+  notes: z.string().nullish(),
+  sortOrder: z.number().int().optional(),
+});

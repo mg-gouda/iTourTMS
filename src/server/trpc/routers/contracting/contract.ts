@@ -47,6 +47,14 @@ export const contractRouter = createTRPCRouter({
           baseRates: {
             include: { season: { select: { id: true, name: true, code: true } } },
           },
+          supplements: {
+            include: {
+              season: { select: { id: true, name: true, code: true } },
+              roomType: { select: { id: true, name: true, code: true } },
+              mealBasis: { select: { id: true, name: true, mealCode: true } },
+            },
+            orderBy: [{ supplementType: "asc" }, { sortOrder: "asc" }],
+          },
         },
       });
     }),
