@@ -8,6 +8,7 @@ import { fiscalPositionRouter } from "./fiscal-position";
 import { journalRouter } from "./journal";
 import { moveRouter } from "./move";
 import { paymentRouter } from "./payment";
+import { periodRouter } from "./period";
 import { paymentTermRouter } from "./payment-term";
 import { reconciliationRouter } from "./reconciliation";
 import { reportRouter } from "./report";
@@ -22,6 +23,7 @@ export const financeRouter = createTRPCRouter({
   journal: journalRouter,
   move: moveRouter,
   payment: paymentRouter,
+  period: periodRouter,
   tax: taxRouter,
   paymentTerm: paymentTermRouter,
   reconciliation: reconciliationRouter,

@@ -71,6 +71,7 @@ const moduleRoutes: Record<string, { label: string; href: string }[]> = {
     { label: "Payment Terms", href: "/finance/configuration/payment-terms" },
     { label: "Fiscal Positions", href: "/finance/configuration/fiscal-positions" },
     { label: "Currencies", href: "/finance/configuration/currencies" },
+    { label: "Fiscal Years", href: "/finance/configuration/fiscal-years" },
     { label: "Profit & Loss", href: "/finance/reports/profit-and-loss" },
     { label: "Balance Sheet", href: "/finance/reports/balance-sheet" },
     { label: "Trial Balance", href: "/finance/reports/trial-balance" },

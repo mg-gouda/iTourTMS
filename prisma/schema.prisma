@@ -95,6 +95,7 @@ model Company {
   partialReconciles PartialReconcile[]
   bankStatements    BankStatement[]
   batchPayments     BatchPayment[]
+  fiscalYears       FiscalYear[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -135,6 +136,8 @@ model User {
   accounts  AuthAccount[]
   sessions  Session[]
   userRoles UserRole[]
+  closedFiscalYears   FiscalYear[]   @relation("FiscalYearClosedBy")
+  lockedFiscalPeriods FiscalPeriod[] @relation("FiscalPeriodLockedBy")
 
   @@index([companyId])
   @@index([email])
@@ -502,6 +505,17 @@ enum BankStatementState {
   VALIDATED
 }
 
+enum FiscalYearState {
+  OPEN
+  CLOSED
+}
+
+enum FiscalPeriodState {
+  OPEN
+  LOCKED
+  CLOSED
+}
+
 // ============================================================================
 // FINANCE MODULE — Chart of Accounts
 // ============================================================================
@@ -756,6 +770,7 @@ model Move {
   paymentInvoices Payment[]       @relation("PaymentInvoices")
   paymentMove     Payment?        @relation("PaymentMove")
   exchangeReconciles PartialReconcile[] @relation("ExchangeMove")
+  closingForYear     FiscalYear?        @relation("YearClosingMove")
 
   @@index([companyId])
   @@index([companyId, moveType])
@@ -995,4 +1010,56 @@ model BatchPayment {
   @@index([companyId])
   @@index([companyId, state])
   @@map("fin_batch_payment")
+}
+
+// ── FINANCE MODULE — Fiscal Year & Period Management ──
+
+model FiscalYear {
+  id            String          @id @default(cuid())
+  companyId     String
+  name          String
+  code          String
+  dateFrom      DateTime        @db.Date
+  dateTo        DateTime        @db.Date
+  state         FiscalYearState @default(OPEN)
+  closingMoveId String?         @unique
+  closedBy      String?
+  closedAt      DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  closingMove  Move?          @relation("YearClosingMove", fields: [closingMoveId], references: [id])
+  closedByUser User?          @relation("FiscalYearClosedBy", fields: [closedBy], references: [id])
+  periods      FiscalPeriod[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, dateFrom])
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_fiscal_year")
+}
+
+model FiscalPeriod {
+  id           String            @id @default(cuid())
+  fiscalYearId String
+  name         String
+  code         String
+  number       Int
+  dateFrom     DateTime          @db.Date
+  dateTo       DateTime          @db.Date
+  state        FiscalPeriodState @default(OPEN)
+  lockedBy     String?
+  lockedAt     DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  fiscalYear   FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  lockedByUser User?      @relation("FiscalPeriodLockedBy", fields: [lockedBy], references: [id])
+
+  @@unique([fiscalYearId, number])
+  @@unique([fiscalYearId, code])
+  @@index([fiscalYearId])
+  @@index([fiscalYearId, state])
+  @@map("fin_fiscal_period")
 }

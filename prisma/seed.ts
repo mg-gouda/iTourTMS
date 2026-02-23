@@ -841,6 +841,56 @@ export async function seedFinance(companyId: string) {
     });
   }
 
+  // ── Phase 7: Fiscal Years & Periods ──
+
+  const currentYear = new Date().getFullYear();
+  const fyStart = new Date(currentYear, 0, 1);
+  const fyEnd = new Date(currentYear, 11, 31);
+
+  const fy = await prisma.fiscalYear.upsert({
+    where: {
+      companyId_code: { companyId, code: String(currentYear) },
+    },
+    update: {},
+    create: {
+      companyId,
+      name: `FY ${currentYear}`,
+      code: String(currentYear),
+      dateFrom: fyStart,
+      dateTo: fyEnd,
+      state: "OPEN",
+    },
+  });
+
+  // Generate 12 monthly periods
+  for (let month = 0; month < 12; month++) {
+    const periodStart = new Date(currentYear, month, 1);
+    const periodEnd = new Date(currentYear, month + 1, 0);
+    const monthName = periodStart.toLocaleString("en", {
+      month: "long",
+      year: "numeric",
+    });
+    const monthCode = `${currentYear}-${String(month + 1).padStart(2, "0")}`;
+
+    await prisma.fiscalPeriod.upsert({
+      where: {
+        fiscalYearId_number: { fiscalYearId: fy.id, number: month + 1 },
+      },
+      update: {},
+      create: {
+        fiscalYearId: fy.id,
+        name: monthName,
+        code: monthCode,
+        number: month + 1,
+        dateFrom: periodStart,
+        dateTo: periodEnd,
+        state: "OPEN",
+      },
+    });
+  }
+
+  console.log(`  ✓ Fiscal year FY ${currentYear} with 12 periods seeded`);
+
   console.log("  ✓ Finance seed completed");
 }
 

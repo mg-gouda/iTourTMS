@@ -13,6 +13,7 @@ import {
   type TaxWithRepartition,
   type ComputedLine,
 } from "@/server/services/finance/move-engine";
+import { assertPeriodOpen } from "@/server/services/finance/period-engine";
 import { getRate } from "@/server/services/finance/currency-service";
 import { applyFiscalPosition } from "@/server/services/finance/fiscal-position";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
@@ -373,6 +374,11 @@ export const moveRouter = createTRPCRouter({
         });
       }
 
+      // If date is changing, verify new date is in an open period
+      if (moveData.date) {
+        await assertPeriodOpen(ctx.db as any, ctx.companyId, moveData.date as Date);
+      }
+
       if (!inputLines) {
         return ctx.db.move.update({ where: { id }, data: moveData as any });
       }
@@ -582,6 +588,9 @@ export const moveRouter = createTRPCRouter({
         });
       }
 
+      // Check period lock
+      await assertPeriodOpen(ctx.db as any, ctx.companyId, move.date);
+
       // Validate double-entry balance
       const lines: ComputedLine[] = move.lineItems.map((li: any) => ({
         accountId: li.accountId,
@@ -635,6 +644,9 @@ export const moveRouter = createTRPCRouter({
           message: "Only posted moves can be cancelled",
         });
       }
+
+      // Check period lock
+      await assertPeriodOpen(ctx.db as any, ctx.companyId, move.date);
 
       // Create reversal move
       const reversalLines = buildReversalLines(

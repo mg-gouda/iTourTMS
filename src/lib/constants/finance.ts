@@ -129,6 +129,19 @@ export const BATCH_PAYMENT_STATE_LABELS: Record<string, string> = {
   CANCELLED: "Cancelled",
 };
 
+// ── Fiscal Year & Period Labels ──
+
+export const FISCAL_YEAR_STATE_LABELS: Record<string, string> = {
+  OPEN: "Open",
+  CLOSED: "Closed",
+};
+
+export const FISCAL_PERIOD_STATE_LABELS: Record<string, string> = {
+  OPEN: "Open",
+  LOCKED: "Locked",
+  CLOSED: "Closed",
+};
+
 // ── Report Constants ──
 
 export const REPORT_INCOME_TYPES = ["INCOME", "INCOME_OTHER"] as const;
@@ -136,6 +149,12 @@ export const REPORT_EXPENSE_TYPES = ["EXPENSE", "EXPENSE_DEPRECIATION", "EXPENSE
 export const REPORT_ASSET_TYPES = ["ASSET_RECEIVABLE", "ASSET_CASH", "ASSET_CURRENT", "ASSET_NON_CURRENT", "ASSET_PREPAYMENTS", "ASSET_FIXED"] as const;
 export const REPORT_LIABILITY_TYPES = ["LIABILITY_PAYABLE", "LIABILITY_CREDIT_CARD", "LIABILITY_CURRENT", "LIABILITY_NON_CURRENT"] as const;
 export const REPORT_EQUITY_TYPES = ["EQUITY", "EQUITY_UNAFFECTED"] as const;
+
+/** P&L account types zeroed out during year-end close */
+export const CLOSING_PL_TYPES = [
+  ...REPORT_INCOME_TYPES,
+  ...REPORT_EXPENSE_TYPES,
+] as const;
 
 export const AGING_BUCKETS = [
   { key: "current", label: "Current", min: -Infinity, max: 0 },

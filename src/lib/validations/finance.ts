@@ -232,3 +232,33 @@ export const currencyRateUpsertSchema = z.object({
   date: z.coerce.date(),
   rate: z.number().positive("Rate must be positive"),
 });
+
+// ── Fiscal Year & Period Schemas ──
+
+export const fiscalYearCreateSchema = z
+  .object({
+    name: z.string().min(1, "Name is required").max(100),
+    code: z.string().min(1, "Code is required").max(10),
+    dateFrom: z.coerce.date(),
+    dateTo: z.coerce.date(),
+    includePeriod13: z.boolean().default(false),
+  })
+  .refine((data) => data.dateTo > data.dateFrom, {
+    message: "End date must be after start date",
+    path: ["dateTo"],
+  });
+
+export const fiscalYearCloseSchema = z.object({
+  fiscalYearId: z.string().min(1, "Fiscal year is required"),
+  retainedEarningsAccountId: z.string().min(1, "Retained earnings account is required"),
+  journalId: z.string().min(1, "Closing journal is required"),
+  closingDate: z.coerce.date().optional(),
+});
+
+export const fiscalPeriodLockSchema = z.object({
+  periodId: z.string().min(1, "Period is required"),
+});
+
+export const fiscalPeriodUnlockSchema = z.object({
+  periodId: z.string().min(1, "Period is required"),
+});
