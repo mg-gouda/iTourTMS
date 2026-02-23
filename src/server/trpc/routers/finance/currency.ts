@@ -7,6 +7,16 @@ import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 const financeProcedure = moduleProcedure("finance");
 
 export const currencyRouter = createTRPCRouter({
+  // ── Company base currency ──
+
+  getBaseCurrency: financeProcedure.query(async ({ ctx }) => {
+    const company = await ctx.db.company.findUnique({
+      where: { id: ctx.companyId },
+      select: { baseCurrency: { select: { id: true, code: true, symbol: true } } },
+    });
+    return company?.baseCurrency ?? null;
+  }),
+
   // ── Currency read procedures ──
 
   list: financeProcedure

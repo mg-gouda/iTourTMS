@@ -147,12 +147,14 @@ export function GeneralLedgerReport() {
                   <TableHead className="w-28 text-right">Debit</TableHead>
                   <TableHead className="w-28 text-right">Credit</TableHead>
                   <TableHead className="w-32 text-right">Balance</TableHead>
+                  <TableHead className="w-36 text-right">Amount (Currency)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {/* Opening Balance Row */}
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell colSpan={4}>Opening Balance</TableCell>
+
                   <TableCell className="text-right font-mono">
                     {data.openingBalance >= 0
                       ? formatCurrency(data.openingBalance)
@@ -166,6 +168,7 @@ export function GeneralLedgerReport() {
                   <TableCell className="text-right font-mono">
                     {formatCurrency(data.openingBalance)}
                   </TableCell>
+                  <TableCell />
                 </TableRow>
 
                 {linesWithBalance.map((line) => (
@@ -187,6 +190,13 @@ export function GeneralLedgerReport() {
                     <TableCell className="text-right font-mono font-semibold">
                       {formatCurrency(line.runningBalance)}
                     </TableCell>
+                    <TableCell className="text-right font-mono text-muted-foreground">
+                      {line.currencyCode &&
+                        line.currencyCode !== data.baseCurrency?.code &&
+                        line.amountCurrency != null
+                        ? `${Number(line.amountCurrency).toFixed(2)} ${line.currencyCode}`
+                        : ""}
+                    </TableCell>
                   </TableRow>
                 ))}
 
@@ -202,6 +212,7 @@ export function GeneralLedgerReport() {
                   <TableCell className="text-right font-mono">
                     {formatCurrency(data.closingBalance)}
                   </TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
