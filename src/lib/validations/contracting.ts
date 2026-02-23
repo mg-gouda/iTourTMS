@@ -412,3 +412,16 @@ export const stopSaleCreateSchema = z.object({
   message: "Date To must be on or after Date From",
   path: ["dateTo"],
 });
+
+// ── Contract Cloning ──
+
+export const contractCloneSchema = z.object({
+  sourceContractId: z.string().min(1),
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required").max(20),
+  validFrom: z.string().min(1, "Valid From is required"),
+  validTo: z.string().min(1, "Valid To is required"),
+}).refine((d) => d.validTo > d.validFrom, {
+  message: "Valid To must be after Valid From",
+  path: ["validTo"],
+});

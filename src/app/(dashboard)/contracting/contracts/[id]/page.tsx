@@ -143,6 +143,9 @@ type ContractData = {
   terms: string | null;
   internalNotes: string | null;
   hotelNotes: string | null;
+  version: number;
+  parentContractId: string | null;
+  parentContract: { id: string; name: string; code: string; version: number } | null;
   createdAt: string | Date;
   hotel: { id: string; name: string; code: string };
   baseCurrency: { id: string; code: string; name: string };
@@ -186,7 +189,15 @@ export default function ContractDetailPage() {
     },
   });
 
+  const cloneMutation = trpc.contracting.contract.clone.useMutation({
+    onSuccess: (data) => {
+      utils.contracting.contract.list.invalidate();
+      router.push(`/contracting/contracts/${data.id}`);
+    },
+  });
+
   const [showDelete, setShowDelete] = useState(false);
+  const [showClone, setShowClone] = useState(false);
 
   if (isLoading) {
     return (
@@ -219,12 +230,21 @@ export default function ContractDetailPage() {
             >
               {CONTRACT_STATUS_LABELS[contract.status] ?? contract.status}
             </Badge>
+            {contract.version > 1 && (
+              <Badge variant="outline">v{contract.version}</Badge>
+            )}
           </div>
           <p className="text-muted-foreground">
             {contract.hotel.name} &middot; {contract.code}
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowClone(true)}
+          >
+            Clone
+          </Button>
           {isDraft && (
             <>
               <Button
@@ -352,7 +372,122 @@ export default function ContractDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Clone Dialog */}
+      <CloneContractDialog
+        contract={contract}
+        open={showClone}
+        onOpenChange={setShowClone}
+        onClone={(data) => cloneMutation.mutate(data)}
+        isPending={cloneMutation.isPending}
+        error={cloneMutation.error?.message}
+      />
     </div>
+  );
+}
+
+// ─── Clone Contract Dialog ────────────────────────────────────
+
+function CloneContractDialog({
+  contract,
+  open,
+  onOpenChange,
+  onClone,
+  isPending,
+  error,
+}: {
+  contract: ContractData;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onClone: (data: {
+    sourceContractId: string;
+    name: string;
+    code: string;
+    validFrom: string;
+    validTo: string;
+  }) => void;
+  isPending: boolean;
+  error?: string;
+}) {
+  const [name, setName] = useState(`${contract.name} (Copy)`);
+  const [code, setCode] = useState(`${contract.code}-V2`);
+  const [validFrom, setValidFrom] = useState("");
+  const [validTo, setValidTo] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setName(`${contract.name} (Copy)`);
+      setCode(`${contract.code}-V2`);
+      setValidFrom("");
+      setValidTo("");
+    }
+  }, [open, contract.name, contract.code]);
+
+  const canSubmit = name.trim() && code.trim() && validFrom && validTo && validTo > validFrom;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Clone Contract</DialogTitle>
+          <DialogDescription>
+            Create a copy of &quot;{contract.name}&quot; with all seasons,
+            rates, supplements, special offers, and allotments.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Code</label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} maxLength={20} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Valid From</label>
+              <Input
+                type="date"
+                value={validFrom}
+                onChange={(e) => setValidFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Valid To</label>
+              <Input
+                type="date"
+                value={validTo}
+                onChange={(e) => setValidTo(e.target.value)}
+              />
+            </div>
+          </div>
+          {validFrom && validTo && validTo <= validFrom && (
+            <p className="text-sm text-destructive">Valid To must be after Valid From</p>
+          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() =>
+              onClone({
+                sourceContractId: contract.id,
+                name: name.trim(),
+                code: code.trim(),
+                validFrom,
+                validTo,
+              })
+            }
+            disabled={!canSubmit || isPending}
+          >
+            {isPending ? "Cloning..." : "Clone Contract"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -532,7 +667,81 @@ function OverviewTab({ contract }: { contract: ContractData }) {
           </CardContent>
         </Card>
       )}
+
+      <VersionHistoryCard contractId={contract.id} />
     </div>
+  );
+}
+
+// ─── Version History Card ─────────────────────────────────────
+
+function VersionHistoryCard({ contractId }: { contractId: string }) {
+  const router = useRouter();
+  const { data: history } =
+    trpc.contracting.contract.getVersionHistory.useQuery({ contractId });
+
+  // Only show if there are multiple versions in the lineage
+  if (!history || history.length <= 1) return null;
+
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader>
+        <CardTitle>Version History</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Version</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Valid From</TableHead>
+              <TableHead>Valid To</TableHead>
+              <TableHead>Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {history.map((v) => (
+              <TableRow
+                key={v.id}
+                className={`cursor-pointer ${v.id === contractId ? "bg-muted/50" : ""}`}
+                onClick={() => {
+                  if (v.id !== contractId) {
+                    router.push(`/contracting/contracts/${v.id}`);
+                  }
+                }}
+              >
+                <TableCell className="font-mono">v{v.version}</TableCell>
+                <TableCell className="font-medium">
+                  {v.name}
+                  {v.id === contractId && (
+                    <Badge variant="outline" className="ml-2 text-xs">Current</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="font-mono">{v.code}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      (CONTRACT_STATUS_VARIANTS[v.status] as
+                        | "default"
+                        | "secondary"
+                        | "outline"
+                        | "destructive") ?? "secondary"
+                    }
+                  >
+                    {CONTRACT_STATUS_LABELS[v.status] ?? v.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{format(new Date(v.validFrom), "dd MMM yyyy")}</TableCell>
+                <TableCell>{format(new Date(v.validTo), "dd MMM yyyy")}</TableCell>
+                <TableCell>{format(new Date(v.createdAt), "dd MMM yyyy")}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 

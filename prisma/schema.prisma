@@ -1499,10 +1499,14 @@ model Contract {
   postedAt        DateTime?
   publishedById   String?
   publishedAt     DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  parentContractId String?
+  version          Int            @default(1)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  company       Company        @relation(fields: [companyId], references: [id])
+  company        Company        @relation(fields: [companyId], references: [id])
+  parentContract Contract?      @relation("ContractLineage", fields: [parentContractId], references: [id])
+  childContracts Contract[]     @relation("ContractLineage")
   hotel         Hotel          @relation(fields: [hotelId], references: [id])
   baseCurrency  Currency       @relation("ContractBaseCurrency", fields: [baseCurrencyId], references: [id])
   baseRoomType  HotelRoomType  @relation("ContractBaseRoom", fields: [baseRoomTypeId], references: [id])
@@ -1523,6 +1527,7 @@ model Contract {
   @@unique([companyId, code])
   @@index([companyId])
   @@index([hotelId])
+  @@index([parentContractId])
   @@map("ct_contract")
 }
 
