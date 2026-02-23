@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import { ArrowLeftRight } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -708,6 +710,7 @@ function VersionHistoryCard({ contractId }: { contractId: string }) {
               <TableHead>Valid From</TableHead>
               <TableHead>Valid To</TableHead>
               <TableHead>Created</TableHead>
+              <TableHead className="w-[90px]">Compare</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -745,6 +748,23 @@ function VersionHistoryCard({ contractId }: { contractId: string }) {
                 <TableCell>{format(new Date(v.validFrom), "dd MMM yyyy")}</TableCell>
                 <TableCell>{format(new Date(v.validTo), "dd MMM yyyy")}</TableCell>
                 <TableCell>{format(new Date(v.createdAt), "dd MMM yyyy")}</TableCell>
+                <TableCell>
+                  {v.id !== contractId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(
+                          `/contracting/contracts/compare?a=${contractId}&b=${v.id}`,
+                        );
+                      }}
+                    >
+                      <ArrowLeftRight className="mr-1 h-3.5 w-3.5" />
+                      Compare
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
