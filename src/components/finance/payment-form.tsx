@@ -62,6 +62,7 @@ export function PaymentForm({ defaultValues }: PaymentFormProps) {
   });
 
   const { data: journals } = trpc.finance.journal.list.useQuery();
+  const { data: currencies } = trpc.finance.currency.list.useQuery();
   // Filter to cash/bank journals for payments
   const paymentJournals = (journals ?? []).filter(
     (j: any) => j.type === "CASH" || j.type === "BANK",
@@ -231,14 +232,24 @@ export function PaymentForm({ defaultValues }: PaymentFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Currency</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Currency ID"
-                    disabled={!isDraft || isEdit}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value ?? ""}
+                  disabled={!isDraft || isEdit}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {(currencies ?? []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.code} — {c.name} ({c.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

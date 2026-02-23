@@ -31,8 +31,10 @@ export function buildPaymentMoveLines(
   payment: PaymentInput,
   receivableAccountId: string,
   bankAccountId: string,
+  fxRate: Decimal = new Decimal(1),
 ): ComputedLine[] {
-  const amount = payment.amount.toDecimalPlaces(4);
+  const amountForeign = payment.amount.toDecimalPlaces(4);
+  const amountBase = amountForeign.times(fxRate).toDecimalPlaces(4);
   const isInbound = payment.paymentType === "INBOUND";
 
   const bankLine: ComputedLine = {
@@ -40,12 +42,12 @@ export function buildPaymentMoveLines(
     partnerId: payment.partnerId,
     name: isInbound ? "Customer Payment" : "Vendor Payment",
     displayType: "PRODUCT",
-    debit: isInbound ? amount : new Decimal(0),
-    credit: isInbound ? new Decimal(0) : amount,
-    balance: isInbound ? amount : amount.neg(),
-    amountCurrency: amount,
+    debit: isInbound ? amountBase : new Decimal(0),
+    credit: isInbound ? new Decimal(0) : amountBase,
+    balance: isInbound ? amountBase : amountBase.neg(),
+    amountCurrency: amountForeign,
     quantity: new Decimal(1),
-    priceUnit: amount,
+    priceUnit: amountForeign,
     discount: new Decimal(0),
     taxIds: [],
     sequence: 10,
@@ -56,12 +58,12 @@ export function buildPaymentMoveLines(
     partnerId: payment.partnerId,
     name: isInbound ? "Customer Payment" : "Vendor Payment",
     displayType: "PAYMENT_TERM",
-    debit: isInbound ? new Decimal(0) : amount,
-    credit: isInbound ? amount : new Decimal(0),
-    balance: isInbound ? amount.neg() : amount,
-    amountCurrency: amount,
+    debit: isInbound ? new Decimal(0) : amountBase,
+    credit: isInbound ? amountBase : new Decimal(0),
+    balance: isInbound ? amountBase.neg() : amountBase,
+    amountCurrency: amountForeign,
     quantity: new Decimal(1),
-    priceUnit: amount,
+    priceUnit: amountForeign,
     discount: new Decimal(0),
     taxIds: [],
     sequence: 20,

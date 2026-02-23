@@ -339,6 +339,26 @@ export function computeInvoiceLines(
 }
 
 /**
+ * Apply FX conversion to computed lines.
+ * Scales debit/credit/balance to base currency using the exchange rate.
+ * amountCurrency remains in the transaction (foreign) currency.
+ * When rate=1, returns lines unchanged (no-op for same-currency).
+ */
+export function applyFxToLines(
+  lines: ComputedLine[],
+  rate: Decimal,
+): ComputedLine[] {
+  if (rate.equals(1)) return lines;
+  return lines.map((line) => ({
+    ...line,
+    debit: line.debit.times(rate).toDecimalPlaces(4),
+    credit: line.credit.times(rate).toDecimalPlaces(4),
+    balance: line.debit.times(rate).minus(line.credit.times(rate)).toDecimalPlaces(4),
+    // amountCurrency stays in foreign currency — intentionally not scaled
+  }));
+}
+
+/**
  * Build reversal move data by flipping all debit↔credit.
  */
 export function buildReversalLines(

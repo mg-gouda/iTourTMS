@@ -9,9 +9,11 @@ import {
   computeMoveTotals,
   validateBalance,
   buildReversalLines,
+  applyFxToLines,
   type TaxWithRepartition,
   type ComputedLine,
 } from "@/server/services/finance/move-engine";
+import { getRate } from "@/server/services/finance/currency-service";
 import { applyFiscalPosition } from "@/server/services/finance/fiscal-position";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
@@ -230,7 +232,7 @@ export const moveRouter = createTRPCRouter({
         }
 
         const invoiceDate = input.invoiceDate ?? input.date;
-        const computedLines = computeInvoiceLines(
+        let computedLines = computeInvoiceLines(
           inputLines,
           taxesWithRepart,
           input.moveType,
@@ -239,6 +241,13 @@ export const moveRouter = createTRPCRouter({
           invoiceDate,
           input.partnerId,
         );
+
+        // Apply FX conversion if transaction currency differs from base
+        let fxRate = new Decimal(1);
+        if (input.currencyId !== companyCurrencyId) {
+          fxRate = await getRate(ctx.db as any, ctx.companyId, input.currencyId, input.date);
+          computedLines = applyFxToLines(computedLines, fxRate);
+        }
 
         const totals = computeMoveTotals(computedLines);
 
@@ -258,6 +267,7 @@ export const moveRouter = createTRPCRouter({
                 partnerId: line.partnerId,
                 name: line.name,
                 displayType: line.displayType as any,
+                currencyId: input.currencyId,
                 debit: line.debit,
                 credit: line.credit,
                 balance: line.balance,
@@ -279,23 +289,32 @@ export const moveRouter = createTRPCRouter({
           },
         });
       } else {
-        // Journal entry — direct debit/credit
-        const lines: ComputedLine[] = inputLines.map((line) => ({
-          accountId: line.accountId,
-          partnerId: line.partnerId,
-          name: line.name,
-          displayType: line.displayType,
-          debit: new Decimal(line.debit),
-          credit: new Decimal(line.credit),
-          balance: new Decimal(line.debit).minus(new Decimal(line.credit)),
-          amountCurrency: new Decimal(line.debit).minus(new Decimal(line.credit)).abs(),
-          quantity: new Decimal(line.quantity),
-          priceUnit: new Decimal(line.priceUnit),
-          discount: new Decimal(line.discount),
-          taxIds: line.taxIds,
-          dateMaturity: line.dateMaturity,
-          sequence: line.sequence,
-        }));
+        // Journal entry — direct debit/credit (user enters in transaction currency)
+        let fxRate = new Decimal(1);
+        if (input.currencyId !== companyCurrencyId) {
+          fxRate = await getRate(ctx.db as any, ctx.companyId, input.currencyId, input.date);
+        }
+
+        const lines: ComputedLine[] = inputLines.map((line) => {
+          const origDebit = new Decimal(line.debit);
+          const origCredit = new Decimal(line.credit);
+          return {
+            accountId: line.accountId,
+            partnerId: line.partnerId,
+            name: line.name,
+            displayType: line.displayType,
+            debit: origDebit.times(fxRate).toDecimalPlaces(4),
+            credit: origCredit.times(fxRate).toDecimalPlaces(4),
+            balance: origDebit.times(fxRate).minus(origCredit.times(fxRate)).toDecimalPlaces(4),
+            amountCurrency: origDebit.minus(origCredit).abs(),
+            quantity: new Decimal(line.quantity),
+            priceUnit: new Decimal(line.priceUnit),
+            discount: new Decimal(line.discount),
+            taxIds: line.taxIds,
+            dateMaturity: line.dateMaturity,
+            sequence: line.sequence,
+          };
+        });
 
         const totals = computeMoveTotals(lines);
 
@@ -314,6 +333,7 @@ export const moveRouter = createTRPCRouter({
                 partnerId: line.partnerId,
                 name: line.name,
                 displayType: line.displayType as any,
+                currencyId: input.currencyId,
                 debit: line.debit,
                 credit: line.credit,
                 balance: line.balance,
@@ -433,9 +453,19 @@ export const moveRouter = createTRPCRouter({
         const invoiceDate = (moveData.invoiceDate ?? existing.invoiceDate ?? moveData.date ?? existing.date) as Date;
         const partnerId = moveData.partnerId ?? existing.partnerId;
 
-        const computedLines = computeInvoiceLines(
+        let computedLines = computeInvoiceLines(
           inputLines, taxesWithRepart, moveType, receivableAccountId, ptLines, invoiceDate, partnerId,
         );
+
+        // Apply FX conversion if transaction currency differs from base
+        const currencyId = (moveData.currencyId ?? existing.currencyId) as string;
+        let fxRate = new Decimal(1);
+        if (currencyId !== companyCurrencyId) {
+          const moveDate = (moveData.date ?? existing.date) as Date;
+          fxRate = await getRate(ctx.db as any, ctx.companyId, currencyId, moveDate);
+          computedLines = applyFxToLines(computedLines, fxRate);
+        }
+
         const totals = computeMoveTotals(computedLines);
 
         return ctx.db.move.update({
@@ -449,7 +479,8 @@ export const moveRouter = createTRPCRouter({
             lineItems: {
               create: computedLines.map((line) => ({
                 accountId: line.accountId, partnerId: line.partnerId, name: line.name,
-                displayType: line.displayType as any, debit: line.debit, credit: line.credit,
+                displayType: line.displayType as any, currencyId,
+                debit: line.debit, credit: line.credit,
                 balance: line.balance, amountCurrency: line.amountCurrency, quantity: line.quantity,
                 priceUnit: line.priceUnit, discount: line.discount, taxLineId: line.taxLineId,
                 dateMaturity: line.dateMaturity, sequence: line.sequence,
@@ -460,15 +491,29 @@ export const moveRouter = createTRPCRouter({
           include: { lineItems: { include: { account: true, taxes: true }, orderBy: { sequence: "asc" } } },
         });
       } else {
-        const lines: ComputedLine[] = inputLines.map((line) => ({
-          accountId: line.accountId, partnerId: line.partnerId, name: line.name,
-          displayType: line.displayType, debit: new Decimal(line.debit), credit: new Decimal(line.credit),
-          balance: new Decimal(line.debit).minus(new Decimal(line.credit)),
-          amountCurrency: new Decimal(line.debit).minus(new Decimal(line.credit)).abs(),
-          quantity: new Decimal(line.quantity), priceUnit: new Decimal(line.priceUnit),
-          discount: new Decimal(line.discount), taxIds: line.taxIds,
-          dateMaturity: line.dateMaturity, sequence: line.sequence,
-        }));
+        // Journal entry — user enters in transaction currency
+        const currencyId = (moveData.currencyId ?? existing.currencyId) as string;
+        let fxRate = new Decimal(1);
+        if (currencyId !== companyCurrencyId) {
+          const moveDate = (moveData.date ?? existing.date) as Date;
+          fxRate = await getRate(ctx.db as any, ctx.companyId, currencyId, moveDate);
+        }
+
+        const lines: ComputedLine[] = inputLines.map((line) => {
+          const origDebit = new Decimal(line.debit);
+          const origCredit = new Decimal(line.credit);
+          return {
+            accountId: line.accountId, partnerId: line.partnerId, name: line.name,
+            displayType: line.displayType,
+            debit: origDebit.times(fxRate).toDecimalPlaces(4),
+            credit: origCredit.times(fxRate).toDecimalPlaces(4),
+            balance: origDebit.times(fxRate).minus(origCredit.times(fxRate)).toDecimalPlaces(4),
+            amountCurrency: origDebit.minus(origCredit).abs(),
+            quantity: new Decimal(line.quantity), priceUnit: new Decimal(line.priceUnit),
+            discount: new Decimal(line.discount), taxIds: line.taxIds,
+            dateMaturity: line.dateMaturity, sequence: line.sequence,
+          };
+        });
         const totals = computeMoveTotals(lines);
 
         return ctx.db.move.update({
@@ -480,7 +525,8 @@ export const moveRouter = createTRPCRouter({
             lineItems: {
               create: lines.map((line) => ({
                 accountId: line.accountId, partnerId: line.partnerId, name: line.name,
-                displayType: line.displayType as any, debit: line.debit, credit: line.credit,
+                displayType: line.displayType as any, currencyId,
+                debit: line.debit, credit: line.credit,
                 balance: line.balance, amountCurrency: line.amountCurrency, quantity: line.quantity,
                 priceUnit: line.priceUnit, discount: line.discount,
                 dateMaturity: line.dateMaturity, sequence: line.sequence,

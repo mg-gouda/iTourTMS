@@ -224,3 +224,11 @@ export const batchPaymentCreateSchema = z.object({
   paymentType: z.enum(["INBOUND", "OUTBOUND"]),
   invoiceMoveIds: z.array(z.string()).min(1, "Select at least one invoice"),
 });
+
+// ── Currency Rate Schemas ──
+
+export const currencyRateUpsertSchema = z.object({
+  currencyId: z.string().min(1, "Currency is required"),
+  date: z.coerce.date(),
+  rate: z.number().positive("Rate must be positive"),
+});

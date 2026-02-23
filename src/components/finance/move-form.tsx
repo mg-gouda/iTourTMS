@@ -97,7 +97,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
   const { data: journals } = trpc.finance.journal.list.useQuery();
   const { data: accounts } = trpc.finance.account.list.useQuery({});
   const { data: partners } = trpc.finance.account.list.useQuery({}); // We'll use a partner query
-  const { data: currencies } = trpc.finance.account.list.useQuery({}); // Placeholder
+  const { data: currencies } = trpc.finance.currency.list.useQuery();
   const { data: taxList } = trpc.finance.tax.list.useQuery();
   const { data: paymentTerms } = trpc.finance.paymentTerm.list.useQuery();
   const { data: fiscalPositions } = trpc.finance.fiscalPosition.list.useQuery();
@@ -296,14 +296,24 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Currency</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Currency ID"
-                    disabled={!isDraft}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value ?? ""}
+                  disabled={!isDraft}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {(currencies ?? []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.code} — {c.name} ({c.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

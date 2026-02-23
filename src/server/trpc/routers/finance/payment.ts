@@ -6,9 +6,12 @@ import { paymentCreateSchema, registerPaymentSchema } from "@/lib/validations/fi
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import {
   buildPaymentMoveLines,
+  computeExchangeDifference,
+  buildExchangeMoveLines,
   updateMovePaymentState,
 } from "@/server/services/finance/payment-engine";
 import { validateBalance } from "@/server/services/finance/move-engine";
+import { getRate } from "@/server/services/finance/currency-service";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
 const financeProcedure = moduleProcedure("finance");
@@ -209,7 +212,21 @@ export const paymentRouter = createTRPCRouter({
         ctx.db, ctx.companyId, payment.paymentType,
       );
 
-      // Build payment journal entry lines
+      // Get company currency and determine FX rate
+      const company = await ctx.db.company.findUniqueOrThrow({
+        where: { id: ctx.companyId },
+        select: { baseCurrencyId: true },
+      });
+      const companyCurrencyId = company.baseCurrencyId ?? payment.currencyId;
+      const needsFx = payment.currencyId !== companyCurrencyId;
+      let fxRate = new Decimal(1);
+      if (needsFx) {
+        fxRate = await getRate(ctx.db as any, ctx.companyId, payment.currencyId, payment.date);
+      }
+
+      const amountBase = amount.times(fxRate).toDecimalPlaces(4);
+
+      // Build payment journal entry lines (with FX conversion)
       const paymentLines = buildPaymentMoveLines(
         {
           paymentType: payment.paymentType as "INBOUND" | "OUTBOUND",
@@ -219,23 +236,17 @@ export const paymentRouter = createTRPCRouter({
         },
         receivableAccountId,
         bankAccountId,
+        fxRate,
       );
 
       validateBalance(paymentLines);
-
-      // Get company currency
-      const company = await ctx.db.company.findUniqueOrThrow({
-        where: { id: ctx.companyId },
-        select: { baseCurrencyId: true },
-      });
-      const companyCurrencyId = company.baseCurrencyId ?? payment.currencyId;
 
       // Generate sequence number
       const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment");
 
       // Execute in transaction
       return ctx.db.$transaction(async (tx: any) => {
-        // 1. Create the journal entry Move
+        // 1. Create the journal entry Move (amounts in base currency)
         const move = await tx.move.create({
           data: {
             companyId: ctx.companyId,
@@ -247,9 +258,9 @@ export const paymentRouter = createTRPCRouter({
             partnerId: payment.partnerId,
             currencyId: payment.currencyId,
             companyCurrencyId,
-            amountUntaxed: amount,
+            amountUntaxed: amountBase,
             amountTax: 0,
-            amountTotal: amount,
+            amountTotal: amountBase,
             amountResidual: 0,
             ref: payment.ref ?? name,
             postedAt: new Date(),
@@ -259,6 +270,7 @@ export const paymentRouter = createTRPCRouter({
                 partnerId: line.partnerId,
                 name: line.name,
                 displayType: line.displayType as any,
+                currencyId: payment.currencyId,
                 debit: line.debit,
                 credit: line.credit,
                 balance: line.balance,
@@ -275,47 +287,118 @@ export const paymentRouter = createTRPCRouter({
           },
         });
 
-        // 2. Create PartialReconcile records
-        // Find the payment's counterpart line (PAYMENT_TERM = receivable/payable side)
+        // 2. Create PartialReconcile records (amounts in base currency)
         const paymentCounterpartLine = move.lineItems.find(
           (li: any) => li.displayType === "PAYMENT_TERM",
         );
 
         if (paymentCounterpartLine && payment.invoices.length > 0) {
-          let remainingAmount = amount;
+          let remainingBase = amountBase;
 
           for (const invoice of payment.invoices) {
-            if (remainingAmount.lessThanOrEqualTo(0)) break;
+            if (remainingBase.lessThanOrEqualTo(0)) break;
 
             for (const invoiceLine of invoice.lineItems) {
-              if (remainingAmount.lessThanOrEqualTo(0)) break;
+              if (remainingBase.lessThanOrEqualTo(0)) break;
 
-              // Determine the reconcile amount (min of remaining and line amount)
+              // Invoice line amounts are already in base currency
               const lineAmount = new Decimal(invoiceLine.debit.toString())
                 .plus(new Decimal(invoiceLine.credit.toString()));
-              const reconcileAmount = Decimal.min(remainingAmount, lineAmount).toDecimalPlaces(4);
+              const reconcileAmount = Decimal.min(remainingBase, lineAmount).toDecimalPlaces(4);
 
               if (reconcileAmount.greaterThan(0)) {
-                // Determine debit/credit line based on payment type
                 const isInbound = payment.paymentType === "INBOUND";
                 await tx.partialReconcile.create({
                   data: {
                     companyId: ctx.companyId,
-                    // For INBOUND: invoice receivable line is debit, payment counterpart is credit
-                    // For OUTBOUND: payment counterpart is debit, invoice payable line is credit
                     debitMoveLineId: isInbound ? invoiceLine.id : paymentCounterpartLine.id,
                     creditMoveLineId: isInbound ? paymentCounterpartLine.id : invoiceLine.id,
                     amount: reconcileAmount,
                   },
                 });
 
-                remainingAmount = remainingAmount.minus(reconcileAmount);
+                remainingBase = remainingBase.minus(reconcileAmount);
+              }
+            }
+          }
+
+          // 3. Create exchange difference entry if FX rate changed
+          if (needsFx) {
+            // Sum what invoices expected in base vs what payment brings in base
+            let totalInvoiceBase = new Decimal(0);
+            for (const invoice of payment.invoices) {
+              for (const invLine of invoice.lineItems) {
+                totalInvoiceBase = totalInvoiceBase.plus(
+                  new Decimal(invLine.debit.toString()).plus(new Decimal(invLine.credit.toString())),
+                );
+              }
+            }
+
+            const applicableBase = Decimal.min(amountBase, totalInvoiceBase);
+            const diff = computeExchangeDifference(applicableBase, amountBase);
+
+            if (diff.abs().greaterThan(new Decimal("0.01"))) {
+              // Find EXCH journal and FX accounts
+              const exchJournal = await tx.journal.findFirst({
+                where: { companyId: ctx.companyId, code: "EXCH" },
+                select: { id: true, defaultAccountId: true },
+              });
+              const fxLossAccount = await tx.finAccount.findFirst({
+                where: { companyId: ctx.companyId, code: "6800" },
+                select: { id: true },
+              });
+
+              if (exchJournal?.defaultAccountId && fxLossAccount) {
+                const exchLines = buildExchangeMoveLines(
+                  diff,
+                  exchJournal.defaultAccountId,
+                  fxLossAccount.id,
+                  receivableAccountId,
+                  payment.partnerId,
+                );
+
+                const exchName = await generateSequenceNumber(tx, ctx.companyId, "journal_entry");
+                await tx.move.create({
+                  data: {
+                    companyId: ctx.companyId,
+                    name: exchName,
+                    moveType: "ENTRY",
+                    state: "POSTED",
+                    date: payment.date,
+                    journalId: exchJournal.id,
+                    partnerId: payment.partnerId,
+                    currencyId: companyCurrencyId,
+                    companyCurrencyId,
+                    amountUntaxed: diff.abs(),
+                    amountTax: 0,
+                    amountTotal: diff.abs(),
+                    amountResidual: 0,
+                    ref: `Exchange difference for ${name}`,
+                    postedAt: new Date(),
+                    lineItems: {
+                      create: exchLines.map((line) => ({
+                        accountId: line.accountId,
+                        partnerId: line.partnerId,
+                        name: line.name,
+                        displayType: line.displayType as any,
+                        debit: line.debit,
+                        credit: line.credit,
+                        balance: line.balance,
+                        amountCurrency: line.amountCurrency,
+                        quantity: line.quantity,
+                        priceUnit: line.priceUnit,
+                        discount: line.discount,
+                        sequence: line.sequence,
+                      })),
+                    },
+                  },
+                });
               }
             }
           }
         }
 
-        // 3. Update payment record
+        // 4. Update payment record
         const updatedPayment = await tx.payment.update({
           where: { id: input.id },
           data: {
@@ -331,7 +414,7 @@ export const paymentRouter = createTRPCRouter({
           },
         });
 
-        // 4. Update payment state on each linked invoice
+        // 5. Update payment state on each linked invoice
         for (const invoice of payment.invoices) {
           await updateMovePaymentState(tx as any, invoice.id);
         }
@@ -503,6 +586,19 @@ export const paymentRouter = createTRPCRouter({
         ctx.db, ctx.companyId, fullPayment.paymentType,
       );
 
+      const company = await ctx.db.company.findUniqueOrThrow({
+        where: { id: ctx.companyId },
+        select: { baseCurrencyId: true },
+      });
+      const companyCurrencyId = company.baseCurrencyId ?? fullPayment.currencyId;
+      const needsFx = fullPayment.currencyId !== companyCurrencyId;
+      let fxRate = new Decimal(1);
+      if (needsFx) {
+        fxRate = await getRate(ctx.db as any, ctx.companyId, fullPayment.currencyId, fullPayment.date);
+      }
+
+      const amountBase = amount.times(fxRate).toDecimalPlaces(4);
+
       const paymentLines = buildPaymentMoveLines(
         {
           paymentType: fullPayment.paymentType as "INBOUND" | "OUTBOUND",
@@ -512,15 +608,10 @@ export const paymentRouter = createTRPCRouter({
         },
         receivableAccountId,
         bankAccountId,
+        fxRate,
       );
 
       validateBalance(paymentLines);
-
-      const company = await ctx.db.company.findUniqueOrThrow({
-        where: { id: ctx.companyId },
-        select: { baseCurrencyId: true },
-      });
-      const companyCurrencyId = company.baseCurrencyId ?? fullPayment.currencyId;
 
       const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment");
 
@@ -536,9 +627,9 @@ export const paymentRouter = createTRPCRouter({
             partnerId: fullPayment.partnerId,
             currencyId: fullPayment.currencyId,
             companyCurrencyId,
-            amountUntaxed: amount,
+            amountUntaxed: amountBase,
             amountTax: 0,
-            amountTotal: amount,
+            amountTotal: amountBase,
             amountResidual: 0,
             ref: fullPayment.ref ?? name,
             postedAt: new Date(),
@@ -548,6 +639,7 @@ export const paymentRouter = createTRPCRouter({
                 partnerId: line.partnerId,
                 name: line.name,
                 displayType: line.displayType as any,
+                currencyId: fullPayment.currencyId,
                 debit: line.debit,
                 credit: line.credit,
                 balance: line.balance,
@@ -564,23 +656,22 @@ export const paymentRouter = createTRPCRouter({
           },
         });
 
-        // Create reconciliation records
         const paymentCounterpartLine = move.lineItems.find(
           (li: any) => li.displayType === "PAYMENT_TERM",
         );
 
         if (paymentCounterpartLine) {
-          let remainingAmount = amount;
+          let remainingBase = amountBase;
 
           for (const inv of fullPayment.invoices) {
-            if (remainingAmount.lessThanOrEqualTo(0)) break;
+            if (remainingBase.lessThanOrEqualTo(0)) break;
 
             for (const invLine of inv.lineItems) {
-              if (remainingAmount.lessThanOrEqualTo(0)) break;
+              if (remainingBase.lessThanOrEqualTo(0)) break;
 
               const lineAmount = new Decimal(invLine.debit.toString())
                 .plus(new Decimal(invLine.credit.toString()));
-              const reconcileAmount = Decimal.min(remainingAmount, lineAmount).toDecimalPlaces(4);
+              const reconcileAmount = Decimal.min(remainingBase, lineAmount).toDecimalPlaces(4);
 
               if (reconcileAmount.greaterThan(0)) {
                 const isInbound = fullPayment.paymentType === "INBOUND";
@@ -593,7 +684,7 @@ export const paymentRouter = createTRPCRouter({
                   },
                 });
 
-                remainingAmount = remainingAmount.minus(reconcileAmount);
+                remainingBase = remainingBase.minus(reconcileAmount);
               }
             }
           }
@@ -615,7 +706,6 @@ export const paymentRouter = createTRPCRouter({
           },
         });
 
-        // Update invoice payment states
         for (const inv of fullPayment.invoices) {
           await updateMovePaymentState(tx, inv.id);
         }

@@ -25,6 +25,15 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+/** Fetch company's base currency info */
+async function getBaseCurrency(db: any, companyId: string) {
+  const company = await db.company.findUnique({
+    where: { id: companyId },
+    select: { baseCurrency: { select: { code: true, symbol: true } } },
+  });
+  return { code: company?.baseCurrency?.code ?? "", symbol: company?.baseCurrency?.symbol ?? "" };
+}
+
 export const reportRouter = createTRPCRouter({
   // ── Dashboard KPIs ──
   dashboard: financeProcedure.query(async ({ ctx }) => {
@@ -157,7 +166,10 @@ export const reportRouter = createTRPCRouter({
     const revenueDebit = d(revenueMonthResult._sum.debit);
     const revenueCredit = d(revenueMonthResult._sum.credit);
 
+    const baseCurrency = await getBaseCurrency(ctx.db, companyId);
+
     return {
+      baseCurrency,
       totalReceivable: d(receivableResult._sum.amountResidual),
       totalPayable: d(payableResult._sum.amountResidual),
       bankBalance: bankDebit - bankCredit,
@@ -265,7 +277,9 @@ export const reportRouter = createTRPCRouter({
       incomeAccounts.sort((a, b) => a.code.localeCompare(b.code));
       expenseAccounts.sort((a, b) => a.code.localeCompare(b.code));
 
+      const baseCurrency = await getBaseCurrency(ctx.db, ctx.companyId);
       return {
+        baseCurrency,
         dateFrom: input.dateFrom.toISOString(),
         dateTo: input.dateTo.toISOString(),
         incomeAccounts,
@@ -434,7 +448,9 @@ export const reportRouter = createTRPCRouter({
       const totalLiabilities = liabilities.reduce((s, g) => s + g.subtotal, 0);
       const totalEquity = equity.reduce((s, g) => s + g.subtotal, 0);
 
+      const baseCurrency = await getBaseCurrency(ctx.db, ctx.companyId);
       return {
+        baseCurrency,
         asOfDate: input.asOfDate.toISOString(),
         assets,
         liabilities,
@@ -547,7 +563,9 @@ export const reportRouter = createTRPCRouter({
         totals.closingCredit += row.closingCredit;
       }
 
+      const baseCurrency = await getBaseCurrency(ctx.db, ctx.companyId);
       return {
+        baseCurrency,
         dateFrom: input.dateFrom.toISOString(),
         dateTo: input.dateTo.toISOString(),
         accounts: result,
@@ -612,7 +630,9 @@ export const reportRouter = createTRPCRouter({
           id: true,
           debit: true,
           credit: true,
+          amountCurrency: true,
           name: true,
+          currency: { select: { code: true, symbol: true } },
           move: { select: { id: true, name: true, ref: true, date: true } },
           partner: { select: { id: true, name: true } },
         },
@@ -627,7 +647,10 @@ export const reportRouter = createTRPCRouter({
           .minus(new Decimal(line.credit.toString()));
       }
 
+      const baseCurrency = await getBaseCurrency(ctx.db, ctx.companyId);
+
       return {
+        baseCurrency,
         account,
         openingBalance: openingBalance.toNumber(),
         lines: lines.map((line) => ({
@@ -639,6 +662,8 @@ export const reportRouter = createTRPCRouter({
           label: line.name,
           debit: d(line.debit),
           credit: d(line.credit),
+          amountCurrency: d(line.amountCurrency),
+          currencyCode: line.currency?.code ?? null,
         })),
         closingBalance: closingBalance.toNumber(),
       };
@@ -667,7 +692,8 @@ export const reportRouter = createTRPCRouter({
         },
       });
 
-      return buildAgedReport(invoices, asOfDate);
+      const baseCurrency = await getBaseCurrency(ctx.db, ctx.companyId);
+      return { baseCurrency, ...buildAgedReport(invoices, asOfDate) };
     }),
 
   // ── Aged Payable ──
@@ -693,7 +719,8 @@ export const reportRouter = createTRPCRouter({
         },
       });
 
-      return buildAgedReport(bills, asOfDate);
+      const baseCurrency = await getBaseCurrency(ctx.db, ctx.companyId);
+      return { baseCurrency, ...buildAgedReport(bills, asOfDate) };
     }),
 });
 
