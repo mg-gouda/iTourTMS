@@ -99,6 +99,11 @@ model Company {
   recurringEntries  RecurringEntry[]
   budgets           Budget[]
 
+  // Contracting relations
+  destinations     Destination[]
+  hotelAmenities   HotelAmenity[]
+  hotels           Hotel[]
+
   @@index([countryId])
   @@index([baseCurrencyId])
 }
@@ -226,6 +231,10 @@ model Country {
   partners        Partner[]
   fiscalPositions FiscalPosition[]
 
+  // Contracting relations
+  destinations Destination[]
+  hotels       Hotel[]
+
   @@index([code])
   @@index([name])
 }
@@ -240,6 +249,9 @@ model CountryState {
 
   country  Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
   partners Partner[]
+
+  // Contracting relations
+  hotels Hotel[]
 
   @@unique([code, countryId])
   @@index([countryId])
@@ -535,6 +547,47 @@ enum BudgetState {
   DRAFT
   APPROVED
   CANCELLED
+}
+
+// ============================================================================
+// CONTRACTING MODULE — Enums
+// ============================================================================
+
+enum StarRating {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+  FIVE_DELUXE
+}
+
+enum MealCode {
+  RO
+  BB
+  HB
+  FB
+  AI
+  UAI
+  SC
+}
+
+enum ChildAgeCategory {
+  INFANT
+  CHILD
+  TEEN
+}
+
+enum ChildBedding {
+  SHARING_WITH_PARENTS
+  EXTRA_BED
+  OWN_BED
+}
+
+enum ContractStatus {
+  DRAFT
+  POSTED
+  PUBLISHED
 }
 
 // ============================================================================
@@ -1181,4 +1234,195 @@ model BudgetLine {
   @@unique([budgetId, accountId])
   @@index([budgetId])
   @@map("fin_budget_line")
+}
+
+// ============================================================================
+// CONTRACTING MODULE — Hotel Master Data
+// ============================================================================
+
+model Destination {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  code      String
+  countryId String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country Country @relation(fields: [countryId], references: [id])
+  hotels  Hotel[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([countryId])
+  @@map("ct_destination")
+}
+
+model HotelAmenity {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  icon      String?
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  hotels  Hotel[]
+
+  @@index([companyId])
+  @@map("ct_hotel_amenity")
+}
+
+model Hotel {
+  id               String     @id @default(cuid())
+  companyId        String
+  name             String
+  code             String
+  starRating       StarRating @default(THREE)
+  chainName        String?
+  description      String?    @db.Text
+  shortDescription String?
+  address          String?
+  city             String
+  stateId          String?
+  countryId        String
+  zipCode          String?
+  latitude         Float?
+  longitude        Float?
+  destinationId    String?
+  phone            String?
+  fax              String?
+  email            String?
+  website          String?
+  reservationEmail String?
+  contactPerson    String?
+  contactPhone     String?
+  checkInTime      String     @default("14:00")
+  checkOutTime     String     @default("12:00")
+  totalRooms       Int?
+  yearBuilt        Int?
+  yearRenovated    Int?
+  active           Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  state       CountryState? @relation(fields: [stateId], references: [id])
+  country     Country       @relation(fields: [countryId], references: [id])
+  destination Destination?  @relation(fields: [destinationId], references: [id])
+
+  amenities        HotelAmenity[]
+  roomTypes        HotelRoomType[]
+  childrenPolicies ChildPolicy[]
+  mealBasis        HotelMealBasis[]
+  images           HotelImage[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([countryId])
+  @@index([destinationId])
+  @@map("ct_hotel")
+}
+
+model HotelImage {
+  id        String  @id @default(cuid())
+  hotelId   String
+  url       String
+  caption   String?
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@map("ct_hotel_image")
+}
+
+model HotelRoomType {
+  id                String  @id @default(cuid())
+  hotelId           String
+  name              String
+  code              String
+  description       String? @db.Text
+  sortOrder         Int     @default(0)
+  maxAdults         Int     @default(2)
+  maxChildren       Int     @default(1)
+  maxInfants        Int     @default(1)
+  maxOccupancy      Int     @default(3)
+  extraBedAvailable Boolean @default(false)
+  maxExtraBeds      Int     @default(0)
+  roomSize          Float?
+  bedConfiguration  String?
+  active            Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  hotel          Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  occupancyTable RoomTypeOccupancy[]
+
+  @@unique([hotelId, code])
+  @@index([hotelId])
+  @@map("ct_hotel_room_type")
+}
+
+model RoomTypeOccupancy {
+  id          String  @id @default(cuid())
+  roomTypeId  String
+  adults      Int
+  children    Int     @default(0)
+  infants     Int     @default(0)
+  extraBeds   Int     @default(0)
+  isDefault   Boolean @default(false)
+  description String?
+  sortOrder   Int     @default(0)
+
+  roomType HotelRoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([roomTypeId, adults, children, infants, extraBeds])
+  @@index([roomTypeId])
+  @@map("ct_room_type_occupancy")
+}
+
+model ChildPolicy {
+  id              String           @id @default(cuid())
+  hotelId         String
+  category        ChildAgeCategory
+  ageFrom         Int
+  ageTo           Int
+  label           String
+  freeInSharing   Boolean          @default(false)
+  maxFreePerRoom  Int              @default(0)
+  extraBedAllowed Boolean          @default(true)
+  mealsIncluded   Boolean          @default(false)
+  notes           String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, category])
+  @@index([hotelId])
+  @@map("ct_child_policy")
+}
+
+model HotelMealBasis {
+  id          String   @id @default(cuid())
+  hotelId     String
+  mealCode    MealCode
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, mealCode])
+  @@index([hotelId])
+  @@map("ct_hotel_meal_basis")
 }

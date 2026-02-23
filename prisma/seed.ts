@@ -983,6 +983,170 @@ export async function seedFinance(companyId: string) {
   console.log("  ✓ Finance seed completed");
 }
 
+// ── Contracting seed data — called per-company when contracting module is installed ──
+
+export async function seedContracting(companyId: string) {
+  console.log("  Seeding contracting data...");
+
+  // ── Get UAE country for destinations ──
+  const uae = await prisma.country.findUnique({ where: { code: "AE" } });
+  const egypt = await prisma.country.findUnique({ where: { code: "EG" } });
+  if (!uae || !egypt) {
+    console.log("    ⚠ UAE or Egypt country not found, skipping contracting seed");
+    return;
+  }
+
+  // ── Amenities ──
+  const amenityNames = ["Swimming Pool", "Spa", "Gym", "Free Wi-Fi", "Restaurant", "Bar", "Beach Access", "Room Service", "Parking", "Business Center"];
+  const amenities: { id: string; name: string }[] = [];
+  for (const name of amenityNames) {
+    const existing = await prisma.hotelAmenity.findFirst({
+      where: { companyId, name },
+    });
+    if (existing) {
+      amenities.push(existing);
+    } else {
+      const created = await prisma.hotelAmenity.create({
+        data: { companyId, name },
+      });
+      amenities.push(created);
+    }
+  }
+  console.log(`    ✓ ${amenities.length} amenities seeded`);
+
+  // ── Destinations ──
+  const destinationData = [
+    { name: "Dubai", code: "DXB", countryId: uae.id },
+    { name: "Abu Dhabi", code: "AUH", countryId: uae.id },
+    { name: "Sharm El Sheikh", code: "SSH", countryId: egypt.id },
+  ];
+  const destinationMap: Record<string, string> = {};
+  for (const d of destinationData) {
+    const existing = await prisma.destination.findFirst({
+      where: { companyId, code: d.code },
+    });
+    if (existing) {
+      destinationMap[d.code] = existing.id;
+    } else {
+      const created = await prisma.destination.create({
+        data: { ...d, companyId },
+      });
+      destinationMap[d.code] = created.id;
+    }
+  }
+  console.log(`    ✓ ${destinationData.length} destinations seeded`);
+
+  // ── Sample Hotel: Grand Seaside Resort ──
+  const existingHotel = await prisma.hotel.findFirst({
+    where: { companyId, code: "GSR" },
+  });
+  if (!existingHotel) {
+    const hotel = await prisma.hotel.create({
+      data: {
+        companyId,
+        name: "Grand Seaside Resort",
+        code: "GSR",
+        starRating: "FIVE",
+        chainName: null,
+        description: "A luxurious 5-star beachfront resort in Dubai with world-class amenities and stunning sea views.",
+        city: "Dubai",
+        countryId: uae.id,
+        destinationId: destinationMap["DXB"],
+        phone: "+971-4-555-0100",
+        email: "info@grandseaside.example.com",
+        reservationEmail: "reservations@grandseaside.example.com",
+        contactPerson: "Ahmed Al Rashid",
+        checkInTime: "15:00",
+        checkOutTime: "11:00",
+        totalRooms: 350,
+        amenities: {
+          connect: amenities.map((a) => ({ id: a.id })),
+        },
+      },
+    });
+
+    // Room Types
+    const stdRoom = await prisma.hotelRoomType.create({
+      data: {
+        hotelId: hotel.id,
+        name: "Standard Room",
+        code: "STD",
+        maxAdults: 2, maxChildren: 1, maxInfants: 1, maxOccupancy: 3,
+        roomSize: 32, bedConfiguration: "1 King or 2 Twin",
+        sortOrder: 1,
+      },
+    });
+    const dlxRoom = await prisma.hotelRoomType.create({
+      data: {
+        hotelId: hotel.id,
+        name: "Deluxe Sea View",
+        code: "DLX",
+        maxAdults: 3, maxChildren: 2, maxInfants: 1, maxOccupancy: 4,
+        extraBedAvailable: true, maxExtraBeds: 1,
+        roomSize: 45, bedConfiguration: "1 King + Sofa",
+        sortOrder: 2,
+      },
+    });
+    const suiteRoom = await prisma.hotelRoomType.create({
+      data: {
+        hotelId: hotel.id,
+        name: "Presidential Suite",
+        code: "STE",
+        maxAdults: 4, maxChildren: 2, maxInfants: 1, maxOccupancy: 5,
+        extraBedAvailable: true, maxExtraBeds: 2,
+        roomSize: 120, bedConfiguration: "1 King + 2 Singles",
+        sortOrder: 3,
+      },
+    });
+
+    // Occupancy combos for Standard
+    await prisma.roomTypeOccupancy.createMany({
+      data: [
+        { roomTypeId: stdRoom.id, adults: 1, children: 0, infants: 0, isDefault: false, sortOrder: 1 },
+        { roomTypeId: stdRoom.id, adults: 2, children: 0, infants: 0, isDefault: true, sortOrder: 2 },
+        { roomTypeId: stdRoom.id, adults: 2, children: 1, infants: 0, isDefault: false, sortOrder: 3 },
+        { roomTypeId: stdRoom.id, adults: 1, children: 0, infants: 1, isDefault: false, sortOrder: 4 },
+      ],
+    });
+
+    // Occupancy combos for Deluxe
+    await prisma.roomTypeOccupancy.createMany({
+      data: [
+        { roomTypeId: dlxRoom.id, adults: 2, children: 0, infants: 0, isDefault: true, sortOrder: 1 },
+        { roomTypeId: dlxRoom.id, adults: 2, children: 1, infants: 0, isDefault: false, sortOrder: 2 },
+        { roomTypeId: dlxRoom.id, adults: 2, children: 2, infants: 0, isDefault: false, sortOrder: 3 },
+        { roomTypeId: dlxRoom.id, adults: 3, children: 0, infants: 0, isDefault: false, sortOrder: 4 },
+      ],
+    });
+
+    // Child Policies
+    await prisma.childPolicy.createMany({
+      data: [
+        { hotelId: hotel.id, category: "INFANT", ageFrom: 0, ageTo: 2, label: "Infant (0-2 years)", freeInSharing: true, maxFreePerRoom: 1, extraBedAllowed: false, mealsIncluded: false },
+        { hotelId: hotel.id, category: "CHILD", ageFrom: 3, ageTo: 11, label: "Child (3-11 years)", freeInSharing: true, maxFreePerRoom: 1, extraBedAllowed: true, mealsIncluded: true },
+        { hotelId: hotel.id, category: "TEEN", ageFrom: 12, ageTo: 17, label: "Teen (12-17 years)", freeInSharing: false, maxFreePerRoom: 0, extraBedAllowed: true, mealsIncluded: true },
+      ],
+    });
+
+    // Meal Basis
+    await prisma.hotelMealBasis.createMany({
+      data: [
+        { hotelId: hotel.id, mealCode: "RO", name: "Room Only", sortOrder: 1 },
+        { hotelId: hotel.id, mealCode: "BB", name: "Bed & Breakfast", isDefault: true, sortOrder: 2 },
+        { hotelId: hotel.id, mealCode: "HB", name: "Half Board", sortOrder: 3 },
+        { hotelId: hotel.id, mealCode: "FB", name: "Full Board", sortOrder: 4 },
+        { hotelId: hotel.id, mealCode: "AI", name: "All Inclusive", sortOrder: 5 },
+      ],
+    });
+
+    console.log("    ✓ Sample hotel 'Grand Seaside Resort' seeded with room types, policies, and meals");
+  } else {
+    console.log("    ✓ Sample hotel already exists, skipping");
+  }
+
+  console.log("  ✓ Contracting seed completed");
+}
+
 main()
   .catch((e) => {
     console.error("Seed error:", e);
