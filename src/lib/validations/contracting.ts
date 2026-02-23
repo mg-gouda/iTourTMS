@@ -302,3 +302,24 @@ export const supplementViewUpdateSchema = z.object({
   notes: z.string().nullish(),
   sortOrder: z.number().int().optional(),
 });
+
+// ── Rate Calculator Schemas ──
+
+export const rateCalculatorInputSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  seasonId: z.string().min(1, "Season is required"),
+  roomTypeId: z.string().min(1, "Room type is required"),
+  mealBasisId: z.string().min(1, "Meal basis is required"),
+  adults: z.number().int().min(1).max(4).default(2),
+  children: z.array(z.object({
+    category: z.enum(["INFANT", "CHILD", "TEEN"]),
+    bedding: z.enum(["SHARING_WITH_PARENTS", "EXTRA_BED", "OWN_BED"]),
+  })).default([]),
+  extraBed: z.boolean().default(false),
+  viewLabel: z.string().nullish(),
+  nights: z.number().int().min(1).default(1),
+});
+
+export const rateSheetInputSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+});

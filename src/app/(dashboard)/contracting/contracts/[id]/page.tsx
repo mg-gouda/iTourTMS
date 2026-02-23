@@ -9,6 +9,7 @@ import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -59,6 +60,7 @@ import {
   RATE_BASIS_LABELS,
   SUPPLEMENT_VALUE_TYPE_LABELS,
 } from "@/lib/constants/contracting";
+import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 import {
   contractSeasonCreateSchema,
@@ -290,6 +292,7 @@ export default function ContractDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="baseRates">Base Rates</TabsTrigger>
           <TabsTrigger value="supplements">Supplements</TabsTrigger>
+          <TabsTrigger value="rateSheet">Rate Sheet</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -309,6 +312,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="supplements">
           <SupplementsTab contractId={id} contract={contract} />
+        </TabsContent>
+        <TabsContent value="rateSheet">
+          <RateSheetTab contractId={id} contract={contract} />
         </TabsContent>
       </Tabs>
 
@@ -2377,5 +2383,467 @@ function ViewSupplementSection({
         </Dialog>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Rate Sheet Tab ──────────────────────────────────────
+
+function RateSheetTab({
+  contractId,
+  contract,
+}: {
+  contractId: string;
+  contract: ContractData;
+}) {
+  const { data: rateSheet, isLoading } =
+    trpc.contracting.rateCalculator.getRateSheet.useQuery({ contractId });
+
+  // Calculator state
+  const [seasonId, setSeasonId] = useState(contract.seasons[0]?.id ?? "");
+  const [roomTypeId, setRoomTypeId] = useState(contract.roomTypes[0]?.roomTypeId ?? "");
+  const [mealBasisId, setMealBasisId] = useState(contract.mealBases[0]?.mealBasisId ?? "");
+  const [adults, setAdults] = useState(2);
+  const [nights, setNights] = useState(1);
+  const [extraBed, setExtraBed] = useState(false);
+  const [viewLabel, setViewLabel] = useState<string | null>(null);
+  const [children, setChildren] = useState<{ category: string; bedding: string }[]>([]);
+
+  const { data: breakdown, isLoading: isCalculating } =
+    trpc.contracting.rateCalculator.calculate.useQuery(
+      {
+        contractId,
+        seasonId,
+        roomTypeId,
+        mealBasisId,
+        adults,
+        children: children.map((c) => ({
+          category: c.category as "INFANT" | "CHILD" | "TEEN",
+          bedding: c.bedding as "SHARING_WITH_PARENTS" | "EXTRA_BED" | "OWN_BED",
+        })),
+        extraBed,
+        viewLabel,
+        nights,
+      },
+      { enabled: !!seasonId && !!roomTypeId && !!mealBasisId },
+    );
+
+  if (contract.seasons.length === 0 || contract.baseRates.length === 0) {
+    return (
+      <div className="py-10 text-center text-muted-foreground">
+        Configure seasons and base rates first to view the rate sheet.
+      </div>
+    );
+  }
+
+  // Build rate lookup for the grid
+  const rateLookup = new Map<string, number>();
+  if (rateSheet) {
+    for (const cell of rateSheet.cells) {
+      rateLookup.set(`${cell.roomTypeId}:${cell.mealBasisId}:${cell.seasonId}`, cell.rate);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Rate Matrix */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Rate Matrix (2 Adults / Per Night)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="py-6 text-center text-muted-foreground">
+              Computing rates...
+            </div>
+          ) : rateSheet ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[250px]">Room Type / Meal Plan</TableHead>
+                  {rateSheet.seasons.map((s) => (
+                    <TableHead key={s.id} className="text-right">
+                      {s.name}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rateSheet.roomTypes.map((rt) => (
+                  <>
+                    <TableRow key={`rt-${rt.id}`} className="bg-muted/50">
+                      <TableCell
+                        colSpan={rateSheet.seasons.length + 1}
+                        className="font-semibold"
+                      >
+                        {rt.name}
+                        {rt.isBase && (
+                          <Badge variant="secondary" className="ml-2">
+                            Base
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    {rateSheet.mealBases.map((mb) => (
+                      <TableRow key={`${rt.id}:${mb.id}`}>
+                        <TableCell className="pl-8">
+                          {mb.name}
+                          {mb.isBase && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              Base
+                            </Badge>
+                          )}
+                        </TableCell>
+                        {rateSheet.seasons.map((s) => {
+                          const rate = rateLookup.get(`${rt.id}:${mb.id}:${s.id}`);
+                          return (
+                            <TableCell key={s.id} className="text-right font-mono">
+                              {rate != null ? formatCurrency(rate) : "—"}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Interactive Calculator */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Rate Calculator</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Input Controls */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <label className="text-sm font-medium">Season</label>
+              <Select value={seasonId} onValueChange={setSeasonId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {contract.seasons.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Room Type</label>
+              <Select value={roomTypeId} onValueChange={setRoomTypeId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {contract.roomTypes.map((rt) => (
+                    <SelectItem key={rt.roomTypeId} value={rt.roomTypeId}>
+                      {rt.roomType.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Meal Plan</label>
+              <Select value={mealBasisId} onValueChange={setMealBasisId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {contract.mealBases.map((mb) => (
+                    <SelectItem key={mb.mealBasisId} value={mb.mealBasisId}>
+                      {mb.mealBasis.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Adults</label>
+              <Input
+                type="number"
+                min={1}
+                max={4}
+                value={adults}
+                onChange={(e) => setAdults(Math.max(1, Math.min(4, Number(e.target.value) || 1)))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <label className="text-sm font-medium">Nights</label>
+              <Input
+                type="number"
+                min={1}
+                value={nights}
+                onChange={(e) => setNights(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">View</label>
+              <Select
+                value={viewLabel ?? "__none__"}
+                onValueChange={(v) => setViewLabel(v === "__none__" ? null : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {(rateSheet?.viewLabels ?? []).map((vl) => (
+                    <SelectItem key={vl} value={vl}>
+                      {vl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end gap-2 pb-2">
+              <Checkbox
+                id="extraBed"
+                checked={extraBed}
+                onCheckedChange={(checked) => setExtraBed(checked === true)}
+              />
+              <label htmlFor="extraBed" className="text-sm font-medium">
+                Extra Bed
+              </label>
+            </div>
+          </div>
+
+          {/* Children */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium">Children</label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setChildren((prev) => [
+                    ...prev,
+                    { category: "CHILD", bedding: "SHARING_WITH_PARENTS" },
+                  ])
+                }
+              >
+                Add Child
+              </Button>
+            </div>
+            {children.length > 0 && (
+              <div className="space-y-2">
+                {children.map((child, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Select
+                      value={child.category}
+                      onValueChange={(v) =>
+                        setChildren((prev) =>
+                          prev.map((c, i) => (i === idx ? { ...c, category: v } : c)),
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(CHILD_AGE_CATEGORY_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>
+                            {v}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={child.bedding}
+                      onValueChange={(v) =>
+                        setChildren((prev) =>
+                          prev.map((c, i) => (i === idx ? { ...c, bedding: v } : c)),
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(CHILD_BEDDING_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>
+                            {v}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() =>
+                        setChildren((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Breakdown */}
+          {isCalculating ? (
+            <div className="py-4 text-center text-muted-foreground">
+              Calculating...
+            </div>
+          ) : breakdown ? (
+            <RateBreakdownDisplay
+              breakdown={breakdown}
+              currencyCode={contract.baseCurrency.code}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Rate Breakdown Display ──────────────────────────────
+
+type BreakdownData = {
+  baseRate: number;
+  baseRateLabel: string;
+  roomTypeSupplement: { label: string; amount: number } | null;
+  mealSupplement: { label: string; amount: number } | null;
+  occupancySupplement: { label: string; amount: number } | null;
+  viewSupplement: { label: string; amount: number } | null;
+  extraBedSupplement: { label: string; amount: number } | null;
+  childCharges: { category: string; bedding: string; amount: number; isFree: boolean }[];
+  adultTotalPerNight: number;
+  childTotalPerNight: number;
+  totalPerNight: number;
+  totalStay: number;
+  nights: number;
+  rateBasis: string;
+};
+
+function RateBreakdownDisplay({
+  breakdown,
+  currencyCode,
+}: {
+  breakdown: BreakdownData;
+  currencyCode: string;
+}) {
+  const fmt = (n: number) => `${currencyCode} ${formatCurrency(n)}`;
+
+  const lines: { label: string; amount: number; prefix?: string }[] = [
+    { label: breakdown.baseRateLabel, amount: breakdown.baseRate },
+  ];
+
+  if (breakdown.roomTypeSupplement) {
+    lines.push({
+      label: `Room Type (${breakdown.roomTypeSupplement.label})`,
+      amount: breakdown.roomTypeSupplement.amount,
+      prefix: "+",
+    });
+  }
+  if (breakdown.mealSupplement) {
+    lines.push({
+      label: `Meal Plan (${breakdown.mealSupplement.label})`,
+      amount: breakdown.mealSupplement.amount,
+      prefix: breakdown.mealSupplement.amount < 0 ? "" : "+",
+    });
+  }
+  if (breakdown.occupancySupplement) {
+    lines.push({
+      label: breakdown.occupancySupplement.label,
+      amount: breakdown.occupancySupplement.amount,
+      prefix: breakdown.occupancySupplement.amount < 0 ? "" : "+",
+    });
+  }
+  if (breakdown.viewSupplement) {
+    lines.push({
+      label: `View (${breakdown.viewSupplement.label})`,
+      amount: breakdown.viewSupplement.amount,
+      prefix: "+",
+    });
+  }
+  if (breakdown.extraBedSupplement) {
+    lines.push({
+      label: breakdown.extraBedSupplement.label,
+      amount: breakdown.extraBedSupplement.amount,
+      prefix: "+",
+    });
+  }
+
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="space-y-1">
+        {lines.map((line, idx) => (
+          <div key={idx} className="flex justify-between text-sm">
+            <span>
+              {line.prefix && (
+                <span className="text-muted-foreground">{line.prefix} </span>
+              )}
+              {line.label}
+            </span>
+            <span className="font-mono">{fmt(line.amount)}</span>
+          </div>
+        ))}
+      </div>
+
+      <Separator className="my-2" />
+
+      <div className="flex justify-between text-sm font-semibold">
+        <span>Adult Total / Night</span>
+        <span className="font-mono">{fmt(breakdown.adultTotalPerNight)}</span>
+      </div>
+
+      {breakdown.childCharges.length > 0 && (
+        <>
+          <div className="mt-3 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Children</p>
+            {breakdown.childCharges.map((cc, idx) => (
+              <div key={idx} className="flex justify-between text-sm">
+                <span>
+                  {CHILD_AGE_CATEGORY_LABELS[cc.category] ?? cc.category} —{" "}
+                  {CHILD_BEDDING_LABELS[cc.bedding] ?? cc.bedding}
+                  {cc.isFree && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      Free
+                    </Badge>
+                  )}
+                </span>
+                <span className="font-mono">{fmt(cc.amount)}</span>
+              </div>
+            ))}
+          </div>
+
+          <Separator className="my-2" />
+
+          <div className="flex justify-between text-sm font-semibold">
+            <span>Child Total / Night</span>
+            <span className="font-mono">{fmt(breakdown.childTotalPerNight)}</span>
+          </div>
+        </>
+      )}
+
+      <Separator className="my-2" />
+
+      <div className="flex justify-between font-semibold">
+        <span>Total Per Night</span>
+        <span className="font-mono">{fmt(breakdown.totalPerNight)}</span>
+      </div>
+
+      {breakdown.nights > 1 && (
+        <div className="mt-1 flex justify-between text-lg font-bold">
+          <span>Total Stay ({breakdown.nights} nights)</span>
+          <span className="font-mono">{fmt(breakdown.totalStay)}</span>
+        </div>
+      )}
+    </div>
   );
 }
