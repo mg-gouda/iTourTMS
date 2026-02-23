@@ -1523,7 +1523,8 @@ model Contract {
   specialOffers ContractSpecialOffer[]
   allotments    ContractAllotment[]
   stopSales      ContractStopSale[]
-  childPolicies  ContractChildPolicy[]
+  childPolicies         ContractChildPolicy[]
+  cancellationPolicies  ContractCancellationPolicy[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1732,4 +1733,21 @@ model ContractChildPolicy {
   @@unique([contractId, category])
   @@index([contractId])
   @@map("ct_contract_child_policy")
+}
+
+model ContractCancellationPolicy {
+  id          String   @id @default(cuid())
+  contractId  String
+  daysBefore  Int
+  chargeType  String   @default("PERCENTAGE")
+  chargeValue Decimal  @db.Decimal(12, 4)
+  description String?  @db.Text
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("ct_contract_cancellation_policy")
 }

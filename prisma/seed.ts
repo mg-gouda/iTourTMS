@@ -1496,7 +1496,53 @@ export async function seedContracting(companyId: string) {
           ],
         });
 
-        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, supplements, special offers, allotments, stop sales, and child policy overrides");
+        // Cancellation Policies
+        await prisma.contractCancellationPolicy.createMany({
+          data: [
+            {
+              contractId: contract.id,
+              daysBefore: 30,
+              chargeType: "PERCENTAGE",
+              chargeValue: 0,
+              description: "Free cancellation 30+ days before check-in",
+              sortOrder: 0,
+            },
+            {
+              contractId: contract.id,
+              daysBefore: 14,
+              chargeType: "PERCENTAGE",
+              chargeValue: 25,
+              description: "25% penalty 14-29 days before",
+              sortOrder: 1,
+            },
+            {
+              contractId: contract.id,
+              daysBefore: 7,
+              chargeType: "PERCENTAGE",
+              chargeValue: 50,
+              description: "50% penalty 7-13 days before",
+              sortOrder: 2,
+            },
+            {
+              contractId: contract.id,
+              daysBefore: 3,
+              chargeType: "PERCENTAGE",
+              chargeValue: 75,
+              description: "75% penalty 3-6 days before",
+              sortOrder: 3,
+            },
+            {
+              contractId: contract.id,
+              daysBefore: 0,
+              chargeType: "PERCENTAGE",
+              chargeValue: 100,
+              description: "Full charge for no-show or day-of cancellation",
+              sortOrder: 4,
+            },
+          ],
+        });
+
+        console.log("    ✓ Sample contract seeded with all data including cancellation policies");
       }
     } else {
       console.log("    ✓ Sample contract already exists, skipping");

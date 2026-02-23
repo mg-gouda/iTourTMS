@@ -57,6 +57,7 @@ import {
   CHILD_BEDDING_LABELS,
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_VARIANTS,
+  CANCELLATION_CHARGE_TYPE_LABELS,
   OFFER_TYPE_LABELS,
   OCCUPANCY_SUPPLEMENT_LABELS,
   RATE_BASIS_LABELS,
@@ -318,6 +319,7 @@ export default function ContractDetailPage() {
           <TabsTrigger value="specialOffers">Special Offers</TabsTrigger>
           <TabsTrigger value="allotments">Allotments</TabsTrigger>
           <TabsTrigger value="childPolicies">Child Policies</TabsTrigger>
+          <TabsTrigger value="cancellation">Cancellation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -349,6 +351,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="childPolicies">
           <ChildPoliciesTab contractId={id} hotelId={contract.hotelId} />
+        </TabsContent>
+        <TabsContent value="cancellation">
+          <CancellationPolicyTab contractId={id} />
         </TabsContent>
       </Tabs>
 
@@ -4180,6 +4185,254 @@ function ChildPoliciesTab({
               }
             >
               {upsertMutation.isPending ? "Saving..." : "Save Override"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Cancellation Policy Tab ──────────────────────────────────
+
+type CancellationPolicyData = {
+  id: string;
+  contractId: string;
+  daysBefore: number;
+  chargeType: string;
+  chargeValue: string | number;
+  description: string | null;
+  sortOrder: number;
+};
+
+function CancellationPolicyTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const { data: rawPolicies } =
+    trpc.contracting.cancellationPolicy.listByContract.useQuery({ contractId });
+  const policies = (rawPolicies ?? []) as unknown as CancellationPolicyData[];
+
+  const createMutation = trpc.contracting.cancellationPolicy.create.useMutation({
+    onSuccess: () =>
+      utils.contracting.cancellationPolicy.listByContract.invalidate({ contractId }),
+  });
+  const updateMutation = trpc.contracting.cancellationPolicy.update.useMutation({
+    onSuccess: () =>
+      utils.contracting.cancellationPolicy.listByContract.invalidate({ contractId }),
+  });
+  const deleteMutation = trpc.contracting.cancellationPolicy.delete.useMutation({
+    onSuccess: () =>
+      utils.contracting.cancellationPolicy.listByContract.invalidate({ contractId }),
+  });
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    daysBefore: 0,
+    chargeType: "PERCENTAGE" as string,
+    chargeValue: 0,
+    description: "",
+  });
+
+  function openCreate() {
+    setEditingId(null);
+    setForm({ daysBefore: 0, chargeType: "PERCENTAGE", chargeValue: 100, description: "" });
+    setShowDialog(true);
+  }
+
+  function openEdit(p: CancellationPolicyData) {
+    setEditingId(p.id);
+    setForm({
+      daysBefore: p.daysBefore,
+      chargeType: p.chargeType,
+      chargeValue: Number(p.chargeValue),
+      description: p.description ?? "",
+    });
+    setShowDialog(true);
+  }
+
+  function handleSave() {
+    if (editingId) {
+      updateMutation.mutate(
+        {
+          id: editingId,
+          daysBefore: form.daysBefore,
+          chargeType: form.chargeType as "PERCENTAGE" | "FIXED" | "FIRST_NIGHT",
+          chargeValue: form.chargeType === "FIRST_NIGHT" ? 0 : form.chargeValue,
+          description: form.description || null,
+        },
+        { onSuccess: () => setShowDialog(false) },
+      );
+    } else {
+      createMutation.mutate(
+        {
+          contractId,
+          daysBefore: form.daysBefore,
+          chargeType: form.chargeType as "PERCENTAGE" | "FIXED" | "FIRST_NIGHT",
+          chargeValue: form.chargeType === "FIRST_NIGHT" ? 0 : form.chargeValue,
+          description: form.description || null,
+          sortOrder: policies.length,
+        },
+        { onSuccess: () => setShowDialog(false) },
+      );
+    }
+  }
+
+  function formatCharge(p: CancellationPolicyData) {
+    if (p.chargeType === "FIRST_NIGHT") return "First Night";
+    if (p.chargeType === "PERCENTAGE") return `${Number(p.chargeValue)}%`;
+    return `${Number(p.chargeValue).toFixed(2)} (Fixed)`;
+  }
+
+  function formatSummary(p: CancellationPolicyData) {
+    const charge = formatCharge(p);
+    if (p.daysBefore === 0) return `Day of arrival / No-show: ${charge} charge`;
+    return `Within ${p.daysBefore} day${p.daysBefore !== 1 ? "s" : ""}: ${charge} charge`;
+  }
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+  const error = createMutation.error ?? updateMutation.error;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Cancellation Policy</h3>
+          <p className="text-sm text-muted-foreground">
+            Define penalty tiers based on days before check-in.
+          </p>
+        </div>
+        <Button onClick={openCreate}>Add Tier</Button>
+      </div>
+
+      {policies.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No cancellation policy tiers defined. Add tiers to specify penalties.
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Days Before</TableHead>
+                  <TableHead>Charge Type</TableHead>
+                  <TableHead>Charge</TableHead>
+                  <TableHead>Summary</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {policies.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-mono">{p.daysBefore}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {CANCELLATION_CHARGE_TYPE_LABELS[p.chargeType] ?? p.chargeType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono">{formatCharge(p)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatSummary(p)}
+                    </TableCell>
+                    <TableCell className="text-sm">{p.description ?? "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteMutation.mutate({ id: p.id })}
+                          disabled={deleteMutation.isPending}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingId ? "Edit Cancellation Tier" : "Add Cancellation Tier"}
+            </DialogTitle>
+            <DialogDescription>
+              Define the penalty for cancellations within a certain number of days before check-in.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Days Before Check-in</label>
+              <Input
+                type="number"
+                min={0}
+                value={form.daysBefore}
+                onChange={(e) => setForm({ ...form, daysBefore: parseInt(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-muted-foreground">
+                0 = day of arrival / no-show
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Charge Type</label>
+              <Select
+                value={form.chargeType}
+                onValueChange={(val) => setForm({ ...form, chargeType: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                  <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                  <SelectItem value="FIRST_NIGHT">First Night</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.chargeType !== "FIRST_NIGHT" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {form.chargeType === "PERCENTAGE" ? "Percentage (%)" : "Amount"}
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={form.chargeType === "PERCENTAGE" ? 1 : 0.01}
+                  value={form.chargeValue}
+                  onChange={(e) =>
+                    setForm({ ...form, chargeValue: parseFloat(e.target.value) || 0 })
+                  }
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description (optional)</label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error.message}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isPending}>
+              {isPending ? "Saving..." : editingId ? "Update" : "Add"}
             </Button>
           </DialogFooter>
         </DialogContent>

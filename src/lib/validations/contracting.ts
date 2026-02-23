@@ -443,3 +443,23 @@ export const contractChildPolicyUpsertSchema = z.object({
   message: "Age To must be >= Age From",
   path: ["ageTo"],
 });
+
+// ── Cancellation Policies ──
+
+export const cancellationPolicyCreateSchema = z.object({
+  contractId: z.string().min(1),
+  daysBefore: z.number().int().min(0, "Days must be 0 or more"),
+  chargeType: z.enum(["PERCENTAGE", "FIXED", "FIRST_NIGHT"]),
+  chargeValue: z.number().min(0),
+  description: z.string().nullish(),
+  sortOrder: z.number().int().default(0),
+});
+
+export const cancellationPolicyUpdateSchema = z.object({
+  id: z.string().min(1),
+  daysBefore: z.number().int().min(0).optional(),
+  chargeType: z.enum(["PERCENTAGE", "FIXED", "FIRST_NIGHT"]).optional(),
+  chargeValue: z.number().min(0).optional(),
+  description: z.string().nullish(),
+  sortOrder: z.number().int().optional(),
+});

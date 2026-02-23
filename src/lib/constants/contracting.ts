@@ -72,3 +72,9 @@ export const OFFER_TYPE_LABELS: Record<string, string> = {
   HONEYMOON: "Honeymoon",
   GROUP_DISCOUNT: "Group Discount",
 };
+
+export const CANCELLATION_CHARGE_TYPE_LABELS: Record<string, string> = {
+  PERCENTAGE: "Percentage",
+  FIXED: "Fixed Amount",
+  FIRST_NIGHT: "First Night",
+};
