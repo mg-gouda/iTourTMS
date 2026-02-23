@@ -170,3 +170,57 @@ export const registerPaymentSchema = z.object({
   journalId: z.string().min(1, "Journal is required"),
   ref: z.string().nullish(),
 });
+
+// ── Bank Statement Schemas ──
+
+export const bankStatementLineSchema = z.object({
+  date: z.coerce.date(),
+  name: z.string().min(1, "Description is required"),
+  ref: z.string().nullish(),
+  partnerId: z.string().nullish(),
+  amount: z.number({ error: "Amount is required" }),
+  sequence: z.number().int().default(10),
+});
+
+export const bankStatementCreateSchema = z.object({
+  journalId: z.string().min(1, "Journal is required"),
+  date: z.coerce.date(),
+  dateFrom: z.coerce.date().nullish(),
+  dateTo: z.coerce.date().nullish(),
+  balanceStart: z.number().default(0),
+  balanceEnd: z.number().default(0),
+  lines: z.array(bankStatementLineSchema).min(1, "At least one line is required"),
+});
+
+export const bankStatementUpdateSchema = bankStatementCreateSchema.partial().extend({
+  lines: z.array(bankStatementLineSchema).min(1, "At least one line is required").optional(),
+});
+
+export const bankStatementImportSchema = z.object({
+  journalId: z.string().min(1, "Journal is required"),
+  date: z.coerce.date(),
+  balanceStart: z.number().default(0),
+  csvContent: z.string().min(1, "CSV content is required"),
+});
+
+// ── Reconciliation Schemas ──
+
+export const reconcileSchema = z.object({
+  bankStatementLineIds: z.array(z.string()).min(1, "Select at least one statement line"),
+  moveLineIds: z.array(z.string()).min(1, "Select at least one journal item"),
+  writeOffAmount: z.number().default(0),
+  writeOffAccountId: z.string().nullish(),
+});
+
+export const unreconcileSchema = z.object({
+  bankStatementLineIds: z.array(z.string()).min(1, "Select at least one statement line"),
+});
+
+// ── Batch Payment Schemas ──
+
+export const batchPaymentCreateSchema = z.object({
+  journalId: z.string().min(1, "Journal is required"),
+  date: z.coerce.date(),
+  paymentType: z.enum(["INBOUND", "OUTBOUND"]),
+  invoiceMoveIds: z.array(z.string()).min(1, "Select at least one invoice"),
+});

@@ -742,6 +742,105 @@ export async function seedFinance(companyId: string) {
   });
   console.log("    ✓ 2 sample fiscal positions seeded (Domestic, EU B2B)");
 
+  // ── Phase 4: Bank Statement & Batch Payment Sequences ──
+  const phase4Sequences = [
+    { code: "bank_statement", prefix: "BSTMT", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "batch_payment", prefix: "BATCH", separator: "/", padding: 5, resetPolicy: "yearly" },
+  ];
+
+  for (const seq of phase4Sequences) {
+    await prisma.sequence.upsert({
+      where: { companyId_code: { companyId, code: seq.code } },
+      update: {},
+      create: { ...seq, companyId },
+    });
+  }
+  console.log(`    ✓ ${phase4Sequences.length} bank statement & batch payment sequences seeded`);
+
+  // ── Bank Suspense Account ──
+  const suspenseAccount = await prisma.finAccount.upsert({
+    where: { code_companyId: { code: "1250", companyId } },
+    update: {},
+    create: {
+      code: "1250",
+      name: "Bank Suspense Account",
+      accountType: "ASSET_CURRENT",
+      reconcile: true,
+      deprecated: false,
+      companyId,
+      groupId: groupMap["Assets"],
+    },
+  });
+  console.log("    ✓ Bank Suspense Account (1250) seeded");
+
+  // Update BNK1 and CSH1 journals to set suspenseAccountId
+  const bnk1 = await prisma.journal.findFirst({
+    where: { code: "BNK1", companyId },
+  });
+  if (bnk1) {
+    await prisma.journal.update({
+      where: { id: bnk1.id },
+      data: { suspenseAccountId: suspenseAccount.id },
+    });
+  }
+
+  const csh1 = await prisma.journal.findFirst({
+    where: { code: "CSH1", companyId },
+  });
+  if (csh1) {
+    await prisma.journal.update({
+      where: { id: csh1.id },
+      data: { suspenseAccountId: suspenseAccount.id },
+    });
+  }
+  console.log("    ✓ BNK1 and CSH1 journals updated with suspense account");
+
+  // ── Phase 4 Permissions ──
+  const phase4Permissions = [
+    { code: "finance:bankStatement:read", module: "finance", resource: "bankStatement", action: "read", displayName: "View Bank Statements" },
+    { code: "finance:bankStatement:create", module: "finance", resource: "bankStatement", action: "create", displayName: "Create Bank Statements" },
+    { code: "finance:bankStatement:validate", module: "finance", resource: "bankStatement", action: "validate", displayName: "Validate Bank Statements" },
+    { code: "finance:bankStatement:delete", module: "finance", resource: "bankStatement", action: "delete", displayName: "Delete Bank Statements" },
+    { code: "finance:bankStatement:import", module: "finance", resource: "bankStatement", action: "import", displayName: "Import Bank Statements" },
+    { code: "finance:reconciliation:read", module: "finance", resource: "reconciliation", action: "read", displayName: "View Reconciliation" },
+    { code: "finance:reconciliation:reconcile", module: "finance", resource: "reconciliation", action: "reconcile", displayName: "Reconcile Bank Statements" },
+    { code: "finance:batchPayment:read", module: "finance", resource: "batchPayment", action: "read", displayName: "View Batch Payments" },
+    { code: "finance:batchPayment:create", module: "finance", resource: "batchPayment", action: "create", displayName: "Create Batch Payments" },
+    { code: "finance:batchPayment:confirm", module: "finance", resource: "batchPayment", action: "confirm", displayName: "Confirm Batch Payments" },
+    { code: "finance:batchPayment:delete", module: "finance", resource: "batchPayment", action: "delete", displayName: "Delete Batch Payments" },
+  ];
+
+  for (const perm of phase4Permissions) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: {},
+      create: perm,
+    });
+  }
+  console.log(`    ✓ ${phase4Permissions.length} bank statement, reconciliation & batch payment permissions seeded`);
+
+  // Assign Phase 4 perms to roles
+  const newPhase4Perms = await prisma.permission.findMany({
+    where: { code: { in: phase4Permissions.map((p) => p.code) } },
+  });
+  for (const perm of newPhase4Perms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: managerRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: managerRole.id, permissionId: perm.id },
+    });
+  }
+  const accountantPhase4Perms = newPhase4Perms.filter(
+    (p) => p.action === "read" || p.action === "create",
+  );
+  for (const perm of accountantPhase4Perms) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: accountantRole.id, permissionId: perm.id } },
+      update: {},
+      create: { roleId: accountantRole.id, permissionId: perm.id },
+    });
+  }
+
   console.log("  ✓ Finance seed completed");
 }
 

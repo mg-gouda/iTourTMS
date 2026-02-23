@@ -113,3 +113,18 @@ export const PAYMENT_TYPE_LABELS: Record<string, string> = {
   INBOUND: "Customer Payment",
   OUTBOUND: "Vendor Payment",
 };
+
+// ── Bank Statement Labels ──
+
+export const BANK_STATEMENT_STATE_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  VALIDATED: "Validated",
+};
+
+// ── Batch Payment Labels ──
+
+export const BATCH_PAYMENT_STATE_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  POSTED: "Confirmed",
+  CANCELLED: "Cancelled",
+};

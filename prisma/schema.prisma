@@ -93,6 +93,8 @@ model Company {
   fiscalPositions   FiscalPosition[]
   payments          Payment[]
   partialReconciles PartialReconcile[]
+  bankStatements    BankStatement[]
+  batchPayments     BatchPayment[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -332,9 +334,10 @@ model Partner {
   country  Country?       @relation(fields: [countryId], references: [id])
   state    CountryState?  @relation(fields: [stateId], references: [id])
 
-  moves          Move[]
-  moveLineItems  MoveLineItem[]
-  payments       Payment[]
+  moves              Move[]
+  moveLineItems      MoveLineItem[]
+  payments           Payment[]
+  bankStatementLines BankStatementLine[]
 
   @@index([companyId])
   @@index([companyId, type])
@@ -494,6 +497,11 @@ enum PaymentType {
   OUTBOUND
 }
 
+enum BankStatementState {
+  DRAFT
+  VALIDATED
+}
+
 // ============================================================================
 // FINANCE MODULE — Chart of Accounts
 // ============================================================================
@@ -592,6 +600,8 @@ model Journal {
   currency         Currency?   @relation(fields: [currencyId], references: [id])
   moves            Move[]
   payments         Payment[]
+  bankStatements   BankStatement[]
+  batchPayments    BatchPayment[]
 
   @@unique([code, companyId])
   @@index([companyId])
@@ -784,8 +794,9 @@ model MoveLineItem {
   taxLine   Tax?        @relation("TaxLineSource", fields: [taxLineId], references: [id])
   taxes     Tax[]       @relation("MoveLineItemTaxes")
 
-  debitReconciles  PartialReconcile[] @relation("DebitReconcileLine")
-  creditReconciles PartialReconcile[] @relation("CreditReconcileLine")
+  debitReconciles    PartialReconcile[]  @relation("DebitReconcileLine")
+  creditReconciles   PartialReconcile[]  @relation("CreditReconcileLine")
+  bankStatementLine  BankStatementLine?
 
   @@index([moveId])
   @@index([accountId])
@@ -867,16 +878,20 @@ model Payment {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  partner  Partner? @relation(fields: [partnerId], references: [id])
-  currency Currency @relation(fields: [currencyId], references: [id])
-  journal  Journal  @relation(fields: [journalId], references: [id])
-  move     Move?    @relation("PaymentMove", fields: [moveId], references: [id])
-  invoices Move[]   @relation("PaymentInvoices")
+  batchPaymentId String?
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partner      Partner?      @relation(fields: [partnerId], references: [id])
+  currency     Currency      @relation(fields: [currencyId], references: [id])
+  journal      Journal       @relation(fields: [journalId], references: [id])
+  move         Move?         @relation("PaymentMove", fields: [moveId], references: [id])
+  invoices     Move[]        @relation("PaymentInvoices")
+  batchPayment BatchPayment? @relation("BatchPaymentPayments", fields: [batchPaymentId], references: [id])
 
   @@index([companyId])
   @@index([companyId, state])
   @@index([partnerId])
+  @@index([batchPaymentId])
   @@map("fin_payment")
 }
 
@@ -902,4 +917,82 @@ model PartialReconcile {
   @@index([debitMoveLineId])
   @@index([creditMoveLineId])
   @@map("fin_partial_reconcile")
+}
+
+// ============================================================================
+// FINANCE MODULE — Bank Statements
+// ============================================================================
+
+model BankStatement {
+  id             String             @id @default(cuid())
+  companyId      String
+  name           String?
+  journalId      String
+  date           DateTime           @db.Date
+  dateFrom       DateTime?          @db.Date
+  dateTo         DateTime?          @db.Date
+  balanceStart   Decimal            @default(0) @db.Decimal(12, 4)
+  balanceEnd     Decimal            @default(0) @db.Decimal(12, 4)
+  balanceEndReal Decimal            @default(0) @db.Decimal(12, 4)
+  state          BankStatementState @default(DRAFT)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  company Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journal Journal             @relation(fields: [journalId], references: [id])
+  lines   BankStatementLine[]
+
+  @@index([companyId])
+  @@index([companyId, journalId])
+  @@index([date])
+  @@map("fin_bank_statement")
+}
+
+model BankStatementLine {
+  id           String   @id @default(cuid())
+  statementId  String
+  sequence     Int      @default(10)
+  date         DateTime @db.Date
+  name         String
+  ref          String?
+  partnerId    String?
+  amount       Decimal  @db.Decimal(12, 4)
+  moveLineId   String?  @unique
+  isReconciled Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  statement BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  partner   Partner?      @relation(fields: [partnerId], references: [id])
+  moveLine  MoveLineItem? @relation(fields: [moveLineId], references: [id])
+
+  @@index([statementId])
+  @@index([isReconciled])
+  @@map("fin_bank_statement_line")
+}
+
+// ============================================================================
+// FINANCE MODULE — Batch Payments
+// ============================================================================
+
+model BatchPayment {
+  id           String      @id @default(cuid())
+  companyId    String
+  name         String?
+  journalId    String
+  date         DateTime    @db.Date
+  paymentType  PaymentType
+  state        MoveState   @default(DRAFT)
+  totalAmount  Decimal     @default(0) @db.Decimal(12, 4)
+  paymentCount Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journal  Journal   @relation(fields: [journalId], references: [id])
+  payments Payment[] @relation("BatchPaymentPayments")
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_batch_payment")
 }
