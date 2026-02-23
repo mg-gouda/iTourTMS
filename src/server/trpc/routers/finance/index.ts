@@ -9,6 +9,7 @@ import { moveRouter } from "./move";
 import { paymentRouter } from "./payment";
 import { paymentTermRouter } from "./payment-term";
 import { reconciliationRouter } from "./reconciliation";
+import { reportRouter } from "./report";
 import { taxRouter } from "./tax";
 
 export const financeRouter = createTRPCRouter({
@@ -22,4 +23,5 @@ export const financeRouter = createTRPCRouter({
   tax: taxRouter,
   paymentTerm: paymentTermRouter,
   reconciliation: reconciliationRouter,
+  report: reportRouter,
 });

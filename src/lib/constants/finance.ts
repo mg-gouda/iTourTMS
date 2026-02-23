@@ -128,3 +128,19 @@ export const BATCH_PAYMENT_STATE_LABELS: Record<string, string> = {
   POSTED: "Confirmed",
   CANCELLED: "Cancelled",
 };
+
+// ── Report Constants ──
+
+export const REPORT_INCOME_TYPES = ["INCOME", "INCOME_OTHER"] as const;
+export const REPORT_EXPENSE_TYPES = ["EXPENSE", "EXPENSE_DEPRECIATION", "EXPENSE_DIRECT_COST"] as const;
+export const REPORT_ASSET_TYPES = ["ASSET_RECEIVABLE", "ASSET_CASH", "ASSET_CURRENT", "ASSET_NON_CURRENT", "ASSET_PREPAYMENTS", "ASSET_FIXED"] as const;
+export const REPORT_LIABILITY_TYPES = ["LIABILITY_PAYABLE", "LIABILITY_CREDIT_CARD", "LIABILITY_CURRENT", "LIABILITY_NON_CURRENT"] as const;
+export const REPORT_EQUITY_TYPES = ["EQUITY", "EQUITY_UNAFFECTED"] as const;
+
+export const AGING_BUCKETS = [
+  { key: "current", label: "Current", min: -Infinity, max: 0 },
+  { key: "days1to30", label: "1-30 Days", min: 1, max: 30 },
+  { key: "days31to60", label: "31-60 Days", min: 31, max: 60 },
+  { key: "days61to90", label: "61-90 Days", min: 61, max: 90 },
+  { key: "days90plus", label: "90+ Days", min: 91, max: Infinity },
+] as const;

@@ -70,6 +70,12 @@ const moduleRoutes: Record<string, { label: string; href: string }[]> = {
     { label: "Tax Groups", href: "/finance/configuration/tax-groups" },
     { label: "Payment Terms", href: "/finance/configuration/payment-terms" },
     { label: "Fiscal Positions", href: "/finance/configuration/fiscal-positions" },
+    { label: "Profit & Loss", href: "/finance/reports/profit-and-loss" },
+    { label: "Balance Sheet", href: "/finance/reports/balance-sheet" },
+    { label: "Trial Balance", href: "/finance/reports/trial-balance" },
+    { label: "General Ledger", href: "/finance/reports/general-ledger" },
+    { label: "Aged Receivable", href: "/finance/reports/aged-receivable" },
+    { label: "Aged Payable", href: "/finance/reports/aged-payable" },
   ],
   contracting: [
     { label: "Dashboard", href: "/contracting" },
