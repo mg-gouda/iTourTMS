@@ -545,6 +545,57 @@ export const contractRouter = createTRPCRouter({
       return results.sort((a, b) => a.version - b.version);
     }),
 
+  getForExport: proc
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.contract.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: {
+          hotel: { select: { id: true, name: true, code: true } },
+          baseCurrency: { select: { id: true, code: true, name: true } },
+          baseRoomType: { select: { id: true, name: true, code: true } },
+          baseMealBasis: { select: { id: true, name: true, mealCode: true } },
+          parentContract: { select: { id: true, name: true, code: true, version: true } },
+          createdBy: { select: { id: true, name: true } },
+          postedBy: { select: { id: true, name: true } },
+          publishedBy: { select: { id: true, name: true } },
+          seasons: { orderBy: { sortOrder: "asc" as const } },
+          roomTypes: {
+            include: { roomType: { select: { id: true, name: true, code: true } } },
+            orderBy: { sortOrder: "asc" as const },
+          },
+          mealBases: {
+            include: { mealBasis: { select: { id: true, name: true, mealCode: true } } },
+            orderBy: { sortOrder: "asc" as const },
+          },
+          baseRates: {
+            include: { season: { select: { id: true, name: true, code: true } } },
+          },
+          supplements: {
+            include: {
+              season: { select: { id: true, name: true, code: true } },
+              roomType: { select: { id: true, name: true, code: true } },
+              mealBasis: { select: { id: true, name: true, mealCode: true } },
+            },
+            orderBy: [{ supplementType: "asc" as const }, { sortOrder: "asc" as const }],
+          },
+          specialOffers: { orderBy: { sortOrder: "asc" as const } },
+          allotments: {
+            include: {
+              season: { select: { id: true, name: true, code: true } },
+              roomType: { select: { id: true, name: true, code: true } },
+            },
+          },
+          stopSales: {
+            include: { roomType: { select: { id: true, name: true, code: true } } },
+            orderBy: { dateFrom: "asc" as const },
+          },
+          childPolicies: { orderBy: { category: "asc" as const } },
+          cancellationPolicies: { orderBy: { daysBefore: "desc" as const } },
+        },
+      });
+    }),
+
   compare: proc
     .input(
       z.object({

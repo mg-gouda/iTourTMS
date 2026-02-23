@@ -129,3 +129,55 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* ─── Print Styles ──────────────────────────────────── */
+
+@media print {
+  [data-slot="sidebar"],
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10pt;
+  }
+
+  .print-break-before {
+    break-before: page;
+  }
+
+  .print-break-after {
+    break-after: page;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+
+  table {
+    font-size: 9pt;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 3px 6px;
+    border: 1px solid #ccc;
+    text-align: left;
+  }
+
+  th {
+    background-color: #f5f5f5 !important;
+    font-weight: 600;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}

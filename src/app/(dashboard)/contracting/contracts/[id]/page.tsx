@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, FileSpreadsheet, Printer } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ import {
   RATE_BASIS_LABELS,
   SUPPLEMENT_VALUE_TYPE_LABELS,
 } from "@/lib/constants/contracting";
+import { exportContractToExcel } from "@/lib/export/contract-excel";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 import {
@@ -199,6 +200,18 @@ export default function ContractDetailPage() {
     },
   });
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const fullData = await utils.contracting.contract.getForExport.fetch({ id });
+      exportContractToExcel(fullData as Parameters<typeof exportContractToExcel>[0]);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const [showDelete, setShowDelete] = useState(false);
   const [showClone, setShowClone] = useState(false);
 
@@ -247,6 +260,23 @@ export default function ContractDetailPage() {
             onClick={() => setShowClone(true)}
           >
             Clone
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              window.open(`/contracting/contracts/${id}/print`, "_blank")
+            }
+          >
+            <Printer className="mr-1 h-4 w-4" />
+            Print / PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportExcel}
+            disabled={exporting}
+          >
+            <FileSpreadsheet className="mr-1 h-4 w-4" />
+            {exporting ? "Exporting..." : "Export Excel"}
           </Button>
           {isDraft && (
             <>
