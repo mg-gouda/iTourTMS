@@ -148,6 +148,7 @@ type ContractData = {
   internalNotes: string | null;
   hotelNotes: string | null;
   version: number;
+  isTemplate: boolean;
   parentContractId: string | null;
   parentContract: { id: string; name: string; code: string; version: number } | null;
   createdAt: string | Date;
@@ -200,6 +201,13 @@ export default function ContractDetailPage() {
     },
   });
 
+  const saveTemplateMutation = trpc.contracting.contract.saveAsTemplate.useMutation({
+    onSuccess: (data) => {
+      utils.contracting.contract.listTemplates.invalidate();
+      router.push(`/contracting/contracts/${data.id}`);
+    },
+  });
+
   const [exporting, setExporting] = useState(false);
 
   const handleExportExcel = async () => {
@@ -214,6 +222,7 @@ export default function ContractDetailPage() {
 
   const [showDelete, setShowDelete] = useState(false);
   const [showClone, setShowClone] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
   if (isLoading) {
     return (
@@ -235,18 +244,22 @@ export default function ContractDetailPage() {
             <h1 className="text-2xl font-bold tracking-tight">
               {contract.name}
             </h1>
-            <Badge
-              variant={
-                (CONTRACT_STATUS_VARIANTS[contract.status] as
-                  | "default"
-                  | "secondary"
-                  | "outline"
-                  | "destructive") ?? "secondary"
-              }
-            >
-              {CONTRACT_STATUS_LABELS[contract.status] ?? contract.status}
-            </Badge>
-            {contract.version > 1 && (
+            {contract.isTemplate ? (
+              <Badge variant="secondary">Template</Badge>
+            ) : (
+              <Badge
+                variant={
+                  (CONTRACT_STATUS_VARIANTS[contract.status] as
+                    | "default"
+                    | "secondary"
+                    | "outline"
+                    | "destructive") ?? "secondary"
+                }
+              >
+                {CONTRACT_STATUS_LABELS[contract.status] ?? contract.status}
+              </Badge>
+            )}
+            {!contract.isTemplate && contract.version > 1 && (
               <Badge variant="outline">v{contract.version}</Badge>
             )}
           </div>
@@ -255,12 +268,34 @@ export default function ContractDetailPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowClone(true)}
-          >
-            Clone
-          </Button>
+          {contract.isTemplate ? (
+            <>
+              <Button onClick={() => setShowClone(true)}>
+                Use Template
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDelete(true)}
+              >
+                Delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowClone(true)}
+              >
+                Clone
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowSaveTemplate(true)}
+              >
+                Save as Template
+              </Button>
+            </>
+          )}
           <Button
             variant="outline"
             onClick={() =>
@@ -278,7 +313,7 @@ export default function ContractDetailPage() {
             <FileSpreadsheet className="mr-1 h-4 w-4" />
             {exporting ? "Exporting..." : "Export Excel"}
           </Button>
-          {isDraft && (
+          {!contract.isTemplate && isDraft && (
             <>
               <Button
                 variant="outline"
@@ -295,7 +330,7 @@ export default function ContractDetailPage() {
               </Button>
             </>
           )}
-          {isPosted && (
+          {!contract.isTemplate && isPosted && (
             <>
               <Button
                 onClick={() => publishMutation.mutate({ id })}
@@ -312,7 +347,7 @@ export default function ContractDetailPage() {
               </Button>
             </>
           )}
-          {contract.status === "PUBLISHED" && (
+          {!contract.isTemplate && contract.status === "PUBLISHED" && (
             <Button
               variant="outline"
               onClick={() => resetMutation.mutate({ id })}
@@ -414,7 +449,7 @@ export default function ContractDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Clone Dialog */}
+      {/* Clone / Use Template Dialog */}
       <CloneContractDialog
         contract={contract}
         open={showClone}
@@ -422,6 +457,16 @@ export default function ContractDetailPage() {
         onClone={(data) => cloneMutation.mutate(data)}
         isPending={cloneMutation.isPending}
         error={cloneMutation.error?.message}
+      />
+
+      {/* Save as Template Dialog */}
+      <SaveAsTemplateDialog
+        contract={contract}
+        open={showSaveTemplate}
+        onOpenChange={setShowSaveTemplate}
+        onSave={(data) => saveTemplateMutation.mutate(data)}
+        isPending={saveTemplateMutation.isPending}
+        error={saveTemplateMutation.error?.message}
       />
     </div>
   );
@@ -470,10 +515,11 @@ function CloneContractDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Clone Contract</DialogTitle>
+          <DialogTitle>{contract.isTemplate ? "Use Template" : "Clone Contract"}</DialogTitle>
           <DialogDescription>
-            Create a copy of &quot;{contract.name}&quot; with all seasons,
-            rates, supplements, special offers, and allotments.
+            {contract.isTemplate
+              ? `Create a new contract from template "${contract.name}" with all seasons, rates, supplements, and policies.`
+              : `Create a copy of "${contract.name}" with all seasons, rates, supplements, special offers, and allotments.`}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -524,7 +570,81 @@ function CloneContractDialog({
             }
             disabled={!canSubmit || isPending}
           >
-            {isPending ? "Cloning..." : "Clone Contract"}
+            {isPending
+              ? (contract.isTemplate ? "Creating..." : "Cloning...")
+              : (contract.isTemplate ? "Create Contract" : "Clone Contract")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Save As Template Dialog ──────────────────────────────────
+
+function SaveAsTemplateDialog({
+  contract,
+  open,
+  onOpenChange,
+  onSave,
+  isPending,
+  error,
+}: {
+  contract: ContractData;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (data: { contractId: string; name: string; code: string }) => void;
+  isPending: boolean;
+  error?: string;
+}) {
+  const [name, setName] = useState(`${contract.name} Template`);
+  const [code, setCode] = useState(`${contract.code}-TPL`);
+
+  useEffect(() => {
+    if (open) {
+      setName(`${contract.name} Template`);
+      setCode(`${contract.code}-TPL`);
+    }
+  }, [open, contract.name, contract.code]);
+
+  const canSubmit = name.trim() && code.trim();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Save as Template</DialogTitle>
+          <DialogDescription>
+            Save &quot;{contract.name}&quot; as a reusable template. All
+            seasons, rates, supplements, and policies will be copied.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Template Name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Template Code</label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} maxLength={20} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!canSubmit || isPending}
+            onClick={() =>
+              onSave({
+                contractId: contract.id,
+                name: name.trim(),
+                code: code.trim(),
+              })
+            }
+          >
+            {isPending ? "Saving..." : "Save Template"}
           </Button>
         </DialogFooter>
       </DialogContent>

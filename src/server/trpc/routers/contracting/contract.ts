@@ -13,7 +13,19 @@ const proc = moduleProcedure("contracting");
 export const contractRouter = createTRPCRouter({
   list: proc.query(async ({ ctx }) => {
     return ctx.db.contract.findMany({
-      where: { companyId: ctx.companyId },
+      where: { companyId: ctx.companyId, isTemplate: false },
+      include: {
+        hotel: { select: { id: true, name: true } },
+        baseCurrency: { select: { id: true, code: true, name: true } },
+        _count: { select: { seasons: true, roomTypes: true, mealBases: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  listTemplates: proc.query(async ({ ctx }) => {
+    return ctx.db.contract.findMany({
+      where: { companyId: ctx.companyId, isTemplate: true },
       include: {
         hotel: { select: { id: true, name: true } },
         baseCurrency: { select: { id: true, code: true, name: true } },
@@ -311,6 +323,7 @@ export const contractRouter = createTRPCRouter({
             createdById: ctx.session.user.id,
             parentContractId: source.id,
             version: newVersion,
+            isTemplate: false,
           },
         });
 
@@ -479,6 +492,225 @@ export const contractRouter = createTRPCRouter({
         }
 
         return { id: newContract.id };
+      });
+    }),
+
+  saveAsTemplate: proc
+    .input(
+      z.object({
+        contractId: z.string(),
+        name: z.string().min(1),
+        code: z.string().min(1).max(20),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Fetch source contract with ALL child records
+      const source = await ctx.db.contract.findFirstOrThrow({
+        where: { id: input.contractId, companyId: ctx.companyId },
+        include: {
+          seasons: { orderBy: { sortOrder: "asc" } },
+          roomTypes: { orderBy: { sortOrder: "asc" } },
+          mealBases: { orderBy: { sortOrder: "asc" } },
+          baseRates: true,
+          supplements: { orderBy: [{ supplementType: "asc" }, { sortOrder: "asc" }] },
+          specialOffers: { orderBy: { sortOrder: "asc" } },
+          allotments: true,
+          stopSales: true,
+          childPolicies: true,
+          cancellationPolicies: true,
+        },
+      });
+
+      return ctx.db.$transaction(async (tx) => {
+        // Create template contract
+        const template = await tx.contract.create({
+          data: {
+            companyId: ctx.companyId,
+            name: input.name,
+            code: input.code,
+            hotelId: source.hotelId,
+            validFrom: source.validFrom,
+            validTo: source.validTo,
+            rateBasis: source.rateBasis,
+            baseCurrencyId: source.baseCurrencyId,
+            baseRoomTypeId: source.baseRoomTypeId,
+            baseMealBasisId: source.baseMealBasisId,
+            minimumStay: source.minimumStay,
+            maximumStay: source.maximumStay,
+            terms: source.terms,
+            internalNotes: source.internalNotes,
+            hotelNotes: source.hotelNotes,
+            createdById: ctx.session.user.id,
+            isTemplate: true,
+            version: 1,
+          },
+        });
+
+        // Clone seasons and build ID remap
+        const seasonIdMap = new Map<string, string>();
+        for (const season of source.seasons) {
+          const newSeason = await tx.contractSeason.create({
+            data: {
+              contractId: template.id,
+              name: season.name,
+              code: season.code,
+              dateFrom: season.dateFrom,
+              dateTo: season.dateTo,
+              sortOrder: season.sortOrder,
+              releaseDays: season.releaseDays,
+              minimumStay: season.minimumStay,
+            },
+          });
+          seasonIdMap.set(season.id, newSeason.id);
+        }
+
+        // Clone room types
+        if (source.roomTypes.length > 0) {
+          await tx.contractRoomType.createMany({
+            data: source.roomTypes.map((rt) => ({
+              contractId: template.id,
+              roomTypeId: rt.roomTypeId,
+              isBase: rt.isBase,
+              sortOrder: rt.sortOrder,
+            })),
+          });
+        }
+
+        // Clone meal bases
+        if (source.mealBases.length > 0) {
+          await tx.contractMealBasis.createMany({
+            data: source.mealBases.map((mb) => ({
+              contractId: template.id,
+              mealBasisId: mb.mealBasisId,
+              isBase: mb.isBase,
+              sortOrder: mb.sortOrder,
+            })),
+          });
+        }
+
+        // Clone base rates
+        if (source.baseRates.length > 0) {
+          await tx.contractBaseRate.createMany({
+            data: source.baseRates.map((br) => ({
+              contractId: template.id,
+              seasonId: seasonIdMap.get(br.seasonId)!,
+              rate: br.rate,
+              singleRate: br.singleRate,
+              doubleRate: br.doubleRate,
+              tripleRate: br.tripleRate,
+            })),
+          });
+        }
+
+        // Clone supplements
+        if (source.supplements.length > 0) {
+          await tx.contractSupplement.createMany({
+            data: source.supplements.map((s) => ({
+              contractId: template.id,
+              seasonId: seasonIdMap.get(s.seasonId)!,
+              supplementType: s.supplementType,
+              roomTypeId: s.roomTypeId,
+              mealBasisId: s.mealBasisId,
+              forAdults: s.forAdults,
+              forChildCategory: s.forChildCategory,
+              forChildBedding: s.forChildBedding,
+              valueType: s.valueType,
+              value: s.value,
+              isReduction: s.isReduction,
+              perPerson: s.perPerson,
+              perNight: s.perNight,
+              label: s.label,
+              notes: s.notes,
+              sortOrder: s.sortOrder,
+            })),
+          });
+        }
+
+        // Clone special offers
+        if (source.specialOffers.length > 0) {
+          await tx.contractSpecialOffer.createMany({
+            data: source.specialOffers.map((so) => ({
+              contractId: template.id,
+              name: so.name,
+              offerType: so.offerType,
+              description: so.description,
+              validFrom: so.validFrom,
+              validTo: so.validTo,
+              bookByDate: so.bookByDate,
+              minimumNights: so.minimumNights,
+              minimumRooms: so.minimumRooms,
+              advanceBookDays: so.advanceBookDays,
+              discountType: so.discountType,
+              discountValue: so.discountValue,
+              stayNights: so.stayNights,
+              payNights: so.payNights,
+              combinable: so.combinable,
+              active: so.active,
+              sortOrder: so.sortOrder,
+            })),
+          });
+        }
+
+        // Clone allotments
+        if (source.allotments.length > 0) {
+          await tx.contractAllotment.createMany({
+            data: source.allotments.map((a) => ({
+              contractId: template.id,
+              seasonId: seasonIdMap.get(a.seasonId)!,
+              roomTypeId: a.roomTypeId,
+              totalRooms: a.totalRooms,
+              freeSale: a.freeSale,
+              soldRooms: 0,
+            })),
+          });
+        }
+
+        // Clone stop sales
+        if (source.stopSales.length > 0) {
+          await tx.contractStopSale.createMany({
+            data: source.stopSales.map((ss) => ({
+              contractId: template.id,
+              roomTypeId: ss.roomTypeId,
+              dateFrom: ss.dateFrom,
+              dateTo: ss.dateTo,
+              reason: ss.reason,
+            })),
+          });
+        }
+
+        // Clone child policies
+        if (source.childPolicies.length > 0) {
+          await tx.contractChildPolicy.createMany({
+            data: source.childPolicies.map((cp) => ({
+              contractId: template.id,
+              category: cp.category,
+              ageFrom: cp.ageFrom,
+              ageTo: cp.ageTo,
+              label: cp.label,
+              freeInSharing: cp.freeInSharing,
+              maxFreePerRoom: cp.maxFreePerRoom,
+              extraBedAllowed: cp.extraBedAllowed,
+              mealsIncluded: cp.mealsIncluded,
+              notes: cp.notes,
+            })),
+          });
+        }
+
+        // Clone cancellation policies
+        if (source.cancellationPolicies.length > 0) {
+          await tx.contractCancellationPolicy.createMany({
+            data: source.cancellationPolicies.map((cp) => ({
+              contractId: template.id,
+              daysBefore: cp.daysBefore,
+              chargeType: cp.chargeType,
+              chargeValue: cp.chargeValue,
+              description: cp.description,
+              sortOrder: cp.sortOrder,
+            })),
+          });
+        }
+
+        return { id: template.id };
       });
     }),
 
@@ -683,15 +915,16 @@ export const contractRouter = createTRPCRouter({
       recentContracts,
       allContracts,
     ] = await Promise.all([
-      ctx.db.contract.count({ where: { companyId: ctx.companyId } }),
+      ctx.db.contract.count({ where: { companyId: ctx.companyId, isTemplate: false } }),
       ctx.db.contract.groupBy({
         by: ["status"],
         _count: true,
-        where: { companyId: ctx.companyId },
+        where: { companyId: ctx.companyId, isTemplate: false },
       }),
       ctx.db.contract.findMany({
         where: {
           companyId: ctx.companyId,
+          isTemplate: false,
           validTo: { gte: now, lte: sixtyDaysFromNow },
         },
         include: { hotel: { select: { name: true } } },
@@ -699,13 +932,13 @@ export const contractRouter = createTRPCRouter({
         take: 10,
       }),
       ctx.db.contract.findMany({
-        where: { companyId: ctx.companyId },
+        where: { companyId: ctx.companyId, isTemplate: false },
         include: { hotel: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
       ctx.db.contract.findMany({
-        where: { companyId: ctx.companyId },
+        where: { companyId: ctx.companyId, isTemplate: false },
         select: { hotelId: true, hotel: { select: { name: true } } },
       }),
     ]);

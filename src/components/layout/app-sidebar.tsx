@@ -87,6 +87,7 @@ const moduleRoutes: Record<string, { label: string; href: string }[]> = {
     { label: "Destinations", href: "/contracting/destinations" },
     { label: "Hotels", href: "/contracting/hotels" },
     { label: "Contracts", href: "/contracting/contracts" },
+    { label: "Templates", href: "/contracting/templates" },
     { label: "Rates", href: "/contracting/rates" },
   ],
   crm: [
