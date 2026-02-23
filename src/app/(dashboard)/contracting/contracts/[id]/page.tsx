@@ -317,6 +317,7 @@ export default function ContractDetailPage() {
           <TabsTrigger value="rateSheet">Rate Sheet</TabsTrigger>
           <TabsTrigger value="specialOffers">Special Offers</TabsTrigger>
           <TabsTrigger value="allotments">Allotments</TabsTrigger>
+          <TabsTrigger value="childPolicies">Child Policies</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -345,6 +346,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="allotments">
           <AllotmentsTab contractId={id} contract={contract} />
+        </TabsContent>
+        <TabsContent value="childPolicies">
+          <ChildPoliciesTab contractId={id} hotelId={contract.hotelId} />
         </TabsContent>
       </Tabs>
 
@@ -1581,20 +1585,21 @@ function SupplementsTab({
   for (const cp of hotelDetail?.childrenPolicies ?? []) {
     const cat = cp.category as string;
     const catLabel = CHILD_AGE_CATEGORY_LABELS[cat] ?? cat;
-    if (cp.freeInSharing) {
-      childPolicies.push({
-        category: cat,
-        bedding: "SHARING_WITH_PARENTS",
-        label: `${catLabel} — Sharing`,
-      });
-    }
-    if (cp.extraBedAllowed) {
-      childPolicies.push({
-        category: cat,
-        bedding: "EXTRA_BED",
-        label: `${catLabel} — Extra Bed`,
-      });
-    }
+    childPolicies.push({
+      category: cat,
+      bedding: "SHARING_WITH_PARENTS",
+      label: `${catLabel} — Sharing`,
+    });
+    childPolicies.push({
+      category: cat,
+      bedding: "EXTRA_BED",
+      label: `${catLabel} — Extra Bed`,
+    });
+    childPolicies.push({
+      category: cat,
+      bedding: "OWN_BED",
+      label: `${catLabel} — Own Bed`,
+    });
   }
 
   // Group existing supplements by type
@@ -3833,6 +3838,352 @@ function RateBreakdownDisplay({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Child Policies Tab ─────────────────────────────────────
+
+type ContractChildPolicyData = {
+  id: string;
+  contractId: string;
+  category: string;
+  ageFrom: number;
+  ageTo: number;
+  label: string;
+  freeInSharing: boolean;
+  maxFreePerRoom: number;
+  extraBedAllowed: boolean;
+  mealsIncluded: boolean;
+  notes: string | null;
+};
+
+type HotelChildPolicyData = {
+  id: string;
+  category: string;
+  ageFrom: number;
+  ageTo: number;
+  label: string;
+  freeInSharing: boolean;
+  maxFreePerRoom: number;
+  extraBedAllowed: boolean;
+  mealsIncluded: boolean;
+  notes: string | null;
+};
+
+function ChildPoliciesTab({
+  contractId,
+  hotelId,
+}: {
+  contractId: string;
+  hotelId: string;
+}) {
+  const utils = trpc.useUtils();
+  const { data: rawHotelPolicies } =
+    trpc.contracting.childPolicy.list.useQuery({ hotelId });
+  const hotelPolicies = (rawHotelPolicies ?? []) as unknown as HotelChildPolicyData[];
+
+  const { data: rawContractPolicies } =
+    trpc.contracting.contractChildPolicy.listByContract.useQuery({ contractId });
+  const contractPolicies = (rawContractPolicies ?? []) as unknown as ContractChildPolicyData[];
+
+  const upsertMutation = trpc.contracting.contractChildPolicy.upsert.useMutation({
+    onSuccess: () => utils.contracting.contractChildPolicy.listByContract.invalidate({ contractId }),
+  });
+  const deleteMutation = trpc.contracting.contractChildPolicy.delete.useMutation({
+    onSuccess: () => utils.contracting.contractChildPolicy.listByContract.invalidate({ contractId }),
+  });
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [editCategory, setEditCategory] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    ageFrom: 0,
+    ageTo: 0,
+    label: "",
+    freeInSharing: false,
+    maxFreePerRoom: 0,
+    extraBedAllowed: true,
+    mealsIncluded: false,
+    notes: "",
+  });
+
+  const contractPolicyMap = new Map(
+    contractPolicies.map((cp) => [cp.category, cp]),
+  );
+
+  const categories = ["INFANT", "CHILD", "TEEN"] as const;
+
+  function openOverrideDialog(category: string) {
+    const hotelPolicy = hotelPolicies.find((hp) => hp.category === category);
+    const contractPolicy = contractPolicyMap.get(category);
+    const source = contractPolicy ?? hotelPolicy;
+    setEditCategory(category);
+    setFormData({
+      ageFrom: source?.ageFrom ?? 0,
+      ageTo: source?.ageTo ?? 0,
+      label: source?.label ?? CHILD_AGE_CATEGORY_LABELS[category] ?? category,
+      freeInSharing: source?.freeInSharing ?? false,
+      maxFreePerRoom: source?.maxFreePerRoom ?? 0,
+      extraBedAllowed: source?.extraBedAllowed ?? true,
+      mealsIncluded: source?.mealsIncluded ?? false,
+      notes: source?.notes ?? "",
+    });
+    setShowDialog(true);
+  }
+
+  function handleSave() {
+    if (!editCategory) return;
+    upsertMutation.mutate(
+      {
+        contractId,
+        category: editCategory as "INFANT" | "CHILD" | "TEEN",
+        ageFrom: formData.ageFrom,
+        ageTo: formData.ageTo,
+        label: formData.label,
+        freeInSharing: formData.freeInSharing,
+        maxFreePerRoom: formData.maxFreePerRoom,
+        extraBedAllowed: formData.extraBedAllowed,
+        mealsIncluded: formData.mealsIncluded,
+        notes: formData.notes || null,
+      },
+      { onSuccess: () => setShowDialog(false) },
+    );
+  }
+
+  function handleRemoveOverride(cp: ContractChildPolicyData) {
+    deleteMutation.mutate({ id: cp.id, contractId });
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Hotel Defaults */}
+      <div>
+        <h3 className="mb-3 text-lg font-semibold">Hotel Defaults</h3>
+        {hotelPolicies.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No child policies defined for this hotel.
+          </p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {hotelPolicies.map((hp) => (
+              <Card key={hp.id} className="opacity-70">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">
+                    {CHILD_AGE_CATEGORY_LABELS[hp.category] ?? hp.category}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1 text-xs text-muted-foreground">
+                  <div>Label: {hp.label}</div>
+                  <div>Age: {hp.ageFrom}–{hp.ageTo}</div>
+                  <div>Free in Sharing: {hp.freeInSharing ? "Yes" : "No"}{hp.freeInSharing ? ` (max ${hp.maxFreePerRoom}/room)` : ""}</div>
+                  <div>Extra Bed: {hp.extraBedAllowed ? "Allowed" : "Not Allowed"}</div>
+                  <div>Meals: {hp.mealsIncluded ? "Included" : "Not Included"}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Contract Overrides */}
+      <div>
+        <h3 className="mb-3 text-lg font-semibold">Contract Overrides</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Override hotel defaults for specific age categories. When no override exists,
+          the hotel default is used.
+        </p>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Category</TableHead>
+              <TableHead>Label</TableHead>
+              <TableHead>Age Range</TableHead>
+              <TableHead>Free in Sharing</TableHead>
+              <TableHead>Extra Bed</TableHead>
+              <TableHead>Meals</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead className="w-[140px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {categories.map((cat) => {
+              const override = contractPolicyMap.get(cat);
+              const hotelDefault = hotelPolicies.find((hp) => hp.category === cat);
+              const effective = override ?? hotelDefault;
+
+              if (!effective) return null;
+
+              return (
+                <TableRow key={cat}>
+                  <TableCell className="font-medium">
+                    {CHILD_AGE_CATEGORY_LABELS[cat]}
+                  </TableCell>
+                  <TableCell>{effective.label}</TableCell>
+                  <TableCell>{effective.ageFrom}–{effective.ageTo}</TableCell>
+                  <TableCell>
+                    {effective.freeInSharing ? (
+                      <span>Yes (max {effective.maxFreePerRoom})</span>
+                    ) : (
+                      "No"
+                    )}
+                  </TableCell>
+                  <TableCell>{effective.extraBedAllowed ? "Yes" : "No"}</TableCell>
+                  <TableCell>{effective.mealsIncluded ? "Yes" : "No"}</TableCell>
+                  <TableCell>
+                    <Badge variant={override ? "default" : "outline"}>
+                      {override ? "Override" : "Hotel Default"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openOverrideDialog(cat)}
+                      >
+                        {override ? "Edit" : "Override"}
+                      </Button>
+                      {override && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveOverride(override)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          Revert
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Override Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editCategory
+                ? `Override ${CHILD_AGE_CATEGORY_LABELS[editCategory]} Policy`
+                : "Override Child Policy"}
+            </DialogTitle>
+            <DialogDescription>
+              Set contract-specific child policy for this category.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Label</label>
+              <Input
+                value={formData.label}
+                onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Age From</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={formData.ageFrom}
+                  onChange={(e) =>
+                    setFormData({ ...formData, ageFrom: parseInt(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Age To</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={formData.ageTo}
+                  onChange={(e) =>
+                    setFormData({ ...formData, ageTo: parseInt(e.target.value) || 0 })
+                  }
+                />
+              </div>
+            </div>
+            {formData.ageTo < formData.ageFrom && (
+              <p className="text-sm text-destructive">Age To must be &gt;= Age From</p>
+            )}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={formData.freeInSharing}
+                onCheckedChange={(val) =>
+                  setFormData({ ...formData, freeInSharing: !!val })
+                }
+              />
+              <label className="text-sm">Free in Sharing</label>
+            </div>
+            {formData.freeInSharing && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Max Free Per Room</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={formData.maxFreePerRoom}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maxFreePerRoom: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={formData.extraBedAllowed}
+                onCheckedChange={(val) =>
+                  setFormData({ ...formData, extraBedAllowed: !!val })
+                }
+              />
+              <label className="text-sm">Extra Bed Allowed</label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={formData.mealsIncluded}
+                onCheckedChange={(val) =>
+                  setFormData({ ...formData, mealsIncluded: !!val })
+                }
+              />
+              <label className="text-sm">Meals Included</label>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes</label>
+              <Textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={2}
+              />
+            </div>
+            {upsertMutation.error && (
+              <p className="text-sm text-destructive">{upsertMutation.error.message}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={
+                !formData.label.trim() ||
+                formData.ageTo < formData.ageFrom ||
+                upsertMutation.isPending
+              }
+            >
+              {upsertMutation.isPending ? "Saving..." : "Save Override"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

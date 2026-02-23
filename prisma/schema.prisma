@@ -1522,7 +1522,8 @@ model Contract {
   supplements   ContractSupplement[]
   specialOffers ContractSpecialOffer[]
   allotments    ContractAllotment[]
-  stopSales     ContractStopSale[]
+  stopSales      ContractStopSale[]
+  childPolicies  ContractChildPolicy[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1709,4 +1710,26 @@ model ContractStopSale {
   @@index([contractId])
   @@index([contractId, dateFrom, dateTo])
   @@map("ct_contract_stop_sale")
+}
+
+model ContractChildPolicy {
+  id              String           @id @default(cuid())
+  contractId      String
+  category        ChildAgeCategory
+  ageFrom         Int
+  ageTo           Int
+  label           String
+  freeInSharing   Boolean          @default(false)
+  maxFreePerRoom  Int              @default(0)
+  extraBedAllowed Boolean          @default(true)
+  mealsIncluded   Boolean          @default(false)
+  notes           String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, category])
+  @@index([contractId])
+  @@map("ct_contract_child_policy")
 }

@@ -425,3 +425,21 @@ export const contractCloneSchema = z.object({
   message: "Valid To must be after Valid From",
   path: ["validTo"],
 });
+
+// ── Contract Child Policies ──
+
+export const contractChildPolicyUpsertSchema = z.object({
+  contractId: z.string().min(1),
+  category: z.enum(["INFANT", "CHILD", "TEEN"]),
+  ageFrom: z.number().int().min(0),
+  ageTo: z.number().int().min(0),
+  label: z.string().min(1, "Label is required"),
+  freeInSharing: z.boolean().default(false),
+  maxFreePerRoom: z.number().int().min(0).default(0),
+  extraBedAllowed: z.boolean().default(true),
+  mealsIncluded: z.boolean().default(false),
+  notes: z.string().nullish(),
+}).refine((d) => d.ageTo >= d.ageFrom, {
+  message: "Age To must be >= Age From",
+  path: ["ageTo"],
+});

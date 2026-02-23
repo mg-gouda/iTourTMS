@@ -2,6 +2,7 @@ import { createTRPCRouter } from "@/server/trpc";
 
 import { childPolicyRouter } from "./child-policy";
 import { contractAllotmentRouter } from "./contract-allotment";
+import { contractChildPolicyRouter } from "./contract-child-policy";
 import { contractRouter } from "./contract";
 import { contractBaseRateRouter } from "./contract-base-rate";
 import { contractMealBasisRouter } from "./contract-meal-basis";
@@ -19,6 +20,7 @@ export const contractingRouter = createTRPCRouter({
   childPolicy: childPolicyRouter,
   contract: contractRouter,
   contractAllotment: contractAllotmentRouter,
+  contractChildPolicy: contractChildPolicyRouter,
   contractBaseRate: contractBaseRateRouter,
   contractMealBasis: contractMealBasisRouter,
   contractRoomType: contractRoomTypeRouter,

@@ -33,6 +33,7 @@ async function fetchContractData(
       baseRates: true,
       supplements: true,
       specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" } },
+      childPolicies: true,
       hotel: {
         include: {
           childrenPolicies: { orderBy: { ageFrom: "asc" } },
@@ -82,12 +83,35 @@ async function fetchContractData(
       perNight: s.perNight,
       label: s.label,
     })),
-    childPolicies: contract.hotel.childrenPolicies.map((cp) => ({
-      category: cp.category,
-      freeInSharing: cp.freeInSharing,
-      maxFreePerRoom: cp.maxFreePerRoom,
-      extraBedAllowed: cp.extraBedAllowed,
-    })),
+    childPolicies: (() => {
+      // Contract-level overrides take precedence over hotel defaults
+      const contractOverrides = new Map(
+        contract.childPolicies.map((cp) => [cp.category, cp]),
+      );
+      const hotelDefaults = contract.hotel.childrenPolicies;
+      const categories = new Set([
+        ...hotelDefaults.map((p) => p.category),
+        ...contract.childPolicies.map((p) => p.category),
+      ]);
+      return Array.from(categories).map((category) => {
+        const override = contractOverrides.get(category);
+        if (override) {
+          return {
+            category: override.category,
+            freeInSharing: override.freeInSharing,
+            maxFreePerRoom: override.maxFreePerRoom,
+            extraBedAllowed: override.extraBedAllowed,
+          };
+        }
+        const hotel = hotelDefaults.find((p) => p.category === category)!;
+        return {
+          category: hotel.category,
+          freeInSharing: hotel.freeInSharing,
+          maxFreePerRoom: hotel.maxFreePerRoom,
+          extraBedAllowed: hotel.extraBedAllowed,
+        };
+      });
+    })(),
     specialOffers: contract.specialOffers.map((o) => ({
       id: o.id,
       name: o.name,

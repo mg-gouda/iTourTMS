@@ -253,6 +253,7 @@ export const contractRouter = createTRPCRouter({
           specialOffers: { orderBy: { sortOrder: "asc" } },
           allotments: true,
           stopSales: true,
+          childPolicies: true,
         },
       });
 
@@ -440,6 +441,24 @@ export const contractRouter = createTRPCRouter({
               dateFrom: ss.dateFrom,
               dateTo: ss.dateTo,
               reason: ss.reason,
+            })),
+          });
+        }
+
+        // 10. Clone child policies
+        if (source.childPolicies.length > 0) {
+          await tx.contractChildPolicy.createMany({
+            data: source.childPolicies.map((cp) => ({
+              contractId: newContract.id,
+              category: cp.category,
+              ageFrom: cp.ageFrom,
+              ageTo: cp.ageTo,
+              label: cp.label,
+              freeInSharing: cp.freeInSharing,
+              maxFreePerRoom: cp.maxFreePerRoom,
+              extraBedAllowed: cp.extraBedAllowed,
+              mealsIncluded: cp.mealsIncluded,
+              notes: cp.notes,
             })),
           });
         }

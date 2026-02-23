@@ -1478,7 +1478,25 @@ export async function seedContracting(companyId: string) {
           ],
         });
 
-        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, supplements, special offers, allotments, and stop sales");
+        // Contract Child Policy Overrides
+        await prisma.contractChildPolicy.createMany({
+          data: [
+            {
+              contractId: contract.id,
+              category: "CHILD",
+              ageFrom: 2,
+              ageTo: 12,
+              label: "Child (Contract Override)",
+              freeInSharing: true,
+              maxFreePerRoom: 2,
+              extraBedAllowed: true,
+              mealsIncluded: true,
+              notes: "Contract-specific: increased free children to 2 per room with meals included",
+            },
+          ],
+        });
+
+        console.log("    ✓ Sample contract 'Summer 2026' seeded with seasons, base rates, supplements, special offers, allotments, stop sales, and child policy overrides");
       }
     } else {
       console.log("    ✓ Sample contract already exists, skipping");
