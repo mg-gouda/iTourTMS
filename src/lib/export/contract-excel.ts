@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import { format } from "date-fns";
 
 import {
@@ -119,7 +118,8 @@ function num(v: unknown): number {
 // Export Function
 // ---------------------------------------------------------------------------
 
-export function exportContractToExcel(data: ExportData): void {
+export async function exportContractToExcel(data: ExportData): Promise<void> {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   // ─── Sheet 1: Summary ────────────────────────────────

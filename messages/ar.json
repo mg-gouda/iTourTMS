@@ -35,8 +35,8 @@
   "setup": {
     "welcome": "مرحباً بك في iTourTMS",
     "companySetup": "إعداد الشركة",
-    "installModules": "تثبيت الوحدات",
-    "moduleConfig": "إعداد الوحدات",
+    "installModules": "تثبيت أجزاء النظام",
+    "moduleConfig": "إعداد أجزاء النظام",
     "adminAccount": "حساب المدير",
     "companyName": "اسم الشركة",
     "legalName": "الاسم القانوني",
@@ -46,7 +46,7 @@
     "fiscalYear": "السنة المالية",
     "timezone": "المنطقة الزمنية",
     "launch": "إطلاق iTourTMS",
-    "selectModules": "اختر الوحدات للتثبيت",
+    "selectModules": "اختر أجزاء النظام للتثبيت",
     "moduleDependency": "يتطلب تثبيت {modules}",
     "comingSoon": "قريباً",
     "fullName": "الاسم الكامل",
@@ -56,7 +56,7 @@
   "nav": {
     "dashboard": "لوحة التحكم",
     "settings": "الإعدادات",
-    "modules": "الوحدات",
+    "modules": "أجزاء النظام",
     "users": "المستخدمون",
     "roles": "الأدوار والصلاحيات",
     "company": "الشركة",

@@ -214,7 +214,7 @@ export default function ContractDetailPage() {
     setExporting(true);
     try {
       const fullData = await utils.contracting.contract.getForExport.fetch({ id });
-      exportContractToExcel(fullData as Parameters<typeof exportContractToExcel>[0]);
+      await exportContractToExcel(fullData as Parameters<typeof exportContractToExcel>[0]);
     } finally {
       setExporting(false);
     }
