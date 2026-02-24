@@ -232,7 +232,46 @@
 
 ---
 
+## Infrastructure: tRPC Auth & Stability Fixes (Completed)
+- **Date:** 2026-02-24
+- **Commits:** `f0384ee`, `8074559`, `556a577`
+
+### tRPC Route Handler — Auth Session Fix
+- **Root cause:** `auth()` called inside `fetchRequestHandler` callback could lose Next.js 16 async context, causing session to be `null` or throwing exceptions → HTTP 500
+- **Fix:** Moved `auth()` call to the Route Handler level (`src/app/api/trpc/[trpc]/route.ts`), wrapped in try-catch, pre-resolved session passed into `createTRPCContext({ session })`
+- `createTRPCContext` now accepts optional `{ session }` param; falls back to `auth()` for server-side callers
+
+### Prisma Client Regeneration
+- **Root cause:** After running `prisma migrate dev`, the Prisma client types were stale — `hotelCodePrefix` and `Zone` model not recognized at runtime → `Unknown field` errors causing HTTP 500
+- **Fix:** `npx prisma generate` + clear `.next` cache + restart dev server
+- **Lesson:** Always run `prisma generate` after schema changes and restart the dev server
+
+### QueryClient Retry Policy
+- Added `retry` function to QueryClient: UNAUTHORIZED errors skip retries (avoids flooding server)
+- Mutations: `retry: false` (no automatic retry on mutation failures)
+
+### Zone & Market CRUD — Save Buttons & Toast Notifications
+- Added explicit **Save** buttons to new rows in Zone and Market inline grids (alongside Enter-to-save)
+- Added `toast.success()` / `toast.error()` notifications for all zone CRUD (create, update, delete)
+- Added `toast.success()` / `toast.error()` notifications for all market CRUD (create, update, delete)
+
+### Settings Page — General Tab Fix
+- Separated `isLoading` from null data check — prevents infinite "Loading..." when data returns null
+- Added "Unable to load company settings" fallback message
+- Added error/loading states for market query (moduleProcedure may throw FORBIDDEN if contracting not installed)
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `src/app/api/trpc/[trpc]/route.ts` | Pre-resolve auth session, try-catch wrapper |
+| `src/server/trpc/index.ts` | Accept optional session param in createTRPCContext |
+| `src/components/providers/trpc-provider.tsx` | UNAUTHORIZED retry skip, mutation retry: false |
+| `src/app/(dashboard)/settings/page.tsx` | General tab fix, market toast + Save button |
+| `src/app/(dashboard)/contracting/destinations/[id]/page.tsx` | Zone toast + Save button |
+
+---
+
 ## Pending / Next Steps
 - Finance Phases 2–8: Already completed (see above)
-- Contracting: All 13 phases + market/zone enhancements complete
+- Contracting: All 13 phases + market/zone/settings enhancements complete
 - **Next:** CRM module, Reservations module, Traffic module
