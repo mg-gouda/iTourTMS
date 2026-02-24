@@ -68,6 +68,7 @@ model Company {
   sidebarLogoUrl  String?
   loginBgUrl      String?
   innerBgUrl      String?
+  reportsLogoUrl  String?
   countryId       String?
   baseCurrencyId  String?
   fiscalYearStart Int      @default(1) // month 1-12
@@ -629,6 +630,7 @@ enum SupplementValueType {
 
 enum OfferType {
   EARLY_BIRD
+  NORMAL_EBD
   LONG_STAY
   FREE_NIGHTS
   HONEYMOON
@@ -1584,6 +1586,7 @@ model Contract {
   baseRates     ContractBaseRate[]
   supplements   ContractSupplement[]
   specialOffers ContractSpecialOffer[]
+  seasonSpos    ContractSeasonSpo[]
   allotments    ContractAllotment[]
   stopSales      ContractStopSale[]
   childPolicies         ContractChildPolicy[]
@@ -1722,6 +1725,13 @@ model ContractSpecialOffer {
   discountType    SupplementValueType @default(FIXED)
   discountValue   Decimal             @db.Decimal(12, 4)
 
+  // Normal EBD fields
+  bookFromDate    DateTime?           @db.Date
+  stayDateType    String?
+  paymentPct      Int?
+  paymentDeadline DateTime?           @db.Date
+  roomingListBy   DateTime?           @db.Date
+
   // Free nights (stay X, pay Y)
   stayNights      Int?
   payNights       Int?
@@ -1738,6 +1748,41 @@ model ContractSpecialOffer {
 
   @@index([contractId])
   @@map("ct_contract_special_offer")
+}
+
+model ContractSeasonSpo {
+  id              String   @id @default(cuid())
+  contractId      String
+  spoType         String   // "RATE_OVERRIDE" | "BOOKING_WINDOW" | "PERCENTAGE"
+
+  dateFrom        DateTime  @db.Date
+  dateTo          DateTime  @db.Date
+
+  // Rate Override columns
+  basePp          Decimal?  @db.Decimal(12, 4)
+  sglSup          Decimal?  @db.Decimal(12, 4)
+  thirdAdultRed   Decimal?  @db.Decimal(12, 4)
+  firstChildPct   Decimal?  @db.Decimal(12, 4)
+  secondChildPct  Decimal?  @db.Decimal(12, 4)
+
+  // Booking Window fields
+  bookFrom        DateTime? @db.Date
+  bookTo          DateTime? @db.Date
+
+  // Value (BOOKING_WINDOW and PERCENTAGE)
+  value           Decimal?  @db.Decimal(12, 4)
+  valueType       String?   // "FIXED" | "PERCENTAGE"
+
+  active          Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([contractId, spoType])
+  @@map("ct_contract_season_spo")
 }
 
 model ContractAllotment {

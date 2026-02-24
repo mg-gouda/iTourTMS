@@ -411,6 +411,23 @@ function BrandingSettings() {
           />
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Reports Logo</CardTitle>
+          <CardDescription>Logo used on exported reports and documents</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ImageUpload
+            field="reportsLogo"
+            currentUrl={data.reportsLogoUrl}
+            label="Reports Logo"
+            hint="Recommended: transparent PNG, at least 300px wide."
+            onUploaded={handleUploaded}
+            aspectClass="aspect-video"
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

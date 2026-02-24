@@ -11,7 +11,7 @@ const ACCEPTED = ".png,.jpg,.jpeg,.webp,.gif,.svg";
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 interface ImageUploadProps {
-  field: "logo" | "favicon" | "loginLogo" | "sidebarLogo" | "loginBg" | "innerBg";
+  field: "logo" | "favicon" | "loginLogo" | "sidebarLogo" | "loginBg" | "innerBg" | "reportsLogo";
   currentUrl: string | null;
   label: string;
   hint?: string;
