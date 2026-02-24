@@ -249,6 +249,9 @@ export const contractMealBasisCreateSchema = z.object({
 export const contractBaseRateSchema = z.object({
   seasonId: z.string().min(1, "Season is required"),
   rate: z.number().min(0, "Rate must be non-negative"),
+  singleRate: z.number().min(0).nullish(),
+  doubleRate: z.number().min(0).nullish(),
+  tripleRate: z.number().min(0).nullish(),
 });
 
 export const contractBaseRateBulkSaveSchema = z.object({

@@ -657,7 +657,7 @@ function RoomTypesTab({
                     <FormItem className="flex items-center gap-2 pb-2">
                       <FormControl>
                         <Checkbox
-                          checked={field.value > 0}
+                          checked={(field.value ?? 0) > 0}
                           onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
                         />
                       </FormControl>

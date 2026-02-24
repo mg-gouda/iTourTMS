@@ -782,6 +782,219 @@ export function calculateMultiRoomRate(
   };
 }
 
+// ── Full Rate Grid Types ──
+
+export interface OccupancyVariant {
+  label: string;       // "SGL", "DBL", "TPL", "2+1C", "2+2C"
+  adults: number;
+  children: { category: string }[];
+  extraBed: boolean;
+}
+
+export interface FullRateGridCell {
+  roomTypeId: string;
+  roomTypeName: string;
+  roomTypeCode: string;
+  roomTypeSuppLabel: string;
+  seasonId: string;
+  seasonName: string;
+  mealBasisId: string;
+  mealBasisName: string;
+  mealCode: string;
+  mealSuppLabel: string;
+  occupancyLabel: string;
+  adultRate: number;
+  childRate: number;
+  totalPerNight: number;
+  breakdown: RateBreakdown;
+}
+
+export interface ChildRateGridCell {
+  category: string;
+  ageRange: string;
+  bedding: string;
+  mealBasisId: string;
+  mealBasisName: string;
+  seasonId: string;
+  rate: number;
+  isFree: boolean;
+}
+
+export interface FullRateGridData {
+  roomTypes: { id: string; name: string; code: string; isBase: boolean; suppLabel: string }[];
+  mealBases: { id: string; name: string; mealCode: string; isBase: boolean; suppLabel: string }[];
+  seasons: { id: string; name: string; code: string; dateFrom: string; dateTo: string }[];
+  occupancyVariants: OccupancyVariant[];
+  cells: FullRateGridCell[];
+  childRates: ChildRateGridCell[];
+  rateBasis: string;
+}
+
+// ── Full Rate Grid ──
+
+export function computeFullRateGrid(contract: RateContractData): FullRateGridData {
+  // 1. Build occupancy variants
+  const variants: OccupancyVariant[] = [
+    { label: "SGL", adults: 1, children: [], extraBed: false },
+    { label: "DBL", adults: 2, children: [], extraBed: false },
+    { label: "TPL", adults: 3, children: [], extraBed: false },
+  ];
+
+  // Add child combos from childPolicies
+  const childCategory = contract.childPolicies.find((cp) => cp.category === "CHILD");
+  if (childCategory) {
+    variants.push(
+      { label: "2+1C", adults: 2, children: [{ category: "CHILD" }], extraBed: false },
+      { label: "2+2C", adults: 2, children: [{ category: "CHILD" }, { category: "CHILD" }], extraBed: false },
+    );
+  }
+
+  // 2. Compute supplement labels for room types (using first season as reference)
+  const refSeasonId = contract.seasons[0]?.id ?? "";
+  const baseMealId = contract.baseMealBasisId;
+
+  function computeRoomSuppLabel(rt: RateContractData["roomTypes"][number]): string {
+    if (rt.isBase) return "(base)";
+    const sup = contract.supplements.find(
+      (s) => s.supplementType === "ROOM_TYPE" && s.roomTypeId === rt.roomTypeId,
+    );
+    if (!sup) return "";
+    const val = sup.valueType === "PERCENTAGE"
+      ? `${sup.value}%`
+      : `$${Number(sup.value).toFixed(0)}`;
+    return `(+${val})`;
+  }
+
+  function computeMealSuppLabel(mb: RateContractData["mealBases"][number]): string {
+    if (mb.isBase) return "(base)";
+    const sup = contract.supplements.find(
+      (s) => s.supplementType === "MEAL" && s.mealBasisId === mb.mealBasisId,
+    );
+    if (!sup) return "";
+    const prefix = sup.isReduction ? "(-" : "(+";
+    const val = sup.valueType === "PERCENTAGE"
+      ? `${sup.value}%`
+      : `$${Number(sup.value).toFixed(0)}`;
+    return `${prefix}${val})`;
+  }
+
+  // 3. Compute cells for each combination
+  const cells: FullRateGridCell[] = [];
+
+  for (const rt of contract.roomTypes) {
+    const rtSuppLabel = computeRoomSuppLabel(rt);
+    for (const variant of variants) {
+      for (const mb of contract.mealBases) {
+        const mbSuppLabel = computeMealSuppLabel(mb);
+        for (const season of contract.seasons) {
+          const breakdown = calculateRate(contract, {
+            seasonId: season.id,
+            roomTypeId: rt.roomTypeId,
+            mealBasisId: mb.mealBasisId,
+            adults: variant.adults,
+            children: variant.children,
+            extraBed: variant.extraBed,
+            nights: 1,
+            bookingDate: null,
+            checkInDate: null,
+          });
+
+          cells.push({
+            roomTypeId: rt.roomTypeId,
+            roomTypeName: rt.roomType.name,
+            roomTypeCode: rt.roomType.code,
+            roomTypeSuppLabel: rtSuppLabel,
+            seasonId: season.id,
+            seasonName: season.name,
+            mealBasisId: mb.mealBasisId,
+            mealBasisName: mb.mealBasis.name,
+            mealCode: mb.mealBasis.mealCode,
+            mealSuppLabel: mbSuppLabel,
+            occupancyLabel: variant.label,
+            adultRate: breakdown.adultTotalPerNight,
+            childRate: breakdown.childTotalPerNight,
+            totalPerNight: breakdown.totalPerNight,
+            breakdown,
+          });
+        }
+      }
+    }
+  }
+
+  // 4. Build child rates section
+  const childRates: ChildRateGridCell[] = [];
+
+  for (const policy of contract.childPolicies) {
+    const beddingOptions: { bedding: string; extraBed: boolean }[] = [
+      { bedding: "Sharing", extraBed: false },
+    ];
+    if (policy.extraBedAllowed) {
+      beddingOptions.push({ bedding: "Extra Bed", extraBed: true });
+    }
+
+    for (const { bedding, extraBed } of beddingOptions) {
+      for (const mb of contract.mealBases) {
+        for (const season of contract.seasons) {
+          // Calculate with 2 adults + 1 child to extract child charge
+          const breakdown = calculateRate(contract, {
+            seasonId: season.id,
+            roomTypeId: contract.baseRoomTypeId,
+            mealBasisId: mb.mealBasisId,
+            adults: 2,
+            children: [{ category: policy.category }],
+            extraBed,
+            nights: 1,
+            bookingDate: null,
+            checkInDate: null,
+          });
+
+          const childCharge = breakdown.childCharges[0];
+          const isFree = policy.category === "INFANT" && policy.freeInSharing && bedding === "Sharing";
+
+          childRates.push({
+            category: policy.category,
+            ageRange: `${policy.ageFrom}-${policy.ageTo}`,
+            bedding,
+            mealBasisId: mb.mealBasisId,
+            mealBasisName: mb.mealBasis.name,
+            seasonId: season.id,
+            rate: childCharge?.amount ?? 0,
+            isFree: isFree || (childCharge?.isFree ?? false),
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    roomTypes: contract.roomTypes.map((rt) => ({
+      id: rt.roomTypeId,
+      name: rt.roomType.name,
+      code: rt.roomType.code,
+      isBase: rt.isBase,
+      suppLabel: computeRoomSuppLabel(rt),
+    })),
+    mealBases: contract.mealBases.map((mb) => ({
+      id: mb.mealBasisId,
+      name: mb.mealBasis.name,
+      mealCode: mb.mealBasis.mealCode,
+      isBase: mb.isBase,
+      suppLabel: computeMealSuppLabel(mb),
+    })),
+    seasons: contract.seasons.map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      dateFrom: s.dateFrom,
+      dateTo: s.dateTo,
+    })),
+    occupancyVariants: variants,
+    cells,
+    childRates,
+    rateBasis: contract.rateBasis,
+  };
+}
+
 // ── Rate Sheet ──
 
 export function computeRateSheet(contract: RateContractData): RateSheetData {

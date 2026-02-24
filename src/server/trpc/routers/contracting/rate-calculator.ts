@@ -9,6 +9,7 @@ import {
   calculateRate,
   calculateMultiRoomRate,
   computeRateSheet,
+  computeFullRateGrid,
 } from "@/server/services/contracting/rate-calculator";
 import type { RateContractData, OccupancyRow } from "@/server/services/contracting/rate-calculator";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
@@ -205,5 +206,16 @@ export const rateCalculatorRouter = createTRPCRouter({
         ctx.companyId,
       );
       return computeRateSheet(contractData);
+    }),
+
+  getFullRateGrid: proc
+    .input(rateSheetInputSchema)
+    .query(async ({ ctx, input }) => {
+      const contractData = await fetchContractData(
+        ctx.db,
+        input.contractId,
+        ctx.companyId,
+      );
+      return computeFullRateGrid(contractData);
     }),
 });
