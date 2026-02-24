@@ -463,7 +463,7 @@ export const contractCloneSchema = z.object({
 export const marketCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   code: z.string().min(1, "Code is required").max(10),
-  countryIds: z.array(z.string()).min(1, "At least one country is required"),
+  countryIds: z.array(z.string()).default([]),
   active: z.boolean().default(true),
 });
 
