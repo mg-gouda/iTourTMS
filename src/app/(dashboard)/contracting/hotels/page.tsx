@@ -20,6 +20,7 @@ type HotelRow = {
   code: string;
   starRating: string;
   city: string;
+  cityRel: { id: string; name: string; code: string } | null;
   active: boolean;
   country: { name: string } | null;
   destination: { name: string } | null;
@@ -50,8 +51,9 @@ const columns: ColumnDef<HotelRow>[] = [
       STAR_RATING_LABELS[row.original.starRating] ?? row.original.starRating,
   },
   {
-    accessorKey: "city",
+    id: "city",
     header: "City",
+    cell: ({ row }) => row.original.cityRel?.name ?? row.original.city ?? "—",
   },
   {
     id: "country",

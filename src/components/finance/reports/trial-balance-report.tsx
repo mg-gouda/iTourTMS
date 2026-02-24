@@ -22,7 +22,7 @@ export function TrialBalanceReport() {
   const [params, setParams] = useState<{ dateFrom: Date; dateTo: Date } | null>(null);
 
   const { data, isFetching } = trpc.finance.report.trialBalance.useQuery(
-    { dateFrom: params!.dateFrom, dateTo: params!.dateTo },
+    { dateFrom: params?.dateFrom ?? new Date(), dateTo: params?.dateTo ?? new Date() },
     { enabled: !!params },
   );
 

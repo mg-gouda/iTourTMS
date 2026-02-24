@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
-  const publicPaths = ["/login", "/api/auth", "/api/health", "/api/trpc"];
+  const publicPaths = ["/login", "/api/auth", "/api/health", "/api/trpc", "/api/upload"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
@@ -37,5 +37,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|public).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads).*)"],
 };

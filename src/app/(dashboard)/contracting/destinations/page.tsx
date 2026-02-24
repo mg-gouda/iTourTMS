@@ -19,7 +19,7 @@ type DestRow = {
   code: string;
   active: boolean;
   country: { id: string; name: string; code: string } | null;
-  _count: { hotels: number };
+  _count: { hotels: number; cities: number };
 };
 
 const columns: ColumnDef<DestRow>[] = [
@@ -43,6 +43,11 @@ const columns: ColumnDef<DestRow>[] = [
     accessorKey: "country",
     header: "Country",
     cell: ({ row }) => row.original.country?.name ?? "—",
+  },
+  {
+    id: "cities",
+    header: "Cities",
+    cell: ({ row }) => row.original._count.cities,
   },
   {
     id: "hotels",

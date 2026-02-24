@@ -107,7 +107,7 @@ export default function HotelDetailPage() {
             </Badge>
           </div>
           <p className="text-muted-foreground">
-            <span className="font-mono">{hotel.code}</span> — {hotel.city},{" "}
+            <span className="font-mono">{hotel.code}</span> — {hotel.cityRel?.name ?? hotel.city},{" "}
             {hotel.country?.name}
             {hotel.destination ? ` (${hotel.destination.name})` : ""}
           </p>
@@ -234,7 +234,7 @@ function OverviewTab({ hotel }: { hotel: any }) {
         <CardContent>
           <dl className="space-y-3 text-sm">
             <Row label="Address" value={hotel.address} />
-            <Row label="City" value={hotel.city} />
+            <Row label="City" value={hotel.cityRel ? `${hotel.cityRel.code} — ${hotel.cityRel.name}` : hotel.city} />
             <Row label="State" value={hotel.state?.name} />
             <Row label="Country" value={hotel.country?.name} />
             <Row label="Destination" value={hotel.destination?.name} />
@@ -764,7 +764,7 @@ function ChildrenPolicyTab({
     },
   });
 
-  const upsertMutation = trpc.contracting.childPolicy.upsert.useMutation({
+  const createPolicyMutation = trpc.contracting.childPolicy.create.useMutation({
     onSuccess: () => {
       utils.contracting.hotel.getById.invalidate({ id: hotelId });
       setAddOpen(false);
@@ -830,13 +830,13 @@ function ChildrenPolicyTab({
           <DialogHeader>
             <DialogTitle>Add Child Policy</DialogTitle>
             <DialogDescription>
-              Define age ranges and rules for a child age category. Existing
-              policies for the same category will be updated.
+              Define age ranges and rules for a child age category. Multiple
+              policies per category are allowed.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit((v) => upsertMutation.mutate(v))}
+              onSubmit={form.handleSubmit((v) => createPolicyMutation.mutate(v))}
               className="space-y-4"
             >
               <FormField
@@ -993,14 +993,14 @@ function ChildrenPolicyTab({
                   </FormItem>
                 )}
               />
-              {upsertMutation.error && (
+              {createPolicyMutation.error && (
                 <p className="text-sm text-destructive">
-                  {upsertMutation.error.message}
+                  {createPolicyMutation.error.message}
                 </p>
               )}
               <DialogFooter>
-                <Button type="submit" disabled={upsertMutation.isPending}>
-                  {upsertMutation.isPending ? "Saving..." : "Save Policy"}
+                <Button type="submit" disabled={createPolicyMutation.isPending}>
+                  {createPolicyMutation.isPending ? "Saving..." : "Save Policy"}
                 </Button>
               </DialogFooter>
             </form>

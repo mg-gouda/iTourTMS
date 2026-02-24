@@ -1,20 +1,18 @@
 "use client";
 
+import * as Collapsible from "@radix-ui/react-collapsible";
 import {
   CalendarCheck,
+  ChevronRight,
   FileText,
   Home,
   Landmark,
-  LogOut,
   Settings,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
-
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -43,87 +41,241 @@ interface InstalledModule {
 }
 
 interface AppSidebarProps {
-  user: { name: string | null; email: string };
   installedModules: InstalledModule[];
+  sidebarLogoUrl?: string | null;
 }
 
 const mainNav = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-const moduleRoutes: Record<string, { label: string; href: string }[]> = {
-  finance: [
-    { label: "Dashboard", href: "/finance" },
-    { label: "Invoices", href: "/finance/customers/invoices" },
-    { label: "Credit Notes", href: "/finance/customers/credit-notes" },
-    { label: "Bills", href: "/finance/vendors/bills" },
-    { label: "Refunds", href: "/finance/vendors/refunds" },
-    { label: "Payments", href: "/finance/payments" },
-    { label: "Bank Statements", href: "/finance/banking/statements" },
-    { label: "Reconciliation", href: "/finance/banking/reconciliation" },
-    { label: "Batch Payments", href: "/finance/banking/batch-payments" },
-    { label: "Journal Entries", href: "/finance/accounting/journal-entries" },
-    { label: "Recurring Entries", href: "/finance/accounting/recurring-entries" },
-    { label: "Budgets", href: "/finance/accounting/budgets" },
-    { label: "Chart of Accounts", href: "/finance/configuration/chart-of-accounts" },
-    { label: "Journals", href: "/finance/configuration/journals" },
-    { label: "Taxes", href: "/finance/configuration/taxes" },
-    { label: "Tax Groups", href: "/finance/configuration/tax-groups" },
-    { label: "Payment Terms", href: "/finance/configuration/payment-terms" },
-    { label: "Fiscal Positions", href: "/finance/configuration/fiscal-positions" },
-    { label: "Currencies", href: "/finance/configuration/currencies" },
-    { label: "Fiscal Years", href: "/finance/configuration/fiscal-years" },
-    { label: "Profit & Loss", href: "/finance/reports/profit-and-loss" },
-    { label: "Balance Sheet", href: "/finance/reports/balance-sheet" },
-    { label: "Trial Balance", href: "/finance/reports/trial-balance" },
-    { label: "General Ledger", href: "/finance/reports/general-ledger" },
-    { label: "Aged Receivable", href: "/finance/reports/aged-receivable" },
-    { label: "Aged Payable", href: "/finance/reports/aged-payable" },
-    { label: "Budget vs Actuals", href: "/finance/reports/budget-vs-actuals" },
-  ],
-  contracting: [
-    { label: "Dashboard", href: "/contracting" },
-    { label: "Destinations", href: "/contracting/destinations" },
-    { label: "Hotels", href: "/contracting/hotels" },
-    { label: "Contracts", href: "/contracting/contracts" },
-    { label: "Templates", href: "/contracting/templates" },
-    { label: "Rates", href: "/contracting/rates" },
-  ],
-  crm: [
-    { label: "Dashboard", href: "/crm" },
-    { label: "Leads", href: "/crm/leads" },
-    { label: "Pipeline", href: "/crm/pipeline" },
-    { label: "Contacts", href: "/crm/contacts" },
-  ],
-  reservations: [
-    { label: "Dashboard", href: "/reservations" },
-    { label: "Bookings", href: "/reservations/bookings" },
-    { label: "Guests", href: "/reservations/guests" },
-    { label: "Vouchers", href: "/reservations/vouchers" },
-  ],
+// ---------------------------------------------------------------------------
+// Module routes — grouped into collapsible sub-sections
+// ---------------------------------------------------------------------------
+
+interface SubGroup {
+  label: string;
+  routes: { label: string; href: string }[];
+}
+
+interface ModuleRouteConfig {
+  topLevel: { label: string; href: string }[];
+  groups: SubGroup[];
+}
+
+const moduleRoutes: Record<string, ModuleRouteConfig> = {
+  finance: {
+    topLevel: [{ label: "Dashboard", href: "/finance" }],
+    groups: [
+      {
+        label: "Customers",
+        routes: [
+          { label: "Invoices", href: "/finance/customers/invoices" },
+          { label: "Credit Notes", href: "/finance/customers/credit-notes" },
+        ],
+      },
+      {
+        label: "Vendors",
+        routes: [
+          { label: "Bills", href: "/finance/vendors/bills" },
+          { label: "Refunds", href: "/finance/vendors/refunds" },
+        ],
+      },
+      {
+        label: "Banking",
+        routes: [
+          { label: "Payments", href: "/finance/payments" },
+          { label: "Statements", href: "/finance/banking/statements" },
+          { label: "Reconciliation", href: "/finance/banking/reconciliation" },
+          { label: "Batch Payments", href: "/finance/banking/batch-payments" },
+        ],
+      },
+      {
+        label: "Accounting",
+        routes: [
+          { label: "Journal Entries", href: "/finance/accounting/journal-entries" },
+          { label: "Recurring Entries", href: "/finance/accounting/recurring-entries" },
+          { label: "Budgets", href: "/finance/accounting/budgets" },
+        ],
+      },
+      {
+        label: "Configuration",
+        routes: [
+          { label: "Chart of Accounts", href: "/finance/configuration/chart-of-accounts" },
+          { label: "Journals", href: "/finance/configuration/journals" },
+          { label: "Taxes", href: "/finance/configuration/taxes" },
+          { label: "Tax Groups", href: "/finance/configuration/tax-groups" },
+          { label: "Payment Terms", href: "/finance/configuration/payment-terms" },
+          { label: "Fiscal Positions", href: "/finance/configuration/fiscal-positions" },
+          { label: "Currencies", href: "/finance/configuration/currencies" },
+          { label: "Fiscal Years", href: "/finance/configuration/fiscal-years" },
+        ],
+      },
+      {
+        label: "Reports",
+        routes: [
+          { label: "Profit & Loss", href: "/finance/reports/profit-and-loss" },
+          { label: "Balance Sheet", href: "/finance/reports/balance-sheet" },
+          { label: "Trial Balance", href: "/finance/reports/trial-balance" },
+          { label: "General Ledger", href: "/finance/reports/general-ledger" },
+          { label: "Aged Receivable", href: "/finance/reports/aged-receivable" },
+          { label: "Aged Payable", href: "/finance/reports/aged-payable" },
+          { label: "Budget vs Actuals", href: "/finance/reports/budget-vs-actuals" },
+        ],
+      },
+    ],
+  },
+  contracting: {
+    topLevel: [{ label: "Dashboard", href: "/contracting" }],
+    groups: [
+      {
+        label: "Master Data",
+        routes: [
+          { label: "Destinations", href: "/contracting/destinations" },
+          { label: "Hotels", href: "/contracting/hotels" },
+        ],
+      },
+      {
+        label: "Contracts",
+        routes: [
+          { label: "Contracts", href: "/contracting/contracts" },
+          { label: "Templates", href: "/contracting/templates" },
+          { label: "Rates", href: "/contracting/rates" },
+        ],
+      },
+    ],
+  },
+  crm: {
+    topLevel: [{ label: "Dashboard", href: "/crm" }],
+    groups: [
+      {
+        label: "Management",
+        routes: [
+          { label: "Leads", href: "/crm/leads" },
+          { label: "Pipeline", href: "/crm/pipeline" },
+          { label: "Contacts", href: "/crm/contacts" },
+        ],
+      },
+    ],
+  },
+  reservations: {
+    topLevel: [{ label: "Dashboard", href: "/reservations" }],
+    groups: [
+      {
+        label: "Management",
+        routes: [
+          { label: "Bookings", href: "/reservations/bookings" },
+          { label: "Guests", href: "/reservations/guests" },
+          { label: "Vouchers", href: "/reservations/vouchers" },
+        ],
+      },
+    ],
+  },
 };
 
-export function AppSidebar({ user, installedModules }: AppSidebarProps) {
-  const pathname = usePathname();
+// ---------------------------------------------------------------------------
+// Collapsible sub-group component
+// ---------------------------------------------------------------------------
 
-  const initials = user.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : user.email[0].toUpperCase();
+function CollapsibleSubGroup({
+  group,
+  moduleKey,
+  pathname,
+}: {
+  group: SubGroup;
+  moduleKey: string;
+  pathname: string;
+}) {
+  const storageKey = `sidebar-${moduleKey}-${group.label}`;
+  const hasActiveRoute = group.routes.some((r) => pathname === r.href);
+
+  // Always start with hasActiveRoute for SSR to avoid hydration mismatch,
+  // then sync with localStorage after mount.
+  const [open, setOpen] = useState(hasActiveRoute);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated) {
+      const stored = localStorage.getItem(storageKey);
+      if (stored !== null) {
+        setOpen(stored === "true");
+      }
+      setHydrated(true);
+      return;
+    }
+    localStorage.setItem(storageKey, String(open));
+  }, [open, storageKey, hydrated]);
+
+  // Auto-expand when a route in this group becomes active
+  useEffect(() => {
+    if (hasActiveRoute && !open) setOpen(true);
+  }, [hasActiveRoute]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Collapsible.Root open={open} onOpenChange={setOpen}>
+      <Collapsible.Trigger asChild>
+        <button
+          className={cn(
+            "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
+            hasActiveRoute && "text-foreground",
+          )}
+        >
+          <ChevronRight
+            className={cn(
+              "h-3 w-3 shrink-0 transition-transform duration-200",
+              open && "rotate-90",
+            )}
+          />
+          {group.label}
+        </button>
+      </Collapsible.Trigger>
+      <Collapsible.Content className="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
+        <SidebarMenu className="ml-3 border-l pl-2">
+          {group.routes.map((route) => (
+            <SidebarMenuItem key={route.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === route.href}
+                className="h-7 text-xs"
+              >
+                <Link href={route.href}>
+                  <span>{route.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </Collapsible.Content>
+    </Collapsible.Root>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main sidebar
+// ---------------------------------------------------------------------------
+
+export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps) {
+  const pathname = usePathname();
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <span className="text-sm font-bold">iT</span>
-          </div>
-          <span className="text-lg font-bold">iTourTMS</span>
+          {sidebarLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={sidebarLogoUrl}
+              alt="Logo"
+              className="h-8 w-auto object-contain"
+            />
+          ) : (
+            <>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <span className="text-sm font-bold">iT</span>
+              </div>
+              <span className="text-lg font-bold">iTourTMS</span>
+            </>
+          )}
         </Link>
       </SidebarHeader>
 
@@ -150,10 +302,11 @@ export function AppSidebar({ user, installedModules }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Module navigation — only shows installed modules */}
+        {/* Module navigation — collapsible sub-groups */}
         {installedModules.map((mod) => {
           const Icon = iconMap[mod.icon] || FileText;
-          const routes = moduleRoutes[mod.name] || [];
+          const config = moduleRoutes[mod.name];
+          if (!config) return null;
 
           return (
             <SidebarGroup key={mod.name}>
@@ -161,9 +314,10 @@ export function AppSidebar({ user, installedModules }: AppSidebarProps) {
                 <Icon className="h-3.5 w-3.5" />
                 {mod.displayName}
               </SidebarGroupLabel>
-              <SidebarGroupContent>
+              <SidebarGroupContent className="space-y-1">
+                {/* Top-level routes (e.g. Dashboard) */}
                 <SidebarMenu>
-                  {routes.map((route) => (
+                  {config.topLevel.map((route) => (
                     <SidebarMenuItem key={route.href}>
                       <SidebarMenuButton
                         asChild
@@ -176,6 +330,16 @@ export function AppSidebar({ user, installedModules }: AppSidebarProps) {
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
+
+                {/* Collapsible sub-groups */}
+                {config.groups.map((group) => (
+                  <CollapsibleSubGroup
+                    key={group.label}
+                    group={group}
+                    moduleKey={mod.name}
+                    pathname={pathname}
+                  />
+                ))}
               </SidebarGroupContent>
             </SidebarGroup>
           );
@@ -183,27 +347,16 @@ export function AppSidebar({ user, installedModules }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-3">
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary/10 text-xs">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 truncate">
-            <p className="truncate text-sm font-medium">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === "/settings"}>
+              <Link href="/settings">
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

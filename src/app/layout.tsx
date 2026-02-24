@@ -6,13 +6,23 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TRPCProvider } from "@/components/providers/trpc-provider";
 import { isRTL } from "@/lib/i18n/config";
+import { db } from "@/server/db";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "iTourTMS — Travel Management System",
-  description: "Enterprise Travel Management System",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await db.company.findFirst({
+    select: { faviconUrl: true, name: true },
+  });
+
+  return {
+    title: company?.name
+      ? `${company.name} — iTourTMS`
+      : "iTourTMS — Travel Management System",
+    description: "Enterprise Travel Management System",
+    icons: company?.faviconUrl ? { icon: company.faviconUrl } : undefined,
+  };
+}
 
 export default async function RootLayout({
   children,

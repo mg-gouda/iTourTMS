@@ -63,7 +63,7 @@ export function DataTableColumnHeader<TData, TValue>({
     <Button
       variant="ghost"
       size="sm"
-      className={cn("-ml-3 h-8 data-[state=open]:bg-accent", className)}
+      className={cn("-ml-3 h-8 text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground data-[state=open]:bg-primary-hover", className)}
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       <span>{title}</span>

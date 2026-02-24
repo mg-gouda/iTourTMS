@@ -12,6 +12,8 @@ import {
   Rocket,
   Users,
 } from "lucide-react";
+
+import { PasswordStrength } from "@/components/shared/password-strength";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -606,6 +608,7 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
                   onChange={(e) => setAdminPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
                 />
+                <PasswordStrength password={adminPassword} />
               </div>
 
               <div className="space-y-1.5">

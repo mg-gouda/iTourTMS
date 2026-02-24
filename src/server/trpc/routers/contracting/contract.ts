@@ -69,6 +69,11 @@ export const contractRouter = createTRPCRouter({
             },
             orderBy: [{ supplementType: "asc" }, { sortOrder: "asc" }],
           },
+          markets: {
+            include: {
+              market: { select: { id: true, name: true, code: true } },
+            },
+          },
         },
       });
     }),

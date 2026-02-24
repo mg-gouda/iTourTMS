@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { contractChildPolicyUpsertSchema } from "@/lib/validations/contracting";
+import {
+  contractChildPolicyCreateSchema,
+  contractChildPolicyUpdateSchema,
+} from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import type { PrismaClient } from "@prisma/client";
 
@@ -27,35 +30,10 @@ export const contractChildPolicyRouter = createTRPCRouter({
       });
     }),
 
-  upsert: proc
-    .input(contractChildPolicyUpsertSchema)
+  create: proc
+    .input(contractChildPolicyCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
-
-      const existing = await ctx.db.contractChildPolicy.findUnique({
-        where: {
-          contractId_category: {
-            contractId: input.contractId,
-            category: input.category,
-          },
-        },
-      });
-
-      if (existing) {
-        return ctx.db.contractChildPolicy.update({
-          where: { id: existing.id },
-          data: {
-            ageFrom: input.ageFrom,
-            ageTo: input.ageTo,
-            label: input.label,
-            freeInSharing: input.freeInSharing,
-            maxFreePerRoom: input.maxFreePerRoom,
-            extraBedAllowed: input.extraBedAllowed,
-            mealsIncluded: input.mealsIncluded,
-            notes: input.notes ?? null,
-          },
-        });
-      }
 
       return ctx.db.contractChildPolicy.create({
         data: {
@@ -70,6 +48,18 @@ export const contractChildPolicyRouter = createTRPCRouter({
           mealsIncluded: input.mealsIncluded,
           notes: input.notes ?? null,
         },
+      });
+    }),
+
+  update: proc
+    .input(contractChildPolicyUpdateSchema)
+    .mutation(async ({ ctx, input }) => {
+      await verifyContract(ctx.db, input.contractId, ctx.companyId);
+
+      const { id, contractId, ...data } = input;
+      return ctx.db.contractChildPolicy.update({
+        where: { id, contractId },
+        data,
       });
     }),
 
