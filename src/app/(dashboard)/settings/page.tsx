@@ -158,11 +158,21 @@ function GeneralSettings() {
     });
   }
 
-  if (isLoading || !form) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="py-10 text-center text-muted-foreground">
           Loading...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || !form) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">
+          Unable to load company settings.
         </CardContent>
       </Card>
     );
@@ -485,14 +495,16 @@ type MarketRow = {
 
 function MarketManagementSection() {
   const utils = trpc.useUtils();
-  const { data: marketsRaw } = trpc.contracting.market.list.useQuery();
+  const { data: marketsRaw, error: marketsError, isLoading: marketsLoading } = trpc.contracting.market.list.useQuery();
   const markets = marketsRaw ?? [];
 
   const invalidate = useCallback(() => {
     utils.contracting.market.list.invalidate();
   }, [utils]);
 
-  const [rows, setRows] = useState<MarketRow[]>([]);
+  const [rows, setRows] = useState<MarketRow[]>([
+    { name: "", code: "", active: true, isNew: true },
+  ]);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -596,7 +608,34 @@ function MarketManagementSection() {
     }
   }
 
-  if (!initialized) return null;
+  if (marketsError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Market Predefinitions</CardTitle>
+          <CardDescription>
+            Define markets centrally. Contracts can then select from these predefined markets.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-destructive">{marketsError.message}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (marketsLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Market Predefinitions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const savedCount = rows.filter((r) => !r.isNew).length;
 
