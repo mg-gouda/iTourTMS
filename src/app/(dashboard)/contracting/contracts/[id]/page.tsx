@@ -7,7 +7,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { ArrowLeftRight, FileSpreadsheet, Printer } from "lucide-react";
+import { ArrowLeftRight, FileDown, FileSpreadsheet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -302,11 +302,11 @@ export default function ContractDetailPage() {
           <Button
             variant="outline"
             onClick={() =>
-              window.open(`/contracting/contracts/${id}/print`, "_blank")
+              window.open(`/api/export/contract-pdf/${id}`, "_blank")
             }
           >
-            <Printer className="mr-1 h-4 w-4" />
-            Print / PDF
+            <FileDown className="mr-1 h-4 w-4" />
+            Download PDF
           </Button>
           <Button
             variant="outline"
