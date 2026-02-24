@@ -10,6 +10,7 @@ import {
   RATE_BASIS_LABELS,
   SUPPLEMENT_TYPE_LABELS,
 } from "@/lib/constants/contracting";
+import type { FullRateGridData } from "@/server/services/contracting/rate-calculator";
 
 // ---------------------------------------------------------------------------
 // Types — mirrors the getForExport tRPC output
@@ -104,6 +105,7 @@ export interface ContractPdfData {
   markets: Array<{
     market: { name: string; code: string };
   }>;
+  fullRateGrid?: FullRateGridData;
 }
 
 export interface ContractPdfOptions {
@@ -413,6 +415,117 @@ export function generateContractPdf(
       cursorY,
     );
     cursorY += 4;
+  }
+
+  // =====================================================================
+  // SECTION 4b: Calculated Rates Grid (optional)
+  // =====================================================================
+
+  if (data.fullRateGrid && data.fullRateGrid.cells.length > 0) {
+    const grid = data.fullRateGrid;
+
+    sectionTitle("Calculated Rates Grid");
+
+    // For each season, output a sub-heading + table
+    for (const season of grid.seasons) {
+      const seasonLabel = `${format(new Date(season.dateFrom), "dd MMM")} — ${format(new Date(season.dateTo), "dd MMM yyyy")}`;
+
+      // Sub-heading
+      if (cursorY + 10 > pageH - margin.bottom) {
+        doc.addPage();
+        cursorY = margin.top;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
+      doc.text(seasonLabel, margin.left, cursorY);
+      cursorY += 3;
+
+      const mealHeaders = grid.mealBases.map(
+        (mb) => mb.suppLabel ? `${mb.name} ${mb.suppLabel}` : mb.name,
+      );
+      const head = ["Room Type", "Occ", ...mealHeaders];
+
+      const body: string[][] = [];
+      for (const rt of grid.roomTypes) {
+        for (const variant of grid.occupancyVariants) {
+          const cells = grid.mealBases.map((mb) => {
+            const cell = grid.cells.find(
+              (c) =>
+                c.roomTypeId === rt.id &&
+                c.occupancyLabel === variant.label &&
+                c.seasonId === season.id &&
+                c.mealBasisId === mb.id,
+            );
+            return cell ? fmtDecimal(cell.adultRate) : "—";
+          });
+          body.push([
+            rt.name + (rt.isBase ? " (base)" : rt.suppLabel ? ` ${rt.suppLabel}` : ""),
+            variant.label,
+            ...cells,
+          ]);
+        }
+      }
+
+      const mealColStyles: Record<number, { halign: "right" }> = {};
+      for (let i = 0; i < grid.mealBases.length; i++) {
+        mealColStyles[2 + i] = { halign: "right" };
+      }
+
+      addTable(head, body, { columnStyles: mealColStyles });
+    }
+
+    // Child Rates sub-section
+    if (grid.childRates.length > 0) {
+      sectionTitle("Child Rates");
+
+      const childHead = ["Category", "Age", "Bedding", "Season", ...grid.mealBases.map((mb) => mb.name)];
+
+      const seen = new Set<string>();
+      const childKeys: { category: string; ageRange: string; bedding: string }[] = [];
+      for (const cr of grid.childRates) {
+        const key = `${cr.category}|${cr.bedding}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          childKeys.push({ category: cr.category, ageRange: cr.ageRange, bedding: cr.bedding });
+        }
+      }
+
+      const childBody: string[][] = [];
+      for (const ck of childKeys) {
+        for (const season of grid.seasons) {
+          const seasonLabel = `${format(new Date(season.dateFrom), "dd MMM")} — ${format(new Date(season.dateTo), "dd MMM yyyy")}`;
+          const row: string[] = [
+            CHILD_AGE_CATEGORY_LABELS[ck.category] ?? ck.category,
+            ck.ageRange,
+            ck.bedding,
+            seasonLabel,
+          ];
+          for (const mb of grid.mealBases) {
+            const cr = grid.childRates.find(
+              (c) =>
+                c.category === ck.category &&
+                c.bedding === ck.bedding &&
+                c.seasonId === season.id &&
+                c.mealBasisId === mb.id,
+            );
+            if (cr) {
+              row.push(cr.isFree ? "FREE" : fmtDecimal(cr.rate));
+            } else {
+              row.push("—");
+            }
+          }
+          childBody.push(row);
+        }
+      }
+
+      const childMealStyles: Record<number, { halign: "right" }> = {};
+      for (let i = 0; i < grid.mealBases.length; i++) {
+        childMealStyles[4 + i] = { halign: "right" };
+      }
+
+      addTable(childHead, childBody, { columnStyles: childMealStyles });
+    }
   }
 
   // =====================================================================

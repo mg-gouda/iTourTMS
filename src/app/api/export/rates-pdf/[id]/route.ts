@@ -5,7 +5,8 @@ import { format } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
-import { generateContractPdf } from "@/lib/export/contract-pdf";
+import { RATE_BASIS_LABELS } from "@/lib/constants/contracting";
+import { generateRatesPdf } from "@/lib/export/rates-pdf";
 import { db } from "@/server/db";
 import {
   computeFullRateGrid,
@@ -36,26 +37,21 @@ export async function GET(
       );
     }
 
-    // Fetch contract with the same includes as getForExport
+    // Fetch contract with full data needed for rate calculation
     const contract = await db.contract.findFirst({
       where: { id, companyId },
       include: {
         hotel: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
+          include: {
             childrenPolicies: { orderBy: { ageFrom: "asc" as const } },
           },
         },
         baseCurrency: { select: { id: true, code: true, name: true } },
-        baseRoomType: { select: { id: true, name: true, code: true } },
-        baseMealBasis: { select: { id: true, name: true, mealCode: true } },
         seasons: { orderBy: { sortOrder: "asc" as const } },
         roomTypes: {
           include: {
             roomType: {
-              select: { id: true, name: true, code: true, maxAdults: true, maxChildren: true },
+              select: { id: true, name: true, code: true },
             },
           },
           orderBy: { sortOrder: "asc" as const },
@@ -64,33 +60,10 @@ export async function GET(
           include: { mealBasis: { select: { id: true, name: true, mealCode: true } } },
           orderBy: { sortOrder: "asc" as const },
         },
-        baseRates: {
-          include: { season: { select: { id: true, name: true, code: true } } },
-        },
-        supplements: {
-          include: {
-            roomType: { select: { id: true, name: true, code: true } },
-            mealBasis: { select: { id: true, name: true, mealCode: true } },
-          },
-          orderBy: [
-            { supplementType: "asc" as const },
-            { sortOrder: "asc" as const },
-          ],
-        },
-        specialOffers: { orderBy: { sortOrder: "asc" as const } },
-        allotments: {
-          include: {
-            season: { select: { id: true, name: true, code: true } },
-            roomType: { select: { id: true, name: true, code: true } },
-          },
-        },
-        childPolicies: { orderBy: { category: "asc" as const } },
-        cancellationPolicies: { orderBy: { daysBefore: "desc" as const } },
-        markets: {
-          include: {
-            market: { select: { id: true, name: true, code: true } },
-          },
-        },
+        baseRates: true,
+        supplements: true,
+        specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" as const } },
+        childPolicies: true,
       },
     });
 
@@ -98,43 +71,12 @@ export async function GET(
       return NextResponse.json({ error: "Contract not found" }, { status: 404 });
     }
 
-    // Fetch company branding
-    const company = await db.company.findUnique({
-      where: { id: companyId },
-      select: { name: true, reportsLogoUrl: true },
-    });
-
-    const companyName = company?.name ?? "iTourTMS";
-
-    // Read logo from disk if set
-    let logoBase64: string | null = null;
-    let logoFormat: string | undefined;
-    if (company?.reportsLogoUrl) {
-      try {
-        const logoPath = path.join(process.cwd(), "public", company.reportsLogoUrl);
-        const logoBuffer = await readFile(logoPath);
-        const ext = company.reportsLogoUrl.split(".").pop()?.toLowerCase() ?? "png";
-        const mimeMap: Record<string, string> = {
-          png: "image/png",
-          jpg: "image/jpeg",
-          jpeg: "image/jpeg",
-          webp: "image/webp",
-          gif: "image/gif",
-        };
-        const mime = mimeMap[ext] ?? "image/png";
-        logoBase64 = `data:${mime};base64,${logoBuffer.toString("base64")}`;
-        logoFormat = ext === "jpg" ? "jpeg" : ext;
-      } catch {
-        // Logo file missing — generate PDF without it
-      }
-    }
-
-    // Compute full rate grid for "Calculated Rates Grid" section
+    // Build RateContractData (same transform as tRPC fetchContractData)
     const contractOverrides = new Map(
       contract.childPolicies.map((cp) => [cp.category, cp]),
     );
     const hotelDefaults = contract.hotel.childrenPolicies;
-    const allCategories = new Set([
+    const categories = new Set([
       ...hotelDefaults.map((p) => p.category),
       ...contract.childPolicies.map((p) => p.category),
     ]);
@@ -183,7 +125,7 @@ export async function GET(
         perNight: s.perNight,
         label: s.label,
       })),
-      childPolicies: Array.from(allCategories).map((category) => {
+      childPolicies: Array.from(categories).map((category) => {
         const override = contractOverrides.get(category);
         if (override) {
           return {
@@ -229,20 +171,54 @@ export async function GET(
       })),
     };
 
-    const fullRateGrid = computeFullRateGrid(rateContractData);
+    // Compute the full rate grid
+    const grid = computeFullRateGrid(rateContractData);
+
+    // Fetch company branding
+    const company = await db.company.findUnique({
+      where: { id: companyId },
+      select: { name: true, reportsLogoUrl: true },
+    });
+
+    const companyName = company?.name ?? "iTourTMS";
+
+    // Read logo from disk if set
+    let logoBase64: string | null = null;
+    let logoFormat: string | undefined;
+    if (company?.reportsLogoUrl) {
+      try {
+        const logoPath = path.join(process.cwd(), "public", company.reportsLogoUrl);
+        const logoBuffer = await readFile(logoPath);
+        const ext = company.reportsLogoUrl.split(".").pop()?.toLowerCase() ?? "png";
+        const mimeMap: Record<string, string> = {
+          png: "image/png",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          webp: "image/webp",
+          gif: "image/gif",
+        };
+        const mime = mimeMap[ext] ?? "image/png";
+        logoBase64 = `data:${mime};base64,${logoBuffer.toString("base64")}`;
+        logoFormat = ext === "jpg" ? "jpeg" : ext;
+      } catch {
+        // Logo file missing — generate PDF without it
+      }
+    }
 
     // Generate PDF
-    const pdfBuffer = generateContractPdf(
-      { ...contract, fullRateGrid },
-      {
-        companyName,
-        logoBase64,
-        logoFormat,
-      },
-    );
+    const pdfBuffer = generateRatesPdf(grid, {
+      hotelName: contract.hotel.name,
+      contractCode: contract.code,
+      contractName: contract.name,
+      currency: contract.baseCurrency.code,
+      rateBasis: RATE_BASIS_LABELS[contract.rateBasis] ?? contract.rateBasis,
+      companyName,
+      logoBase64,
+      logoFormat,
+    });
 
-    // Build filename: CODE_vVERSION_YYYYMMDD.pdf
-    const filename = `${contract.code}_v${contract.version}_${format(new Date(), "yyyyMMdd")}.pdf`;
+    // Build filename
+    const filename = `Rates_${contract.code}_${format(new Date(), "yyyyMMdd")}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
@@ -253,7 +229,7 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error("[contract-pdf export]", err);
+    console.error("[rates-pdf export]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "PDF generation failed" },
       { status: 500 },

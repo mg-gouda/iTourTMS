@@ -1,10 +1,11 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calculator, Filter } from "lucide-react";
+import { Calculator, FileDown, FileSpreadsheet, Filter } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -29,11 +30,19 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 
+/** Format a season's dates as "dd MMM — dd MMM yyyy" */
+function fmtSeasonDates(dateFrom: string, dateTo: string): string {
+  const from = new Date(dateFrom);
+  const to = new Date(dateTo);
+  return `${format(from, "dd MMM")} — ${format(to, "dd MMM yyyy")}`;
+}
+
 export default function RatesPage() {
   const [contractId, setContractId] = useState("");
   const [seasonFilter, setSeasonFilter] = useState("__all__");
   const [roomFilter, setRoomFilter] = useState("__all__");
   const [mealFilter, setMealFilter] = useState("__all__");
+  const [exporting, setExporting] = useState(false);
 
   const { data: contracts, isLoading: loadingContracts } =
     trpc.contracting.contract.list.useQuery();
@@ -116,6 +125,17 @@ export default function RatesPage() {
     return keys;
   }, [filteredChildRates]);
 
+  const handleExportExcel = async () => {
+    if (!grid || !selectedContract) return;
+    setExporting(true);
+    try {
+      const { exportRatesGridToExcel } = await import("@/lib/export/rates-excel");
+      await exportRatesGridToExcel(grid, selectedContract.code ?? selectedContract.name);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
@@ -128,6 +148,26 @@ export default function RatesPage() {
           <p className="page-description">
             Full rate grid with all occupancy variations
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={!contractId || loadingGrid}
+            onClick={() =>
+              window.open(`/api/export/rates-pdf/${contractId}`, "_blank")
+            }
+          >
+            <FileDown className="mr-1 h-4 w-4" />
+            Export PDF
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!contractId || loadingGrid || exporting}
+            onClick={handleExportExcel}
+          >
+            <FileSpreadsheet className="mr-1 h-4 w-4" />
+            {exporting ? "Exporting..." : "Export Excel"}
+          </Button>
         </div>
       </div>
 
@@ -211,7 +251,7 @@ export default function RatesPage() {
                       <SelectItem value="__all__">All Seasons</SelectItem>
                       {grid.seasons.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.name} ({format(new Date(s.dateFrom), "dd MMM")} — {format(new Date(s.dateTo), "dd MMM")})
+                          {fmtSeasonDates(s.dateFrom, s.dateTo)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -268,11 +308,14 @@ export default function RatesPage() {
                 {selectedContract.baseCurrency.code}
               </Badge>
             )}
-            {seasonFilter !== "__all__" && (
-              <Badge variant="secondary">
-                {grid.seasons.find((s) => s.id === seasonFilter)?.name}
-              </Badge>
-            )}
+            {seasonFilter !== "__all__" && (() => {
+              const s = grid.seasons.find((s) => s.id === seasonFilter);
+              return s ? (
+                <Badge variant="secondary">
+                  {fmtSeasonDates(s.dateFrom, s.dateTo)}
+                </Badge>
+              ) : null;
+            })()}
           </div>
 
           {/* Main Rate Grid */}
@@ -354,7 +397,7 @@ export default function RatesPage() {
                                     ) : null}
                                     {seasonFilter === "__all__" && (
                                       <TableCell className="text-xs text-muted-foreground">
-                                        {season.name}
+                                        {fmtSeasonDates(season.dateFrom, season.dateTo)}
                                       </TableCell>
                                     )}
                                     {visibleMeals.map((mb) => {
@@ -449,7 +492,7 @@ export default function RatesPage() {
                             ) : null}
                             {seasonFilter === "__all__" && (
                               <TableCell className="text-xs text-muted-foreground">
-                                {season.name}
+                                {fmtSeasonDates(season.dateFrom, season.dateTo)}
                               </TableCell>
                             )}
                             {visibleMeals.map((mb) => {
