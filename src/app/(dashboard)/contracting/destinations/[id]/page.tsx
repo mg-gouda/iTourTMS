@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -277,6 +279,12 @@ export default function DestinationDetailPage() {
         </Card>
       )}
 
+      {/* Cities */}
+      <CitiesSection destinationId={id} cities={data.cities ?? []} />
+
+      {/* Zones */}
+      <ZonesSection cities={data.cities ?? []} />
+
       {/* Linked Hotels */}
       {data.hotels && data.hotels.length > 0 && (
         <Card>
@@ -306,7 +314,7 @@ export default function DestinationDetailPage() {
                     <TableCell>
                       {STAR_RATING_LABELS[h.starRating] ?? h.starRating}
                     </TableCell>
-                    <TableCell>{h.city}</TableCell>
+                    <TableCell>{h.cityRel?.name ?? h.city}</TableCell>
                     <TableCell>
                       <Badge
                         variant={h.active ? "default" : "secondary"}
@@ -351,6 +359,514 @@ export default function DestinationDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cities Section — Inline Editable Grid
+// ---------------------------------------------------------------------------
+
+type CityRow = {
+  id?: string;
+  code: string;
+  name: string;
+  active: boolean;
+  isNew: boolean;
+};
+
+function CitiesSection({
+  destinationId,
+  cities,
+}: {
+  destinationId: string;
+  cities: { id: string; name: string; code: string; active: boolean }[];
+}) {
+  const utils = trpc.useUtils();
+  const invalidate = useCallback(
+    () => utils.contracting.destination.getById.invalidate({ id: destinationId }),
+    [utils, destinationId],
+  );
+
+  // Local rows state — initialized from server data + one empty new row
+  const [rows, setRows] = useState<CityRow[]>(() => [
+    ...cities.map((c) => ({ ...c, isNew: false })),
+    { code: "", name: "", active: true, isNew: true },
+  ]);
+
+  // Sync from server when cities prop changes (after create/update/delete)
+  useEffect(() => {
+    setRows([
+      ...cities.map((c) => ({ ...c, isNew: false })),
+      { code: "", name: "", active: true, isNew: true },
+    ]);
+  }, [cities]);
+
+  // Refs for focusing inputs
+  const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const nameRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const createMutation = trpc.contracting.destination.createCity.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(err.message),
+  });
+
+  const updateMutation = trpc.contracting.destination.updateCity.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(err.message),
+  });
+
+  const deleteMutation = trpc.contracting.destination.deleteCity.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(err.message),
+  });
+
+  function updateRow(index: number, field: keyof CityRow, value: string | boolean) {
+    setRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  }
+
+  function saveRow(index: number) {
+    const row = rows[index];
+    if (!row) return;
+    const code = row.code.trim().toUpperCase();
+    const name = row.name.trim();
+    if (!code || !name) return;
+    setError(null);
+
+    if (row.isNew) {
+      createMutation.mutate({
+        destinationId,
+        code,
+        name,
+        active: row.active,
+      });
+    } else if (row.id) {
+      updateMutation.mutate({
+        id: row.id,
+        data: { code, name, active: row.active },
+      });
+    }
+  }
+
+  function addNewRow() {
+    setRows((prev) => {
+      // Only add if last row is not already empty
+      const last = prev[prev.length - 1];
+      if (last && last.isNew && !last.code && !last.name) return prev;
+      return [...prev, { code: "", name: "", active: true, isNew: true }];
+    });
+  }
+
+  function handleKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    field: "code" | "name",
+  ) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveRow(rowIndex);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const nextIndex = rowIndex + 1;
+      if (nextIndex >= rows.length) {
+        // Add new row and focus it
+        addNewRow();
+        requestAnimationFrame(() => {
+          codeRefs.current[nextIndex]?.focus();
+        });
+      } else {
+        (field === "code" ? codeRefs : nameRefs).current[nextIndex]?.focus();
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevIndex = rowIndex - 1;
+      if (prevIndex >= 0) {
+        (field === "code" ? codeRefs : nameRefs).current[prevIndex]?.focus();
+      }
+    } else if (e.key === "Escape") {
+      const row = rows[rowIndex];
+      if (row.isNew && !row.code && !row.name) {
+        // Remove empty new row (keep at least one)
+        if (rows.filter((r) => r.isNew).length > 1) {
+          setRows((prev) => prev.filter((_, i) => i !== rowIndex));
+        }
+      }
+    }
+  }
+
+  function handleBlur(rowIndex: number) {
+    const row = rows[rowIndex];
+    if (!row || row.isNew) return;
+    // Auto-save existing rows on blur
+    const code = row.code.trim().toUpperCase();
+    const name = row.name.trim();
+    if (!code || !name) return;
+    // Check if changed from original
+    const orig = cities.find((c) => c.id === row.id);
+    if (orig && (orig.code !== code || orig.name !== name || orig.active !== row.active)) {
+      saveRow(rowIndex);
+    }
+  }
+
+  const savedCount = rows.filter((r) => !r.isNew).length;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Cities ({savedCount})</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Code</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead className="w-[80px]">Active</TableHead>
+              <TableHead className="w-[50px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow
+                key={row.id ?? `new-${i}`}
+                className={row.isNew ? "bg-muted/30" : undefined}
+              >
+                <TableCell className="p-1">
+                  <Input
+                    ref={(el) => { codeRefs.current[i] = el; }}
+                    value={row.code}
+                    onChange={(e) =>
+                      updateRow(i, "code", e.target.value.toUpperCase().slice(0, 3))
+                    }
+                    onKeyDown={(e) => handleKeyDown(e, i, "code")}
+                    onBlur={() => handleBlur(i)}
+                    placeholder="ABC"
+                    className="h-8 font-mono uppercase"
+                    maxLength={3}
+                  />
+                </TableCell>
+                <TableCell className="p-1">
+                  <Input
+                    ref={(el) => { nameRefs.current[i] = el; }}
+                    value={row.name}
+                    onChange={(e) => updateRow(i, "name", e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, i, "name")}
+                    onBlur={() => handleBlur(i)}
+                    placeholder={row.isNew ? "Type city name and press Enter..." : ""}
+                    className="h-8"
+                  />
+                </TableCell>
+                <TableCell className="p-1 text-center">
+                  <Checkbox
+                    checked={row.active}
+                    onCheckedChange={(checked) => {
+                      updateRow(i, "active", !!checked);
+                      if (!row.isNew && row.id) {
+                        updateMutation.mutate({
+                          id: row.id,
+                          data: {
+                            code: row.code.trim().toUpperCase(),
+                            name: row.name.trim(),
+                            active: !!checked,
+                          },
+                        });
+                      }
+                    }}
+                  />
+                </TableCell>
+                <TableCell className="p-1">
+                  {!row.isNew && row.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate({ id: row.id! })}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <p className="mt-2 text-xs text-muted-foreground">
+          Press Enter to save a row. Arrow Down on the last row adds a new line.
+        </p>
+
+        {error && (
+          <p className="mt-2 text-sm text-destructive">{error}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Zones Section — Per-City Zone Management
+// ---------------------------------------------------------------------------
+
+type ZoneRow = {
+  id?: string;
+  code: string;
+  name: string;
+  active: boolean;
+  isNew: boolean;
+};
+
+function ZonesSection({
+  cities,
+}: {
+  cities: { id: string; name: string; code: string; active: boolean }[];
+}) {
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+
+  if (cities.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Zones</CardTitle>
+        <CardDescription>
+          Select a city to manage its zones. Zones are used in hotel code generation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {cities.map((city) => (
+            <Button
+              key={city.id}
+              variant={selectedCityId === city.id ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                setSelectedCityId(
+                  selectedCityId === city.id ? null : city.id,
+                )
+              }
+            >
+              {city.code} — {city.name}
+            </Button>
+          ))}
+        </div>
+
+        {selectedCityId && (
+          <ZoneCityGrid cityId={selectedCityId} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ZoneCityGrid({ cityId }: { cityId: string }) {
+  const utils = trpc.useUtils();
+  const { data: zonesRaw } = trpc.contracting.destination.listZones.useQuery(
+    { cityId },
+  );
+  const zones = zonesRaw ?? [];
+
+  const invalidate = useCallback(() => {
+    utils.contracting.destination.listZones.invalidate({ cityId });
+  }, [utils, cityId]);
+
+  const [rows, setRows] = useState<ZoneRow[]>([]);
+
+  useEffect(() => {
+    if (!zonesRaw) return;
+    setRows([
+      ...zonesRaw.map((z) => ({
+        id: z.id,
+        code: z.code,
+        name: z.name,
+        active: z.active,
+        isNew: false,
+      })),
+      { code: "", name: "", active: true, isNew: true },
+    ]);
+  }, [zonesRaw]);
+
+  const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const nameRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const createMutation = trpc.contracting.destination.createZone.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(err.message),
+  });
+
+  const updateMutation = trpc.contracting.destination.updateZone.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(err.message),
+  });
+
+  const deleteMutation = trpc.contracting.destination.deleteZone.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (err) => setError(err.message),
+  });
+
+  function updateRow(index: number, field: keyof ZoneRow, value: string | boolean) {
+    setRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  }
+
+  function saveRow(index: number) {
+    const row = rows[index];
+    if (!row) return;
+    const code = row.code.trim().toUpperCase();
+    const name = row.name.trim();
+    if (!code || !name) return;
+    setError(null);
+
+    if (row.isNew) {
+      createMutation.mutate({ cityId, code, name, active: row.active });
+    } else if (row.id) {
+      updateMutation.mutate({ id: row.id, data: { code, name, active: row.active } });
+    }
+  }
+
+  function handleKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    field: "code" | "name",
+  ) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveRow(rowIndex);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const nextIndex = rowIndex + 1;
+      if (nextIndex >= rows.length) {
+        setRows((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.isNew && !last.code && !last.name) return prev;
+          return [...prev, { code: "", name: "", active: true, isNew: true }];
+        });
+        requestAnimationFrame(() => {
+          codeRefs.current[nextIndex]?.focus();
+        });
+      } else {
+        (field === "code" ? codeRefs : nameRefs).current[nextIndex]?.focus();
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevIndex = rowIndex - 1;
+      if (prevIndex >= 0) {
+        (field === "code" ? codeRefs : nameRefs).current[prevIndex]?.focus();
+      }
+    }
+  }
+
+  function handleBlur(rowIndex: number) {
+    const row = rows[rowIndex];
+    if (!row || row.isNew) return;
+    const code = row.code.trim().toUpperCase();
+    const name = row.name.trim();
+    if (!code || !name) return;
+    const orig = zones.find((z) => z.id === row.id);
+    if (orig && (orig.code !== code || orig.name !== name || orig.active !== row.active)) {
+      saveRow(rowIndex);
+    }
+  }
+
+  const savedCount = rows.filter((r) => !r.isNew).length;
+
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium">
+        Zones ({savedCount})
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[80px]">Code</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead className="w-[80px]">Active</TableHead>
+            <TableHead className="w-[50px]" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row, i) => (
+            <TableRow
+              key={row.id ?? `new-${i}`}
+              className={row.isNew ? "bg-muted/30" : undefined}
+            >
+              <TableCell className="p-1">
+                <Input
+                  ref={(el) => { codeRefs.current[i] = el; }}
+                  value={row.code}
+                  onChange={(e) =>
+                    updateRow(i, "code", e.target.value.toUpperCase().slice(0, 1))
+                  }
+                  onKeyDown={(e) => handleKeyDown(e, i, "code")}
+                  onBlur={() => handleBlur(i)}
+                  placeholder="A"
+                  className="h-8 font-mono uppercase"
+                  maxLength={1}
+                />
+              </TableCell>
+              <TableCell className="p-1">
+                <Input
+                  ref={(el) => { nameRefs.current[i] = el; }}
+                  value={row.name}
+                  onChange={(e) => updateRow(i, "name", e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, i, "name")}
+                  onBlur={() => handleBlur(i)}
+                  placeholder={row.isNew ? "Type zone name and press Enter..." : ""}
+                  className="h-8"
+                />
+              </TableCell>
+              <TableCell className="p-1 text-center">
+                <Checkbox
+                  checked={row.active}
+                  onCheckedChange={(checked) => {
+                    updateRow(i, "active", !!checked);
+                    if (!row.isNew && row.id) {
+                      updateMutation.mutate({
+                        id: row.id,
+                        data: {
+                          code: row.code.trim().toUpperCase(),
+                          name: row.name.trim(),
+                          active: !!checked,
+                        },
+                      });
+                    }
+                  }}
+                />
+              </TableCell>
+              <TableCell className="p-1">
+                {!row.isNew && row.id && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate({ id: row.id! })}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <p className="mt-2 text-xs text-muted-foreground">
+        Code must be a single uppercase letter. Press Enter to save.
+      </p>
+
+      {error && (
+        <p className="mt-2 text-sm text-destructive">{error}</p>
+      )}
     </div>
   );
 }

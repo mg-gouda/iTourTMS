@@ -63,13 +63,20 @@ model Company {
   email           String?
   website         String?
   logoUrl         String?
+  faviconUrl      String?
+  loginLogoUrl    String?
+  sidebarLogoUrl  String?
+  loginBgUrl      String?
+  innerBgUrl      String?
   countryId       String?
   baseCurrencyId  String?
   fiscalYearStart Int      @default(1) // month 1-12
   fiscalYearEnd   Int      @default(12)
-  timezone        String   @default("UTC")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  timezone             String   @default("UTC")
+  googlePlacesApiKey   String?
+  hotelCodePrefix      String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   country      Country?  @relation(fields: [countryId], references: [id])
   baseCurrency Currency? @relation(fields: [baseCurrencyId], references: [id])
@@ -101,9 +108,12 @@ model Company {
 
   // Contracting relations
   destinations     Destination[]
+  cities           City[]
+  zones            Zone[]
   hotelAmenities   HotelAmenity[]
   hotels           Hotel[]
   contracts        Contract[]
+  markets          Market[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -1291,11 +1301,53 @@ model Destination {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   country Country @relation(fields: [countryId], references: [id])
   hotels  Hotel[]
+  cities  City[]
 
   @@unique([companyId, code])
   @@index([companyId])
   @@index([countryId])
   @@map("ct_destination")
+}
+
+model City {
+  id            String   @id @default(cuid())
+  companyId     String
+  destinationId String
+  name          String
+  code          String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  hotels      Hotel[]
+  zones       Zone[]
+
+  @@unique([companyId, destinationId, code])
+  @@index([companyId])
+  @@index([destinationId])
+  @@map("ct_city")
+}
+
+model Zone {
+  id        String   @id @default(cuid())
+  companyId String
+  cityId    String
+  name      String
+  code      String   // 1 letter, e.g. "A", "B"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  city    City    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  hotels  Hotel[]
+
+  @@unique([companyId, cityId, code])
+  @@index([companyId])
+  @@index([cityId])
+  @@map("ct_zone")
 }
 
 model HotelAmenity {
@@ -1331,6 +1383,8 @@ model Hotel {
   latitude         Float?
   longitude        Float?
   destinationId    String?
+  cityId           String?
+  zoneId           String?
   phone            String?
   fax              String?
   email            String?
@@ -1351,6 +1405,8 @@ model Hotel {
   state       CountryState? @relation(fields: [stateId], references: [id])
   country     Country       @relation(fields: [countryId], references: [id])
   destination Destination?  @relation(fields: [destinationId], references: [id])
+  cityRel     City?         @relation(fields: [cityId], references: [id])
+  zone        Zone?         @relation(fields: [zoneId], references: [id])
 
   amenities        HotelAmenity[]
   roomTypes        HotelRoomType[]
@@ -1363,6 +1419,8 @@ model Hotel {
   @@index([companyId])
   @@index([countryId])
   @@index([destinationId])
+  @@index([cityId])
+  @@index([zoneId])
   @@map("ct_hotel")
 }
 
@@ -1447,7 +1505,7 @@ model ChildPolicy {
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
-  @@unique([hotelId, category])
+  @@index([hotelId, category])
   @@index([hotelId])
   @@map("ct_child_policy")
 }
@@ -1526,6 +1584,7 @@ model Contract {
   stopSales      ContractStopSale[]
   childPolicies         ContractChildPolicy[]
   cancellationPolicies  ContractCancellationPolicy[]
+  markets               ContractMarket[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1553,7 +1612,7 @@ model ContractSeason {
   supplements ContractSupplement[]
   allotments  ContractAllotment[]
 
-  @@unique([contractId, code])
+  @@index([contractId, code])
   @@index([contractId])
   @@map("ct_contract_season")
 }
@@ -1732,7 +1791,7 @@ model ContractChildPolicy {
 
   contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
 
-  @@unique([contractId, category])
+  @@index([contractId, category])
   @@index([contractId])
   @@map("ct_contract_child_policy")
 }
@@ -1752,4 +1811,38 @@ model ContractCancellationPolicy {
 
   @@index([contractId])
   @@map("ct_contract_cancellation_policy")
+}
+
+// ─── Markets ────────────────────────────────────────────────
+
+model Market {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  code       String
+  countryIds String[] // array of country IDs this market covers
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contracts ContractMarket[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("ct_market")
+}
+
+model ContractMarket {
+  id         String   @id @default(cuid())
+  contractId String
+  marketId   String
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  market   Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, marketId])
+  @@index([contractId])
+  @@map("ct_contract_market")
 }

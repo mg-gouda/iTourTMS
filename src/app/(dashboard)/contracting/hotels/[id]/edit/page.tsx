@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -28,46 +28,56 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { STAR_RATING_LABELS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
-import { hotelCreateSchema } from "@/lib/validations/contracting";
+import { hotelUpdateSchema } from "@/lib/validations/contracting";
 
-type FormValues = z.input<typeof hotelCreateSchema>;
+type FormValues = z.input<typeof hotelUpdateSchema>;
 
 const STAR_OPTIONS = Object.entries(STAR_RATING_LABELS) as [string, string][];
 
-export default function NewHotelPage() {
+export default function EditHotelPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
+
+  const { data: hotel, isLoading } = trpc.contracting.hotel.getById.useQuery({ id });
   const { data: countries } = trpc.setup.getCountries.useQuery();
   const { data: destinations } = trpc.contracting.destination.list.useQuery();
   const { data: amenities } = trpc.contracting.hotel.listAmenities.useQuery();
   const { data: googlePlacesApiKey } = trpc.settings.getGooglePlacesKey.useQuery();
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(hotelCreateSchema),
-    defaultValues: {
-      name: "",
-      code: "",
-      starRating: "THREE",
-      chainName: "",
-      description: "",
-      address: "",
-      city: "",
-      cityId: "",
-      zoneId: "",
-      stateId: "",
-      countryId: "",
-      destinationId: "",
-      phone: "",
-      email: "",
-      website: "",
-      reservationEmail: "",
-      contactPerson: "",
-      checkInTime: "14:00",
-      checkOutTime: "12:00",
-      active: true,
-      amenityIds: [],
-    },
+    resolver: zodResolver(hotelUpdateSchema),
   });
+
+  // Populate form when hotel data loads
+  useEffect(() => {
+    if (hotel) {
+      form.reset({
+        name: hotel.name,
+        code: hotel.code,
+        starRating: hotel.starRating,
+        chainName: hotel.chainName ?? "",
+        description: hotel.description ?? "",
+        address: hotel.address ?? "",
+        city: hotel.city ?? "",
+        cityId: hotel.cityId ?? "",
+        zoneId: hotel.zone?.id ?? "",
+        stateId: hotel.stateId ?? "",
+        countryId: hotel.countryId,
+        destinationId: hotel.destinationId ?? "",
+        phone: hotel.phone ?? "",
+        email: hotel.email ?? "",
+        website: hotel.website ?? "",
+        reservationEmail: hotel.reservationEmail ?? "",
+        contactPerson: hotel.contactPerson ?? "",
+        checkInTime: hotel.checkInTime ?? "14:00",
+        checkOutTime: hotel.checkOutTime ?? "12:00",
+        totalRooms: hotel.totalRooms ?? undefined,
+        active: hotel.active,
+        amenityIds: hotel.amenities?.map((a) => a.id) ?? [],
+      });
+    }
+  }, [hotel, form]);
 
   const selectedCountryId = form.watch("countryId");
   const selectedDestinationId = form.watch("destinationId");
@@ -94,40 +104,22 @@ export default function NewHotelPage() {
     { enabled: !!selectedZoneId },
   );
 
-  // Auto-fill code when zone is selected
+  // Auto-fill code when zone changes (only if zone changed from original hotel data)
   useEffect(() => {
-    if (nextCode && selectedZoneId) {
+    if (nextCode && selectedZoneId && selectedZoneId !== hotel?.zone?.id) {
       form.setValue("code", nextCode);
     }
   }, [nextCode, selectedZoneId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset destination + city + zone when country changes
-  useEffect(() => {
-    form.setValue("destinationId", "");
-    form.setValue("cityId", null);
-    form.setValue("zoneId", null);
-  }, [selectedCountryId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset city + zone when destination changes
-  useEffect(() => {
-    form.setValue("cityId", null);
-    form.setValue("zoneId", null);
-  }, [selectedDestinationId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset zone when city changes
-  useEffect(() => {
-    form.setValue("zoneId", null);
-  }, [selectedCityId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const createMutation = trpc.contracting.hotel.create.useMutation({
-    onSuccess: (data) => {
+  const updateMutation = trpc.contracting.hotel.update.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.getById.invalidate({ id });
       utils.contracting.hotel.list.invalidate();
-      router.push(`/contracting/hotels/${data.id}`);
+      router.push(`/contracting/hotels/${id}`);
     },
   });
 
   function onSubmit(values: FormValues) {
-    // Clean empty strings to nullish
     const clean = { ...values };
     if (!clean.stateId) clean.stateId = null;
     if (!clean.destinationId) clean.destinationId = null;
@@ -136,15 +128,23 @@ export default function NewHotelPage() {
     if (!clean.chainName) clean.chainName = null;
     if (!clean.email) clean.email = null;
     if (!clean.reservationEmail) clean.reservationEmail = null;
-    createMutation.mutate(clean);
+    updateMutation.mutate({ id, data: clean });
+  }
+
+  if (isLoading) {
+    return <div className="py-10 text-center text-muted-foreground">Loading...</div>;
+  }
+
+  if (!hotel) {
+    return <div className="py-10 text-center text-muted-foreground">Hotel not found</div>;
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Hotel</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Edit Hotel</h1>
         <p className="text-muted-foreground">
-          Add a new hotel to the contracting system
+          Update hotel details for {hotel.name}
         </p>
       </div>
 
@@ -161,7 +161,7 @@ export default function NewHotelPage() {
                   <FormItem>
                     <FormLabel>Hotel Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Grand Seaside Resort" {...field} />
+                      <Input placeholder="Grand Seaside Resort" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -177,6 +177,7 @@ export default function NewHotelPage() {
                       <Input
                         placeholder={selectedZoneId ? "Auto-generated" : "GSR"}
                         {...field}
+                        value={field.value ?? ""}
                         readOnly={!!selectedZoneId}
                         className={selectedZoneId ? "bg-muted font-mono" : ""}
                       />
@@ -498,7 +499,7 @@ export default function NewHotelPage() {
                   <FormItem>
                     <FormLabel>Check-in Time</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" {...field} value={field.value ?? "14:00"} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -511,7 +512,7 @@ export default function NewHotelPage() {
                   <FormItem>
                     <FormLabel>Check-out Time</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" {...field} value={field.value ?? "12:00"} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -562,7 +563,7 @@ export default function NewHotelPage() {
                           } else {
                             form.setValue(
                               "amenityIds",
-                              selected.filter((id) => id !== a.id),
+                              selected.filter((aid) => aid !== a.id),
                             );
                           }
                         }}
@@ -611,20 +612,20 @@ export default function NewHotelPage() {
             )}
           />
 
-          {createMutation.error && (
+          {updateMutation.error && (
             <p className="text-sm text-destructive">
-              {createMutation.error.message}
+              {updateMutation.error.message}
             </p>
           )}
 
           <div className="flex gap-2">
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Hotel"}
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/contracting/hotels")}
+              onClick={() => router.push(`/contracting/hotels/${id}`)}
             >
               Cancel
             </Button>

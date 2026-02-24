@@ -12,6 +12,7 @@ export const hotelRouter = createTRPCRouter({
       include: {
         country: { select: { id: true, name: true, code: true } },
         destination: { select: { id: true, name: true } },
+        cityRel: { select: { id: true, name: true, code: true } },
         _count: { select: { roomTypes: true, mealBasis: true, childrenPolicies: true, images: true } },
       },
       orderBy: { name: "asc" },
@@ -27,6 +28,8 @@ export const hotelRouter = createTRPCRouter({
           country: { select: { id: true, name: true, code: true } },
           state: { select: { id: true, name: true } },
           destination: { select: { id: true, name: true, code: true } },
+          cityRel: { select: { id: true, name: true, code: true } },
+          zone: { select: { id: true, name: true, code: true } },
           amenities: { orderBy: { name: "asc" } },
           roomTypes: {
             include: {
@@ -77,6 +80,27 @@ export const hotelRouter = createTRPCRouter({
       return ctx.db.hotel.delete({
         where: { id: input.id, companyId: ctx.companyId },
       });
+    }),
+
+  // ── Hotel Code Auto-generation ──
+
+  getNextHotelCode: proc
+    .input(z.object({ zoneId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const zone = await ctx.db.zone.findFirstOrThrow({
+        where: { id: input.zoneId, companyId: ctx.companyId },
+        include: { city: { select: { code: true } } },
+      });
+      const company = await ctx.db.company.findUniqueOrThrow({
+        where: { id: ctx.companyId },
+        select: { hotelCodePrefix: true },
+      });
+      const prefix = company.hotelCodePrefix ?? "H";
+      const count = await ctx.db.hotel.count({
+        where: { zoneId: input.zoneId, companyId: ctx.companyId },
+      });
+      const increment = String(count + 1).padStart(2, "0");
+      return `${prefix}${zone.city.code}${zone.code}${increment}`;
     }),
 
   // ── Amenities (company-level) ──

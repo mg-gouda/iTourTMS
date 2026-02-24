@@ -371,6 +371,7 @@ export default function ContractDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="markets">Markets</TabsTrigger>
           <TabsTrigger value="seasons">
             Seasons ({contract.seasons.length})
           </TabsTrigger>
@@ -391,6 +392,9 @@ export default function ContractDetailPage() {
 
         <TabsContent value="overview">
           <OverviewTab contract={contract} />
+        </TabsContent>
+        <TabsContent value="markets">
+          <MarketsTab contractId={id} />
         </TabsContent>
         <TabsContent value="seasons">
           <SeasonsTab contractId={id} contract={contract} />
@@ -4017,6 +4021,155 @@ function RateBreakdownDisplay({
   );
 }
 
+// ─── Markets Tab ────────────────────────────────────────────
+
+function MarketsTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const { data: assignedRaw } =
+    trpc.contracting.market.listByContract.useQuery({ contractId });
+  const assigned = assignedRaw ?? [];
+  const { data: allMarkets } = trpc.contracting.market.list.useQuery();
+  const markets = allMarkets ?? [];
+
+  const assignMutation = trpc.contracting.market.assign.useMutation({
+    onSuccess: () =>
+      utils.contracting.market.listByContract.invalidate({ contractId }),
+  });
+  const unassignMutation = trpc.contracting.market.unassign.useMutation({
+    onSuccess: () =>
+      utils.contracting.market.listByContract.invalidate({ contractId }),
+  });
+  const [showAssign, setShowAssign] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const assignedMarketIds = new Set(assigned.map((a) => a.market.id));
+  const availableMarkets = markets.filter(
+    (m) => !assignedMarketIds.has(m.id) && m.active,
+  );
+
+  function handleAssign() {
+    if (selectedIds.length === 0) return;
+    assignMutation.mutate(
+      { contractId, marketIds: selectedIds },
+      {
+        onSuccess: () => {
+          setShowAssign(false);
+          setSelectedIds([]);
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Markets</h3>
+          <p className="text-sm text-muted-foreground">
+            Assign source-country markets to this contract.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {markets.length > 0 && (
+            <Button size="sm" onClick={() => setShowAssign(true)}>
+              Add Market
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {assigned.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            {markets.length === 0
+              ? "No markets defined. Go to Settings > Contracting to create markets."
+              : "No markets assigned to this contract yet."}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {assigned.map((cm) => (
+            <Badge
+              key={cm.id}
+              variant="secondary"
+              className="gap-1 py-1.5 pl-3 pr-1 text-sm"
+            >
+              {cm.market.name} ({cm.market.code})
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-1 h-5 w-5 p-0"
+                onClick={() =>
+                  unassignMutation.mutate({
+                    contractId,
+                    marketId: cm.market.id,
+                  })
+                }
+                disabled={unassignMutation.isPending}
+              >
+                x
+              </Button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Assign Dialog */}
+      <Dialog open={showAssign} onOpenChange={setShowAssign}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Markets</DialogTitle>
+            <DialogDescription>
+              Select markets to assign to this contract.
+            </DialogDescription>
+          </DialogHeader>
+          {availableMarkets.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              All markets are already assigned, or no markets have been created yet.
+              Go to Settings &gt; Contracting to manage markets.
+            </p>
+          ) : (
+            <div className="max-h-64 space-y-2 overflow-y-auto">
+              {availableMarkets.map((m) => (
+                <label
+                  key={m.id}
+                  className="flex items-center gap-2 rounded border p-2 text-sm hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={selectedIds.includes(m.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedIds([...selectedIds, m.id]);
+                      } else {
+                        setSelectedIds(selectedIds.filter((id) => id !== m.id));
+                      }
+                    }}
+                  />
+                  {m.name} ({m.code})
+                </label>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssign(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssign}
+              disabled={selectedIds.length === 0 || assignMutation.isPending}
+            >
+              {assignMutation.isPending
+                ? "Assigning..."
+                : `Assign (${selectedIds.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  );
+}
+
 // ─── Child Policies Tab ─────────────────────────────────────
 
 type ContractChildPolicyData = {
@@ -4062,7 +4215,10 @@ function ChildPoliciesTab({
     trpc.contracting.contractChildPolicy.listByContract.useQuery({ contractId });
   const contractPolicies = (rawContractPolicies ?? []) as unknown as ContractChildPolicyData[];
 
-  const upsertMutation = trpc.contracting.contractChildPolicy.upsert.useMutation({
+  const createMutation = trpc.contracting.contractChildPolicy.create.useMutation({
+    onSuccess: () => utils.contracting.contractChildPolicy.listByContract.invalidate({ contractId }),
+  });
+  const updateMutation = trpc.contracting.contractChildPolicy.update.useMutation({
     onSuccess: () => utils.contracting.contractChildPolicy.listByContract.invalidate({ contractId }),
   });
   const deleteMutation = trpc.contracting.contractChildPolicy.delete.useMutation({
@@ -4070,8 +4226,9 @@ function ChildPoliciesTab({
   });
 
   const [showDialog, setShowDialog] = useState(false);
-  const [editCategory, setEditCategory] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    category: "CHILD" as string,
     ageFrom: 0,
     ageTo: 0,
     label: "",
@@ -4082,56 +4239,79 @@ function ChildPoliciesTab({
     notes: "",
   });
 
-  const contractPolicyMap = new Map(
-    contractPolicies.map((cp) => [cp.category, cp]),
-  );
-
-  const categories = ["INFANT", "CHILD", "TEEN"] as const;
-
-  function openOverrideDialog(category: string) {
-    const hotelPolicy = hotelPolicies.find((hp) => hp.category === category);
-    const contractPolicy = contractPolicyMap.get(category);
-    const source = contractPolicy ?? hotelPolicy;
-    setEditCategory(category);
+  function openCreateDialog() {
+    setEditingId(null);
     setFormData({
-      ageFrom: source?.ageFrom ?? 0,
-      ageTo: source?.ageTo ?? 0,
-      label: source?.label ?? CHILD_AGE_CATEGORY_LABELS[category] ?? category,
-      freeInSharing: source?.freeInSharing ?? false,
-      maxFreePerRoom: source?.maxFreePerRoom ?? 0,
-      extraBedAllowed: source?.extraBedAllowed ?? true,
-      mealsIncluded: source?.mealsIncluded ?? false,
-      notes: source?.notes ?? "",
+      category: "CHILD",
+      ageFrom: 0,
+      ageTo: 0,
+      label: "",
+      freeInSharing: false,
+      maxFreePerRoom: 0,
+      extraBedAllowed: true,
+      mealsIncluded: false,
+      notes: "",
+    });
+    setShowDialog(true);
+  }
+
+  function openEditDialog(cp: ContractChildPolicyData) {
+    setEditingId(cp.id);
+    setFormData({
+      category: cp.category,
+      ageFrom: cp.ageFrom,
+      ageTo: cp.ageTo,
+      label: cp.label,
+      freeInSharing: cp.freeInSharing,
+      maxFreePerRoom: cp.maxFreePerRoom,
+      extraBedAllowed: cp.extraBedAllowed,
+      mealsIncluded: cp.mealsIncluded,
+      notes: cp.notes ?? "",
     });
     setShowDialog(true);
   }
 
   function handleSave() {
-    if (!editCategory) return;
-    upsertMutation.mutate(
-      {
-        contractId,
-        category: editCategory as "INFANT" | "CHILD" | "TEEN",
-        ageFrom: formData.ageFrom,
-        ageTo: formData.ageTo,
-        label: formData.label,
-        freeInSharing: formData.freeInSharing,
-        maxFreePerRoom: formData.maxFreePerRoom,
-        extraBedAllowed: formData.extraBedAllowed,
-        mealsIncluded: formData.mealsIncluded,
-        notes: formData.notes || null,
-      },
-      { onSuccess: () => setShowDialog(false) },
-    );
+    if (editingId) {
+      updateMutation.mutate(
+        {
+          id: editingId,
+          contractId,
+          ageFrom: formData.ageFrom,
+          ageTo: formData.ageTo,
+          label: formData.label,
+          freeInSharing: formData.freeInSharing,
+          maxFreePerRoom: formData.maxFreePerRoom,
+          extraBedAllowed: formData.extraBedAllowed,
+          mealsIncluded: formData.mealsIncluded,
+          notes: formData.notes || null,
+        },
+        { onSuccess: () => setShowDialog(false) },
+      );
+    } else {
+      createMutation.mutate(
+        {
+          contractId,
+          category: formData.category as "INFANT" | "CHILD" | "TEEN",
+          ageFrom: formData.ageFrom,
+          ageTo: formData.ageTo,
+          label: formData.label,
+          freeInSharing: formData.freeInSharing,
+          maxFreePerRoom: formData.maxFreePerRoom,
+          extraBedAllowed: formData.extraBedAllowed,
+          mealsIncluded: formData.mealsIncluded,
+          notes: formData.notes || null,
+        },
+        { onSuccess: () => setShowDialog(false) },
+      );
+    }
   }
 
-  function handleRemoveOverride(cp: ContractChildPolicyData) {
-    deleteMutation.mutate({ id: cp.id, contractId });
-  }
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="space-y-6">
-      {/* Hotel Defaults */}
+      {/* Hotel Defaults (read-only reference) */}
       <div>
         <h3 className="mb-3 text-lg font-semibold">Hotel Defaults</h3>
         {hotelPolicies.length === 0 ? (
@@ -4162,102 +4342,121 @@ function ChildPoliciesTab({
 
       <Separator />
 
-      {/* Contract Overrides */}
+      {/* Contract Child Policies — multiple rows per category allowed */}
       <div>
-        <h3 className="mb-3 text-lg font-semibold">Contract Overrides</h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Override hotel defaults for specific age categories. When no override exists,
-          the hotel default is used.
-        </p>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Category</TableHead>
-              <TableHead>Label</TableHead>
-              <TableHead>Age Range</TableHead>
-              <TableHead>Free in Sharing</TableHead>
-              <TableHead>Extra Bed</TableHead>
-              <TableHead>Meals</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categories.map((cat) => {
-              const override = contractPolicyMap.get(cat);
-              const hotelDefault = hotelPolicies.find((hp) => hp.category === cat);
-              const effective = override ?? hotelDefault;
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Contract Child Policies</h3>
+            <p className="text-sm text-muted-foreground">
+              Define child policies for this contract. Multiple policies per category are allowed
+              (e.g., Child 2-5 free, Child 6-11 paid).
+            </p>
+          </div>
+          <Button size="sm" onClick={openCreateDialog}>
+            Add Policy
+          </Button>
+        </div>
 
-              if (!effective) return null;
-
-              return (
-                <TableRow key={cat}>
+        {contractPolicies.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              No child policies defined for this contract yet.
+            </CardContent>
+          </Card>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>Label</TableHead>
+                <TableHead>Age Range</TableHead>
+                <TableHead>Free in Sharing</TableHead>
+                <TableHead>Extra Bed</TableHead>
+                <TableHead>Meals</TableHead>
+                <TableHead className="w-[140px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {contractPolicies.map((cp) => (
+                <TableRow key={cp.id}>
                   <TableCell className="font-medium">
-                    {CHILD_AGE_CATEGORY_LABELS[cat]}
+                    {CHILD_AGE_CATEGORY_LABELS[cp.category] ?? cp.category}
                   </TableCell>
-                  <TableCell>{effective.label}</TableCell>
-                  <TableCell>{effective.ageFrom}–{effective.ageTo}</TableCell>
+                  <TableCell>{cp.label}</TableCell>
+                  <TableCell>{cp.ageFrom}–{cp.ageTo}</TableCell>
                   <TableCell>
-                    {effective.freeInSharing ? (
-                      <span>Yes (max {effective.maxFreePerRoom})</span>
+                    {cp.freeInSharing ? (
+                      <span>Yes (max {cp.maxFreePerRoom})</span>
                     ) : (
                       "No"
                     )}
                   </TableCell>
-                  <TableCell>{effective.extraBedAllowed ? "Yes" : "No"}</TableCell>
-                  <TableCell>{effective.mealsIncluded ? "Yes" : "No"}</TableCell>
-                  <TableCell>
-                    <Badge variant={override ? "default" : "outline"}>
-                      {override ? "Override" : "Hotel Default"}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{cp.extraBedAllowed ? "Yes" : "No"}</TableCell>
+                  <TableCell>{cp.mealsIncluded ? "Yes" : "No"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => openOverrideDialog(cat)}
+                        onClick={() => openEditDialog(cp)}
                       >
-                        {override ? "Edit" : "Override"}
+                        Edit
                       </Button>
-                      {override && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRemoveOverride(override)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          Revert
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deleteMutation.mutate({ id: cp.id, contractId })}
+                        disabled={deleteMutation.isPending}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
-      {/* Override Dialog */}
+      {/* Add/Edit Policy Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editCategory
-                ? `Override ${CHILD_AGE_CATEGORY_LABELS[editCategory]} Policy`
-                : "Override Child Policy"}
+              {editingId ? "Edit Child Policy" : "Add Child Policy"}
             </DialogTitle>
             <DialogDescription>
-              Set contract-specific child policy for this category.
+              {editingId
+                ? "Update this child policy."
+                : "Add a new child policy for this contract."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {!editingId && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(val) => setFormData({ ...formData, category: val })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INFANT">Infant</SelectItem>
+                    <SelectItem value="CHILD">Child</SelectItem>
+                    <SelectItem value="TEEN">Teen</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Label</label>
               <Input
                 value={formData.label}
                 onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+                placeholder="e.g. Child 2-5 free"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -4338,8 +4537,10 @@ function ChildPoliciesTab({
                 rows={2}
               />
             </div>
-            {upsertMutation.error && (
-              <p className="text-sm text-destructive">{upsertMutation.error.message}</p>
+            {(createMutation.error || updateMutation.error) && (
+              <p className="text-sm text-destructive">
+                {(createMutation.error ?? updateMutation.error)?.message}
+              </p>
             )}
           </div>
           <DialogFooter>
@@ -4351,10 +4552,10 @@ function ChildPoliciesTab({
               disabled={
                 !formData.label.trim() ||
                 formData.ageTo < formData.ageFrom ||
-                upsertMutation.isPending
+                isSaving
               }
             >
-              {upsertMutation.isPending ? "Saving..." : "Save Override"}
+              {isSaving ? "Saving..." : editingId ? "Save Changes" : "Add Policy"}
             </Button>
           </DialogFooter>
         </DialogContent>

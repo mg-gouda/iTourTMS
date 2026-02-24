@@ -11,6 +11,36 @@ export const destinationCreateSchema = z.object({
 
 export const destinationUpdateSchema = destinationCreateSchema.partial();
 
+// ── City Schemas ──
+
+export const cityCreateSchema = z.object({
+  destinationId: z.string().min(1, "Destination is required"),
+  name: z.string().min(1, "City name is required"),
+  code: z.string().min(1, "Code is required").max(3),
+  active: z.boolean().default(true),
+});
+
+export const cityUpdateSchema = z.object({
+  name: z.string().min(1, "City name is required"),
+  code: z.string().min(1, "Code is required").max(3),
+  active: z.boolean(),
+});
+
+// ── Zone Schemas ──
+
+export const zoneCreateSchema = z.object({
+  cityId: z.string().min(1, "City is required"),
+  name: z.string().min(1, "Zone name is required"),
+  code: z.string().min(1, "Code is required").max(1),
+  active: z.boolean().default(true),
+});
+
+export const zoneUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  code: z.string().min(1).max(1).optional(),
+  active: z.boolean().optional(),
+});
+
 // ── Hotel Schemas ──
 
 export const hotelCreateSchema = z.object({
@@ -21,7 +51,9 @@ export const hotelCreateSchema = z.object({
   description: z.string().nullish(),
   shortDescription: z.string().nullish(),
   address: z.string().nullish(),
-  city: z.string().min(1, "City is required"),
+  city: z.string().optional().default(""),
+  cityId: z.string().nullish(),
+  zoneId: z.string().nullish(),
   stateId: z.string().nullish(),
   countryId: z.string().min(1, "Country is required"),
   zipCode: z.string().nullish(),
@@ -426,9 +458,25 @@ export const contractCloneSchema = z.object({
   path: ["validTo"],
 });
 
+// ── Market Schemas ──
+
+export const marketCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required").max(10),
+  countryIds: z.array(z.string()).min(1, "At least one country is required"),
+  active: z.boolean().default(true),
+});
+
+export const marketUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  code: z.string().min(1).max(10).optional(),
+  countryIds: z.array(z.string()).min(1).optional(),
+  active: z.boolean().optional(),
+});
+
 // ── Contract Child Policies ──
 
-export const contractChildPolicyUpsertSchema = z.object({
+export const contractChildPolicyCreateSchema = z.object({
   contractId: z.string().min(1),
   category: z.enum(["INFANT", "CHILD", "TEEN"]),
   ageFrom: z.number().int().min(0),
@@ -443,6 +491,22 @@ export const contractChildPolicyUpsertSchema = z.object({
   message: "Age To must be >= Age From",
   path: ["ageTo"],
 });
+
+export const contractChildPolicyUpdateSchema = z.object({
+  id: z.string().min(1),
+  contractId: z.string().min(1),
+  ageFrom: z.number().int().min(0).optional(),
+  ageTo: z.number().int().min(0).optional(),
+  label: z.string().min(1).optional(),
+  freeInSharing: z.boolean().optional(),
+  maxFreePerRoom: z.number().int().min(0).optional(),
+  extraBedAllowed: z.boolean().optional(),
+  mealsIncluded: z.boolean().optional(),
+  notes: z.string().nullish(),
+});
+
+// Keep the old name as alias for backwards compatibility during transition
+export const contractChildPolicyUpsertSchema = contractChildPolicyCreateSchema;
 
 // ── Cancellation Policies ──
 
