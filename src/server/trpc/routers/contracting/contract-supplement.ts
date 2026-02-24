@@ -6,8 +6,6 @@ import {
   supplementMealBulkSaveSchema,
   supplementOccupancyBulkSaveSchema,
   supplementRoomTypeBulkSaveSchema,
-  supplementViewCreateSchema,
-  supplementViewUpdateSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import type { PrismaClient } from "@prisma/client";
@@ -33,7 +31,6 @@ export const contractSupplementRouter = createTRPCRouter({
       return ctx.db.contractSupplement.findMany({
         where: { contractId: input.contractId },
         include: {
-          season: { select: { id: true, name: true, code: true } },
           roomType: { select: { id: true, name: true, code: true } },
           mealBasis: { select: { id: true, name: true, mealCode: true } },
         },
@@ -55,7 +52,6 @@ export const contractSupplementRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: input.items.map((item) => ({
               contractId: input.contractId,
-              seasonId: item.seasonId,
               supplementType: "ROOM_TYPE" as const,
               roomTypeId: item.roomTypeId,
               value: item.value,
@@ -84,7 +80,6 @@ export const contractSupplementRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: input.items.map((item) => ({
               contractId: input.contractId,
-              seasonId: item.seasonId,
               supplementType: "MEAL" as const,
               mealBasisId: item.mealBasisId,
               value: item.value,
@@ -114,7 +109,6 @@ export const contractSupplementRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: input.items.map((item) => ({
               contractId: input.contractId,
-              seasonId: item.seasonId,
               supplementType: "OCCUPANCY" as const,
               forAdults: item.forAdults,
               value: item.value,
@@ -143,10 +137,9 @@ export const contractSupplementRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: input.items.map((item) => ({
               contractId: input.contractId,
-              seasonId: item.seasonId,
               supplementType: "CHILD" as const,
+              childPosition: item.childPosition,
               forChildCategory: item.forChildCategory,
-              forChildBedding: item.forChildBedding,
               value: item.value,
               valueType: item.valueType,
               perNight: item.perNight,
@@ -172,7 +165,6 @@ export const contractSupplementRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: input.items.map((item) => ({
               contractId: input.contractId,
-              seasonId: item.seasonId,
               supplementType: "EXTRA_BED" as const,
               value: item.value,
               valueType: item.valueType,
@@ -183,45 +175,6 @@ export const contractSupplementRouter = createTRPCRouter({
       });
 
       return { success: true };
-    }),
-
-  createView: proc
-    .input(supplementViewCreateSchema)
-    .mutation(async ({ ctx, input }) => {
-      await verifyContract(ctx.db, input.contractId, ctx.companyId);
-
-      return ctx.db.contractSupplement.create({
-        data: {
-          contractId: input.contractId,
-          seasonId: input.seasonId,
-          supplementType: "VIEW",
-          label: input.label,
-          value: input.value,
-          valueType: input.valueType,
-          perPerson: input.perPerson,
-          perNight: input.perNight,
-          notes: input.notes ?? null,
-          sortOrder: input.sortOrder,
-        },
-      });
-    }),
-
-  updateView: proc
-    .input(z.object({ id: z.string(), data: supplementViewUpdateSchema }))
-    .mutation(async ({ ctx, input }) => {
-      const supplement = await ctx.db.contractSupplement.findFirstOrThrow({
-        where: { id: input.id },
-        include: { contract: { select: { companyId: true } } },
-      });
-
-      if (supplement.contract.companyId !== ctx.companyId) {
-        throw new Error("Not found");
-      }
-
-      return ctx.db.contractSupplement.update({
-        where: { id: input.id },
-        data: input.data,
-      });
     }),
 
   delete: proc

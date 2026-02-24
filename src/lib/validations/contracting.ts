@@ -261,7 +261,6 @@ export const contractBaseRateBulkSaveSchema = z.object({
 export const supplementRoomTypeBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
-    seasonId: z.string().min(1),
     roomTypeId: z.string().min(1),
     value: z.number(),
     valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
@@ -273,7 +272,6 @@ export const supplementRoomTypeBulkSaveSchema = z.object({
 export const supplementMealBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
-    seasonId: z.string().min(1),
     mealBasisId: z.string().min(1),
     value: z.number(),
     valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
@@ -286,7 +284,6 @@ export const supplementMealBulkSaveSchema = z.object({
 export const supplementOccupancyBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
-    seasonId: z.string().min(1),
     forAdults: z.number().int().min(1),
     value: z.number(),
     valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
@@ -298,11 +295,10 @@ export const supplementOccupancyBulkSaveSchema = z.object({
 export const supplementChildBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
-    seasonId: z.string().min(1),
-    forChildCategory: z.enum(["INFANT", "CHILD", "TEEN"]),
-    forChildBedding: z.enum(["SHARING_WITH_PARENTS", "EXTRA_BED", "OWN_BED"]),
+    childPosition: z.number().int().min(1),
+    forChildCategory: z.enum(["INFANT", "CHILD", "TEEN"]).nullable(),
     value: z.number(),
-    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("PERCENTAGE"),
     perNight: z.boolean().default(true),
   })),
 });
@@ -310,34 +306,10 @@ export const supplementChildBulkSaveSchema = z.object({
 export const supplementExtraBedBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
-    seasonId: z.string().min(1),
     value: z.number(),
     valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
     perNight: z.boolean().default(true),
   })),
-});
-
-export const supplementViewCreateSchema = z.object({
-  contractId: z.string().min(1, "Contract is required"),
-  seasonId: z.string().min(1, "Season is required"),
-  label: z.string().min(1, "Label is required"),
-  value: z.number(),
-  valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
-  perPerson: z.boolean().default(true),
-  perNight: z.boolean().default(true),
-  notes: z.string().nullish(),
-  sortOrder: z.number().int().default(0),
-});
-
-export const supplementViewUpdateSchema = z.object({
-  label: z.string().min(1, "Label is required").optional(),
-  seasonId: z.string().min(1).optional(),
-  value: z.number().optional(),
-  valueType: z.enum(["FIXED", "PERCENTAGE"]).optional(),
-  perPerson: z.boolean().optional(),
-  perNight: z.boolean().optional(),
-  notes: z.string().nullish(),
-  sortOrder: z.number().int().optional(),
 });
 
 // ── Rate Calculator Schemas ──
@@ -350,10 +322,8 @@ export const rateCalculatorInputSchema = z.object({
   adults: z.number().int().min(1).max(4).default(2),
   children: z.array(z.object({
     category: z.enum(["INFANT", "CHILD", "TEEN"]),
-    bedding: z.enum(["SHARING_WITH_PARENTS", "EXTRA_BED", "OWN_BED"]),
   })).default([]),
   extraBed: z.boolean().default(false),
-  viewLabel: z.string().nullish(),
   nights: z.number().int().min(1).default(1),
   bookingDate: z.string().nullish(),
   checkInDate: z.string().nullish(),

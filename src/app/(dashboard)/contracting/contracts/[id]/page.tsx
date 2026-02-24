@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -113,13 +113,13 @@ type BaseRateData = {
 type SupplementData = {
   id: string;
   contractId: string;
-  seasonId: string;
   supplementType: string;
   roomTypeId: string | null;
   mealBasisId: string | null;
   forAdults: number | null;
   forChildCategory: string | null;
   forChildBedding: string | null;
+  childPosition: number | null;
   valueType: string;
   value: string | number;
   isReduction: boolean;
@@ -128,7 +128,6 @@ type SupplementData = {
   label: string | null;
   notes: string | null;
   sortOrder: number;
-  season: { id: string; name: string; code: string };
   roomType: { id: string; name: string; code: string } | null;
   mealBasis: { id: string; name: string; mealCode: string } | null;
 };
@@ -1696,11 +1695,20 @@ function BaseRatesTab({
 // ─── Supplements Tab ─────────────────────────────────────
 
 type CellValue = { value: string; valueType: string };
-type GridState = Record<string, CellValue>; // key = "rowId:seasonId"
+type GridState = Record<string, CellValue>; // key = rowId
 
-function cellKey(rowId: string, seasonId: string) {
-  return `${rowId}:${seasonId}`;
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+
+type ChildSupColumn = {
+  position: number;
+  category: "INFANT" | "CHILD" | "TEEN" | null;
+  label: string;
+  key: string;
+};
 
 function SupplementsTab({
   contractId,
@@ -1710,37 +1718,32 @@ function SupplementsTab({
   contract: ContractData;
 }) {
   const utils = trpc.useUtils();
-  const seasons = contract.seasons;
-
-  // Fetch hotel detail for child policies
-  const { data: hotelDetail } = trpc.contracting.hotel.getById.useQuery({
-    id: contract.hotelId,
-  });
 
   // Non-base room types & meal bases
   const nonBaseRoomTypes = contract.roomTypes.filter((rt) => !rt.isBase);
   const nonBaseMealBases = contract.mealBases.filter((mb) => !mb.isBase);
 
-  // Child policies
-  const childPolicies: { category: string; bedding: string; label: string }[] = [];
-  for (const cp of hotelDetail?.childrenPolicies ?? []) {
-    const cat = cp.category as string;
-    const catLabel = CHILD_AGE_CATEGORY_LABELS[cat] ?? cat;
-    childPolicies.push({
-      category: cat,
-      bedding: "SHARING_WITH_PARENTS",
-      label: `${catLabel} — Sharing`,
-    });
-    childPolicies.push({
-      category: cat,
-      bedding: "EXTRA_BED",
-      label: `${catLabel} — Extra Bed`,
-    });
-    childPolicies.push({
-      category: cat,
-      bedding: "OWN_BED",
-      label: `${catLabel} — Own Bed`,
-    });
+  // Compute max children across all contracted room types
+  const maxChildren = Math.max(
+    0,
+    ...contract.roomTypes.map((rt) => rt.roomType.maxChildren ?? 1),
+  );
+
+  // Build position-based child supplement columns
+  const childColumns: ChildSupColumn[] = [];
+  if (maxChildren >= 1) {
+    childColumns.push({ position: 1, category: null, label: "1st Child", key: "pos:1:cat:null" });
+  }
+  for (let pos = 2; pos <= maxChildren; pos++) {
+    for (const cat of ["INFANT", "CHILD", "TEEN"] as const) {
+      const catLabel = CHILD_AGE_CATEGORY_LABELS[cat] ?? cat;
+      childColumns.push({
+        position: pos,
+        category: cat,
+        label: `${ordinal(pos)} Chd (${catLabel})`,
+        key: `pos:${pos}:cat:${cat}`,
+      });
+    }
   }
 
   // Group existing supplements by type
@@ -1750,20 +1753,11 @@ function SupplementsTab({
     byType[s.supplementType].push(s);
   }
 
-  if (seasons.length === 0) {
-    return (
-      <div className="py-10 text-center text-muted-foreground">
-        Add seasons first before configuring supplements.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Room Type Supplements */}
       <RoomTypeSupplementGrid
         contractId={contractId}
-        seasons={seasons}
         roomTypes={nonBaseRoomTypes}
         existing={byType["ROOM_TYPE"] ?? []}
         utils={utils}
@@ -1772,7 +1766,6 @@ function SupplementsTab({
       {/* Meal Supplements */}
       <MealSupplementGrid
         contractId={contractId}
-        seasons={seasons}
         mealBases={nonBaseMealBases}
         existing={byType["MEAL"] ?? []}
         utils={utils}
@@ -1781,7 +1774,6 @@ function SupplementsTab({
       {/* Occupancy Supplements */}
       <OccupancySupplementGrid
         contractId={contractId}
-        seasons={seasons}
         existing={byType["OCCUPANCY"] ?? []}
         utils={utils}
       />
@@ -1789,8 +1781,7 @@ function SupplementsTab({
       {/* Child Supplements */}
       <ChildSupplementGrid
         contractId={contractId}
-        seasons={seasons}
-        childPolicies={childPolicies}
+        childColumns={childColumns}
         existing={byType["CHILD"] ?? []}
         utils={utils}
       />
@@ -1798,18 +1789,10 @@ function SupplementsTab({
       {/* Extra Bed Supplements */}
       <ExtraBedSupplementGrid
         contractId={contractId}
-        seasons={seasons}
         existing={byType["EXTRA_BED"] ?? []}
         utils={utils}
       />
 
-      {/* View Supplements */}
-      <ViewSupplementSection
-        contractId={contractId}
-        seasons={seasons}
-        existing={byType["VIEW"] ?? []}
-        utils={utils}
-      />
     </div>
   );
 }
@@ -1818,13 +1801,11 @@ function SupplementsTab({
 
 function RoomTypeSupplementGrid({
   contractId,
-  seasons,
   roomTypes,
   existing,
   utils,
 }: {
   contractId: string;
-  seasons: SeasonData[];
   roomTypes: ContractRoomTypeData[];
   existing: SupplementData[];
   utils: ReturnType<typeof trpc.useUtils>;
@@ -1832,8 +1813,8 @@ function RoomTypeSupplementGrid({
   const [grid, setGrid] = useState<GridState>(() => {
     const init: GridState = {};
     for (const s of existing) {
-      if (s.roomTypeId && s.seasonId) {
-        init[cellKey(s.roomTypeId, s.seasonId)] = {
+      if (s.roomTypeId) {
+        init[s.roomTypeId] = {
           value: String(Number(s.value)),
           valueType: s.valueType,
         };
@@ -1847,20 +1828,17 @@ function RoomTypeSupplementGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; roomTypeId: string; value: number; valueType: "FIXED" | "PERCENTAGE"; perPerson: boolean; perNight: boolean }[] = [];
+    const items: { roomTypeId: string; value: number; valueType: "FIXED" | "PERCENTAGE"; perPerson: boolean; perNight: boolean }[] = [];
     for (const rt of roomTypes) {
-      for (const season of seasons) {
-        const cell = grid[cellKey(rt.roomTypeId, season.id)];
-        if (cell && cell.value && Number(cell.value) !== 0) {
-          items.push({
-            seasonId: season.id,
-            roomTypeId: rt.roomTypeId,
-            value: Number(cell.value),
-            valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
-            perPerson: true,
-            perNight: true,
-          });
-        }
+      const cell = grid[rt.roomTypeId];
+      if (cell && cell.value && Number(cell.value) !== 0) {
+        items.push({
+          roomTypeId: rt.roomTypeId,
+          value: Number(cell.value),
+          valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
+          perPerson: true,
+          perNight: true,
+        });
       }
     }
     saveMutation.mutate({ contractId, items });
@@ -1893,63 +1871,57 @@ function RoomTypeSupplementGrid({
         {saveMutation.error && (
           <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
         )}
-        <Table>
+        <Table className="w-auto">
           <TableHeader>
             <TableRow>
               <TableHead>Room Type</TableHead>
-              {seasons.map((s) => (
-                <TableHead key={s.id}>{s.name}</TableHead>
-              ))}
+              <TableHead>Value</TableHead>
+              <TableHead>Type</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {roomTypes.map((rt) => (
               <TableRow key={rt.roomTypeId}>
                 <TableCell className="font-medium">{rt.roomType.name}</TableCell>
-                {seasons.map((s) => {
-                  const key = cellKey(rt.roomTypeId, s.id);
-                  return (
-                    <TableCell key={s.id}>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          className="w-24"
-                          value={grid[key]?.value ?? ""}
-                          onChange={(e) =>
-                            setGrid((prev) => ({
-                              ...prev,
-                              [key]: {
-                                value: e.target.value,
-                                valueType: prev[key]?.valueType ?? "FIXED",
-                              },
-                            }))
-                          }
-                        />
-                        <Select
-                          value={grid[key]?.valueType ?? "FIXED"}
-                          onValueChange={(vt) =>
-                            setGrid((prev) => ({
-                              ...prev,
-                              [key]: {
-                                value: prev[key]?.value ?? "",
-                                valueType: vt,
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="w-16">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
-                            <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
-                  );
-                })}
+                <TableCell>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="w-24"
+                    value={grid[rt.roomTypeId]?.value ?? ""}
+                    onChange={(e) =>
+                      setGrid((prev) => ({
+                        ...prev,
+                        [rt.roomTypeId]: {
+                          value: e.target.value,
+                          valueType: prev[rt.roomTypeId]?.valueType ?? "FIXED",
+                        },
+                      }))
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={grid[rt.roomTypeId]?.valueType ?? "FIXED"}
+                    onValueChange={(vt) =>
+                      setGrid((prev) => ({
+                        ...prev,
+                        [rt.roomTypeId]: {
+                          value: prev[rt.roomTypeId]?.value ?? "",
+                          valueType: vt,
+                        },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
+                      <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -1963,13 +1935,11 @@ function RoomTypeSupplementGrid({
 
 function MealSupplementGrid({
   contractId,
-  seasons,
   mealBases,
   existing,
   utils,
 }: {
   contractId: string;
-  seasons: SeasonData[];
   mealBases: ContractMealBasisData[];
   existing: SupplementData[];
   utils: ReturnType<typeof trpc.useUtils>;
@@ -1977,9 +1947,10 @@ function MealSupplementGrid({
   const [grid, setGrid] = useState<GridState>(() => {
     const init: GridState = {};
     for (const s of existing) {
-      if (s.mealBasisId && s.seasonId) {
-        init[cellKey(s.mealBasisId, s.seasonId)] = {
-          value: String(Number(s.value)),
+      if (s.mealBasisId) {
+        const storedValue = s.isReduction ? -Number(s.value) : Number(s.value);
+        init[s.mealBasisId] = {
+          value: String(storedValue),
           valueType: s.valueType,
         };
       }
@@ -1992,21 +1963,18 @@ function MealSupplementGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; mealBasisId: string; value: number; valueType: "FIXED" | "PERCENTAGE"; isReduction: boolean; perPerson: boolean; perNight: boolean }[] = [];
+    const items: { mealBasisId: string; value: number; valueType: "FIXED" | "PERCENTAGE"; isReduction: boolean; perPerson: boolean; perNight: boolean }[] = [];
     for (const mb of mealBases) {
-      for (const season of seasons) {
-        const cell = grid[cellKey(mb.mealBasisId, season.id)];
-        if (cell && cell.value && Number(cell.value) !== 0) {
-          items.push({
-            seasonId: season.id,
-            mealBasisId: mb.mealBasisId,
-            value: Math.abs(Number(cell.value)),
-            valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
-            isReduction: Number(cell.value) < 0,
-            perPerson: true,
-            perNight: true,
-          });
-        }
+      const cell = grid[mb.mealBasisId];
+      if (cell && cell.value && Number(cell.value) !== 0) {
+        items.push({
+          mealBasisId: mb.mealBasisId,
+          value: Math.abs(Number(cell.value)),
+          valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
+          isReduction: Number(cell.value) < 0,
+          perPerson: true,
+          perNight: true,
+        });
       }
     }
     saveMutation.mutate({ contractId, items });
@@ -2039,63 +2007,57 @@ function MealSupplementGrid({
         {saveMutation.error && (
           <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
         )}
-        <Table>
+        <Table className="w-auto">
           <TableHeader>
             <TableRow>
               <TableHead>Meal Plan</TableHead>
-              {seasons.map((s) => (
-                <TableHead key={s.id}>{s.name}</TableHead>
-              ))}
+              <TableHead>Value</TableHead>
+              <TableHead>Type</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {mealBases.map((mb) => (
               <TableRow key={mb.mealBasisId}>
                 <TableCell className="font-medium">{mb.mealBasis.name}</TableCell>
-                {seasons.map((s) => {
-                  const key = cellKey(mb.mealBasisId, s.id);
-                  return (
-                    <TableCell key={s.id}>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          className="w-24"
-                          value={grid[key]?.value ?? ""}
-                          onChange={(e) =>
-                            setGrid((prev) => ({
-                              ...prev,
-                              [key]: {
-                                value: e.target.value,
-                                valueType: prev[key]?.valueType ?? "FIXED",
-                              },
-                            }))
-                          }
-                        />
-                        <Select
-                          value={grid[key]?.valueType ?? "FIXED"}
-                          onValueChange={(vt) =>
-                            setGrid((prev) => ({
-                              ...prev,
-                              [key]: {
-                                value: prev[key]?.value ?? "",
-                                valueType: vt,
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="w-16">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
-                            <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
-                  );
-                })}
+                <TableCell>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="w-24"
+                    value={grid[mb.mealBasisId]?.value ?? ""}
+                    onChange={(e) =>
+                      setGrid((prev) => ({
+                        ...prev,
+                        [mb.mealBasisId]: {
+                          value: e.target.value,
+                          valueType: prev[mb.mealBasisId]?.valueType ?? "FIXED",
+                        },
+                      }))
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={grid[mb.mealBasisId]?.valueType ?? "FIXED"}
+                    onValueChange={(vt) =>
+                      setGrid((prev) => ({
+                        ...prev,
+                        [mb.mealBasisId]: {
+                          value: prev[mb.mealBasisId]?.value ?? "",
+                          valueType: vt,
+                        },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
+                      <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -2114,12 +2076,10 @@ const OCCUPANCY_ROWS = [
 
 function OccupancySupplementGrid({
   contractId,
-  seasons,
   existing,
   utils,
 }: {
   contractId: string;
-  seasons: SeasonData[];
   existing: SupplementData[];
   utils: ReturnType<typeof trpc.useUtils>;
 }) {
@@ -2127,7 +2087,7 @@ function OccupancySupplementGrid({
     const init: GridState = {};
     for (const s of existing) {
       if (s.forAdults != null) {
-        init[cellKey(String(s.forAdults), s.seasonId)] = {
+        init[String(s.forAdults)] = {
           value: String(Number(s.value)),
           valueType: s.valueType,
         };
@@ -2141,20 +2101,18 @@ function OccupancySupplementGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; forAdults: number; value: number; valueType: "FIXED" | "PERCENTAGE"; isReduction: boolean; perNight: boolean }[] = [];
+    const items: { forAdults: number; value: number; valueType: "FIXED" | "PERCENTAGE"; isReduction: boolean; perNight: boolean }[] = [];
     for (const row of OCCUPANCY_ROWS) {
-      for (const season of seasons) {
-        const cell = grid[cellKey(String(row.forAdults), season.id)];
-        if (cell && cell.value && Number(cell.value) !== 0) {
-          items.push({
-            seasonId: season.id,
-            forAdults: row.forAdults,
-            value: Math.abs(Number(cell.value)),
-            valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
-            isReduction: row.forAdults === 3,
-            perNight: true,
-          });
-        }
+      const key = String(row.forAdults);
+      const cell = grid[key];
+      if (cell && cell.value && Number(cell.value) !== 0) {
+        items.push({
+          forAdults: row.forAdults,
+          value: Math.abs(Number(cell.value)),
+          valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
+          isReduction: row.forAdults === 3,
+          perNight: true,
+        });
       }
     }
     saveMutation.mutate({ contractId, items });
@@ -2172,65 +2130,62 @@ function OccupancySupplementGrid({
         {saveMutation.error && (
           <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
         )}
-        <Table>
+        <Table className="w-auto">
           <TableHeader>
             <TableRow>
               <TableHead>Occupancy</TableHead>
-              {seasons.map((s) => (
-                <TableHead key={s.id}>{s.name}</TableHead>
-              ))}
+              <TableHead>Value</TableHead>
+              <TableHead>Type</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {OCCUPANCY_ROWS.map((row) => (
-              <TableRow key={row.forAdults}>
-                <TableCell className="font-medium">{row.label}</TableCell>
-                {seasons.map((s) => {
-                  const key = cellKey(String(row.forAdults), s.id);
-                  return (
-                    <TableCell key={s.id}>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          className="w-24"
-                          value={grid[key]?.value ?? ""}
-                          onChange={(e) =>
-                            setGrid((prev) => ({
-                              ...prev,
-                              [key]: {
-                                value: e.target.value,
-                                valueType: prev[key]?.valueType ?? "FIXED",
-                              },
-                            }))
-                          }
-                        />
-                        <Select
-                          value={grid[key]?.valueType ?? "FIXED"}
-                          onValueChange={(vt) =>
-                            setGrid((prev) => ({
-                              ...prev,
-                              [key]: {
-                                value: prev[key]?.value ?? "",
-                                valueType: vt,
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="w-16">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
-                            <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
+            {OCCUPANCY_ROWS.map((row) => {
+              const key = String(row.forAdults);
+              return (
+                <TableRow key={row.forAdults}>
+                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="w-24"
+                      value={grid[key]?.value ?? ""}
+                      onChange={(e) =>
+                        setGrid((prev) => ({
+                          ...prev,
+                          [key]: {
+                            value: e.target.value,
+                            valueType: prev[key]?.valueType ?? "FIXED",
+                          },
+                        }))
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={grid[key]?.valueType ?? "FIXED"}
+                      onValueChange={(vt) =>
+                        setGrid((prev) => ({
+                          ...prev,
+                          [key]: {
+                            value: prev[key]?.value ?? "",
+                            valueType: vt,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
+                        <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
@@ -2242,22 +2197,21 @@ function OccupancySupplementGrid({
 
 function ChildSupplementGrid({
   contractId,
-  seasons,
-  childPolicies,
+  childColumns,
   existing,
   utils,
 }: {
   contractId: string;
-  seasons: SeasonData[];
-  childPolicies: { category: string; bedding: string; label: string }[];
+  childColumns: ChildSupColumn[];
   existing: SupplementData[];
   utils: ReturnType<typeof trpc.useUtils>;
 }) {
   const [grid, setGrid] = useState<GridState>(() => {
     const init: GridState = {};
     for (const s of existing) {
-      if (s.forChildCategory && s.forChildBedding) {
-        init[cellKey(`${s.forChildCategory}:${s.forChildBedding}`, s.seasonId)] = {
+      if (s.childPosition != null) {
+        const catKey = s.forChildCategory ?? "null";
+        init[`pos:${s.childPosition}:cat:${catKey}`] = {
           value: String(Number(s.value)),
           valueType: s.valueType,
         };
@@ -2271,34 +2225,31 @@ function ChildSupplementGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; forChildCategory: "INFANT" | "CHILD" | "TEEN"; forChildBedding: "SHARING_WITH_PARENTS" | "EXTRA_BED" | "OWN_BED"; value: number; valueType: "FIXED" | "PERCENTAGE"; perNight: boolean }[] = [];
-    for (const cp of childPolicies) {
-      for (const season of seasons) {
-        const cell = grid[cellKey(`${cp.category}:${cp.bedding}`, season.id)];
-        if (cell && cell.value && Number(cell.value) !== 0) {
-          items.push({
-            seasonId: season.id,
-            forChildCategory: cp.category as "INFANT" | "CHILD" | "TEEN",
-            forChildBedding: cp.bedding as "SHARING_WITH_PARENTS" | "EXTRA_BED" | "OWN_BED",
-            value: Number(cell.value),
-            valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
-            perNight: true,
-          });
-        }
+    const items: { childPosition: number; forChildCategory: "INFANT" | "CHILD" | "TEEN" | null; value: number; valueType: "FIXED" | "PERCENTAGE"; perNight: boolean }[] = [];
+    for (const col of childColumns) {
+      const cell = grid[col.key];
+      if (cell && cell.value && Number(cell.value) !== 0) {
+        items.push({
+          childPosition: col.position,
+          forChildCategory: col.category,
+          value: Number(cell.value),
+          valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "PERCENTAGE",
+          perNight: true,
+        });
       }
     }
     saveMutation.mutate({ contractId, items });
   }
 
-  if (childPolicies.length === 0) {
+  if (childColumns.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Child Supplements</CardTitle>
+          <CardTitle>Child Discount Supplements</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No child policies defined for this hotel. Add child policies in hotel settings first.
+            No room types configured or max children is 0.
           </p>
         </CardContent>
       </Card>
@@ -2308,7 +2259,7 @@ function ChildSupplementGrid({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Child Supplements</CardTitle>
+        <CardTitle>Child Discount Supplements</CardTitle>
         <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? "Saving..." : "Save"}
         </Button>
@@ -2317,70 +2268,67 @@ function ChildSupplementGrid({
         {saveMutation.error && (
           <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
         )}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Child Category</TableHead>
-              {seasons.map((s) => (
-                <TableHead key={s.id}>{s.name}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {childPolicies.map((cp) => {
-              const rowId = `${cp.category}:${cp.bedding}`;
-              return (
-                <TableRow key={rowId}>
-                  <TableCell className="font-medium">{cp.label}</TableCell>
-                  {seasons.map((s) => {
-                    const key = cellKey(rowId, s.id);
-                    return (
-                      <TableCell key={s.id}>
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            className="w-24"
-                            value={grid[key]?.value ?? ""}
-                            onChange={(e) =>
-                              setGrid((prev) => ({
-                                ...prev,
-                                [key]: {
-                                  value: e.target.value,
-                                  valueType: prev[key]?.valueType ?? "FIXED",
-                                },
-                              }))
-                            }
-                          />
-                          <Select
-                            value={grid[key]?.valueType ?? "FIXED"}
-                            onValueChange={(vt) =>
-                              setGrid((prev) => ({
-                                ...prev,
-                                [key]: {
-                                  value: prev[key]?.value ?? "",
-                                  valueType: vt,
-                                },
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="w-16">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
-                              <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="overflow-x-auto">
+          <Table className="w-auto">
+            <TableHeader>
+              <TableRow>
+                {childColumns.map((col) => (
+                  <TableHead key={col.key} className="text-center min-w-[120px]">
+                    {col.label}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                {childColumns.map((col) => (
+                  <TableCell key={col.key}>
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="w-24"
+                        value={grid[col.key]?.value ?? ""}
+                        onChange={(e) =>
+                          setGrid((prev) => ({
+                            ...prev,
+                            [col.key]: {
+                              value: e.target.value,
+                              valueType: prev[col.key]?.valueType ?? "PERCENTAGE",
+                            },
+                          }))
+                        }
+                      />
+                      <Select
+                        value={grid[col.key]?.valueType ?? "PERCENTAGE"}
+                        onValueChange={(vt) =>
+                          setGrid((prev) => ({
+                            ...prev,
+                            [col.key]: {
+                              value: prev[col.key]?.value ?? "",
+                              valueType: vt,
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PERCENTAGE">%</SelectItem>
+                          <SelectItem value="FIXED">Fixed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Values are discounts off base rate. 1st Child applies to Child age category only (Infants are free, Teens charged as adults).
+        </p>
       </CardContent>
     </Card>
   );
@@ -2390,19 +2338,17 @@ function ChildSupplementGrid({
 
 function ExtraBedSupplementGrid({
   contractId,
-  seasons,
   existing,
   utils,
 }: {
   contractId: string;
-  seasons: SeasonData[];
   existing: SupplementData[];
   utils: ReturnType<typeof trpc.useUtils>;
 }) {
   const [grid, setGrid] = useState<GridState>(() => {
     const init: GridState = {};
     for (const s of existing) {
-      init[cellKey("extrabed", s.seasonId)] = {
+      init["extrabed"] = {
         value: String(Number(s.value)),
         valueType: s.valueType,
       };
@@ -2415,17 +2361,14 @@ function ExtraBedSupplementGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; value: number; valueType: "FIXED" | "PERCENTAGE"; perNight: boolean }[] = [];
-    for (const season of seasons) {
-      const cell = grid[cellKey("extrabed", season.id)];
-      if (cell && cell.value && Number(cell.value) !== 0) {
-        items.push({
-          seasonId: season.id,
-          value: Number(cell.value),
-          valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
-          perNight: true,
-        });
-      }
+    const items: { value: number; valueType: "FIXED" | "PERCENTAGE"; perNight: boolean }[] = [];
+    const cell = grid["extrabed"];
+    if (cell && cell.value && Number(cell.value) !== 0) {
+      items.push({
+        value: Number(cell.value),
+        valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "FIXED",
+        perNight: true,
+      });
     }
     saveMutation.mutate({ contractId, items });
   }
@@ -2442,62 +2385,56 @@ function ExtraBedSupplementGrid({
         {saveMutation.error && (
           <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
         )}
-        <Table>
+        <Table className="w-auto">
           <TableHeader>
             <TableRow>
               <TableHead>Type</TableHead>
-              {seasons.map((s) => (
-                <TableHead key={s.id}>{s.name}</TableHead>
-              ))}
+              <TableHead>Value</TableHead>
+              <TableHead>Type</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow>
               <TableCell className="font-medium">Extra Bed</TableCell>
-              {seasons.map((s) => {
-                const key = cellKey("extrabed", s.id);
-                return (
-                  <TableCell key={s.id}>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-24"
-                        value={grid[key]?.value ?? ""}
-                        onChange={(e) =>
-                          setGrid((prev) => ({
-                            ...prev,
-                            [key]: {
-                              value: e.target.value,
-                              valueType: prev[key]?.valueType ?? "FIXED",
-                            },
-                          }))
-                        }
-                      />
-                      <Select
-                        value={grid[key]?.valueType ?? "FIXED"}
-                        onValueChange={(vt) =>
-                          setGrid((prev) => ({
-                            ...prev,
-                            [key]: {
-                              value: prev[key]?.value ?? "",
-                              valueType: vt,
-                            },
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="w-16">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
-                          <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </TableCell>
-                );
-              })}
+              <TableCell>
+                <Input
+                  type="number"
+                  step="0.01"
+                  className="w-24"
+                  value={grid["extrabed"]?.value ?? ""}
+                  onChange={(e) =>
+                    setGrid((prev) => ({
+                      ...prev,
+                      ["extrabed"]: {
+                        value: e.target.value,
+                        valueType: prev["extrabed"]?.valueType ?? "FIXED",
+                      },
+                    }))
+                  }
+                />
+              </TableCell>
+              <TableCell>
+                <Select
+                  value={grid["extrabed"]?.valueType ?? "FIXED"}
+                  onValueChange={(vt) =>
+                    setGrid((prev) => ({
+                      ...prev,
+                      ["extrabed"]: {
+                        value: prev["extrabed"]?.value ?? "",
+                        valueType: vt,
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
+                    <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -2507,249 +2444,6 @@ function ExtraBedSupplementGrid({
 }
 
 // ─── View Supplement Section ──────────────────────────────
-
-function ViewSupplementSection({
-  contractId,
-  seasons,
-  existing,
-  utils,
-}: {
-  contractId: string;
-  seasons: SeasonData[];
-  existing: SupplementData[];
-  utils: ReturnType<typeof trpc.useUtils>;
-}) {
-  const [showDialog, setShowDialog] = useState(false);
-  const [editing, setEditing] = useState<SupplementData | null>(null);
-  const [label, setLabel] = useState("");
-  const [seasonId, setSeasonId] = useState("");
-  const [value, setValue] = useState("");
-  const [valueType, setValueType] = useState("FIXED");
-  const [notes, setNotes] = useState("");
-
-  const createMutation = trpc.contracting.contractSupplement.createView.useMutation({
-    onSuccess: () => {
-      utils.contracting.contract.getById.invalidate({ id: contractId });
-      setShowDialog(false);
-      resetForm();
-    },
-  });
-
-  const updateMutation = trpc.contracting.contractSupplement.updateView.useMutation({
-    onSuccess: () => {
-      utils.contracting.contract.getById.invalidate({ id: contractId });
-      setShowDialog(false);
-      setEditing(null);
-      resetForm();
-    },
-  });
-
-  const deleteMutation = trpc.contracting.contractSupplement.delete.useMutation({
-    onSuccess: () => utils.contracting.contract.getById.invalidate({ id: contractId }),
-  });
-
-  function resetForm() {
-    setLabel("");
-    setSeasonId("");
-    setValue("");
-    setValueType("FIXED");
-    setNotes("");
-  }
-
-  function openCreate() {
-    resetForm();
-    setEditing(null);
-    setShowDialog(true);
-  }
-
-  function openEdit(s: SupplementData) {
-    setEditing(s);
-    setLabel(s.label ?? "");
-    setSeasonId(s.seasonId);
-    setValue(String(Number(s.value)));
-    setValueType(s.valueType);
-    setNotes(s.notes ?? "");
-    setShowDialog(true);
-  }
-
-  function handleSubmit() {
-    if (editing) {
-      updateMutation.mutate({
-        id: editing.id,
-        data: {
-          label,
-          seasonId,
-          value: Number(value),
-          valueType: valueType as "FIXED" | "PERCENTAGE",
-          notes: notes || null,
-        },
-      });
-    } else {
-      createMutation.mutate({
-        contractId,
-        seasonId,
-        label,
-        value: Number(value),
-        valueType: valueType as "FIXED" | "PERCENTAGE",
-        perPerson: true,
-        perNight: true,
-        notes: notes || null,
-        sortOrder: existing.length,
-      });
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>View Supplements</CardTitle>
-        <Button size="sm" onClick={openCreate}>
-          Add View
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Label</TableHead>
-              <TableHead>Season</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead className="w-[120px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {existing.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
-                  No view supplements defined
-                </TableCell>
-              </TableRow>
-            ) : (
-              existing.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.label}</TableCell>
-                  <TableCell>{s.season.name}</TableCell>
-                  <TableCell>{Number(s.value)}</TableCell>
-                  <TableCell>{SUPPLEMENT_VALUE_TYPE_LABELS[s.valueType]}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{s.notes ?? "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => deleteMutation.mutate({ id: s.id })}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-
-        <Dialog
-          open={showDialog}
-          onOpenChange={(open) => {
-            setShowDialog(open);
-            if (!open) {
-              setEditing(null);
-              resetForm();
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editing ? "Edit View Supplement" : "Add View Supplement"}</DialogTitle>
-              <DialogDescription>
-                Define a view supplement (e.g., Sea View, Garden View) for a specific season.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Label</label>
-                <Input
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  placeholder="Sea View"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Season</label>
-                <Select value={seasonId} onValueChange={setSeasonId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select season" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {seasons.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Value</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Type</label>
-                  <Select value={valueType} onValueChange={setValueType}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="FIXED">Fixed</SelectItem>
-                      <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Notes</label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes..."
-                />
-              </div>
-            </div>
-            {(createMutation.error || updateMutation.error) && (
-              <p className="text-sm text-destructive">
-                {createMutation.error?.message ?? updateMutation.error?.message}
-              </p>
-            )}
-            <DialogFooter>
-              <Button
-                onClick={handleSubmit}
-                disabled={
-                  !label || !seasonId || !value ||
-                  createMutation.isPending || updateMutation.isPending
-                }
-              >
-                {editing ? "Update" : "Add"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
-  );
-}
 
 // ─── Special Offers Tab ──────────────────────────────────
 
@@ -3132,6 +2826,10 @@ type StopSaleData = {
   roomType: { id: string; name: string; code: string } | null;
 };
 
+function cellKey(rowId: string, colId: string) {
+  return `${rowId}:${colId}`;
+}
+
 function AllotmentsTab({
   contractId,
   contract,
@@ -3478,8 +3176,7 @@ function RateSheetTab({
   const [adults, setAdults] = useState(2);
   const [nights, setNights] = useState(1);
   const [extraBed, setExtraBed] = useState(false);
-  const [viewLabel, setViewLabel] = useState<string | null>(null);
-  const [children, setChildren] = useState<{ category: string; bedding: string }[]>([]);
+  const [children, setChildren] = useState<{ category: string }[]>([]);
   const [bookingDate, setBookingDate] = useState("");
   const [checkInDate, setCheckInDate] = useState("");
 
@@ -3493,10 +3190,8 @@ function RateSheetTab({
         adults,
         children: children.map((c) => ({
           category: c.category as "INFANT" | "CHILD" | "TEEN",
-          bedding: c.bedding as "SHARING_WITH_PARENTS" | "EXTRA_BED" | "OWN_BED",
         })),
         extraBed,
-        viewLabel,
         nights,
         bookingDate: bookingDate || null,
         checkInDate: checkInDate || null,
@@ -3512,11 +3207,15 @@ function RateSheetTab({
     );
   }
 
-  // Build rate lookup for the grid
-  const rateLookup = new Map<string, number>();
+  // Build rate lookup for the grid (stores full breakdown per cell)
+  type CellBreakdown = NonNullable<typeof rateSheet>["cells"][number]["breakdown"] | undefined;
+  const rateLookup = new Map<string, { rate: number; breakdown: CellBreakdown }>();
   if (rateSheet) {
     for (const cell of rateSheet.cells) {
-      rateLookup.set(`${cell.roomTypeId}:${cell.mealBasisId}:${cell.seasonId}`, cell.rate);
+      rateLookup.set(`${cell.roomTypeId}:${cell.mealBasisId}:${cell.seasonId}`, {
+        rate: cell.rate,
+        breakdown: cell.breakdown,
+      });
     }
   }
 
@@ -3525,7 +3224,7 @@ function RateSheetTab({
       {/* Rate Matrix */}
       <Card>
         <CardHeader>
-          <CardTitle>Rate Matrix (2 Adults / Per Night)</CardTitle>
+          <CardTitle>Rate Matrix (Per Person in Double / Per Night)</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -3538,16 +3237,16 @@ function RateSheetTab({
                 <TableRow>
                   <TableHead className="w-[250px]">Room Type / Meal Plan</TableHead>
                   {rateSheet.seasons.map((s) => (
-                    <TableHead key={s.id} className="text-right">
-                      {s.name}
+                    <TableHead key={s.id} className="text-right text-xs">
+                      {format(new Date(s.dateFrom), "dd MMM")} — {format(new Date(s.dateTo), "dd MMM yyyy")}
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rateSheet.roomTypes.map((rt) => (
-                  <>
-                    <TableRow key={`rt-${rt.id}`} className="bg-muted/50">
+                  <Fragment key={`rt-${rt.id}`}>
+                    <TableRow className="bg-muted/50">
                       <TableCell
                         colSpan={rateSheet.seasons.length + 1}
                         className="font-semibold"
@@ -3571,16 +3270,48 @@ function RateSheetTab({
                           )}
                         </TableCell>
                         {rateSheet.seasons.map((s) => {
-                          const rate = rateLookup.get(`${rt.id}:${mb.id}:${s.id}`);
+                          const cell = rateLookup.get(`${rt.id}:${mb.id}:${s.id}`);
+                          const bd = cell?.breakdown;
                           return (
-                            <TableCell key={s.id} className="text-right font-mono">
-                              {rate != null ? formatCurrency(rate) : "—"}
+                            <TableCell key={s.id} className="text-right align-top">
+                              {bd ? (
+                                <div className="space-y-0.5 text-xs font-mono">
+                                  <div className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">Base</span>
+                                    <span>{formatCurrency(bd.baseRate)}</span>
+                                  </div>
+                                  {bd.roomTypeSupplement && bd.roomTypeSupplement.amount !== 0 && (
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-muted-foreground">Room</span>
+                                      <span>{bd.roomTypeSupplement.amount > 0 ? "+" : ""}{formatCurrency(bd.roomTypeSupplement.amount)}</span>
+                                    </div>
+                                  )}
+                                  {bd.mealSupplement && bd.mealSupplement.amount !== 0 && (
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-muted-foreground">Meal</span>
+                                      <span>{bd.mealSupplement.amount > 0 ? "+" : ""}{formatCurrency(bd.mealSupplement.amount)}</span>
+                                    </div>
+                                  )}
+                                  {bd.occupancySupplement && bd.occupancySupplement.amount !== 0 && (
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-muted-foreground">Occ.</span>
+                                      <span>{bd.occupancySupplement.amount > 0 ? "+" : ""}{formatCurrency(bd.occupancySupplement.amount)}</span>
+                                    </div>
+                                  )}
+                                  <div className="border-t pt-0.5 flex justify-between gap-4 font-semibold text-sm">
+                                    <span>Total</span>
+                                    <span>{formatCurrency(bd.adultTotalPerNight)}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                           );
                         })}
                       </TableRow>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -3663,25 +3394,6 @@ function RateSheetTab({
                 onChange={(e) => setNights(Math.max(1, Number(e.target.value) || 1))}
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">View</label>
-              <Select
-                value={viewLabel ?? "__none__"}
-                onValueChange={(v) => setViewLabel(v === "__none__" ? null : v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {(rateSheet?.viewLabels ?? []).map((vl) => (
-                    <SelectItem key={vl} value={vl}>
-                      {vl}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex items-end gap-2 pb-2">
               <Checkbox
                 id="extraBed"
@@ -3723,7 +3435,7 @@ function RateSheetTab({
                 onClick={() =>
                   setChildren((prev) => [
                     ...prev,
-                    { category: "CHILD", bedding: "SHARING_WITH_PARENTS" },
+                    { category: "CHILD" },
                   ])
                 }
               >
@@ -3753,25 +3465,9 @@ function RateSheetTab({
                         ))}
                       </SelectContent>
                     </Select>
-                    <Select
-                      value={child.bedding}
-                      onValueChange={(v) =>
-                        setChildren((prev) =>
-                          prev.map((c, i) => (i === idx ? { ...c, bedding: v } : c)),
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CHILD_BEDDING_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>
-                            {v}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <span className="text-xs text-muted-foreground">
+                      ({ordinal(idx + 1)} child)
+                    </span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -3815,9 +3511,8 @@ type BreakdownData = {
   roomTypeSupplement: { label: string; amount: number } | null;
   mealSupplement: { label: string; amount: number } | null;
   occupancySupplement: { label: string; amount: number } | null;
-  viewSupplement: { label: string; amount: number } | null;
   extraBedSupplement: { label: string; amount: number } | null;
-  childCharges: { category: string; bedding: string; amount: number; isFree: boolean }[];
+  childCharges: { category: string; position: number; amount: number; isFree: boolean; label: string }[];
   adultTotalPerNight: number;
   childTotalPerNight: number;
   totalPerNight: number;
@@ -3863,13 +3558,6 @@ function RateBreakdownDisplay({
       prefix: breakdown.occupancySupplement.amount < 0 ? "" : "+",
     });
   }
-  if (breakdown.viewSupplement) {
-    lines.push({
-      label: `View (${breakdown.viewSupplement.label})`,
-      amount: breakdown.viewSupplement.amount,
-      prefix: "+",
-    });
-  }
   if (breakdown.extraBedSupplement) {
     lines.push({
       label: breakdown.extraBedSupplement.label,
@@ -3908,8 +3596,7 @@ function RateBreakdownDisplay({
             {breakdown.childCharges.map((cc, idx) => (
               <div key={idx} className="flex justify-between text-sm">
                 <span>
-                  {CHILD_AGE_CATEGORY_LABELS[cc.category] ?? cc.category} —{" "}
-                  {CHILD_BEDDING_LABELS[cc.bedding] ?? cc.bedding}
+                  {cc.label}
                   {cc.isFree && (
                     <Badge variant="secondary" className="ml-2 text-xs">
                       Free

@@ -619,7 +619,6 @@ enum SupplementType {
   MEAL
   OCCUPANCY
   CHILD
-  VIEW
   EXTRA_BED
 }
 
@@ -1674,13 +1673,14 @@ model ContractBaseRate {
 model ContractSupplement {
   id               String              @id @default(cuid())
   contractId       String
-  seasonId         String
+  seasonId         String?
   supplementType   SupplementType
   roomTypeId       String?
   mealBasisId      String?
   forAdults        Int?
   forChildCategory ChildAgeCategory?
   forChildBedding  ChildBedding?
+  childPosition    Int?
   valueType        SupplementValueType @default(FIXED)
   value            Decimal             @db.Decimal(12, 4)
   isReduction      Boolean             @default(false)
@@ -1693,7 +1693,7 @@ model ContractSupplement {
   updatedAt        DateTime            @updatedAt
 
   contract  Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  season    ContractSeason  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  season    ContractSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   roomType  HotelRoomType?  @relation(fields: [roomTypeId], references: [id])
   mealBasis HotelMealBasis? @relation(fields: [mealBasisId], references: [id])
 

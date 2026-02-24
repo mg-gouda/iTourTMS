@@ -525,7 +525,7 @@ function BaseRatesSection({ a, b }: { a: ContractFull; b: ContractFull }) {
 
 function SupplementsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
   const getKey = (s: ContractFull["supplements"][number]) =>
-    `${s.season.code}|${s.supplementType}|${s.roomTypeId ?? ""}|${s.mealBasisId ?? ""}`;
+    `${s.supplementType}|${s.roomTypeId ?? ""}|${s.mealBasisId ?? ""}|${s.label ?? ""}|${s.childPosition ?? ""}|${s.forChildCategory ?? ""}`;
 
   const rows = diffArrays(
     a.supplements,
@@ -549,7 +549,6 @@ function SupplementsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
         <TableHeader>
           <TableRow>
             <TableHead>Type</TableHead>
-            <TableHead>Season</TableHead>
             <TableHead>Room</TableHead>
             <TableHead>Meal</TableHead>
             <TableHead className="text-right">Value</TableHead>
@@ -561,7 +560,7 @@ function SupplementsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
         <TableBody>
           {rows.filter((r) => r.status !== "unchanged").length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground">All supplements identical</TableCell>
+              <TableCell colSpan={7} className="text-center text-muted-foreground">All supplements identical</TableCell>
             </TableRow>
           ) : (
             rows.filter((r) => r.status !== "unchanged").map((r) => {
@@ -570,7 +569,6 @@ function SupplementsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
               return (
                 <TableRow key={r.key} className={ROW_BG[r.status]}>
                   <TableCell>{SUPPLEMENT_TYPE_LABELS[item.supplementType] ?? item.supplementType}</TableCell>
-                  <TableCell className="font-mono">{item.season.code}</TableCell>
                   <TableCell>{item.roomType?.name ?? "—"}</TableCell>
                   <TableCell>{item.mealBasis?.name ?? "—"}</TableCell>
                   <TableCell className={`text-right ${cellClass("value", cf)}`}>

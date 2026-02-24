@@ -59,7 +59,6 @@ interface ExportData {
     perPerson: boolean;
     perNight: boolean;
     label: string | null;
-    season: { code: string };
     roomType: { name: string } | null;
     mealBasis: { name: string } | null;
   }>;
@@ -186,10 +185,9 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
   // ─── Sheet 4: Supplements ────────────────────────────
   if (data.supplements.length > 0) {
     const suppRows: (string | number)[][] = [
-      ["Type", "Season", "Room Type", "Meal Basis", "Label", "Value", "Value Type", "Reduction", "Per Person", "Per Night"],
+      ["Type", "Room Type", "Meal Basis", "Label", "Value", "Value Type", "Reduction", "Per Person", "Per Night"],
       ...data.supplements.map((s) => [
         SUPPLEMENT_TYPE_LABELS[s.supplementType] ?? s.supplementType,
-        s.season.code,
         s.roomType?.name ?? "",
         s.mealBasis?.name ?? "",
         s.label ?? "",
@@ -202,7 +200,7 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
     ];
     const wsSupp = XLSX.utils.aoa_to_sheet(suppRows);
     wsSupp["!cols"] = [
-      { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 18 },
+      { wch: 14 }, { wch: 18 }, { wch: 18 },
       { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 10 },
       { wch: 12 }, { wch: 10 },
     ];

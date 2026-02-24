@@ -1284,7 +1284,7 @@ export async function seedContracting(companyId: string) {
         const supplementData: {
           contractId: string;
           seasonId: string;
-          supplementType: "ROOM_TYPE" | "MEAL" | "OCCUPANCY" | "CHILD" | "VIEW" | "EXTRA_BED";
+          supplementType: "ROOM_TYPE" | "MEAL" | "OCCUPANCY" | "CHILD" | "EXTRA_BED";
           roomTypeId?: string;
           mealBasisId?: string;
           forAdults?: number;
@@ -1340,12 +1340,6 @@ export async function seedContracting(companyId: string) {
           { contractId: contract.id, seasonId: highSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "SHARING_WITH_PARENTS", value: 0 },
           { contractId: contract.id, seasonId: lowSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "EXTRA_BED", value: 30 },
           { contractId: contract.id, seasonId: highSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "EXTRA_BED", value: 40 },
-        );
-
-        // View supplements: Sea View
-        supplementData.push(
-          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "VIEW", label: "Sea View", value: 15 },
-          { contractId: contract.id, seasonId: highSeason.id, supplementType: "VIEW", label: "Sea View", value: 25 },
         );
 
         // Extra Bed supplements

@@ -6,7 +6,7 @@ export interface RateContractData {
   rateBasis: "PER_PERSON" | "PER_ROOM";
   baseRoomTypeId: string;
   baseMealBasisId: string;
-  seasons: { id: string; name: string; code: string }[];
+  seasons: { id: string; name: string; code: string; dateFrom: string; dateTo: string }[];
   roomTypes: {
     roomTypeId: string;
     isBase: boolean;
@@ -25,13 +25,13 @@ export interface RateContractData {
     tripleRate: string | number | null;
   }[];
   supplements: {
-    seasonId: string;
     supplementType: string;
     roomTypeId: string | null;
     mealBasisId: string | null;
     forAdults: number | null;
     forChildCategory: string | null;
     forChildBedding: string | null;
+    childPosition: number | null;
     valueType: string;
     value: string | number;
     isReduction: boolean;
@@ -69,9 +69,8 @@ export interface BookingScenario {
   roomTypeId: string;
   mealBasisId: string;
   adults: number;
-  children: { category: string; bedding: string }[];
+  children: { category: string }[];
   extraBed: boolean;
-  viewLabel: string | null;
   nights: number;
   bookingDate: string | null;
   checkInDate: string | null;
@@ -86,9 +85,10 @@ export interface SupplementLine {
 
 export interface ChildChargeLine {
   category: string;
-  bedding: string;
+  position: number;
   amount: number;
   isFree: boolean;
+  label: string;
 }
 
 export interface OfferDiscountLine {
@@ -104,7 +104,6 @@ export interface RateBreakdown {
   roomTypeSupplement: SupplementLine | null;
   mealSupplement: SupplementLine | null;
   occupancySupplement: SupplementLine | null;
-  viewSupplement: SupplementLine | null;
   extraBedSupplement: SupplementLine | null;
   childCharges: ChildChargeLine[];
   adultTotalPerNight: number;
@@ -126,17 +125,29 @@ export interface RateSheetCell {
   seasonId: string;
   seasonName: string;
   rate: number;
+  breakdown: RateBreakdown;
 }
 
 export interface RateSheetData {
   roomTypes: { id: string; name: string; code: string; isBase: boolean }[];
   mealBases: { id: string; name: string; mealCode: string; isBase: boolean }[];
-  seasons: { id: string; name: string; code: string }[];
+  seasons: { id: string; name: string; code: string; dateFrom: string; dateTo: string }[];
   cells: RateSheetCell[];
-  viewLabels: string[];
 }
 
 // ── Helpers ──
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  INFANT: "Infant",
+  CHILD: "Child",
+  TEEN: "Teen",
+};
 
 function applyValue(
   base: Decimal,
@@ -176,12 +187,11 @@ function resolveBaseRate(
 
 function findSupplement(
   supplements: RateContractData["supplements"],
-  seasonId: string,
   type: string,
   match: (s: RateContractData["supplements"][number]) => boolean,
 ) {
   return supplements.find(
-    (s) => s.seasonId === seasonId && s.supplementType === type && match(s),
+    (s) => s.supplementType === type && match(s),
   );
 }
 
@@ -320,7 +330,7 @@ export function calculateRate(
   contract: RateContractData,
   scenario: BookingScenario,
 ): RateBreakdown {
-  const { seasonId, roomTypeId, mealBasisId, adults, children, extraBed, viewLabel, nights } = scenario;
+  const { seasonId, roomTypeId, mealBasisId, adults, children, extraBed, nights } = scenario;
 
   // 1. Base rate
   const { rate: baseRate, label: baseRateLabel } = resolveBaseRate(contract, seasonId, adults);
@@ -330,7 +340,6 @@ export function calculateRate(
   if (roomTypeId !== contract.baseRoomTypeId) {
     const sup = findSupplement(
       contract.supplements,
-      seasonId,
       "ROOM_TYPE",
       (s) => s.roomTypeId === roomTypeId,
     );
@@ -352,7 +361,6 @@ export function calculateRate(
   if (mealBasisId !== contract.baseMealBasisId) {
     const sup = findSupplement(
       contract.supplements,
-      seasonId,
       "MEAL",
       (s) => s.mealBasisId === mealBasisId,
     );
@@ -378,7 +386,6 @@ export function calculateRate(
     const forAdults = adults === 1 ? 1 : 3;
     const sup = findSupplement(
       contract.supplements,
-      seasonId,
       "OCCUPANCY",
       (s) => s.forAdults === forAdults,
     );
@@ -391,33 +398,11 @@ export function calculateRate(
     }
   }
 
-  // 5. View supplement
-  let viewSupplement: SupplementLine | null = null;
-  if (viewLabel) {
-    const sup = findSupplement(
-      contract.supplements,
-      seasonId,
-      "VIEW",
-      (s) => s.label === viewLabel,
-    );
-    if (sup) {
-      let amount = applyValue(baseRate, new Decimal(sup.value), sup.valueType, false);
-      if (sup.perPerson && contract.rateBasis === "PER_ROOM") {
-        amount = amount.times(adults);
-      }
-      viewSupplement = {
-        label: viewLabel,
-        amount: amount.toDecimalPlaces(4).toNumber(),
-      };
-    }
-  }
-
-  // 6. Extra bed supplement
+  // 5. Extra bed supplement
   let extraBedSupplement: SupplementLine | null = null;
   if (extraBed) {
     const sup = findSupplement(
       contract.supplements,
-      seasonId,
       "EXTRA_BED",
       () => true,
     );
@@ -430,55 +415,71 @@ export function calculateRate(
     }
   }
 
-  // 7. Child charges
+  // 7. Child charges (position-based discounts)
   const childCharges: ChildChargeLine[] = [];
-  const freeCounters: Record<string, number> = {};
 
-  for (const child of children) {
-    const policy = contract.childPolicies.find((p) => p.category === child.category);
-    const counterKey = child.category;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const position = i + 1;
 
-    // Check free-in-sharing
-    let isFree = false;
-    if (
-      policy &&
-      policy.freeInSharing &&
-      child.bedding === "SHARING_WITH_PARENTS"
-    ) {
-      const used = freeCounters[counterKey] ?? 0;
-      if (used < policy.maxFreePerRoom) {
-        isFree = true;
-        freeCounters[counterKey] = used + 1;
+    if (position === 1) {
+      // Position 1: Infants free, Teens as adults, CHILD category uses discount
+      if (child.category === "INFANT") {
+        childCharges.push({
+          category: child.category, position, amount: 0,
+          isFree: true, label: "1st Child (Infant — Free)",
+        });
+      } else if (child.category === "TEEN") {
+        childCharges.push({
+          category: child.category, position, amount: 0,
+          isFree: false, label: "1st Child (Teen — Adult Rate)",
+        });
+      } else {
+        // CHILD category — find position-1 supplement (forChildCategory is null)
+        const sup = contract.supplements.find(
+          (s) => s.supplementType === "CHILD" && s.childPosition === 1,
+        );
+        if (sup) {
+          // Value is a discount: charge = baseRate × (100 - discount%) / 100
+          const charge = sup.valueType === "PERCENTAGE"
+            ? baseRate.times(new Decimal(100).minus(new Decimal(sup.value))).div(100)
+            : baseRate.minus(new Decimal(sup.value));
+          childCharges.push({
+            category: child.category, position,
+            amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
+            isFree: false, label: "1st Child",
+          });
+        } else {
+          childCharges.push({
+            category: child.category, position, amount: 0,
+            isFree: false, label: "1st Child",
+          });
+        }
       }
-    }
-
-    if (isFree) {
-      childCharges.push({
-        category: child.category,
-        bedding: child.bedding,
-        amount: 0,
-        isFree: true,
-      });
     } else {
-      const sup = findSupplement(
-        contract.supplements,
-        seasonId,
-        "CHILD",
+      // Position 2+: find supplement matching position and age category
+      const sup = contract.supplements.find(
         (s) =>
-          s.forChildCategory === child.category &&
-          s.forChildBedding === child.bedding,
+          s.supplementType === "CHILD" &&
+          s.childPosition === position &&
+          s.forChildCategory === child.category,
       );
-      const amount = sup
-        ? applyValue(baseRate, new Decimal(sup.value), sup.valueType, false)
-            .toDecimalPlaces(4)
-            .toNumber()
-        : 0;
-      childCharges.push({
-        category: child.category,
-        bedding: child.bedding,
-        amount,
-        isFree: false,
-      });
+      const posLabel = `${ordinal(position)} Child (${CATEGORY_LABELS[child.category] ?? child.category})`;
+      if (sup) {
+        const charge = sup.valueType === "PERCENTAGE"
+          ? baseRate.times(new Decimal(100).minus(new Decimal(sup.value))).div(100)
+          : baseRate.minus(new Decimal(sup.value));
+        childCharges.push({
+          category: child.category, position,
+          amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
+          isFree: false, label: posLabel,
+        });
+      } else {
+        childCharges.push({
+          category: child.category, position, amount: 0,
+          isFree: false, label: posLabel,
+        });
+      }
     }
   }
 
@@ -487,7 +488,6 @@ export function calculateRate(
   if (roomTypeSupplement) adultTotal = adultTotal.plus(roomTypeSupplement.amount);
   if (mealSupplement) adultTotal = adultTotal.plus(mealSupplement.amount);
   if (occupancySupplement) adultTotal = adultTotal.plus(occupancySupplement.amount);
-  if (viewSupplement) adultTotal = adultTotal.plus(viewSupplement.amount);
   if (extraBedSupplement) adultTotal = adultTotal.plus(extraBedSupplement.amount);
 
   const adultTotalPerNight = adultTotal.toDecimalPlaces(4).toNumber();
@@ -509,7 +509,6 @@ export function calculateRate(
     roomTypeSupplement,
     mealSupplement,
     occupancySupplement,
-    viewSupplement,
     extraBedSupplement,
     childCharges,
     adultTotalPerNight,
@@ -539,7 +538,6 @@ export function computeRateSheet(contract: RateContractData): RateSheetData {
           adults: 2,
           children: [],
           extraBed: false,
-          viewLabel: null,
           nights: 1,
           bookingDate: null,
           checkInDate: null,
@@ -553,19 +551,11 @@ export function computeRateSheet(contract: RateContractData): RateSheetData {
           seasonId: season.id,
           seasonName: season.name,
           rate: breakdown.totalPerNight,
+          breakdown,
         });
       }
     }
   }
-
-  // Collect distinct view labels
-  const viewLabels = [
-    ...new Set(
-      contract.supplements
-        .filter((s) => s.supplementType === "VIEW" && s.label)
-        .map((s) => s.label!),
-    ),
-  ];
 
   return {
     roomTypes: contract.roomTypes.map((rt) => ({
@@ -584,8 +574,9 @@ export function computeRateSheet(contract: RateContractData): RateSheetData {
       id: s.id,
       name: s.name,
       code: s.code,
+      dateFrom: s.dateFrom,
+      dateTo: s.dateTo,
     })),
     cells,
-    viewLabels,
   };
 }

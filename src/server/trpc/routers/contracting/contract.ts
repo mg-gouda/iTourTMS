@@ -51,7 +51,7 @@ export const contractRouter = createTRPCRouter({
           publishedBy: { select: { id: true, name: true } },
           seasons: { orderBy: { sortOrder: "asc" } },
           roomTypes: {
-            include: { roomType: { select: { id: true, name: true, code: true } } },
+            include: { roomType: { select: { id: true, name: true, code: true, maxAdults: true, maxChildren: true } } },
             orderBy: { sortOrder: "asc" },
           },
           mealBases: {
@@ -63,7 +63,6 @@ export const contractRouter = createTRPCRouter({
           },
           supplements: {
             include: {
-              season: { select: { id: true, name: true, code: true } },
               roomType: { select: { id: true, name: true, code: true } },
               mealBasis: { select: { id: true, name: true, mealCode: true } },
             },
@@ -401,18 +400,18 @@ export const contractRouter = createTRPCRouter({
           });
         }
 
-        // 6. Clone supplements (remap seasonId)
+        // 6. Clone supplements
         if (source.supplements.length > 0) {
           await tx.contractSupplement.createMany({
             data: source.supplements.map((s) => ({
               contractId: newContract.id,
-              seasonId: seasonIdMap.get(s.seasonId)!,
               supplementType: s.supplementType,
               roomTypeId: s.roomTypeId,
               mealBasisId: s.mealBasisId,
               forAdults: s.forAdults,
               forChildCategory: s.forChildCategory,
               forChildBedding: s.forChildBedding,
+              childPosition: s.childPosition,
               valueType: s.valueType,
               value: s.value,
               isReduction: s.isReduction,
@@ -625,13 +624,13 @@ export const contractRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: source.supplements.map((s) => ({
               contractId: template.id,
-              seasonId: seasonIdMap.get(s.seasonId)!,
               supplementType: s.supplementType,
               roomTypeId: s.roomTypeId,
               mealBasisId: s.mealBasisId,
               forAdults: s.forAdults,
               forChildCategory: s.forChildCategory,
               forChildBedding: s.forChildBedding,
+              childPosition: s.childPosition,
               valueType: s.valueType,
               value: s.value,
               isReduction: s.isReduction,
@@ -817,7 +816,7 @@ export const contractRouter = createTRPCRouter({
           publishedBy: { select: { id: true, name: true } },
           seasons: { orderBy: { sortOrder: "asc" as const } },
           roomTypes: {
-            include: { roomType: { select: { id: true, name: true, code: true } } },
+            include: { roomType: { select: { id: true, name: true, code: true, maxAdults: true, maxChildren: true } } },
             orderBy: { sortOrder: "asc" as const },
           },
           mealBases: {
@@ -829,7 +828,6 @@ export const contractRouter = createTRPCRouter({
           },
           supplements: {
             include: {
-              season: { select: { id: true, name: true, code: true } },
               roomType: { select: { id: true, name: true, code: true } },
               mealBasis: { select: { id: true, name: true, mealCode: true } },
             },
@@ -871,7 +869,7 @@ export const contractRouter = createTRPCRouter({
         seasons: { orderBy: { sortOrder: "asc" as const } },
         roomTypes: {
           include: {
-            roomType: { select: { id: true, name: true, code: true } },
+            roomType: { select: { id: true, name: true, code: true, maxAdults: true, maxChildren: true } },
           },
           orderBy: { sortOrder: "asc" as const },
         },
@@ -888,7 +886,6 @@ export const contractRouter = createTRPCRouter({
         },
         supplements: {
           include: {
-            season: { select: { id: true, name: true, code: true } },
             roomType: { select: { id: true, name: true, code: true } },
             mealBasis: { select: { id: true, name: true, mealCode: true } },
           },

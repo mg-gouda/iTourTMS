@@ -329,7 +329,6 @@ function SupplementsTable({ contract }: { contract: ExportContract }) {
         <thead>
           <tr>
             <th>Type</th>
-            <th>Season</th>
             <th>Room Type</th>
             <th>Meal Basis</th>
             <th>Label</th>
@@ -342,7 +341,6 @@ function SupplementsTable({ contract }: { contract: ExportContract }) {
           {contract.supplements.map((s) => (
             <tr key={s.id}>
               <td>{SUPPLEMENT_TYPE_LABELS[s.supplementType] ?? s.supplementType}</td>
-              <td className="font-mono">{s.season.code}</td>
               <td>{s.roomType?.name ?? "—"}</td>
               <td>{s.mealBasis?.name ?? "—"}</td>
               <td>{s.label ?? "—"}</td>

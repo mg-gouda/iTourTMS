@@ -51,7 +51,6 @@ export const SUPPLEMENT_TYPE_LABELS: Record<string, string> = {
   MEAL: "Meal Plan",
   OCCUPANCY: "Occupancy",
   CHILD: "Child",
-  VIEW: "View",
   EXTRA_BED: "Extra Bed",
 };
 
