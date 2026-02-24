@@ -74,6 +74,11 @@ interface ExportData {
     active: boolean;
     stayNights: number | null;
     payNights: number | null;
+    bookFromDate: string | Date | null;
+    stayDateType: string | null;
+    paymentPct: number | null;
+    paymentDeadline: string | Date | null;
+    roomingListBy: string | Date | null;
   }>;
   allotments: Array<{
     totalRooms: number;
@@ -210,7 +215,7 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
   // ─── Sheet 5: Special Offers ─────────────────────────
   if (data.specialOffers.length > 0) {
     const offerRows: (string | number)[][] = [
-      ["Name", "Type", "Discount Type", "Discount Value", "Valid From", "Valid To", "Book By", "Min Nights", "Stay/Pay", "Active"],
+      ["Name", "Type", "Discount Type", "Discount Value", "Valid From", "Valid To", "Book By", "Min Nights", "Stay/Pay", "Book From", "Stay Date Type", "Payment %", "Payment Deadline", "Rooming List By", "Active"],
       ...data.specialOffers.map((so) => [
         so.name,
         OFFER_TYPE_LABELS[so.offerType] ?? so.offerType,
@@ -221,6 +226,11 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
         fmtDate(so.bookByDate),
         so.minimumNights,
         so.stayNights && so.payNights ? `${so.stayNights}/${so.payNights}` : "",
+        fmtDate(so.bookFromDate),
+        so.stayDateType ?? "",
+        so.paymentPct ?? "",
+        fmtDate(so.paymentDeadline),
+        fmtDate(so.roomingListBy),
         so.active ? "Yes" : "No",
       ]),
     ];
@@ -228,7 +238,8 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
     wsOffers["!cols"] = [
       { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
       { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
-      { wch: 10 }, { wch: 8 },
+      { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 8 },
     ];
     XLSX.utils.book_append_sheet(wb, wsOffers, "Special Offers");
   }

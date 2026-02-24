@@ -2,13 +2,15 @@ import type { PrismaClient } from "@prisma/client";
 
 import {
   rateCalculatorInputSchema,
+  multiRoomRateCalculatorInputSchema,
   rateSheetInputSchema,
 } from "@/lib/validations/contracting";
 import {
   calculateRate,
+  calculateMultiRoomRate,
   computeRateSheet,
 } from "@/server/services/contracting/rate-calculator";
-import type { RateContractData } from "@/server/services/contracting/rate-calculator";
+import type { RateContractData, OccupancyRow } from "@/server/services/contracting/rate-calculator";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 
 const proc = moduleProcedure("contracting");
@@ -101,6 +103,8 @@ async function fetchContractData(
         if (override) {
           return {
             category: override.category,
+            ageFrom: override.ageFrom,
+            ageTo: override.ageTo,
             freeInSharing: override.freeInSharing,
             maxFreePerRoom: override.maxFreePerRoom,
             extraBedAllowed: override.extraBedAllowed,
@@ -109,6 +113,8 @@ async function fetchContractData(
         const hotel = hotelDefaults.find((p) => p.category === category)!;
         return {
           category: hotel.category,
+          ageFrom: hotel.ageFrom,
+          ageTo: hotel.ageTo,
           freeInSharing: hotel.freeInSharing,
           maxFreePerRoom: hotel.maxFreePerRoom,
           extraBedAllowed: hotel.extraBedAllowed,
@@ -129,10 +135,34 @@ async function fetchContractData(
       discountValue: o.discountValue.toString(),
       stayNights: o.stayNights,
       payNights: o.payNights,
+      bookFromDate: o.bookFromDate?.toISOString().slice(0, 10) ?? null,
+      stayDateType: o.stayDateType,
+      paymentPct: o.paymentPct,
+      paymentDeadline: o.paymentDeadline?.toISOString().slice(0, 10) ?? null,
+      roomingListBy: o.roomingListBy?.toISOString().slice(0, 10) ?? null,
       combinable: o.combinable,
       active: o.active,
     })),
   };
+}
+
+async function fetchOccupancyTables(
+  db: PrismaClient,
+  roomTypeIds: string[],
+): Promise<OccupancyRow[]> {
+  const rows = await db.roomTypeOccupancy.findMany({
+    where: { roomTypeId: { in: roomTypeIds } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    roomTypeId: r.roomTypeId,
+    adults: r.adults,
+    children: r.children,
+    infants: r.infants,
+    extraBeds: r.extraBeds,
+    isDefault: r.isDefault,
+    description: r.description,
+  }));
 }
 
 export const rateCalculatorRouter = createTRPCRouter({
@@ -155,6 +185,15 @@ export const rateCalculatorRouter = createTRPCRouter({
         bookingDate: input.bookingDate ?? null,
         checkInDate: input.checkInDate ?? null,
       });
+    }),
+
+  calculateMultiRoom: proc
+    .input(multiRoomRateCalculatorInputSchema)
+    .query(async ({ ctx, input }) => {
+      const contractData = await fetchContractData(ctx.db, input.contractId, ctx.companyId);
+      const roomTypeIds = contractData.roomTypes.map((rt) => rt.roomTypeId);
+      const occupancyTables = await fetchOccupancyTables(ctx.db, roomTypeIds);
+      return calculateMultiRoomRate(contractData, occupancyTables, input);
     }),
 
   getRateSheet: proc

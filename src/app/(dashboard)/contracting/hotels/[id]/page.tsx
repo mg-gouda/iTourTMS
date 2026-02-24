@@ -60,6 +60,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import {
   roomTypeCreateSchema,
+  roomTypeUpdateSchema,
   childPolicyCreateSchema,
   mealBasisCreateSchema,
   hotelImageCreateSchema,
@@ -309,6 +310,7 @@ function RoomTypesTab({
 }) {
   const utils = trpc.useUtils();
   const [addOpen, setAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const form = useForm<z.input<typeof roomTypeCreateSchema>>({
     resolver: zodResolver(roomTypeCreateSchema),
@@ -328,6 +330,10 @@ function RoomTypesTab({
     },
   });
 
+  const editForm = useForm<z.input<typeof roomTypeUpdateSchema>>({
+    resolver: zodResolver(roomTypeUpdateSchema),
+  });
+
   const createMutation = trpc.contracting.roomType.create.useMutation({
     onSuccess: () => {
       utils.contracting.hotel.getById.invalidate({ id: hotelId });
@@ -336,9 +342,57 @@ function RoomTypesTab({
     },
   });
 
+  const updateMutation = trpc.contracting.roomType.update.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.getById.invalidate({ id: hotelId });
+      setEditingId(null);
+    },
+  });
+
   const deleteMutation = trpc.contracting.roomType.delete.useMutation({
     onSuccess: () => utils.contracting.hotel.getById.invalidate({ id: hotelId }),
   });
+
+  function openEdit(rt: any) {
+    editForm.reset({
+      name: rt.name,
+      code: rt.code,
+      description: rt.description ?? undefined,
+      minAdults: rt.minAdults,
+      standardAdults: rt.standardAdults,
+      maxAdults: rt.maxAdults,
+      maxChildren: rt.maxChildren,
+      maxInfants: rt.maxInfants,
+      maxOccupancy: rt.maxOccupancy,
+      extraBedAvailable: rt.extraBedAvailable,
+      maxExtraBeds: rt.maxExtraBeds,
+      roomSize: rt.roomSize ?? undefined,
+      bedConfiguration: rt.bedConfiguration ?? undefined,
+      active: rt.active,
+    });
+    setEditingId(rt.id);
+  }
+
+  function openCopy(rt: any) {
+    form.reset({
+      hotelId,
+      name: `${rt.name} (Copy)`,
+      code: `${rt.code}-CPY`,
+      description: rt.description ?? undefined,
+      minAdults: rt.minAdults,
+      standardAdults: rt.standardAdults,
+      maxAdults: rt.maxAdults,
+      maxChildren: rt.maxChildren,
+      maxInfants: rt.maxInfants,
+      maxOccupancy: rt.maxOccupancy,
+      extraBedAvailable: rt.extraBedAvailable,
+      maxExtraBeds: rt.maxExtraBeds,
+      roomSize: rt.roomSize ?? undefined,
+      bedConfiguration: rt.bedConfiguration ?? undefined,
+      active: rt.active,
+    });
+    setAddOpen(true);
+  }
 
 
 
@@ -378,6 +432,26 @@ function RoomTypesTab({
                       Max: {rt.maxAdults}A/{rt.maxChildren}C/{rt.maxInfants}I
                     </span>
                     <span>{rt.occupancyTable?.length ?? 0} occupancies</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEdit(rt);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCopy(rt);
+                      }}
+                    >
+                      Copy
+                    </Button>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -623,8 +697,207 @@ function RoomTypesTab({
         </DialogContent>
       </Dialog>
 
-
-
+      {/* Edit Room Type Dialog */}
+      <Dialog open={!!editingId} onOpenChange={(open) => { if (!open) setEditingId(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Room Type</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form
+              onSubmit={editForm.handleSubmit((v) =>
+                updateMutation.mutate({ id: editingId!, hotelId, data: v })
+              )}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Standard Double" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="STD" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="flex items-end gap-4">
+                <div className="grid flex-1 grid-cols-5 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="minAdults"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Min Adults</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="standardAdults"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Std Adults</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="maxAdults"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Adults</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              field.onChange(val);
+                              editForm.setValue("maxOccupancy", val + (editForm.getValues("maxChildren") || 0));
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="maxChildren"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Children</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              field.onChange(val);
+                              editForm.setValue("maxOccupancy", (editForm.getValues("maxAdults") || 0) + val);
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="maxOccupancy"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Total</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            value={field.value ?? ""}
+                            readOnly
+                            className="bg-muted"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={editForm.control}
+                  name="maxInfants"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2 pb-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={(field.value ?? 0) > 0}
+                          onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
+                        />
+                      </FormControl>
+                      <FormLabel className="!mt-0 whitespace-nowrap">Inf Allow</FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={2}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="flex items-center gap-2">
+                <FormField
+                  control={editForm.control}
+                  name="active"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value ?? true}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="!mt-0">Active</FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              {updateMutation.error && (
+                <p className="text-sm text-destructive">
+                  {updateMutation.error.message}
+                </p>
+              )}
+              <DialogFooter>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

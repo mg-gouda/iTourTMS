@@ -41,6 +41,8 @@ export interface RateContractData {
   }[];
   childPolicies: {
     category: string;
+    ageFrom: number;
+    ageTo: number;
     freeInSharing: boolean;
     maxFreePerRoom: number;
     extraBedAllowed: boolean;
@@ -59,6 +61,11 @@ export interface RateContractData {
     discountValue: string | number;
     stayNights: number | null;
     payNights: number | null;
+    bookFromDate: string | null;
+    stayDateType: string | null;
+    paymentPct: number | null;
+    paymentDeadline: string | null;
+    roomingListBy: string | null;
     combinable: boolean;
     active: boolean;
   }[];
@@ -214,6 +221,12 @@ function isDateInRange(
   return true;
 }
 
+function addDaysISO(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function applySpecialOffers(
   contract: RateContractData,
   scenario: BookingScenario,
@@ -229,17 +242,20 @@ function applySpecialOffers(
     let description = "";
     let discount = new Decimal(0);
 
-    // Check date validity
-    if (!isDateInRange(scenario.checkInDate, offer.validFrom, offer.validTo)) {
-      eligible = false;
-      description = "Check-in date outside offer period";
-    }
-
-    // Check book-by date
-    if (eligible && offer.bookByDate && scenario.bookingDate) {
-      if (scenario.bookingDate > offer.bookByDate) {
+    // Skip generic date checks for NORMAL_EBD — handled in its own case
+    if (offer.offerType !== "NORMAL_EBD") {
+      // Check date validity
+      if (!isDateInRange(scenario.checkInDate, offer.validFrom, offer.validTo)) {
         eligible = false;
-        description = `Must book by ${offer.bookByDate}`;
+        description = "Check-in date outside offer period";
+      }
+
+      // Check book-by date
+      if (eligible && offer.bookByDate && scenario.bookingDate) {
+        if (scenario.bookingDate > offer.bookByDate) {
+          eligible = false;
+          description = `Must book by ${offer.bookByDate}`;
+        }
       }
     }
 
@@ -289,6 +305,54 @@ function applySpecialOffers(
         case "GROUP_DISCOUNT": {
           eligible = false;
           description = `Requires ${offer.minimumRooms}+ rooms`;
+          break;
+        }
+        case "NORMAL_EBD": {
+          // 1. Check booking date is within bookFromDate..bookByDate window
+          if (!scenario.bookingDate) {
+            eligible = false;
+            description = "Booking date required";
+          } else {
+            if (offer.bookFromDate && scenario.bookingDate < offer.bookFromDate) {
+              eligible = false;
+              description = `Booking date before ${offer.bookFromDate}`;
+            }
+            if (eligible && offer.bookByDate && scenario.bookingDate > offer.bookByDate) {
+              eligible = false;
+              description = `Booking date after ${offer.bookByDate}`;
+            }
+          }
+
+          // 2. Check stay dates based on stayDateType
+          if (eligible && scenario.checkInDate) {
+            if (offer.stayDateType === "ARRIVAL") {
+              if (!isDateInRange(scenario.checkInDate, offer.validFrom, offer.validTo)) {
+                eligible = false;
+                description = "Arrival date outside stay period";
+              }
+            } else {
+              // COMPLETED: both check-in AND check-out must be within range
+              if (!isDateInRange(scenario.checkInDate, offer.validFrom, offer.validTo)) {
+                eligible = false;
+                description = "Check-in date outside stay period";
+              }
+              if (eligible) {
+                const checkOutDate = addDaysISO(scenario.checkInDate, scenario.nights);
+                if (!isDateInRange(checkOutDate, offer.validFrom, offer.validTo)) {
+                  eligible = false;
+                  description = "Check-out date outside stay period";
+                }
+              }
+            }
+          }
+
+          // 3. Build description
+          if (eligible) {
+            description = `Book ${offer.bookFromDate ?? ""}–${offer.bookByDate ?? ""}, Stay ${offer.stayDateType ?? "COMPLETED"}`;
+            if (offer.paymentPct && offer.paymentDeadline) {
+              description += ` | Payment: ${offer.paymentPct}% by ${offer.paymentDeadline}`;
+            }
+          }
           break;
         }
       }
@@ -520,6 +584,201 @@ export function calculateRate(
     totalStayAfterOffers,
     nights,
     rateBasis: contract.rateBasis,
+  };
+}
+
+// ── Multi-Room Types ──
+
+export interface OccupancyRow {
+  id: string;
+  roomTypeId: string;
+  adults: number;
+  children: number;
+  infants: number;
+  extraBeds: number;
+  isDefault: boolean;
+  description: string | null;
+}
+
+export interface MultiRoomResult {
+  roomTypeId: string;
+  roomTypeName: string;
+  roomTypeCode: string;
+  occupancyMatch: { adults: number; children: number; infants: number; extraBeds: number };
+  breakdown: RateBreakdown;
+  roomTotalPerNight: number;       // (adultRate × adults) + childCharges
+  totalPerRoom: number;            // roomTotalPerNight × nights
+  totalPerRoomAfterOffers: number;
+}
+
+export interface MultiRoomResponse {
+  seasonId: string;
+  seasonName: string;
+  nights: number;
+  resolvedChildren: { dob: string; ageAtCheckIn: number; category: string }[];
+  results: MultiRoomResult[];
+}
+
+// ── Multi-Room Helpers ──
+
+export function resolveChildCategory(
+  dob: string,
+  arrivalDate: string,
+  childPolicies: RateContractData["childPolicies"],
+): { ageAtCheckIn: number; category: string } {
+  const birth = new Date(dob);
+  const arrival = new Date(arrivalDate);
+  let age = arrival.getFullYear() - birth.getFullYear();
+  const monthDiff = arrival.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && arrival.getDate() < birth.getDate())) {
+    age--;
+  }
+  if (age < 0) age = 0;
+
+  for (const policy of childPolicies) {
+    if (age >= policy.ageFrom && age <= policy.ageTo) {
+      return { ageAtCheckIn: age, category: policy.category };
+    }
+  }
+  // Default: if older than all ranges, treat as TEEN; if younger, INFANT
+  if (age <= 2) return { ageAtCheckIn: age, category: "INFANT" };
+  return { ageAtCheckIn: age, category: "CHILD" };
+}
+
+export function detectSeason(
+  arrivalDate: string,
+  seasons: RateContractData["seasons"],
+): { id: string; name: string } | null {
+  for (const s of seasons) {
+    if (arrivalDate >= s.dateFrom && arrivalDate <= s.dateTo) {
+      return { id: s.id, name: s.name };
+    }
+  }
+  return null;
+}
+
+export function calculateMultiRoomRate(
+  contract: RateContractData,
+  occupancyTables: OccupancyRow[],
+  input: {
+    arrivalDate: string;
+    departureDate: string;
+    adults: number;
+    childDobs: string[];
+    mealBasisId: string;
+    extraBed: boolean;
+    bookingDate?: string | null;
+  },
+): MultiRoomResponse {
+  // 1. Detect season
+  const season = detectSeason(input.arrivalDate, contract.seasons);
+  if (!season) {
+    return {
+      seasonId: "",
+      seasonName: "No matching season",
+      nights: 0,
+      resolvedChildren: [],
+      results: [],
+    };
+  }
+
+  // 2. Calculate nights
+  const nights = differenceInDays(input.arrivalDate, input.departureDate);
+  if (nights <= 0) {
+    return {
+      seasonId: season.id,
+      seasonName: season.name,
+      nights: 0,
+      resolvedChildren: [],
+      results: [],
+    };
+  }
+
+  // 3. Resolve child categories
+  const resolvedChildren = input.childDobs.map((dob) => {
+    const { ageAtCheckIn, category } = resolveChildCategory(dob, input.arrivalDate, contract.childPolicies);
+    return { dob, ageAtCheckIn, category };
+  });
+
+  // Count children vs infants
+  const childCount = resolvedChildren.filter((c) => c.category === "CHILD" || c.category === "TEEN").length;
+  const infantCount = resolvedChildren.filter((c) => c.category === "INFANT").length;
+  const extraBeds = input.extraBed ? 1 : 0;
+
+  // 4. For each contract room type, find matching occupancy rows
+  const results: MultiRoomResult[] = [];
+
+  for (const crt of contract.roomTypes) {
+    const matchingOccupancy = occupancyTables.find(
+      (o) =>
+        o.roomTypeId === crt.roomTypeId &&
+        o.adults === input.adults &&
+        o.children === childCount &&
+        o.infants === infantCount &&
+        o.extraBeds === extraBeds,
+    );
+
+    if (!matchingOccupancy) continue;
+
+    // Build children array for the existing calculateRate
+    const childrenForCalc: { category: string }[] = resolvedChildren.map((c) => ({
+      category: c.category,
+    }));
+
+    const breakdown = calculateRate(contract, {
+      seasonId: season.id,
+      roomTypeId: crt.roomTypeId,
+      mealBasisId: input.mealBasisId,
+      adults: input.adults,
+      children: childrenForCalc,
+      extraBed: input.extraBed,
+      nights,
+      bookingDate: input.bookingDate ?? null,
+      checkInDate: input.arrivalDate,
+    });
+
+    // For PER_PERSON: adultTotalPerNight is for ONE adult, must multiply by pax
+    // For PER_ROOM: adultTotalPerNight is already the room rate
+    const roomTotalPerNight = contract.rateBasis === "PER_PERSON"
+      ? new Decimal(breakdown.adultTotalPerNight).times(input.adults).plus(breakdown.childTotalPerNight).toDecimalPlaces(4).toNumber()
+      : breakdown.totalPerNight;
+
+    const totalPerRoom = new Decimal(roomTotalPerNight).times(nights).toDecimalPlaces(4).toNumber();
+
+    // Scale offer discounts to room level
+    // breakdown.totalStay is per-person level; compute ratio to apply to room total
+    let totalPerRoomAfterOffers = totalPerRoom;
+    if (breakdown.totalStay > 0 && breakdown.totalStayAfterOffers !== breakdown.totalStay) {
+      const discountRatio = new Decimal(breakdown.totalStayAfterOffers).div(breakdown.totalStay);
+      totalPerRoomAfterOffers = new Decimal(totalPerRoom).times(discountRatio).toDecimalPlaces(4).toNumber();
+    }
+
+    results.push({
+      roomTypeId: crt.roomTypeId,
+      roomTypeName: crt.roomType.name,
+      roomTypeCode: crt.roomType.code,
+      occupancyMatch: {
+        adults: matchingOccupancy.adults,
+        children: matchingOccupancy.children,
+        infants: matchingOccupancy.infants,
+        extraBeds: matchingOccupancy.extraBeds,
+      },
+      breakdown,
+      roomTotalPerNight,
+      totalPerRoom,
+      totalPerRoomAfterOffers,
+    });
+  }
+
+  // Sort by total ascending
+  results.sort((a, b) => a.totalPerRoomAfterOffers - b.totalPerRoomAfterOffers);
+
+  return {
+    seasonId: season.id,
+    seasonName: season.name,
+    nights,
+    resolvedChildren,
+    results,
   };
 }
 

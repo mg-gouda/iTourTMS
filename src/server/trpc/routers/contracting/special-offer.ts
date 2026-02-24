@@ -63,6 +63,11 @@ export const specialOfferRouter = createTRPCRouter({
           discountValue: input.discountValue,
           stayNights: input.stayNights ?? null,
           payNights: input.payNights ?? null,
+          bookFromDate: input.bookFromDate ? new Date(input.bookFromDate) : null,
+          stayDateType: input.stayDateType ?? null,
+          paymentPct: input.paymentPct ?? null,
+          paymentDeadline: input.paymentDeadline ? new Date(input.paymentDeadline) : null,
+          roomingListBy: input.roomingListBy ? new Date(input.roomingListBy) : null,
           combinable: input.combinable,
           active: input.active,
           sortOrder: input.sortOrder,
@@ -95,6 +100,11 @@ export const specialOfferRouter = createTRPCRouter({
       if (input.data.discountValue !== undefined) data.discountValue = input.data.discountValue;
       if (input.data.stayNights !== undefined) data.stayNights = input.data.stayNights ?? null;
       if (input.data.payNights !== undefined) data.payNights = input.data.payNights ?? null;
+      if (input.data.bookFromDate !== undefined) data.bookFromDate = input.data.bookFromDate ? new Date(input.data.bookFromDate) : null;
+      if (input.data.stayDateType !== undefined) data.stayDateType = input.data.stayDateType ?? null;
+      if (input.data.paymentPct !== undefined) data.paymentPct = input.data.paymentPct ?? null;
+      if (input.data.paymentDeadline !== undefined) data.paymentDeadline = input.data.paymentDeadline ? new Date(input.data.paymentDeadline) : null;
+      if (input.data.roomingListBy !== undefined) data.roomingListBy = input.data.roomingListBy ? new Date(input.data.roomingListBy) : null;
       if (input.data.combinable !== undefined) data.combinable = input.data.combinable;
       if (input.data.active !== undefined) data.active = input.data.active;
       if (input.data.sortOrder !== undefined) data.sortOrder = input.data.sortOrder;

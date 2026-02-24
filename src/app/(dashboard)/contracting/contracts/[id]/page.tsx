@@ -168,6 +168,7 @@ type ContractData = {
   mealBases: ContractMealBasisData[];
   baseRates: BaseRateData[];
   supplements: SupplementData[];
+  markets: { id: string; market: { id: string; name: string; code: string } }[];
 };
 
 export default function ContractDetailPage() {
@@ -696,6 +697,21 @@ function OverviewTab({ contract }: { contract: ContractData }) {
               </div>
             </>
           )}
+          <Separator />
+          <div className="flex justify-between items-start">
+            <span className="text-muted-foreground">Market Validity</span>
+            <div className="flex flex-wrap justify-end gap-1">
+              {contract.markets.length > 0 ? (
+                contract.markets.map((cm) => (
+                  <Badge key={cm.id} variant="secondary" className="text-xs">
+                    {cm.market.name}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-muted-foreground">All Markets</span>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -2445,6 +2461,293 @@ function ExtraBedSupplementGrid({
 
 // ─── View Supplement Section ──────────────────────────────
 
+// ─── Season SPO Dialog ──────────────────────────────────
+
+type SeasonSpoRow = {
+  id?: string | null;
+  dateFrom: string;
+  dateTo: string;
+  basePp: string;
+  sglSup: string;
+  thirdAdultRed: string;
+  firstChildPct: string;
+  secondChildPct: string;
+  bookFrom: string;
+  bookTo: string;
+  value: string;
+  valueType: "FIXED" | "PERCENTAGE";
+  active: boolean;
+};
+
+function emptyRow(): SeasonSpoRow {
+  return {
+    dateFrom: "",
+    dateTo: "",
+    basePp: "",
+    sglSup: "",
+    thirdAdultRed: "",
+    firstChildPct: "",
+    secondChildPct: "",
+    bookFrom: "",
+    bookTo: "",
+    value: "",
+    valueType: "PERCENTAGE",
+    active: true,
+  };
+}
+
+function SeasonSpoButton({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("RATE_OVERRIDE");
+
+  const [rateRows, setRateRows] = useState<SeasonSpoRow[]>([]);
+  const [bookingRows, setBookingRows] = useState<SeasonSpoRow[]>([]);
+  const [pctRows, setPctRows] = useState<SeasonSpoRow[]>([]);
+
+  const { data: allSpos } = trpc.contracting.seasonSpo.listByContract.useQuery(
+    { contractId },
+    { enabled: open },
+  );
+
+  const bulkSaveMutation = trpc.contracting.seasonSpo.bulkSave.useMutation({
+    onSuccess: () => {
+      utils.contracting.seasonSpo.listByContract.invalidate({ contractId });
+    },
+  });
+
+  const toggleMutation = trpc.contracting.seasonSpo.toggleActive.useMutation({
+    onSuccess: () => {
+      utils.contracting.seasonSpo.listByContract.invalidate({ contractId });
+    },
+  });
+
+  // Sync fetched data into local state when dialog opens
+  useEffect(() => {
+    if (!allSpos) return;
+    const toRow = (s: typeof allSpos[number]): SeasonSpoRow => ({
+      id: s.id,
+      dateFrom: format(new Date(s.dateFrom), "yyyy-MM-dd"),
+      dateTo: format(new Date(s.dateTo), "yyyy-MM-dd"),
+      basePp: s.basePp != null ? String(Number(s.basePp)) : "",
+      sglSup: s.sglSup != null ? String(Number(s.sglSup)) : "",
+      thirdAdultRed: s.thirdAdultRed != null ? String(Number(s.thirdAdultRed)) : "",
+      firstChildPct: s.firstChildPct != null ? String(Number(s.firstChildPct)) : "",
+      secondChildPct: s.secondChildPct != null ? String(Number(s.secondChildPct)) : "",
+      bookFrom: s.bookFrom ? format(new Date(s.bookFrom), "yyyy-MM-dd") : "",
+      bookTo: s.bookTo ? format(new Date(s.bookTo), "yyyy-MM-dd") : "",
+      value: s.value != null ? String(Number(s.value)) : "",
+      valueType: (s.valueType as "FIXED" | "PERCENTAGE") ?? "PERCENTAGE",
+      active: s.active,
+    });
+    setRateRows(allSpos.filter((s) => s.spoType === "RATE_OVERRIDE").map(toRow));
+    setBookingRows(allSpos.filter((s) => s.spoType === "BOOKING_WINDOW").map(toRow));
+    setPctRows(allSpos.filter((s) => s.spoType === "PERCENTAGE").map(toRow));
+  }, [allSpos]);
+
+  function getRowsForTab(tab: string) {
+    if (tab === "RATE_OVERRIDE") return rateRows;
+    if (tab === "BOOKING_WINDOW") return bookingRows;
+    return pctRows;
+  }
+
+  function setRowsForTab(tab: string, rows: SeasonSpoRow[]) {
+    if (tab === "RATE_OVERRIDE") setRateRows(rows);
+    else if (tab === "BOOKING_WINDOW") setBookingRows(rows);
+    else setPctRows(rows);
+  }
+
+  function updateRow(tab: string, idx: number, field: keyof SeasonSpoRow, val: string | boolean) {
+    const rows = [...getRowsForTab(tab)];
+    rows[idx] = { ...rows[idx], [field]: val };
+    setRowsForTab(tab, rows);
+  }
+
+  function addRow(tab: string) {
+    setRowsForTab(tab, [...getRowsForTab(tab), emptyRow()]);
+  }
+
+  function removeRow(tab: string, idx: number) {
+    const rows = getRowsForTab(tab).filter((_, i) => i !== idx);
+    setRowsForTab(tab, rows);
+  }
+
+  function handleSave(spoType: string) {
+    const rows = getRowsForTab(spoType);
+    bulkSaveMutation.mutate({
+      contractId,
+      spoType: spoType as "RATE_OVERRIDE" | "BOOKING_WINDOW" | "PERCENTAGE",
+      items: rows
+        .filter((r) => r.dateFrom && r.dateTo)
+        .map((r) => ({
+          id: r.id,
+          dateFrom: r.dateFrom,
+          dateTo: r.dateTo,
+          basePp: r.basePp ? Number(r.basePp) : null,
+          sglSup: r.sglSup ? Number(r.sglSup) : null,
+          thirdAdultRed: r.thirdAdultRed ? Number(r.thirdAdultRed) : null,
+          firstChildPct: r.firstChildPct ? Number(r.firstChildPct) : null,
+          secondChildPct: r.secondChildPct ? Number(r.secondChildPct) : null,
+          bookFrom: r.bookFrom || null,
+          bookTo: r.bookTo || null,
+          value: r.value ? Number(r.value) : null,
+          valueType: r.valueType || null,
+          active: r.active,
+        })),
+    });
+  }
+
+  function handleToggle(row: SeasonSpoRow, tab: string, idx: number) {
+    if (row.id) {
+      toggleMutation.mutate({ id: row.id });
+    }
+    updateRow(tab, idx, "active", !row.active);
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        Season SPO
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[1200px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Season Special Offers</DialogTitle>
+            <DialogDescription>
+              Manage season-level rate overrides, booking window offers, and percentage discounts.
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="RATE_OVERRIDE">Rate Override</TabsTrigger>
+              <TabsTrigger value="BOOKING_WINDOW">Booking Window</TabsTrigger>
+              <TabsTrigger value="PERCENTAGE">Percentage SPO</TabsTrigger>
+            </TabsList>
+
+            {/* ── Rate Override Grid ── */}
+            <TabsContent value="RATE_OVERRIDE">
+              <div className="space-y-3">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[120px]">From</TableHead>
+                      <TableHead className="w-[120px]">To</TableHead>
+                      <TableHead>Base PP</TableHead>
+                      <TableHead>SGL Sup %</TableHead>
+                      <TableHead>3rd Adult Red</TableHead>
+                      <TableHead>1st Child %</TableHead>
+                      <TableHead>2nd Child %</TableHead>
+                      <TableHead className="w-[70px]">Active</TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rateRows.map((row, idx) => (
+                      <TableRow key={idx} className={!row.active ? "opacity-50 line-through" : ""}>
+                        <TableCell><Input type="date" value={row.dateFrom} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "dateFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="date" value={row.dateTo} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "dateTo", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.basePp} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "basePp", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.sglSup} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "sglSup", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.thirdAdultRed} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "thirdAdultRed", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.firstChildPct} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "firstChildPct", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.secondChildPct} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "secondChildPct", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
+                        <TableCell><Switch checked={row.active} onCheckedChange={() => handleToggle(row, "RATE_OVERRIDE", idx)} /></TableCell>
+                        <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeRow("RATE_OVERRIDE", idx)}>×</Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => addRow("RATE_OVERRIDE")}>Add Row</Button>
+                  <Button size="sm" onClick={() => handleSave("RATE_OVERRIDE")} disabled={bulkSaveMutation.isPending}>Save All</Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Booking Window Grid ── */}
+            <TabsContent value="BOOKING_WINDOW">
+              <div className="space-y-3">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[120px]">From</TableHead>
+                      <TableHead className="w-[120px]">To</TableHead>
+                      <TableHead className="w-[120px]">Book From</TableHead>
+                      <TableHead className="w-[120px]">Book To</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="w-[70px]">Active</TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bookingRows.map((row, idx) => (
+                      <TableRow key={idx} className={!row.active ? "opacity-50 line-through" : ""}>
+                        <TableCell><Input type="date" value={row.dateFrom} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "dateFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="date" value={row.dateTo} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "dateTo", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="date" value={row.bookFrom} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "bookFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="date" value={row.bookTo} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "bookTo", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.value} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "value", e.target.value)} className="h-8 w-24 text-xs" /></TableCell>
+                        <TableCell>
+                          <Select value={row.valueType} onValueChange={(v) => updateRow("BOOKING_WINDOW", idx, "valueType", v)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="FIXED">Fixed</SelectItem>
+                              <SelectItem value="PERCENTAGE">%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell><Switch checked={row.active} onCheckedChange={() => handleToggle(row, "BOOKING_WINDOW", idx)} /></TableCell>
+                        <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeRow("BOOKING_WINDOW", idx)}>×</Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => addRow("BOOKING_WINDOW")}>Add Row</Button>
+                  <Button size="sm" onClick={() => handleSave("BOOKING_WINDOW")} disabled={bulkSaveMutation.isPending}>Save All</Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Percentage SPO Grid ── */}
+            <TabsContent value="PERCENTAGE">
+              <div className="space-y-3">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[140px]">From</TableHead>
+                      <TableHead className="w-[140px]">To</TableHead>
+                      <TableHead>Discount %</TableHead>
+                      <TableHead className="w-[70px]">Active</TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pctRows.map((row, idx) => (
+                      <TableRow key={idx} className={!row.active ? "opacity-50 line-through" : ""}>
+                        <TableCell><Input type="date" value={row.dateFrom} onChange={(e) => updateRow("PERCENTAGE", idx, "dateFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="date" value={row.dateTo} onChange={(e) => updateRow("PERCENTAGE", idx, "dateTo", e.target.value)} className="h-8 text-xs" /></TableCell>
+                        <TableCell><Input type="number" value={row.value} onChange={(e) => updateRow("PERCENTAGE", idx, "value", e.target.value)} className="h-8 w-28 text-xs" /></TableCell>
+                        <TableCell><Switch checked={row.active} onCheckedChange={() => handleToggle(row, "PERCENTAGE", idx)} /></TableCell>
+                        <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeRow("PERCENTAGE", idx)}>×</Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => addRow("PERCENTAGE")}>Add Row</Button>
+                  <Button size="sm" onClick={() => handleSave("PERCENTAGE")} disabled={bulkSaveMutation.isPending}>Save All</Button>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── Special Offers Tab ──────────────────────────────────
 
 type SpecialOfferData = {
@@ -2463,6 +2766,11 @@ type SpecialOfferData = {
   discountValue: string | number;
   stayNights: number | null;
   payNights: number | null;
+  bookFromDate: string | Date | null;
+  stayDateType: string | null;
+  paymentPct: number | null;
+  paymentDeadline: string | Date | null;
+  roomingListBy: string | Date | null;
   combinable: boolean;
   active: boolean;
   sortOrder: number;
@@ -2476,7 +2784,6 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
   // Form state
   const [name, setName] = useState("");
   const [offerType, setOfferType] = useState("EARLY_BIRD");
-  const [description, setDescription] = useState("");
   const [discountType, setDiscountType] = useState("PERCENTAGE");
   const [discountValue, setDiscountValue] = useState("");
   const [validFrom, setValidFrom] = useState("");
@@ -2487,6 +2794,11 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
   const [advanceBookDays, setAdvanceBookDays] = useState("");
   const [stayNights, setStayNights] = useState("");
   const [payNights, setPayNights] = useState("");
+  const [bookFromDate, setBookFromDate] = useState("");
+  const [stayDateType, setStayDateType] = useState("COMPLETED");
+  const [paymentPct, setPaymentPct] = useState("");
+  const [paymentDeadline, setPaymentDeadline] = useState("");
+  const [roomingListBy, setRoomingListBy] = useState("");
   const [combinable, setCombinable] = useState(true);
 
   const { data: offers, isLoading } = trpc.contracting.specialOffer.listByContract.useQuery(
@@ -2521,7 +2833,6 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
   function resetForm() {
     setName("");
     setOfferType("EARLY_BIRD");
-    setDescription("");
     setDiscountType("PERCENTAGE");
     setDiscountValue("");
     setValidFrom("");
@@ -2532,6 +2843,11 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
     setAdvanceBookDays("");
     setStayNights("");
     setPayNights("");
+    setBookFromDate("");
+    setStayDateType("COMPLETED");
+    setPaymentPct("");
+    setPaymentDeadline("");
+    setRoomingListBy("");
     setCombinable(true);
   }
 
@@ -2545,7 +2861,6 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
     setEditing(o);
     setName(o.name);
     setOfferType(o.offerType);
-    setDescription(o.description ?? "");
     setDiscountType(o.discountType);
     setDiscountValue(String(Number(o.discountValue)));
     setValidFrom(o.validFrom ? format(new Date(o.validFrom), "yyyy-MM-dd") : "");
@@ -2556,6 +2871,11 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
     setAdvanceBookDays(o.advanceBookDays ? String(o.advanceBookDays) : "");
     setStayNights(o.stayNights ? String(o.stayNights) : "");
     setPayNights(o.payNights ? String(o.payNights) : "");
+    setBookFromDate(o.bookFromDate ? format(new Date(o.bookFromDate), "yyyy-MM-dd") : "");
+    setStayDateType(o.stayDateType ?? "COMPLETED");
+    setPaymentPct(o.paymentPct ? String(o.paymentPct) : "");
+    setPaymentDeadline(o.paymentDeadline ? format(new Date(o.paymentDeadline), "yyyy-MM-dd") : "");
+    setRoomingListBy(o.roomingListBy ? format(new Date(o.roomingListBy), "yyyy-MM-dd") : "");
     setCombinable(o.combinable);
     setShowDialog(true);
   }
@@ -2563,8 +2883,8 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
   function handleSubmit() {
     const base = {
       name,
-      offerType: offerType as "EARLY_BIRD" | "LONG_STAY" | "FREE_NIGHTS" | "HONEYMOON" | "GROUP_DISCOUNT",
-      description: description || null,
+      offerType: offerType as "EARLY_BIRD" | "NORMAL_EBD" | "LONG_STAY" | "FREE_NIGHTS" | "HONEYMOON" | "GROUP_DISCOUNT",
+      description: null,
       discountType: discountType as "FIXED" | "PERCENTAGE",
       discountValue: Number(discountValue) || 0,
       validFrom: validFrom || null,
@@ -2575,6 +2895,11 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
       advanceBookDays: advanceBookDays ? Number(advanceBookDays) : null,
       stayNights: stayNights ? Number(stayNights) : null,
       payNights: payNights ? Number(payNights) : null,
+      bookFromDate: bookFromDate || null,
+      stayDateType: (stayDateType as "COMPLETED" | "ARRIVAL") || null,
+      paymentPct: paymentPct ? Number(paymentPct) : null,
+      paymentDeadline: paymentDeadline || null,
+      roomingListBy: roomingListBy || null,
       combinable,
     };
 
@@ -2608,14 +2933,17 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Special Offers</CardTitle>
-        <Button size="sm" onClick={openCreate}>
-          Add Offer
-        </Button>
+        <div className="flex gap-2">
+          <SeasonSpoButton contractId={contractId} />
+          <Button size="sm" onClick={openCreate}>
+            Add Contract Offers
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {typedOffers.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            No special offers configured. Click &quot;Add Offer&quot; to create one.
+            No special offers configured. Click &quot;Add Contract Offers&quot; to create one.
           </p>
         ) : (
           <Table>
@@ -2642,6 +2970,15 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
                   <TableCell>{formatDiscount(o)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {o.offerType === "EARLY_BIRD" && o.advanceBookDays && `${o.advanceBookDays}+ days advance`}
+                    {o.offerType === "NORMAL_EBD" && (
+                      <span>
+                        Book: {o.bookFromDate ? format(new Date(o.bookFromDate), "dd MMM") : "—"}–{o.bookByDate ? format(new Date(o.bookByDate), "dd MMM") : "—"}
+                        {" | "}Stay ({o.stayDateType ?? "COMPLETED"}): {o.validFrom ? format(new Date(o.validFrom), "dd MMM") : "—"}–{o.validTo ? format(new Date(o.validTo), "dd MMM") : "—"}
+                        {o.paymentPct && o.paymentDeadline && (
+                          <> {" | "}{o.paymentPct}% by {format(new Date(o.paymentDeadline), "dd MMM yyyy")}</>
+                        )}
+                      </span>
+                    )}
                     {o.offerType === "LONG_STAY" && o.minimumNights && `${o.minimumNights}+ nights`}
                     {o.offerType === "FREE_NIGHTS" && `${o.stayNights}+ nights`}
                     {o.offerType === "GROUP_DISCOUNT" && o.minimumRooms && `${o.minimumRooms}+ rooms`}
@@ -2685,15 +3022,16 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
         )}
 
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="sm:max-w-[1100px]">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Offer" : "Add Special Offer"}</DialogTitle>
               <DialogDescription>
                 {editing ? "Update offer details." : "Configure a new special offer for this contract."}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-3 py-4">
+              {/* Row 1: Name + Type + Discount (or Stay/Pay for FREE_NIGHTS) */}
+              <div className="grid grid-cols-4 gap-3">
                 <div>
                   <label className="text-sm font-medium">Name</label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Early Bird 60 Days" />
@@ -2709,85 +3047,125 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
                     </SelectContent>
                   </Select>
                 </div>
+                {offerType !== "FREE_NIGHTS" ? (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium">Discount Value</label>
+                      <Input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} min={0} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Discount Type</label>
+                      <Select value={discountType} onValueChange={setDiscountType}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
+                          <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium">Stay Nights</label>
+                      <Input type="number" value={stayNights} onChange={(e) => setStayNights(e.target.value)} min={2} placeholder="e.g. 7" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Pay Nights</label>
+                      <Input type="number" value={payNights} onChange={(e) => setPayNights(e.target.value)} min={1} placeholder="e.g. 5" />
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
-              </div>
-
-              {/* Discount */}
-              {offerType !== "FREE_NIGHTS" && (
-                <div className="grid grid-cols-2 gap-4">
+              {/* Row 2 (non-EBD types): type-specific field + dates on one row */}
+              {offerType !== "NORMAL_EBD" && (
+                <div className="grid grid-cols-4 gap-3">
                   <div>
-                    <label className="text-sm font-medium">Discount Value</label>
-                    <Input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} min={0} />
+                    <label className="text-sm font-medium">Valid From</label>
+                    <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Discount Type</label>
-                    <Select value={discountType} onValueChange={setDiscountType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                        <SelectItem value="FIXED">Fixed Amount</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
-              {/* Free Nights */}
-              {offerType === "FREE_NIGHTS" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Stay Nights</label>
-                    <Input type="number" value={stayNights} onChange={(e) => setStayNights(e.target.value)} min={2} placeholder="e.g. 7" />
+                    <label className="text-sm font-medium">Valid To</label>
+                    <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Pay Nights</label>
-                    <Input type="number" value={payNights} onChange={(e) => setPayNights(e.target.value)} min={1} placeholder="e.g. 5" />
+                    <label className="text-sm font-medium">Book By</label>
+                    <Input type="date" value={bookByDate} onChange={(e) => setBookByDate(e.target.value)} />
+                  </div>
+                  <div>
+                    {offerType === "EARLY_BIRD" && (
+                      <>
+                        <label className="text-sm font-medium">Advance Days</label>
+                        <Input type="number" value={advanceBookDays} onChange={(e) => setAdvanceBookDays(e.target.value)} min={1} placeholder="e.g. 60" />
+                      </>
+                    )}
+                    {offerType === "LONG_STAY" && (
+                      <>
+                        <label className="text-sm font-medium">Min Nights</label>
+                        <Input type="number" value={minimumNights} onChange={(e) => setMinimumNights(e.target.value)} min={1} placeholder="e.g. 7" />
+                      </>
+                    )}
+                    {offerType === "GROUP_DISCOUNT" && (
+                      <>
+                        <label className="text-sm font-medium">Min Rooms</label>
+                        <Input type="number" value={minimumRooms} onChange={(e) => setMinimumRooms(e.target.value)} min={1} placeholder="e.g. 5" />
+                      </>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Conditional fields */}
-              {offerType === "EARLY_BIRD" && (
-                <div>
-                  <label className="text-sm font-medium">Advance Booking Days</label>
-                  <Input type="number" value={advanceBookDays} onChange={(e) => setAdvanceBookDays(e.target.value)} min={1} placeholder="e.g. 60" />
-                </div>
+              {/* Normal EBD: Row 2 — Booking window + Stay window (4 cols) */}
+              {offerType === "NORMAL_EBD" && (
+                <>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Booking From</label>
+                      <Input type="date" value={bookFromDate} onChange={(e) => setBookFromDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Booking To</label>
+                      <Input type="date" value={bookByDate} onChange={(e) => setBookByDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Stay From</label>
+                      <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Stay To</label>
+                      <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+                    </div>
+                  </div>
+                  {/* Row 3 — Stay Date Type + Payment + Rooming List */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Stay Date Type</label>
+                      <Select value={stayDateType} onValueChange={setStayDateType}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="COMPLETED">Completed</SelectItem>
+                          <SelectItem value="ARRIVAL">Arrival Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Payment %</label>
+                      <Input type="number" value={paymentPct} onChange={(e) => setPaymentPct(e.target.value)} min={1} max={100} placeholder="e.g. 50" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Payment Deadline</label>
+                      <Input type="date" value={paymentDeadline} onChange={(e) => setPaymentDeadline(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Rooming List By</label>
+                      <Input type="date" value={roomingListBy} onChange={(e) => setRoomingListBy(e.target.value)} />
+                    </div>
+                  </div>
+                </>
               )}
 
-              {offerType === "LONG_STAY" && (
-                <div>
-                  <label className="text-sm font-medium">Minimum Nights</label>
-                  <Input type="number" value={minimumNights} onChange={(e) => setMinimumNights(e.target.value)} min={1} placeholder="e.g. 7" />
-                </div>
-              )}
-
-              {offerType === "GROUP_DISCOUNT" && (
-                <div>
-                  <label className="text-sm font-medium">Minimum Rooms</label>
-                  <Input type="number" value={minimumRooms} onChange={(e) => setMinimumRooms(e.target.value)} min={1} placeholder="e.g. 5" />
-                </div>
-              )}
-
-              {/* Date range */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Valid From</label>
-                  <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Valid To</label>
-                  <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Book By</label>
-                  <Input type="date" value={bookByDate} onChange={(e) => setBookByDate(e.target.value)} />
-                </div>
-              </div>
-
+              {/* Combinable toggle */}
               <div className="flex items-center gap-2">
                 <Switch checked={combinable} onCheckedChange={setCombinable} />
                 <label className="text-sm font-medium">Combinable with other offers</label>
@@ -3169,34 +3547,45 @@ function RateSheetTab({
   const { data: rateSheet, isLoading } =
     trpc.contracting.rateCalculator.getRateSheet.useQuery({ contractId });
 
-  // Calculator state
-  const [seasonId, setSeasonId] = useState(contract.seasons[0]?.id ?? "");
-  const [roomTypeId, setRoomTypeId] = useState(contract.roomTypes[0]?.roomTypeId ?? "");
-  const [mealBasisId, setMealBasisId] = useState(contract.mealBases[0]?.mealBasisId ?? "");
+  // Calculator state — booking-oriented flow
+  const [arrivalDate, setArrivalDate] = useState("");
+  const [departureDate, setDepartureDate] = useState("");
   const [adults, setAdults] = useState(2);
-  const [nights, setNights] = useState(1);
+  const [childCount, setChildCount] = useState(0);
+  const [childDobs, setChildDobs] = useState<string[]>([]);
+  const [mealBasisId, setMealBasisId] = useState(contract.mealBases[0]?.mealBasisId ?? "");
   const [extraBed, setExtraBed] = useState(false);
-  const [children, setChildren] = useState<{ category: string }[]>([]);
   const [bookingDate, setBookingDate] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
 
-  const { data: breakdown, isLoading: isCalculating } =
-    trpc.contracting.rateCalculator.calculate.useQuery(
+  // Auto-calculate nights
+  const calcNights = arrivalDate && departureDate
+    ? Math.max(0, Math.floor((new Date(departureDate).getTime() - new Date(arrivalDate).getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  // Sync childDobs array length with childCount
+  useEffect(() => {
+    setChildDobs((prev) => {
+      if (prev.length === childCount) return prev;
+      if (childCount < prev.length) return prev.slice(0, childCount);
+      return [...prev, ...Array(childCount - prev.length).fill("")];
+    });
+  }, [childCount]);
+
+  const allChildDobsFilled = childCount === 0 || childDobs.every((d) => d.length > 0);
+
+  const { data: multiResult, isLoading: isCalculating } =
+    trpc.contracting.rateCalculator.calculateMultiRoom.useQuery(
       {
         contractId,
-        seasonId,
-        roomTypeId,
-        mealBasisId,
+        arrivalDate,
+        departureDate,
         adults,
-        children: children.map((c) => ({
-          category: c.category as "INFANT" | "CHILD" | "TEEN",
-        })),
+        childDobs: childDobs.filter((d) => d.length > 0),
+        mealBasisId,
         extraBed,
-        nights,
         bookingDate: bookingDate || null,
-        checkInDate: checkInDate || null,
       },
-      { enabled: !!seasonId && !!roomTypeId && !!mealBasisId },
+      { enabled: !!arrivalDate && !!departureDate && departureDate > arrivalDate && !!mealBasisId && allChildDobsFilled },
     );
 
   if (contract.seasons.length === 0 || contract.baseRates.length === 0) {
@@ -3325,37 +3714,56 @@ function RateSheetTab({
           <CardTitle>Rate Calculator</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Input Controls */}
+          {/* Row 1: Arrival, Departure, Nights, Adults */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>
-              <label className="text-sm font-medium">Season</label>
-              <Select value={seasonId} onValueChange={setSeasonId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {contract.seasons.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Arrival Date</label>
+              <Input
+                type="date"
+                value={arrivalDate}
+                onChange={(e) => setArrivalDate(e.target.value)}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium">Room Type</label>
-              <Select value={roomTypeId} onValueChange={setRoomTypeId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {contract.roomTypes.map((rt) => (
-                    <SelectItem key={rt.roomTypeId} value={rt.roomTypeId}>
-                      {rt.roomType.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Departure Date</label>
+              <Input
+                type="date"
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Nights</label>
+              <Input
+                type="number"
+                value={calcNights}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Adults</label>
+              <Input
+                type="number"
+                min={1}
+                max={6}
+                value={adults}
+                onChange={(e) => setAdults(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Children, Meal Plan, Extra Bed, Booking Date */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <label className="text-sm font-medium">Children</label>
+              <Input
+                type="number"
+                min={0}
+                max={4}
+                value={childCount}
+                onChange={(e) => setChildCount(Math.max(0, Math.min(4, Number(e.target.value) || 0)))}
+              />
             </div>
             <div>
               <label className="text-sm font-medium">Meal Plan</label>
@@ -3372,28 +3780,6 @@ function RateSheetTab({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-sm font-medium">Adults</label>
-              <Input
-                type="number"
-                min={1}
-                max={4}
-                value={adults}
-                onChange={(e) => setAdults(Math.max(1, Math.min(4, Number(e.target.value) || 1)))}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <div>
-              <label className="text-sm font-medium">Nights</label>
-              <Input
-                type="number"
-                min={1}
-                value={nights}
-                onChange={(e) => setNights(Math.max(1, Number(e.target.value) || 1))}
-              />
-            </div>
             <div className="flex items-end gap-2 pb-2">
               <Checkbox
                 id="extraBed"
@@ -3404,9 +3790,6 @@ function RateSheetTab({
                 Extra Bed
               </label>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>
               <label className="text-sm font-medium">Booking Date</label>
               <Input
@@ -3415,88 +3798,263 @@ function RateSheetTab({
                 onChange={(e) => setBookingDate(e.target.value)}
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Check-in Date</label>
-              <Input
-                type="date"
-                value={checkInDate}
-                onChange={(e) => setCheckInDate(e.target.value)}
-              />
-            </div>
           </div>
 
-          {/* Children */}
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-sm font-medium">Children</label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setChildren((prev) => [
-                    ...prev,
-                    { category: "CHILD" },
-                  ])
-                }
-              >
-                Add Child
-              </Button>
+          {/* Row 3: Child DOBs (dynamic) */}
+          {childCount > 0 && (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {Array.from({ length: childCount }).map((_, idx) => (
+                <div key={idx}>
+                  <label className="text-sm font-medium">Child {idx + 1} DOB</label>
+                  <Input
+                    type="date"
+                    value={childDobs[idx] ?? ""}
+                    onChange={(e) =>
+                      setChildDobs((prev) =>
+                        prev.map((d, i) => (i === idx ? e.target.value : d)),
+                      )
+                    }
+                  />
+                </div>
+              ))}
             </div>
-            {children.length > 0 && (
-              <div className="space-y-2">
-                {children.map((child, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Select
-                      value={child.category}
-                      onValueChange={(v) =>
-                        setChildren((prev) =>
-                          prev.map((c, i) => (i === idx ? { ...c, category: v } : c)),
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-36">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CHILD_AGE_CATEGORY_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>
-                            {v}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-xs text-muted-foreground">
-                      ({ordinal(idx + 1)} child)
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() =>
-                        setChildren((prev) => prev.filter((_, i) => i !== idx))
-                      }
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
 
           <Separator />
 
-          {/* Breakdown */}
+          {/* Results */}
           {isCalculating ? (
             <div className="py-4 text-center text-muted-foreground">
               Calculating...
             </div>
-          ) : breakdown ? (
-            <RateBreakdownDisplay
-              breakdown={breakdown}
-              currencyCode={contract.baseCurrency.code}
-            />
-          ) : null}
+          ) : multiResult ? (
+            <div className="space-y-4">
+              {/* Header info */}
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                {multiResult.seasonName && (
+                  <Badge variant="outline">
+                    Season: {multiResult.seasonName}
+                  </Badge>
+                )}
+                {multiResult.nights > 0 && (
+                  <Badge variant="outline">
+                    {multiResult.nights} night{multiResult.nights !== 1 ? "s" : ""}
+                  </Badge>
+                )}
+                {multiResult.resolvedChildren.map((rc, idx) => (
+                  <Badge key={idx} variant="secondary">
+                    Child {idx + 1}: age {rc.ageAtCheckIn} ({rc.category})
+                  </Badge>
+                ))}
+              </div>
+
+              {/* Room type results */}
+              {multiResult.results.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+                  {!multiResult.seasonId
+                    ? "No season matches the selected arrival date."
+                    : "No room types match the selected occupancy criteria. Check that occupancy tables are configured for the requested combination."}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {multiResult.results.map((room) => {
+                    const bd = room.breakdown;
+                    const cc = contract.baseCurrency.code;
+                    const fmt = (n: number) => `${cc} ${formatCurrency(n)}`;
+                    const isPP = bd.rateBasis === "PER_PERSON";
+                    const adultRoomPerNight = isPP ? bd.adultTotalPerNight * room.occupancyMatch.adults : bd.adultTotalPerNight;
+
+                    return (
+                    <details key={room.roomTypeId} className="group rounded-lg border">
+                      <summary className="flex cursor-pointer items-center justify-between p-4 hover:bg-muted/50">
+                        <div>
+                          <span className="font-semibold">{room.roomTypeName}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({room.occupancyMatch.adults}A
+                            {room.occupancyMatch.children > 0 && `+${room.occupancyMatch.children}C`}
+                            {room.occupancyMatch.infants > 0 && `+${room.occupancyMatch.infants}I`}
+                            {room.occupancyMatch.extraBeds > 0 && `+${room.occupancyMatch.extraBeds}EB`})
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold">
+                            {fmt(room.totalPerRoomAfterOffers)}
+                          </div>
+                          {room.totalPerRoom !== room.totalPerRoomAfterOffers && (
+                            <div className="text-xs text-muted-foreground line-through">
+                              {fmt(room.totalPerRoom)}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            {fmt(room.roomTotalPerNight)} / night
+                          </div>
+                        </div>
+                      </summary>
+                      <div className="border-t p-4">
+                        <div className="rounded-lg border p-4 space-y-0">
+                          {/* Section 1: Per-person adult rate build-up */}
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            {isPP ? "Adult Rate (per person / night)" : "Room Rate (per night)"}
+                          </p>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>{bd.baseRateLabel}</span>
+                              <span className="font-mono">{fmt(bd.baseRate)}</span>
+                            </div>
+                            {bd.roomTypeSupplement && bd.roomTypeSupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">{bd.roomTypeSupplement.amount > 0 ? "+" : ""} </span>
+                                  Room Type ({bd.roomTypeSupplement.label})
+                                </span>
+                                <span className="font-mono">{fmt(bd.roomTypeSupplement.amount)}</span>
+                              </div>
+                            )}
+                            {bd.mealSupplement && bd.mealSupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">{bd.mealSupplement.amount >= 0 ? "+" : ""} </span>
+                                  Meal Plan ({bd.mealSupplement.label})
+                                </span>
+                                <span className="font-mono">{fmt(bd.mealSupplement.amount)}</span>
+                              </div>
+                            )}
+                            {bd.occupancySupplement && bd.occupancySupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">{bd.occupancySupplement.amount >= 0 ? "+" : ""} </span>
+                                  {bd.occupancySupplement.label}
+                                </span>
+                                <span className="font-mono">{fmt(bd.occupancySupplement.amount)}</span>
+                              </div>
+                            )}
+                            {bd.extraBedSupplement && bd.extraBedSupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">+ </span>
+                                  {bd.extraBedSupplement.label}
+                                </span>
+                                <span className="font-mono">{fmt(bd.extraBedSupplement.amount)}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <Separator className="my-2" />
+
+                          <div className="flex justify-between text-sm font-semibold">
+                            <span>{isPP ? "Per Person / Night" : "Room Rate / Night"}</span>
+                            <span className="font-mono">{fmt(bd.adultTotalPerNight)}</span>
+                          </div>
+
+                          {/* Section 2: Multiply by adults (PER_PERSON only) */}
+                          {isPP && room.occupancyMatch.adults > 0 && (
+                            <>
+                              <Separator className="my-2" />
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Room Calculation</p>
+                              <div className="flex justify-between text-sm">
+                                <span>{fmt(bd.adultTotalPerNight)} x {room.occupancyMatch.adults} adult{room.occupancyMatch.adults !== 1 ? "s" : ""}</span>
+                                <span className="font-mono">{fmt(adultRoomPerNight)}</span>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Section 3: Child charges */}
+                          {bd.childCharges.length > 0 && (
+                            <>
+                              {!(isPP && room.occupancyMatch.adults > 0) && <Separator className="my-2" />}
+                              <div className="mt-1 space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground">Children</p>
+                                {bd.childCharges.map((chc, idx) => (
+                                  <div key={idx} className="flex justify-between text-sm">
+                                    <span>
+                                      <span className="text-muted-foreground">+ </span>
+                                      {chc.label}
+                                      {chc.isFree && (
+                                        <Badge variant="secondary" className="ml-2 text-xs">Free</Badge>
+                                      )}
+                                    </span>
+                                    <span className="font-mono">{fmt(chc.amount)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Section 4: Room total per night */}
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-semibold">
+                            <span>Room Total / Night</span>
+                            <span className="font-mono">{fmt(room.roomTotalPerNight)}</span>
+                          </div>
+
+                          {/* Section 5: Multiply by nights */}
+                          {multiResult.nights > 1 && (
+                            <div className="mt-1 flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {fmt(room.roomTotalPerNight)} x {multiResult.nights} nights
+                              </span>
+                              <span className="font-mono font-semibold">{fmt(room.totalPerRoom)}</span>
+                            </div>
+                          )}
+
+                          <Separator className="my-2" />
+                          <div className="flex justify-between text-lg font-bold">
+                            <span>Total Stay</span>
+                            <span className="font-mono">{fmt(room.totalPerRoom)}</span>
+                          </div>
+
+                          {/* Section 6: Special offers */}
+                          {bd.offerDiscounts.length > 0 && (
+                            <>
+                              <Separator className="my-2" />
+                              <p className="text-xs font-medium text-muted-foreground">Special Offers</p>
+                              <div className="mt-1 space-y-1">
+                                {bd.offerDiscounts.map((od, idx) => {
+                                  const isEligible = od.discount > 0;
+                                  const roomDiscount = bd.totalStay > 0
+                                    ? od.discount * (room.totalPerRoom / bd.totalStay)
+                                    : 0;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`flex justify-between text-sm ${isEligible ? "text-green-600" : "text-muted-foreground"}`}
+                                    >
+                                      <span>
+                                        {isEligible ? "−" : ""} {od.offerName}
+                                        <span className="ml-1 text-xs">({od.description})</span>
+                                      </span>
+                                      <span className="font-mono">
+                                        {isEligible ? `−${fmt(roomDiscount)}` : "—"}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {room.totalPerRoomAfterOffers !== room.totalPerRoom && (
+                                <>
+                                  <Separator className="my-2" />
+                                  <div className="flex justify-between text-lg font-bold text-green-600">
+                                    <span>Final Total</span>
+                                    <span className="font-mono">{fmt(room.totalPerRoomAfterOffers)}</span>
+                                  </div>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </details>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-4 text-center text-sm text-muted-foreground">
+              Enter arrival &amp; departure dates with a meal plan to search available rooms.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
