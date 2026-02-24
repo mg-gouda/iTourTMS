@@ -14,6 +14,7 @@ import { rateCalculatorRouter } from "./rate-calculator";
 import { specialOfferRouter } from "./special-offer";
 import { destinationRouter } from "./destination";
 import { hotelRouter } from "./hotel";
+import { marketRouter } from "./market";
 import { mealBasisRouter } from "./meal-basis";
 import { roomTypeRouter } from "./room-type";
 
@@ -32,6 +33,7 @@ export const contractingRouter = createTRPCRouter({
   specialOffer: specialOfferRouter,
   destination: destinationRouter,
   hotel: hotelRouter,
+  market: marketRouter,
   mealBasis: mealBasisRouter,
   roomType: roomTypeRouter,
 });
