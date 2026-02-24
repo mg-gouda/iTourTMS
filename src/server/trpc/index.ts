@@ -1,4 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
+import type { Session } from "next-auth";
 import superjson from "superjson";
 
 import { auth } from "@/lib/auth";
@@ -6,8 +7,8 @@ import { logger } from "@/lib/logger";
 import { db } from "@/server/db";
 import { redis } from "@/server/redis";
 
-export async function createTRPCContext() {
-  const session = await auth();
+export async function createTRPCContext(opts?: { session?: Session | null }) {
+  const session = opts?.session !== undefined ? opts.session : await auth();
 
   return {
     db,

@@ -527,18 +527,36 @@ function MarketManagementSection() {
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = trpc.contracting.market.create.useMutation({
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(err.message),
+    onSuccess: () => {
+      toast.success("Market created");
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setError(err.message);
+    },
   });
 
   const updateMutation = trpc.contracting.market.update.useMutation({
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(err.message),
+    onSuccess: () => {
+      toast.success("Market updated");
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setError(err.message);
+    },
   });
 
   const deleteMutation = trpc.contracting.market.delete.useMutation({
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(err.message),
+    onSuccess: () => {
+      toast.success("Market deleted");
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setError(err.message);
+    },
   });
 
   function updateRow(index: number, field: keyof MarketRow, value: string | boolean) {
@@ -707,7 +725,17 @@ function MarketManagementSection() {
                   />
                 </TableCell>
                 <TableCell className="p-1">
-                  {!row.isNew && row.id && (
+                  {row.isNew ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={createMutation.isPending || !row.code.trim() || !row.name.trim()}
+                      onClick={() => saveRow(i)}
+                    >
+                      {createMutation.isPending ? "..." : "Save"}
+                    </Button>
+                  ) : row.id ? (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -717,7 +745,7 @@ function MarketManagementSection() {
                     >
                       <Trash2 className="size-4" />
                     </Button>
-                  )}
+                  ) : null}
                 </TableCell>
               </TableRow>
             ))}
@@ -725,7 +753,7 @@ function MarketManagementSection() {
         </Table>
 
         <p className="mt-2 text-xs text-muted-foreground">
-          Press Enter to save a row. Arrow Down on the last row adds a new line.
+          Press Enter or click Save. Arrow Down on the last row adds a new line.
         </p>
 
         {error && (

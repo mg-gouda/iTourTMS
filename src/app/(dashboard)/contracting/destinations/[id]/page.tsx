@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -696,18 +697,36 @@ function ZoneCityGrid({ cityId }: { cityId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = trpc.contracting.destination.createZone.useMutation({
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(err.message),
+    onSuccess: () => {
+      toast.success("Zone created");
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setError(err.message);
+    },
   });
 
   const updateMutation = trpc.contracting.destination.updateZone.useMutation({
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(err.message),
+    onSuccess: () => {
+      toast.success("Zone updated");
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setError(err.message);
+    },
   });
 
   const deleteMutation = trpc.contracting.destination.deleteZone.useMutation({
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(err.message),
+    onSuccess: () => {
+      toast.success("Zone deleted");
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setError(err.message);
+    },
   });
 
   function updateRow(index: number, field: keyof ZoneRow, value: string | boolean) {
@@ -843,7 +862,17 @@ function ZoneCityGrid({ cityId }: { cityId: string }) {
                 />
               </TableCell>
               <TableCell className="p-1">
-                {!row.isNew && row.id && (
+                {row.isNew ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    disabled={createMutation.isPending || !row.code.trim() || !row.name.trim()}
+                    onClick={() => saveRow(i)}
+                  >
+                    {createMutation.isPending ? "..." : "Save"}
+                  </Button>
+                ) : row.id ? (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -853,7 +882,7 @@ function ZoneCityGrid({ cityId }: { cityId: string }) {
                   >
                     <Trash2 className="size-4" />
                   </Button>
-                )}
+                ) : null}
               </TableCell>
             </TableRow>
           ))}
@@ -861,7 +890,7 @@ function ZoneCityGrid({ cityId }: { cityId: string }) {
       </Table>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Code must be a single uppercase letter. Press Enter to save.
+        Code must be a single uppercase letter. Press Enter or click Save.
       </p>
 
       {error && (
