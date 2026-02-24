@@ -12,6 +12,7 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_VARIANTS,
@@ -104,9 +105,9 @@ export default function ContractsPage() {
   const { data, isLoading } = trpc.contracting.contract.list.useQuery();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="page-header">
           <h1 className="text-2xl font-bold tracking-tight">Contracts</h1>
           <p className="text-muted-foreground">
             Manage hotel contracts, seasons, and base rates
@@ -120,8 +121,21 @@ export default function ContractsPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-10 text-center text-muted-foreground">
-          Loading...
+        <div className="space-y-3">
+          <Skeleton className="h-9 w-64" />
+          <div className="overflow-hidden rounded-lg border shadow-sm">
+            <div className="bg-primary h-10" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 border-b px-4 py-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <DataTable

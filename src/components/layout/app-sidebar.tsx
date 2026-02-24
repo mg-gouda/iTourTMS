@@ -216,8 +216,8 @@ function CollapsibleSubGroup({
       <Collapsible.Trigger asChild>
         <button
           className={cn(
-            "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
-            hasActiveRoute && "text-foreground",
+            "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            hasActiveRoute && "text-sidebar-foreground",
           )}
         >
           <ChevronRight
@@ -230,7 +230,7 @@ function CollapsibleSubGroup({
         </button>
       </Collapsible.Trigger>
       <Collapsible.Content className="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
-        <SidebarMenu className="ml-3 border-l pl-2">
+        <SidebarMenu className="ml-3 border-l border-sidebar-border pl-2">
           {group.routes.map((route) => (
             <SidebarMenuItem key={route.href}>
               <SidebarMenuButton

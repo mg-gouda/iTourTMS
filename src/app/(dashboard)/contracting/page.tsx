@@ -1,6 +1,12 @@
 "use client";
 
 import { format } from "date-fns";
+import {
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  FileStack,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Bar,
@@ -48,9 +54,9 @@ export default function ContractingDashboardPage() {
     data?.byStatus.find((s) => s.status === "PUBLISHED")?.count ?? 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Contracting Dashboard</h1>
+    <div className="space-y-6 animate-fade-in">
+      <div className="page-header">
+        <h1 className="text-2xl font-bold tracking-tight">Contracting Dashboard</h1>
         <p className="text-muted-foreground">
           Overview of hotel contracts and their status
         </p>
@@ -62,21 +68,29 @@ export default function ContractingDashboardPage() {
           title="Total Contracts"
           value={data?.totalContracts}
           isLoading={isLoading}
+          icon={FileStack}
+          accent="text-blue-600 dark:text-blue-400 bg-blue-500/10"
         />
         <KpiCard
           title="Published"
           value={publishedCount}
           isLoading={isLoading}
+          icon={CheckCircle2}
+          accent="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
         />
         <KpiCard
           title="Hotels Under Contract"
           value={data?.totalHotels}
           isLoading={isLoading}
+          icon={Building2}
+          accent="text-violet-600 dark:text-violet-400 bg-violet-500/10"
         />
         <KpiCard
           title="Expiring Soon (60 days)"
           value={data?.expiringSoonCount}
           isLoading={isLoading}
+          icon={AlertTriangle}
+          accent="text-amber-600 dark:text-amber-400 bg-amber-500/10"
         />
       </div>
 
@@ -296,24 +310,33 @@ function KpiCard({
   title,
   value,
   isLoading,
+  icon: Icon,
+  accent,
 }: {
   title: string;
   value?: number;
   isLoading: boolean;
+  icon: React.ElementType;
+  accent: string;
 }) {
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-8 w-20" />
-        ) : (
-          <p className="text-2xl font-bold font-mono">{value ?? 0}</p>
-        )}
+      <CardContent className="pt-6">
+        <div className="flex items-center gap-4">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${accent}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground truncate">
+              {title}
+            </p>
+            {isLoading ? (
+              <Skeleton className="mt-1 h-7 w-16" />
+            ) : (
+              <p className="text-2xl font-bold font-mono tabular-nums">{value ?? 0}</p>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

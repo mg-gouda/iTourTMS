@@ -9,11 +9,12 @@ export function BackButton() {
   const router = useRouter();
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
+      className="gap-1 text-muted-foreground transition-colors duration-200 hover:text-foreground"
       onClick={() => router.back()}
     >
-      <ArrowLeft className="size-4" />
+      <ArrowLeft className="size-3.5" />
       Back
     </Button>
   );

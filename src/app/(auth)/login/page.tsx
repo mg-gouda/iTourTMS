@@ -45,9 +45,9 @@ export default function LoginPage() {
 
   return (
     <>
-      <Card className="border-white/10 bg-white/5 shadow-2xl backdrop-blur-md">
+      <Card className="animate-fade-in-up border-white/[0.08] bg-white/[0.07] shadow-2xl shadow-black/20 backdrop-blur-xl ring-1 ring-white/[0.05]">
         <CardHeader className="pb-4 text-center">
-          <p className="text-xs text-gray-400">Sign in to your account</p>
+          <p className="text-xs font-medium tracking-wide text-gray-400 uppercase">Sign in to your account</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -68,7 +68,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-9 border-white/10 bg-white/5 text-sm text-white placeholder:text-gray-500 focus:border-blue-500"
+                className="h-9 border-white/[0.08] bg-white/[0.04] text-sm text-white placeholder:text-gray-500 transition-colors duration-200 focus:border-[#6587B5] focus:bg-white/[0.07]"
               />
             </div>
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-9 border-white/10 bg-white/5 pr-9 text-sm text-white placeholder:text-gray-500 focus:border-blue-500"
+                  className="h-9 border-white/[0.08] bg-white/[0.04] pr-9 text-sm text-white placeholder:text-gray-500 transition-colors duration-200 focus:border-[#6587B5] focus:bg-white/[0.07]"
                 />
                 <button
                   type="button"
@@ -103,7 +103,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="h-9 w-full text-sm"
+              className="h-9 w-full text-sm font-medium transition-all duration-200 hover:shadow-lg hover:shadow-primary/25"
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign In"}

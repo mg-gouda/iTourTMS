@@ -37,8 +37,8 @@ export const CONTRACT_STATUS_LABELS: Record<string, string> = {
 
 export const CONTRACT_STATUS_VARIANTS: Record<string, string> = {
   DRAFT: "secondary",
-  POSTED: "outline",
-  PUBLISHED: "default",
+  POSTED: "info",
+  PUBLISHED: "success",
 };
 
 export const RATE_BASIS_LABELS: Record<string, string> = {
@@ -65,7 +65,8 @@ export const OCCUPANCY_SUPPLEMENT_LABELS: Record<number, string> = {
 };
 
 export const OFFER_TYPE_LABELS: Record<string, string> = {
-  EARLY_BIRD: "Early Bird",
+  EARLY_BIRD: "Rolling EBD",
+  NORMAL_EBD: "Normal EBD",
   LONG_STAY: "Long Stay",
   FREE_NIGHTS: "Free Nights",
   HONEYMOON: "Honeymoon",

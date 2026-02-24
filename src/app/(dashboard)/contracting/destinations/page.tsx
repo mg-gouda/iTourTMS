@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 
 type DestRow = {
@@ -70,9 +71,9 @@ export default function DestinationsPage() {
   const { data, isLoading } = trpc.contracting.destination.list.useQuery();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="page-header">
           <h1 className="text-2xl font-bold tracking-tight">Destinations</h1>
           <p className="text-muted-foreground">
             City and region groupings for hotel locations
@@ -86,8 +87,21 @@ export default function DestinationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-10 text-center text-muted-foreground">
-          Loading...
+        <div className="space-y-3">
+          <Skeleton className="h-9 w-64" />
+          <div className="overflow-hidden rounded-lg border shadow-sm">
+            <div className="bg-primary h-10" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 border-b px-4 py-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <DataTable

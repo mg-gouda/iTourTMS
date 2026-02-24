@@ -47,7 +47,7 @@ export function Topbar({ title = "Dashboard", notificationCount = 0, user }: Top
     : user?.email?.[0]?.toUpperCase() ?? "U";
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-sm">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
@@ -64,12 +64,12 @@ export function Topbar({ title = "Dashboard", notificationCount = 0, user }: Top
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search..."
-            className="h-8 w-64 pl-8 text-sm"
+            className="h-8 w-64 rounded-lg bg-muted/50 pl-8 text-sm transition-colors duration-200 focus:bg-background"
           />
         </div>
 
         {/* Notifications bell */}
-        <Button variant="ghost" size="icon-sm" className="relative">
+        <Button variant="ghost" size="icon-sm" className="relative rounded-lg transition-colors duration-200 hover:bg-muted">
           <Bell className="h-4 w-4" />
           {notificationCount > 0 && (
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
@@ -84,7 +84,7 @@ export function Topbar({ title = "Dashboard", notificationCount = 0, user }: Top
               <Button variant="ghost" size="sm" className="gap-2 px-2">
                 <Avatar className="h-7 w-7">
                   {user.image && <AvatarImage src={user.image} alt={user.name ?? ""} />}
-                  <AvatarFallback className="bg-primary/10 text-xs">
+                  <AvatarFallback className="bg-primary/15 text-xs font-medium">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
