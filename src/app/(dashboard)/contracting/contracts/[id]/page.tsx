@@ -141,6 +141,9 @@ type ContractData = {
   hotelId: string;
   validFrom: string | Date;
   validTo: string | Date;
+  travelFrom: string | Date | null;
+  travelTo: string | Date | null;
+  season: string | null;
   rateBasis: string;
   minimumStay: number;
   maximumStay: number | null;
@@ -706,16 +709,39 @@ function OverviewTab({ contract }: { contract: ContractData }) {
             <span className="text-muted-foreground">Hotel</span>
             <span className="font-medium">{contract.hotel.name}</span>
           </div>
+          {contract.season && (
+            <>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Season</span>
+                <span>{contract.season}</span>
+              </div>
+            </>
+          )}
           <Separator />
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Valid From</span>
+            <span className="text-muted-foreground">Booking From</span>
             <span>{format(new Date(contract.validFrom), "dd MMM yyyy")}</span>
           </div>
           <Separator />
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Valid To</span>
+            <span className="text-muted-foreground">Booking To</span>
             <span>{format(new Date(contract.validTo), "dd MMM yyyy")}</span>
           </div>
+          {(contract.travelFrom || contract.travelTo) && (
+            <>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Travel From</span>
+                <span>{contract.travelFrom ? format(new Date(contract.travelFrom), "dd MMM yyyy") : "—"}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Travel To</span>
+                <span>{contract.travelTo ? format(new Date(contract.travelTo), "dd MMM yyyy") : "—"}</span>
+              </div>
+            </>
+          )}
           <Separator />
           <div className="flex justify-between">
             <span className="text-muted-foreground">Currency</span>
@@ -861,8 +887,11 @@ function VersionHistoryCard({ contractId }: { contractId: string }) {
               <TableHead>Name</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Valid From</TableHead>
-              <TableHead>Valid To</TableHead>
+              <TableHead>Season</TableHead>
+              <TableHead>Booking From</TableHead>
+              <TableHead>Booking To</TableHead>
+              <TableHead>Travel From</TableHead>
+              <TableHead>Travel To</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="w-[90px]">Compare</TableHead>
             </TableRow>
@@ -899,8 +928,11 @@ function VersionHistoryCard({ contractId }: { contractId: string }) {
                     {CONTRACT_STATUS_LABELS[v.status] ?? v.status}
                   </Badge>
                 </TableCell>
+                <TableCell>{v.season ?? "—"}</TableCell>
                 <TableCell>{format(new Date(v.validFrom), "dd MMM yyyy")}</TableCell>
                 <TableCell>{format(new Date(v.validTo), "dd MMM yyyy")}</TableCell>
+                <TableCell>{v.travelFrom ? format(new Date(v.travelFrom), "dd MMM yyyy") : "—"}</TableCell>
+                <TableCell>{v.travelTo ? format(new Date(v.travelTo), "dd MMM yyyy") : "—"}</TableCell>
                 <TableCell>{format(new Date(v.createdAt), "dd MMM yyyy")}</TableCell>
                 <TableCell>
                   {v.id !== contractId && (
@@ -1566,31 +1598,16 @@ function BaseRatesTab({
   const utils = trpc.useUtils();
 
   // Build rate map: seasonId → rate data
-  const rateMap = new Map<
-    string,
-    { rate: number; singleRate: number | null; doubleRate: number | null; tripleRate: number | null }
-  >();
+  const rateMap = new Map<string, { rate: number }>();
   for (const br of contract.baseRates) {
-    rateMap.set(br.seasonId, {
-      rate: Number(br.rate),
-      singleRate: br.singleRate ? Number(br.singleRate) : null,
-      doubleRate: br.doubleRate ? Number(br.doubleRate) : null,
-      tripleRate: br.tripleRate ? Number(br.tripleRate) : null,
-    });
+    rateMap.set(br.seasonId, { rate: Number(br.rate) });
   }
 
-  const [rates, setRates] = useState<
-    Record<string, { rate: string; singleRate: string; doubleRate: string; tripleRate: string }>
-  >(() => {
-    const initial: Record<string, { rate: string; singleRate: string; doubleRate: string; tripleRate: string }> = {};
+  const [rates, setRates] = useState<Record<string, { rate: string }>>(() => {
+    const initial: Record<string, { rate: string }> = {};
     for (const season of contract.seasons) {
       const existing = rateMap.get(season.id);
-      initial[season.id] = {
-        rate: existing?.rate?.toString() ?? "",
-        singleRate: existing?.singleRate?.toString() ?? "",
-        doubleRate: existing?.doubleRate?.toString() ?? "",
-        tripleRate: existing?.tripleRate?.toString() ?? "",
-      };
+      initial[season.id] = { rate: existing?.rate?.toString() ?? "" };
     }
     return initial;
   });
@@ -1607,31 +1624,15 @@ function BaseRatesTab({
       .map((s) => ({
         seasonId: s.id,
         rate: Number(rates[s.id].rate) || 0,
-        singleRate: rates[s.id].singleRate
-          ? Number(rates[s.id].singleRate)
-          : null,
-        doubleRate: rates[s.id].doubleRate
-          ? Number(rates[s.id].doubleRate)
-          : null,
-        tripleRate: rates[s.id].tripleRate
-          ? Number(rates[s.id].tripleRate)
-          : null,
       }));
 
     saveMutation.mutate({ contractId, rates: rateEntries });
   }
 
-  function updateRate(
-    seasonId: string,
-    field: "rate" | "singleRate" | "doubleRate" | "tripleRate",
-    value: string,
-  ) {
+  function updateRate(seasonId: string, value: string) {
     setRates((prev) => ({
       ...prev,
-      [seasonId]: {
-        ...prev[seasonId],
-        [field]: value,
-      },
+      [seasonId]: { rate: value },
     }));
   }
 
@@ -1657,14 +1658,11 @@ function BaseRatesTab({
         </p>
       )}
 
-      <Table>
+      <Table className="w-auto">
         <TableHeader>
           <TableRow>
             <TableHead>Season</TableHead>
             <TableHead>Base Rate</TableHead>
-            <TableHead>Single Rate</TableHead>
-            <TableHead>Double Rate</TableHead>
-            <TableHead>Triple Rate</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1684,43 +1682,7 @@ function BaseRatesTab({
                   min="0"
                   className="w-28"
                   value={rates[s.id]?.rate ?? ""}
-                  onChange={(e) => updateRate(s.id, "rate", e.target.value)}
-                />
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="w-28"
-                  value={rates[s.id]?.singleRate ?? ""}
-                  onChange={(e) =>
-                    updateRate(s.id, "singleRate", e.target.value)
-                  }
-                />
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="w-28"
-                  value={rates[s.id]?.doubleRate ?? ""}
-                  onChange={(e) =>
-                    updateRate(s.id, "doubleRate", e.target.value)
-                  }
-                />
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="w-28"
-                  value={rates[s.id]?.tripleRate ?? ""}
-                  onChange={(e) =>
-                    updateRate(s.id, "tripleRate", e.target.value)
-                  }
+                  onChange={(e) => updateRate(s.id, e.target.value)}
                 />
               </TableCell>
             </TableRow>

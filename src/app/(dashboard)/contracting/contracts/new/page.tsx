@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -40,15 +41,20 @@ export default function NewContractPage() {
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: currencies } = trpc.setup.getCurrencies.useQuery();
+  const { data: markets } = trpc.contracting.market.list.useQuery();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(contractCreateSchema),
     defaultValues: {
       name: "",
       code: "",
+      season: "",
       hotelId: "",
+      marketIds: [],
       validFrom: "",
       validTo: "",
+      travelFrom: "",
+      travelTo: "",
       rateBasis: "PER_PERSON",
       baseCurrencyId: "",
       baseRoomTypeId: "",
@@ -69,6 +75,20 @@ export default function NewContractPage() {
     { enabled: !!selectedHotelId },
   );
 
+  // Auto-generate contract code: {HotelCode}/{Season}/{MarketCodes}
+  function regenerateCode(hotelId?: string, season?: string | null, marketIds?: string[]) {
+    const hotel = (hotels ?? []).find((h) => h.id === (hotelId ?? form.getValues("hotelId")));
+    const hotelCode = hotel?.code ?? "";
+    const seasonVal = season ?? form.getValues("season") ?? "";
+    const mIds = marketIds ?? form.getValues("marketIds") ?? [];
+    const marketCodes = (markets ?? [])
+      .filter((m) => mIds.includes(m.id))
+      .map((m) => m.code)
+      .join("-");
+    const parts = [hotelCode, seasonVal, marketCodes].filter(Boolean);
+    form.setValue("code", parts.join("/"));
+  }
+
   const createMutation = trpc.contracting.contract.create.useMutation({
     onSuccess: (data) => {
       utils.contracting.contract.list.invalidate();
@@ -78,6 +98,9 @@ export default function NewContractPage() {
 
   function onSubmit(values: FormValues) {
     const clean = { ...values };
+    if (!clean.season) clean.season = null;
+    if (!clean.travelFrom) clean.travelFrom = null;
+    if (!clean.travelTo) clean.travelTo = null;
     if (!clean.maximumStay) clean.maximumStay = null;
     if (!clean.terms) clean.terms = null;
     if (!clean.internalNotes) clean.internalNotes = null;
@@ -108,9 +131,13 @@ export default function NewContractPage() {
                   <Select
                     onValueChange={(val) => {
                       field.onChange(val);
+                      // Auto-set contract name to hotel name
+                      const hotel = (hotels ?? []).find((h) => h.id === val);
+                      if (hotel) form.setValue("name", hotel.name);
                       // Reset dependent fields
                       form.setValue("baseRoomTypeId", "");
                       form.setValue("baseMealBasisId", "");
+                      regenerateCode(val);
                     }}
                     value={field.value}
                   >
@@ -144,7 +171,7 @@ export default function NewContractPage() {
                   <FormItem>
                     <FormLabel>Contract Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Summer 2026" {...field} />
+                      <Input {...field} readOnly className="bg-muted" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -152,25 +179,82 @@ export default function NewContractPage() {
               />
               <FormField
                 control={form.control}
-                name="code"
+                name="season"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code</FormLabel>
+                    <FormLabel>Season</FormLabel>
                     <FormControl>
-                      <Input placeholder="SUM26" {...field} />
+                      <Input
+                        placeholder="Summer 2026"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          regenerateCode(undefined, e.target.value);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="marketIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Market Validity</FormLabel>
+                  <div className="rounded-md border p-3">
+                    {(markets ?? []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No markets defined. Add markets in Settings &gt; Contracting.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-4">
+                        {(markets ?? []).filter((m) => m.active).map((m) => (
+                          <label key={m.id} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={field.value?.includes(m.id)}
+                              onCheckedChange={(checked) => {
+                                const current = field.value ?? [];
+                                const updated = checked
+                                  ? [...current, m.id]
+                                  : current.filter((id: string) => id !== m.id);
+                                field.onChange(updated);
+                                regenerateCode(undefined, undefined, updated);
+                              }}
+                            />
+                            {m.name} ({m.code})
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Code</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly className="bg-muted" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-4 gap-4">
               <FormField
                 control={form.control}
                 name="validFrom"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valid From</FormLabel>
+                    <FormLabel>Booking From</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -183,9 +267,35 @@ export default function NewContractPage() {
                 name="validTo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valid To</FormLabel>
+                    <FormLabel>Booking To</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="travelFrom"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Travel From</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="travelTo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Travel To</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

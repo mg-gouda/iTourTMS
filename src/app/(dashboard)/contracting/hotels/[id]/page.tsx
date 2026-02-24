@@ -60,7 +60,6 @@ import {
 import { trpc } from "@/lib/trpc";
 import {
   roomTypeCreateSchema,
-  occupancyCreateSchema,
   childPolicyCreateSchema,
   mealBasisCreateSchema,
   hotelImageCreateSchema,
@@ -311,14 +310,14 @@ function RoomTypesTab({
   const utils = trpc.useUtils();
   const [addOpen, setAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [addOccOpen, setAddOccOpen] = useState(false);
-
   const form = useForm<z.input<typeof roomTypeCreateSchema>>({
     resolver: zodResolver(roomTypeCreateSchema),
     defaultValues: {
       hotelId,
       name: "",
       code: "",
+      minAdults: 1,
+      standardAdults: 2,
       maxAdults: 2,
       maxChildren: 1,
       maxInfants: 1,
@@ -341,23 +340,8 @@ function RoomTypesTab({
     onSuccess: () => utils.contracting.hotel.getById.invalidate({ id: hotelId }),
   });
 
-  // Occupancy form
-  const occForm = useForm<z.input<typeof occupancyCreateSchema>>({
-    resolver: zodResolver(occupancyCreateSchema),
-    defaultValues: { roomTypeId: "", adults: 2, children: 0, infants: 0, extraBeds: 0, isDefault: false },
-  });
 
-  const createOccMutation = trpc.contracting.roomType.createOccupancy.useMutation({
-    onSuccess: () => {
-      utils.contracting.hotel.getById.invalidate({ id: hotelId });
-      setAddOccOpen(false);
-      occForm.reset();
-    },
-  });
 
-  const deleteOccMutation = trpc.contracting.roomType.deleteOccupancy.useMutation({
-    onSuccess: () => utils.contracting.hotel.getById.invalidate({ id: hotelId }),
-  });
 
   return (
     <div className="space-y-4">
@@ -410,19 +394,7 @@ function RoomTypesTab({
               {expandedId === rt.id && (
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Occupancy Table</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          occForm.setValue("roomTypeId", rt.id);
-                          setAddOccOpen(true);
-                        }}
-                      >
-                        Add Occupancy
-                      </Button>
-                    </div>
+                    <h4 className="text-sm font-medium">Occupancy Table</h4>
                     {rt.occupancyTable && rt.occupancyTable.length > 0 ? (
                       <Table>
                         <TableHeader>
@@ -430,9 +402,7 @@ function RoomTypesTab({
                             <TableHead>Adults</TableHead>
                             <TableHead>Children</TableHead>
                             <TableHead>Infants</TableHead>
-                            <TableHead>Extra Beds</TableHead>
                             <TableHead>Default</TableHead>
-                            <TableHead />
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -441,20 +411,8 @@ function RoomTypesTab({
                               <TableCell>{occ.adults}</TableCell>
                               <TableCell>{occ.children}</TableCell>
                               <TableCell>{occ.infants}</TableCell>
-                              <TableCell>{occ.extraBeds}</TableCell>
                               <TableCell>
                                 {occ.isDefault ? "Yes" : "—"}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    deleteOccMutation.mutate({ id: occ.id })
-                                  }
-                                >
-                                  Remove
-                                </Button>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -489,7 +447,7 @@ function RoomTypesTab({
 
       {/* Add Room Type Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Room Type</DialogTitle>
           </DialogHeader>
@@ -526,68 +484,110 @@ function RoomTypesTab({
                   )}
                 />
               </div>
-              <div className="grid grid-cols-4 gap-4">
-                <FormField
-                  control={form.control}
-                  name="maxAdults"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Max Adults</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="maxChildren"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Max Children</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+              <div className="flex items-end gap-4">
+                <div className="grid flex-1 grid-cols-5 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="minAdults"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Min Adults</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="standardAdults"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Std Adults</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxAdults"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Adults</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              field.onChange(val);
+                              form.setValue("maxOccupancy", val + (form.getValues("maxChildren") || 0));
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxChildren"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Children</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              field.onChange(val);
+                              form.setValue("maxOccupancy", (form.getValues("maxAdults") || 0) + val);
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxOccupancy"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Total</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            readOnly
+                            className="bg-muted"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="maxInfants"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Max Infants</FormLabel>
+                    <FormItem className="flex items-center gap-2 pb-2">
                       <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        <Checkbox
+                          checked={field.value > 0}
+                          onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
                         />
                       </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="maxOccupancy"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Max Total</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
+                      <FormLabel className="!mt-0 whitespace-nowrap">Inf Allow</FormLabel>
                     </FormItem>
                   )}
                 />
@@ -623,114 +623,8 @@ function RoomTypesTab({
         </DialogContent>
       </Dialog>
 
-      {/* Add Occupancy Dialog */}
-      <Dialog open={addOccOpen} onOpenChange={setAddOccOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Occupancy Combination</DialogTitle>
-          </DialogHeader>
-          <Form {...occForm}>
-            <form
-              onSubmit={occForm.handleSubmit((v) =>
-                createOccMutation.mutate(v),
-              )}
-              className="space-y-4"
-            >
-              <div className="grid grid-cols-4 gap-4">
-                <FormField
-                  control={occForm.control}
-                  name="adults"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Adults</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={occForm.control}
-                  name="children"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Children</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={occForm.control}
-                  name="infants"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Infants</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={occForm.control}
-                  name="extraBeds"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Extra Beds</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={occForm.control}
-                name="isDefault"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Default Occupancy</FormLabel>
-                  </FormItem>
-                )}
-              />
-              {createOccMutation.error && (
-                <p className="text-sm text-destructive">
-                  {createOccMutation.error.message}
-                </p>
-              )}
-              <DialogFooter>
-                <Button type="submit" disabled={createOccMutation.isPending}>
-                  {createOccMutation.isPending ? "Adding..." : "Add"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+
+
     </div>
   );
 }

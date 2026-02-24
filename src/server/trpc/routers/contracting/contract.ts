@@ -101,9 +101,12 @@ export const contractRouter = createTRPCRouter({
           companyId: ctx.companyId,
           name: input.name,
           code: input.code,
+          season: input.season ?? null,
           hotelId: input.hotelId,
           validFrom: new Date(input.validFrom),
           validTo: new Date(input.validTo),
+          travelFrom: input.travelFrom ? new Date(input.travelFrom) : null,
+          travelTo: input.travelTo ? new Date(input.travelTo) : null,
           rateBasis: input.rateBasis,
           baseCurrencyId: input.baseCurrencyId,
           baseRoomTypeId: input.baseRoomTypeId,
@@ -135,6 +138,16 @@ export const contractRouter = createTRPCRouter({
           sortOrder: 0,
         },
       });
+
+      // Auto-assign markets
+      if (input.marketIds && input.marketIds.length > 0) {
+        await ctx.db.contractMarket.createMany({
+          data: input.marketIds.map((marketId) => ({
+            contractId: contract.id,
+            marketId,
+          })),
+        });
+      }
 
       return contract;
     }),
@@ -747,10 +760,13 @@ export const contractRouter = createTRPCRouter({
         id: true,
         name: true,
         code: true,
+        season: true,
         version: true,
         status: true,
         validFrom: true,
         validTo: true,
+        travelFrom: true,
+        travelTo: true,
         createdAt: true,
       } as const;
 
@@ -758,10 +774,13 @@ export const contractRouter = createTRPCRouter({
         id: string;
         name: string;
         code: string;
+        season: string | null;
         version: number;
         status: string;
         validFrom: Date;
         validTo: Date;
+        travelFrom: Date | null;
+        travelTo: Date | null;
         createdAt: Date;
       }> = [];
 

@@ -86,6 +86,8 @@ export const roomTypeCreateSchema = z.object({
   code: z.string().min(1, "Code is required").max(20),
   description: z.string().nullish(),
   sortOrder: z.number().int().default(0),
+  minAdults: z.number().int().min(1).default(1),
+  standardAdults: z.number().int().min(1).default(2),
   maxAdults: z.number().int().min(1).default(2),
   maxChildren: z.number().int().min(0).default(1),
   maxInfants: z.number().int().min(0).default(1),
@@ -158,10 +160,14 @@ export const hotelImageCreateSchema = z.object({
 
 export const contractCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required").max(20),
+  code: z.string().min(1, "Code is required").max(100),
+  season: z.string().nullish(),
   hotelId: z.string().min(1, "Hotel is required"),
-  validFrom: z.string().min(1, "Valid from is required"),
-  validTo: z.string().min(1, "Valid to is required"),
+  marketIds: z.array(z.string()).default([]),
+  validFrom: z.string().min(1, "Booking from is required"),
+  validTo: z.string().min(1, "Booking to is required"),
+  travelFrom: z.string().nullish(),
+  travelTo: z.string().nullish(),
   rateBasis: z.enum(["PER_PERSON", "PER_ROOM"]),
   baseCurrencyId: z.string().min(1, "Currency is required"),
   baseRoomTypeId: z.string().min(1, "Base room type is required"),
@@ -172,15 +178,17 @@ export const contractCreateSchema = z.object({
   internalNotes: z.string().nullish(),
   hotelNotes: z.string().nullish(),
 }).refine((d) => d.validTo > d.validFrom, {
-  message: "Valid To must be after Valid From",
+  message: "Booking To must be after Booking From",
   path: ["validTo"],
 });
 
 export const contractUpdateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
-  code: z.string().min(1, "Code is required").max(20).optional(),
+  code: z.string().min(1, "Code is required").max(100).optional(),
   validFrom: z.string().optional(),
   validTo: z.string().optional(),
+  travelFrom: z.string().nullish(),
+  travelTo: z.string().nullish(),
   rateBasis: z.enum(["PER_PERSON", "PER_ROOM"]).optional(),
   baseCurrencyId: z.string().min(1).optional(),
   baseRoomTypeId: z.string().min(1).optional(),
@@ -241,9 +249,6 @@ export const contractMealBasisCreateSchema = z.object({
 export const contractBaseRateSchema = z.object({
   seasonId: z.string().min(1, "Season is required"),
   rate: z.number().min(0, "Rate must be non-negative"),
-  singleRate: z.number().min(0).nullish(),
-  doubleRate: z.number().min(0).nullish(),
-  tripleRate: z.number().min(0).nullish(),
 });
 
 export const contractBaseRateBulkSaveSchema = z.object({
@@ -450,7 +455,7 @@ export const stopSaleCreateSchema = z.object({
 export const contractCloneSchema = z.object({
   sourceContractId: z.string().min(1),
   name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required").max(20),
+  code: z.string().min(1, "Code is required").max(100),
   validFrom: z.string().min(1, "Valid From is required"),
   validTo: z.string().min(1, "Valid To is required"),
 }).refine((d) => d.validTo > d.validFrom, {

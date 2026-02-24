@@ -27,7 +27,41 @@ export const roomTypeRouter = createTRPCRouter({
       await ctx.db.hotel.findFirstOrThrow({
         where: { id: input.hotelId, companyId: ctx.companyId },
       });
-      return ctx.db.hotelRoomType.create({ data: input });
+
+      // Build occupancy combinations from room config
+      const occupancyRows: {
+        adults: number;
+        children: number;
+        infants: number;
+        extraBeds: number;
+        isDefault: boolean;
+        sortOrder: number;
+      }[] = [];
+      let sort = 0;
+      const stdAdults = input.standardAdults ?? input.maxAdults;
+      for (let a = input.minAdults ?? 1; a <= input.maxAdults; a++) {
+        for (let c = 0; c <= input.maxChildren; c++) {
+          const inf = input.maxInfants > 0 ? [0, 1] : [0];
+          for (const i of inf) {
+            occupancyRows.push({
+              adults: a,
+              children: c,
+              infants: i,
+              extraBeds: 0,
+              isDefault: a === stdAdults && c === 0 && i === 0,
+              sortOrder: sort++,
+            });
+          }
+        }
+      }
+
+      return ctx.db.hotelRoomType.create({
+        data: {
+          ...input,
+          occupancyTable: { create: occupancyRows },
+        },
+        include: { occupancyTable: true },
+      });
     }),
 
   update: proc

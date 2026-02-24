@@ -1445,6 +1445,8 @@ model HotelRoomType {
   code              String
   description       String? @db.Text
   sortOrder         Int     @default(0)
+  minAdults         Int     @default(1)
+  standardAdults    Int     @default(2)
   maxAdults         Int     @default(2)
   maxChildren       Int     @default(1)
   maxInfants        Int     @default(1)
@@ -1539,10 +1541,13 @@ model Contract {
   companyId       String
   name            String
   code            String
+  season          String?
   status          ContractStatus @default(DRAFT)
   hotelId         String
   validFrom       DateTime       @db.Date
   validTo         DateTime       @db.Date
+  travelFrom      DateTime?      @db.Date
+  travelTo        DateTime?      @db.Date
   rateBasis       RateBasis
   baseCurrencyId  String
   baseRoomTypeId  String
