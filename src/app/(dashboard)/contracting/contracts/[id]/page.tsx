@@ -70,6 +70,7 @@ import {
 import { exportContractToExcel } from "@/lib/export/contract-excel";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
+import { formatSeasonLabel } from "@/lib/utils";
 import {
   contractSeasonCreateSchema,
   contractSeasonUpdateSchema,
@@ -79,8 +80,6 @@ type SeasonFormValues = z.input<typeof contractSeasonCreateSchema>;
 
 type SeasonData = {
   id: string;
-  name: string;
-  code: string;
   dateFrom: string | Date;
   dateTo: string | Date;
   sortOrder: number;
@@ -109,7 +108,7 @@ type BaseRateData = {
   singleRate: string | number | null;
   doubleRate: string | number | null;
   tripleRate: string | number | null;
-  season: { id: string; name: string; code: string };
+  season: { id: string; dateFrom: string | Date; dateTo: string | Date };
 };
 
 type SupplementData = {
@@ -373,8 +372,8 @@ export default function ContractDetailPage() {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
-        <TabsList>
+      <Tabs defaultValue="overview" orientation="vertical">
+        <TabsList className="w-48 shrink-0 self-start sticky top-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="markets">Markets</TabsTrigger>
           <TabsTrigger value="tourOperators">Tour Operators</TabsTrigger>
@@ -1035,8 +1034,6 @@ function SeasonsTab({
     resolver: zodResolver(contractSeasonCreateSchema),
     defaultValues: {
       contractId,
-      name: "",
-      code: "",
       dateFrom: "",
       dateTo: "",
       sortOrder: 0,
@@ -1049,8 +1046,6 @@ function SeasonsTab({
     if (editingSeason) {
       form.reset({
         contractId,
-        name: editingSeason.name,
-        code: editingSeason.code,
         dateFrom: format(new Date(editingSeason.dateFrom), "yyyy-MM-dd"),
         dateTo: format(new Date(editingSeason.dateTo), "yyyy-MM-dd"),
         sortOrder: editingSeason.sortOrder,
@@ -1067,8 +1062,6 @@ function SeasonsTab({
         id: editingSeason.id,
         contractId,
         data: {
-          name: values.name,
-          code: values.code,
           dateFrom: values.dateFrom,
           dateTo: values.dateTo,
           sortOrder: values.sortOrder,
@@ -1089,8 +1082,6 @@ function SeasonsTab({
             setEditingSeason(null);
             form.reset({
               contractId,
-              name: "",
-              code: "",
               dateFrom: "",
               dateTo: "",
               sortOrder: contract.seasons.length,
@@ -1107,8 +1098,7 @@ function SeasonsTab({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Code</TableHead>
+            <TableHead>Season</TableHead>
             <TableHead>Date From</TableHead>
             <TableHead>Date To</TableHead>
             <TableHead>Release Days</TableHead>
@@ -1119,15 +1109,14 @@ function SeasonsTab({
         <TableBody>
           {contract.seasons.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 No seasons defined yet
               </TableCell>
             </TableRow>
           ) : (
             contract.seasons.map((s) => (
               <TableRow key={s.id}>
-                <TableCell className="font-medium">{s.name}</TableCell>
-                <TableCell className="font-mono">{s.code}</TableCell>
+                <TableCell className="font-medium">{formatSeasonLabel(s.dateFrom, s.dateTo)}</TableCell>
                 <TableCell>
                   {format(new Date(s.dateFrom), "dd MMM yyyy")}
                 </TableCell>
@@ -1187,34 +1176,6 @@ function SeasonsTab({
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="High Season" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="HIGH" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -1706,11 +1667,7 @@ function BaseRatesTab({
           {contract.seasons.map((s) => (
             <TableRow key={s.id}>
               <TableCell className="font-medium">
-                {s.name}
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({format(new Date(s.dateFrom), "dd MMM")} —{" "}
-                  {format(new Date(s.dateTo), "dd MMM")})
-                </span>
+                {formatSeasonLabel(s.dateFrom, s.dateTo)}
               </TableCell>
               <TableCell>
                 <Input
@@ -3686,7 +3643,7 @@ function AllotmentGrid({
               <TableHead className="w-[200px]">Room Type</TableHead>
               {seasons.map((s) => (
                 <TableHead key={s.id} className="text-center">
-                  {s.name}
+                  {formatSeasonLabel(s.dateFrom, s.dateTo)}
                 </TableHead>
               ))}
             </TableRow>
@@ -4212,9 +4169,9 @@ function RateSheetTab({
             <div className="space-y-4">
               {/* Header info */}
               <div className="flex flex-wrap items-center gap-3 text-sm">
-                {multiResult.seasonName && (
+                {multiResult.seasonLabel && (
                   <Badge variant="outline">
-                    Season: {multiResult.seasonName}
+                    Season: {multiResult.seasonLabel}
                   </Badge>
                 )}
                 {multiResult.nights > 0 && (
@@ -5994,7 +5951,7 @@ function SimulatorTab({ contractId }: { contractId: string }) {
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Seasons Spanned</p>
                 <p className="text-2xl font-bold">
-                  {new Set(simResult.nightBreakdown.map((n) => n.seasonName)).size}
+                  {new Set(simResult.nightBreakdown.map((n) => n.seasonLabel)).size}
                 </p>
               </CardContent>
             </Card>

@@ -1201,8 +1201,6 @@ export async function seedContracting(companyId: string) {
         const highSeason = await prisma.contractSeason.create({
           data: {
             contractId: contract.id,
-            name: "High Season",
-            code: "HIGH",
             dateFrom: new Date("2026-07-01"),
             dateTo: new Date("2026-08-31"),
             sortOrder: 1,
@@ -1214,8 +1212,6 @@ export async function seedContracting(companyId: string) {
         const lowSeason = await prisma.contractSeason.create({
           data: {
             contractId: contract.id,
-            name: "Low Season",
-            code: "LOW",
             dateFrom: new Date("2026-06-01"),
             dateTo: new Date("2026-06-30"),
             sortOrder: 0,

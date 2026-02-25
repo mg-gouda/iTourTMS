@@ -8,6 +8,7 @@ import {
   CHILD_AGE_CATEGORY_LABELS,
   CANCELLATION_CHARGE_TYPE_LABELS,
 } from "@/lib/constants/contracting";
+import { formatSeasonLabel } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types — mirrors the getForExport tRPC output
@@ -29,8 +30,7 @@ interface ExportData {
   baseRoomType: { name: string; code: string };
   baseMealBasis: { name: string; mealCode: string };
   seasons: Array<{
-    code: string;
-    name: string;
+    id: string;
     dateFrom: string | Date;
     dateTo: string | Date;
     releaseDays: number;
@@ -49,7 +49,7 @@ interface ExportData {
     singleRate: unknown;
     doubleRate: unknown;
     tripleRate: unknown;
-    season: { code: string; name: string };
+    season: { id: string; dateFrom: string | Date; dateTo: string | Date };
   }>;
   supplements: Array<{
     supplementType: string;
@@ -83,7 +83,7 @@ interface ExportData {
   allotments: Array<{
     totalRooms: number;
     freeSale: boolean;
-    season: { code: string; name: string };
+    season: { id: string; dateFrom: string | Date; dateTo: string | Date };
     roomType: { name: string; code: string };
   }>;
   childPolicies: Array<{
@@ -154,10 +154,9 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
   // ─── Sheet 2: Seasons ────────────────────────────────
   if (data.seasons.length > 0) {
     const seasonRows: (string | number)[][] = [
-      ["Code", "Name", "Date From", "Date To", "Release Days", "Min Stay"],
+      ["Season", "Date From", "Date To", "Release Days", "Min Stay"],
       ...data.seasons.map((s) => [
-        s.code,
-        s.name,
+        formatSeasonLabel(s.dateFrom, s.dateTo),
         fmtDate(s.dateFrom),
         fmtDate(s.dateTo),
         s.releaseDays,
@@ -165,17 +164,16 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
       ]),
     ];
     const wsSeasons = XLSX.utils.aoa_to_sheet(seasonRows);
-    wsSeasons["!cols"] = [{ wch: 10 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
+    wsSeasons["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, wsSeasons, "Seasons");
   }
 
   // ─── Sheet 3: Base Rates ─────────────────────────────
   if (data.baseRates.length > 0) {
     const rateRows: (string | number)[][] = [
-      ["Season Code", "Season Name", "Rate", "Single", "Double", "Triple"],
+      ["Season", "Rate", "Single", "Double", "Triple"],
       ...data.baseRates.map((br) => [
-        br.season.code,
-        br.season.name,
+        formatSeasonLabel(br.season.dateFrom, br.season.dateTo),
         num(br.rate),
         num(br.singleRate),
         num(br.doubleRate),
@@ -183,7 +181,7 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
       ]),
     ];
     const wsRates = XLSX.utils.aoa_to_sheet(rateRows);
-    wsRates["!cols"] = [{ wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+    wsRates["!cols"] = [{ wch: 24 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, wsRates, "Base Rates");
   }
 
@@ -249,7 +247,7 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
     const allotRows: (string | number)[][] = [
       ["Season", "Room Type", "Total Rooms", "Free Sale"],
       ...data.allotments.map((a) => [
-        a.season.code,
+        formatSeasonLabel(a.season.dateFrom, a.season.dateTo),
         a.roomType.name,
         a.totalRooms,
         a.freeSale ? "Yes" : "No",

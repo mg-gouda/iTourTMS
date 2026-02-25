@@ -365,7 +365,7 @@ export default function GenerateTariffPage() {
                     <TableBody>
                       {previewData.rates.map((rate, idx) => (
                         <TableRow key={idx}>
-                          <TableCell className="font-medium">{rate.seasonName}</TableCell>
+                          <TableCell className="font-medium">{rate.seasonLabel ?? "Unknown"}</TableCell>
                           <TableCell>{rate.roomTypeName}</TableCell>
                           <TableCell>{rate.mealBasisName}</TableCell>
                           <TableCell className="text-right font-mono">

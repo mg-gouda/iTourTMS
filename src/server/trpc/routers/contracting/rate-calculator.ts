@@ -51,8 +51,6 @@ async function fetchContractData(
     baseMealBasisId: contract.baseMealBasisId,
     seasons: contract.seasons.map((s) => ({
       id: s.id,
-      name: s.name,
-      code: s.code,
       dateFrom: s.dateFrom.toISOString().slice(0, 10),
       dateTo: s.dateTo.toISOString().slice(0, 10),
     })),

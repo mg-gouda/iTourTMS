@@ -1632,8 +1632,6 @@ model Contract {
 model ContractSeason {
   id          String   @id @default(cuid())
   contractId  String
-  name        String
-  code        String
   dateFrom    DateTime @db.Date
   dateTo      DateTime @db.Date
   sortOrder   Int      @default(0)
@@ -1647,7 +1645,6 @@ model ContractSeason {
   supplements ContractSupplement[]
   allotments  ContractAllotment[]
 
-  @@index([contractId, code])
   @@index([contractId])
   @@map("ct_contract_season")
 }

@@ -10,6 +10,7 @@ import {
   RATE_BASIS_LABELS,
   SUPPLEMENT_TYPE_LABELS,
 } from "@/lib/constants/contracting";
+import { formatSeasonLabel } from "@/lib/utils";
 import type { FullRateGridData } from "@/server/services/contracting/rate-calculator";
 
 // ---------------------------------------------------------------------------
@@ -36,8 +37,7 @@ export interface ContractPdfData {
   baseRoomType: { name: string; code: string };
   baseMealBasis: { name: string; mealCode: string };
   seasons: Array<{
-    code: string;
-    name: string;
+    id: string;
     dateFrom: string | Date;
     dateTo: string | Date;
     releaseDays: number;
@@ -56,7 +56,7 @@ export interface ContractPdfData {
     singleRate: unknown;
     doubleRate: unknown;
     tripleRate: unknown;
-    season: { code: string; name: string };
+    season: { id: string; dateFrom: string | Date; dateTo: string | Date };
   }>;
   supplements: Array<{
     supplementType: string;
@@ -83,7 +83,7 @@ export interface ContractPdfData {
   allotments: Array<{
     totalRooms: number;
     freeSale: boolean;
-    season: { code: string; name: string };
+    season: { id: string; dateFrom: string | Date; dateTo: string | Date };
     roomType: { name: string; code: string };
   }>;
   childPolicies: Array<{
@@ -321,10 +321,9 @@ export function generateContractPdf(
   if (data.seasons.length > 0) {
     sectionTitle("Seasons");
     addTable(
-      ["Code", "Name", "Date From", "Date To", "Release Days", "Min Stay"],
+      ["Season", "Date From", "Date To", "Release Days", "Min Stay"],
       data.seasons.map((s) => [
-        s.code,
-        s.name,
+        formatSeasonLabel(s.dateFrom, s.dateTo),
         fmtDate(s.dateFrom),
         fmtDate(s.dateTo),
         String(s.releaseDays),
@@ -380,15 +379,15 @@ export function generateContractPdf(
 
     const rateMap = new Map<string, (typeof data.baseRates)[number]>();
     for (const br of data.baseRates) {
-      rateMap.set(br.season.code, br);
+      rateMap.set(br.season.id, br);
     }
 
     addTable(
       ["Season", "Rate", "Single", "Double", "Triple"],
       data.seasons.map((season) => {
-        const rate = rateMap.get(season.code);
+        const rate = rateMap.get(season.id);
         return [
-          `${season.code} (${season.name})`,
+          formatSeasonLabel(season.dateFrom, season.dateTo),
           rate ? fmtDecimal(rate.rate) : "—",
           rate ? fmtDecimal(rate.singleRate) : "—",
           rate ? fmtDecimal(rate.doubleRate) : "—",
@@ -428,7 +427,7 @@ export function generateContractPdf(
 
     // For each season, output a sub-heading + table
     for (const season of grid.seasons) {
-      const seasonLabel = `${format(new Date(season.dateFrom), "dd MMM")} — ${format(new Date(season.dateTo), "dd MMM yyyy")}`;
+      const seasonLabel = formatSeasonLabel(season.dateFrom, season.dateTo);
 
       // Sub-heading
       if (cursorY + 10 > pageH - margin.bottom) {
@@ -494,7 +493,7 @@ export function generateContractPdf(
       const childBody: string[][] = [];
       for (const ck of childKeys) {
         for (const season of grid.seasons) {
-          const seasonLabel = `${format(new Date(season.dateFrom), "dd MMM")} — ${format(new Date(season.dateTo), "dd MMM yyyy")}`;
+          const seasonLabel = formatSeasonLabel(season.dateFrom, season.dateTo);
           const row: string[] = [
             CHILD_AGE_CATEGORY_LABELS[ck.category] ?? ck.category,
             ck.ageRange,
@@ -593,7 +592,7 @@ export function generateContractPdf(
     addTable(
       ["Season", "Room Type", "Total Rooms", "Free Sale"],
       data.allotments.map((a) => [
-        a.season.code,
+        formatSeasonLabel(a.season.dateFrom, a.season.dateTo),
         a.roomType.name,
         String(a.totalRooms),
         a.freeSale ? "Yes" : "No",

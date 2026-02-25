@@ -65,7 +65,7 @@ export async function GET(
           orderBy: { sortOrder: "asc" as const },
         },
         baseRates: {
-          include: { season: { select: { id: true, name: true, code: true } } },
+          include: { season: { select: { id: true, dateFrom: true, dateTo: true } } },
         },
         supplements: {
           include: {
@@ -80,7 +80,7 @@ export async function GET(
         specialOffers: { orderBy: { sortOrder: "asc" as const } },
         allotments: {
           include: {
-            season: { select: { id: true, name: true, code: true } },
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
             roomType: { select: { id: true, name: true, code: true } },
           },
         },
@@ -145,8 +145,6 @@ export async function GET(
       baseMealBasisId: contract.baseMealBasisId,
       seasons: contract.seasons.map((s) => ({
         id: s.id,
-        name: s.name,
-        code: s.code,
         dateFrom: s.dateFrom.toISOString().slice(0, 10),
         dateTo: s.dateTo.toISOString().slice(0, 10),
       })),

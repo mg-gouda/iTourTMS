@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { formatSeasonLabel } from "@/lib/utils";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 
 const proc = moduleProcedure("contracting");
@@ -130,7 +131,7 @@ export const reportsRouter = createTRPCRouter({
           seasons: { orderBy: { sortOrder: "asc" } },
           baseRates: {
             include: {
-              season: { select: { id: true, name: true, code: true } },
+              season: { select: { id: true, dateFrom: true, dateTo: true } },
             },
           },
         },
@@ -189,8 +190,6 @@ export const reportsRouter = createTRPCRouter({
           seasons: {
             select: {
               id: true,
-              name: true,
-              code: true,
               dateFrom: true,
               dateTo: true,
               sortOrder: true,
@@ -227,7 +226,7 @@ export const reportsRouter = createTRPCRouter({
         include: {
           hotel: { select: { id: true, name: true } },
           seasons: {
-            select: { id: true, name: true, code: true, dateFrom: true, dateTo: true },
+            select: { id: true, dateFrom: true, dateTo: true },
             orderBy: { sortOrder: "asc" },
           },
           specialOffers: {
@@ -345,7 +344,7 @@ export const reportsRouter = createTRPCRouter({
           hotel: { select: { id: true, name: true } },
           allotments: {
             include: {
-              season: { select: { id: true, name: true } },
+              season: { select: { id: true, dateFrom: true, dateTo: true } },
               roomType: { select: { id: true, name: true, code: true } },
             },
           },
@@ -372,7 +371,7 @@ export const reportsRouter = createTRPCRouter({
               id: a.id,
               roomTypeName: a.roomType.name,
               roomTypeCode: a.roomType.code,
-              seasonName: a.season.name,
+              seasonName: formatSeasonLabel(a.season.dateFrom, a.season.dateTo),
               basis: a.basis,
               totalRooms: a.totalRooms,
               soldRooms: a.soldRooms,

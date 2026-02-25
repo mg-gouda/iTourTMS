@@ -84,14 +84,14 @@ export function exportTariffToPdf(data: TariffExportData, companyName: string): 
   // Group rates by season
   const seasonGroups = new Map<string, typeof data.rates>();
   for (const rate of data.rates) {
-    if (!seasonGroups.has(rate.seasonCode)) {
-      seasonGroups.set(rate.seasonCode, []);
+    const key = rate.seasonLabel;
+    if (!seasonGroups.has(key)) {
+      seasonGroups.set(key, []);
     }
-    seasonGroups.get(rate.seasonCode)!.push(rate);
+    seasonGroups.get(key)!.push(rate);
   }
 
-  for (const [seasonCode, seasonRates] of seasonGroups) {
-    const seasonName = seasonRates[0]?.seasonName ?? seasonCode;
+  for (const [seasonLabel, seasonRates] of seasonGroups) {
 
     // Section title
     if (cursorY + 16 > pageH - margin.bottom) {
@@ -102,7 +102,7 @@ export function exportTariffToPdf(data: TariffExportData, companyName: string): 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text(`${seasonName} (${seasonCode})`, margin.left, cursorY);
+    doc.text(seasonLabel, margin.left, cursorY);
     cursorY += 1.5;
     doc.setDrawColor(BRAND.r, BRAND.g, BRAND.b);
     doc.setLineWidth(0.3);

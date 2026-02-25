@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { formatSeasonLabel } from "@/lib/utils";
 
 // ── Input Types ──
 
@@ -6,7 +7,7 @@ export interface RateContractData {
   rateBasis: "PER_PERSON" | "PER_ROOM";
   baseRoomTypeId: string;
   baseMealBasisId: string;
-  seasons: { id: string; name: string; code: string; dateFrom: string; dateTo: string }[];
+  seasons: { id: string; dateFrom: string; dateTo: string }[];
   roomTypes: {
     roomTypeId: string;
     isBase: boolean;
@@ -130,7 +131,7 @@ export interface RateSheetCell {
   mealBasisId: string;
   mealBasisName: string;
   seasonId: string;
-  seasonName: string;
+  seasonLabel: string;
   rate: number;
   breakdown: RateBreakdown;
 }
@@ -138,7 +139,7 @@ export interface RateSheetCell {
 export interface RateSheetData {
   roomTypes: { id: string; name: string; code: string; isBase: boolean }[];
   mealBases: { id: string; name: string; mealCode: string; isBase: boolean }[];
-  seasons: { id: string; name: string; code: string; dateFrom: string; dateTo: string }[];
+  seasons: { id: string; dateFrom: string; dateTo: string }[];
   cells: RateSheetCell[];
 }
 
@@ -613,7 +614,7 @@ export interface MultiRoomResult {
 
 export interface MultiRoomResponse {
   seasonId: string;
-  seasonName: string;
+  seasonLabel: string;
   nights: number;
   resolvedChildren: { dob: string; ageAtCheckIn: number; category: string }[];
   results: MultiRoomResult[];
@@ -648,10 +649,10 @@ export function resolveChildCategory(
 export function detectSeason(
   arrivalDate: string,
   seasons: RateContractData["seasons"],
-): { id: string; name: string } | null {
+): { id: string; label: string } | null {
   for (const s of seasons) {
     if (arrivalDate >= s.dateFrom && arrivalDate <= s.dateTo) {
-      return { id: s.id, name: s.name };
+      return { id: s.id, label: formatSeasonLabel(s.dateFrom, s.dateTo) };
     }
   }
   return null;
@@ -675,7 +676,7 @@ export function calculateMultiRoomRate(
   if (!season) {
     return {
       seasonId: "",
-      seasonName: "No matching season",
+      seasonLabel: "No matching season",
       nights: 0,
       resolvedChildren: [],
       results: [],
@@ -687,7 +688,7 @@ export function calculateMultiRoomRate(
   if (nights <= 0) {
     return {
       seasonId: season.id,
-      seasonName: season.name,
+      seasonLabel: season.label,
       nights: 0,
       resolvedChildren: [],
       results: [],
@@ -775,7 +776,7 @@ export function calculateMultiRoomRate(
 
   return {
     seasonId: season.id,
-    seasonName: season.name,
+    seasonLabel: season.label,
     nights,
     resolvedChildren,
     results,
@@ -797,7 +798,7 @@ export interface FullRateGridCell {
   roomTypeCode: string;
   roomTypeSuppLabel: string;
   seasonId: string;
-  seasonName: string;
+  seasonLabel: string;
   mealBasisId: string;
   mealBasisName: string;
   mealCode: string;
@@ -823,7 +824,7 @@ export interface ChildRateGridCell {
 export interface FullRateGridData {
   roomTypes: { id: string; name: string; code: string; isBase: boolean; suppLabel: string }[];
   mealBases: { id: string; name: string; mealCode: string; isBase: boolean; suppLabel: string }[];
-  seasons: { id: string; name: string; code: string; dateFrom: string; dateTo: string }[];
+  seasons: { id: string; dateFrom: string; dateTo: string }[];
   occupancyVariants: OccupancyVariant[];
   cells: FullRateGridCell[];
   childRates: ChildRateGridCell[];
@@ -905,7 +906,7 @@ export function computeFullRateGrid(contract: RateContractData): FullRateGridDat
             roomTypeCode: rt.roomType.code,
             roomTypeSuppLabel: rtSuppLabel,
             seasonId: season.id,
-            seasonName: season.name,
+            seasonLabel: formatSeasonLabel(season.dateFrom, season.dateTo),
             mealBasisId: mb.mealBasisId,
             mealBasisName: mb.mealBasis.name,
             mealCode: mb.mealBasis.mealCode,
@@ -983,8 +984,6 @@ export function computeFullRateGrid(contract: RateContractData): FullRateGridDat
     })),
     seasons: contract.seasons.map((s) => ({
       id: s.id,
-      name: s.name,
-      code: s.code,
       dateFrom: s.dateFrom,
       dateTo: s.dateTo,
     })),
@@ -1021,7 +1020,7 @@ export function computeRateSheet(contract: RateContractData): RateSheetData {
           mealBasisId: mb.mealBasisId,
           mealBasisName: mb.mealBasis.name,
           seasonId: season.id,
-          seasonName: season.name,
+          seasonLabel: formatSeasonLabel(season.dateFrom, season.dateTo),
           rate: breakdown.totalPerNight,
           breakdown,
         });
@@ -1044,8 +1043,6 @@ export function computeRateSheet(contract: RateContractData): RateSheetData {
     })),
     seasons: contract.seasons.map((s) => ({
       id: s.id,
-      name: s.name,
-      code: s.code,
       dateFrom: s.dateFrom,
       dateTo: s.dateTo,
     })),

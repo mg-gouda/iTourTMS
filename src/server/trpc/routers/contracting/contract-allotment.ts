@@ -29,7 +29,7 @@ export const contractAllotmentRouter = createTRPCRouter({
       return ctx.db.contractAllotment.findMany({
         where: { contractId: input.contractId },
         include: {
-          season: { select: { id: true, name: true, code: true } },
+          season: { select: { id: true, dateFrom: true, dateTo: true } },
           roomType: { select: { id: true, name: true, code: true } },
         },
         orderBy: [{ seasonId: "asc" }],
@@ -107,7 +107,7 @@ export const contractAllotmentRouter = createTRPCRouter({
           },
         },
         include: {
-          season: { select: { id: true, name: true, dateFrom: true, dateTo: true } },
+          season: { select: { id: true, dateFrom: true, dateTo: true } },
           roomType: { select: { id: true, name: true, code: true } },
         },
       });

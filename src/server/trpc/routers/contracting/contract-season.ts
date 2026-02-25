@@ -5,6 +5,7 @@ import {
   contractSeasonCreateSchema,
   contractSeasonUpdateSchema,
 } from "@/lib/validations/contracting";
+import { formatSeasonLabel } from "@/lib/utils";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
 
@@ -48,8 +49,6 @@ export const contractSeasonRouter = createTRPCRouter({
       const season = await ctx.db.contractSeason.create({
         data: {
           contractId: input.contractId,
-          name: input.name,
-          code: input.code,
           dateFrom,
           dateTo,
           sortOrder: input.sortOrder,
@@ -63,7 +62,7 @@ export const contractSeasonRouter = createTRPCRouter({
         action: "CREATE",
         entity: "SEASON",
         entityId: season.id,
-        summary: `Added season "${input.name}" (${input.code})`,
+        summary: `Added season ${formatSeasonLabel(dateFrom, dateTo)}`,
         userId: ctx.session.user.id,
         userName: ctx.session.user.name ?? "",
       });
@@ -110,7 +109,7 @@ export const contractSeasonRouter = createTRPCRouter({
         action: "UPDATE",
         entity: "SEASON",
         entityId: input.id,
-        summary: `Updated season "${input.data.name ?? 'season'}"`,
+        summary: `Updated season`,
         userId: ctx.session.user.id,
         userName: ctx.session.user.name ?? "",
       });

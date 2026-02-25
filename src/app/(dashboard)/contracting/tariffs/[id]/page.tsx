@@ -31,8 +31,9 @@ import { exportTariffToPdf } from "@/lib/export/tariff-pdf";
 import { trpc } from "@/lib/trpc";
 
 interface TariffRateEntry {
-  seasonName: string;
-  seasonCode: string;
+  seasonLabel: string;
+  seasonName?: string;
+  seasonCode?: string;
   roomTypeName: string;
   roomTypeCode: string;
   mealBasisName: string;
@@ -124,7 +125,7 @@ export default function TariffDetailPage() {
   // Group rates by season
   const seasonGroups = new Map<string, TariffRateEntry[]>();
   for (const rate of rates) {
-    const key = rate.seasonCode;
+    const key = rate.seasonLabel ?? rate.seasonName ?? "Unknown";
     if (!seasonGroups.has(key)) {
       seasonGroups.set(key, []);
     }
@@ -282,12 +283,11 @@ export default function TariffDetailPage() {
       </div>
 
       {/* Rate tables grouped by season */}
-      {Array.from(seasonGroups.entries()).map(([seasonCode, seasonRates]) => (
-        <Card key={seasonCode}>
+      {Array.from(seasonGroups.entries()).map(([seasonLabel, seasonRates]) => (
+        <Card key={seasonLabel}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Badge variant="outline">{seasonCode}</Badge>
-              {seasonRates[0]?.seasonName}
+              {seasonRates[0]?.seasonLabel ?? seasonRates[0]?.seasonName ?? "Unknown"}
             </CardTitle>
           </CardHeader>
           <CardContent>

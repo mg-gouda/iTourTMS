@@ -17,7 +17,7 @@ export const contractBaseRateRouter = createTRPCRouter({
       return ctx.db.contractBaseRate.findMany({
         where: { contractId: input.contractId },
         include: {
-          season: { select: { id: true, name: true, code: true } },
+          season: { select: { id: true, dateFrom: true, dateTo: true } },
         },
       });
     }),

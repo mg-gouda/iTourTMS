@@ -116,7 +116,7 @@ export const tariffRouter = createTRPCRouter({
           hotelName: contract.hotel.name,
           rateBasis: contract.rateBasis,
           seasons: contract.seasons.map((s) => ({
-            id: s.id, name: s.name, code: s.code,
+            id: s.id, dateFrom: s.dateFrom.toISOString().slice(0, 10), dateTo: s.dateTo.toISOString().slice(0, 10),
           })),
           roomTypes: contract.roomTypes,
           mealBases: contract.mealBases,
@@ -221,8 +221,8 @@ export const tariffRouter = createTRPCRouter({
           rateBasis: contract.rateBasis,
           seasons: contract.seasons.map((s) => ({
             id: s.id,
-            name: s.name,
-            code: s.code,
+            dateFrom: s.dateFrom.toISOString().slice(0, 10),
+            dateTo: s.dateTo.toISOString().slice(0, 10),
           })),
           roomTypes: contract.roomTypes,
           mealBases: contract.mealBases,
@@ -345,8 +345,8 @@ export const tariffRouter = createTRPCRouter({
           rateBasis: contract.rateBasis,
           seasons: contract.seasons.map((s) => ({
             id: s.id,
-            name: s.name,
-            code: s.code,
+            dateFrom: s.dateFrom.toISOString().slice(0, 10),
+            dateTo: s.dateTo.toISOString().slice(0, 10),
           })),
           roomTypes: contract.roomTypes,
           mealBases: contract.mealBases,

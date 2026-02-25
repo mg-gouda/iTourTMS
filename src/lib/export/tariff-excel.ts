@@ -1,8 +1,7 @@
 import { format } from "date-fns";
 
 export interface TariffRateEntry {
-  seasonName: string;
-  seasonCode: string;
+  seasonLabel: string;
   roomTypeName: string;
   roomTypeCode: string;
   mealBasisName: string;
@@ -58,13 +57,12 @@ export async function exportTariffToExcel(data: TariffExportData): Promise<void>
   XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
   // ─── Sheet 2: Rates ──────────────────────────────
-  const header = ["Season", "Season Code", "Room Type", "Room Code", "Meal Plan", "Meal Code", "Base Rate", "Markup", "Selling Rate"];
+  const header = ["Season", "Room Type", "Room Code", "Meal Plan", "Meal Code", "Base Rate", "Markup", "Selling Rate"];
   const rateRows: (string | number)[][] = [header];
 
   for (const r of data.rates) {
     rateRows.push([
-      r.seasonName,
-      r.seasonCode,
+      r.seasonLabel,
       r.roomTypeName,
       r.roomTypeCode,
       r.mealBasisName,
@@ -77,7 +75,7 @@ export async function exportTariffToExcel(data: TariffExportData): Promise<void>
 
   const wsRates = XLSX.utils.aoa_to_sheet(rateRows);
   wsRates["!cols"] = [
-    { wch: 18 }, { wch: 10 }, { wch: 22 }, { wch: 10 },
+    { wch: 24 }, { wch: 22 }, { wch: 10 },
     { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, wsRates, "Rates");

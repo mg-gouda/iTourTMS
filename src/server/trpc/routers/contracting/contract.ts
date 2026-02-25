@@ -60,7 +60,7 @@ export const contractRouter = createTRPCRouter({
             orderBy: { sortOrder: "asc" },
           },
           baseRates: {
-            include: { season: { select: { id: true, name: true, code: true } } },
+            include: { season: { select: { id: true, dateFrom: true, dateTo: true } } },
           },
           supplements: {
             include: {
@@ -374,10 +374,10 @@ export const contractRouter = createTRPCRouter({
         averageRateMap = new Map();
         const avgContracts = await ctx.db.contractBaseRate.findMany({
           where: { contractId: { in: input.averageContractIds } },
-          include: { season: { select: { code: true } } },
+          include: { season: { select: { dateFrom: true, dateTo: true } } },
         });
         for (const br of avgContracts) {
-          const key = br.season.code;
+          const key = `${br.season.dateFrom.toISOString().slice(0, 10)}|${br.season.dateTo.toISOString().slice(0, 10)}`;
           if (!averageRateMap.has(key)) averageRateMap.set(key, []);
           averageRateMap.get(key)!.push(parseFloat(br.rate.toString()));
         }
@@ -453,15 +453,14 @@ export const contractRouter = createTRPCRouter({
 
         // 2. Clone seasons
         const seasonIdMap = new Map<string, string>();
-        const seasonCodeMap = new Map<string, string>(); // seasonId -> code
+        const seasonDateKeyMap = new Map<string, string>(); // seasonId -> "dateFrom|dateTo"
         if (entities.seasons) {
           for (const season of source.seasons) {
-            seasonCodeMap.set(season.id, season.code);
+            const dateKey = `${season.dateFrom.toISOString().slice(0, 10)}|${season.dateTo.toISOString().slice(0, 10)}`;
+            seasonDateKeyMap.set(season.id, dateKey);
             const newSeason = await tx.contractSeason.create({
               data: {
                 contractId: newContract.id,
-                name: season.name,
-                code: season.code,
                 dateFrom: dateDelta ? shiftDate(season.dateFrom, dateDelta) : season.dateFrom,
                 dateTo: dateDelta ? shiftDate(season.dateTo, dateDelta) : season.dateTo,
                 sortOrder: season.sortOrder,
@@ -511,9 +510,9 @@ export const contractRouter = createTRPCRouter({
 
               // AVERAGE mode: average with other contracts
               if (rateMode === "AVERAGE" && averageRateMap) {
-                const seasonCode = seasonCodeMap.get(br.seasonId);
-                const otherRates = seasonCode
-                  ? averageRateMap.get(seasonCode) ?? []
+                const dateKey = seasonDateKeyMap.get(br.seasonId);
+                const otherRates = dateKey
+                  ? averageRateMap.get(dateKey) ?? []
                   : [];
                 if (otherRates.length > 0) {
                   rate = averageRates([
@@ -759,8 +758,6 @@ export const contractRouter = createTRPCRouter({
           const newSeason = await tx.contractSeason.create({
             data: {
               contractId: template.id,
-              name: season.name,
-              code: season.code,
               dateFrom: season.dateFrom,
               dateTo: season.dateTo,
               sortOrder: season.sortOrder,
@@ -1034,7 +1031,7 @@ export const contractRouter = createTRPCRouter({
             orderBy: { sortOrder: "asc" as const },
           },
           baseRates: {
-            include: { season: { select: { id: true, name: true, code: true } } },
+            include: { season: { select: { id: true, dateFrom: true, dateTo: true } } },
           },
           supplements: {
             include: {
@@ -1046,7 +1043,7 @@ export const contractRouter = createTRPCRouter({
           specialOffers: { orderBy: { sortOrder: "asc" as const } },
           allotments: {
             include: {
-              season: { select: { id: true, name: true, code: true } },
+              season: { select: { id: true, dateFrom: true, dateTo: true } },
               roomType: { select: { id: true, name: true, code: true } },
             },
           },
@@ -1091,7 +1088,7 @@ export const contractRouter = createTRPCRouter({
         },
         baseRates: {
           include: {
-            season: { select: { id: true, name: true, code: true } },
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
           },
         },
         supplements: {
@@ -1107,7 +1104,7 @@ export const contractRouter = createTRPCRouter({
         specialOffers: { orderBy: { sortOrder: "asc" as const } },
         allotments: {
           include: {
-            season: { select: { id: true, name: true, code: true } },
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
             roomType: { select: { id: true, name: true, code: true } },
           },
         },

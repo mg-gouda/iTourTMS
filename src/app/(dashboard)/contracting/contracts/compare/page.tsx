@@ -36,6 +36,7 @@ import {
   OFFER_TYPE_LABELS,
 } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
+import { formatSeasonLabel } from "@/lib/utils";
 import type { AppRouter } from "@/server/trpc/router";
 import type { inferRouterOutputs } from "@trpc/server";
 
@@ -268,10 +269,9 @@ function SeasonsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
   const rows = diffArrays(
     a.seasons,
     b.seasons,
-    (s) => s.code,
+    (s) => s.id,
     (sa, sb) => {
       const changed: string[] = [];
-      if (sa.name !== sb.name) changed.push("name");
       if (fmtDate(sa.dateFrom) !== fmtDate(sb.dateFrom)) changed.push("dateFrom");
       if (fmtDate(sa.dateTo) !== fmtDate(sb.dateTo)) changed.push("dateTo");
       if (sa.releaseDays !== sb.releaseDays) changed.push("releaseDays");
@@ -285,8 +285,7 @@ function SeasonsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Name</TableHead>
+            <TableHead>Season</TableHead>
             <TableHead>Date From</TableHead>
             <TableHead>Date To</TableHead>
             <TableHead>Release Days</TableHead>
@@ -297,7 +296,7 @@ function SeasonsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
         <TableBody>
           {rows.filter((r) => r.status !== "unchanged").length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">All seasons identical</TableCell>
+              <TableCell colSpan={6} className="text-center text-muted-foreground">All seasons identical</TableCell>
             </TableRow>
           ) : (
             rows.filter((r) => r.status !== "unchanged").map((r) => {
@@ -305,12 +304,7 @@ function SeasonsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
               const cf = r.changedFields ?? [];
               return (
                 <TableRow key={r.key} className={ROW_BG[r.status]}>
-                  <TableCell className="font-mono">{item.code}</TableCell>
-                  <TableCell className={cellClass("name", cf)}>
-                    {r.status === "changed" && cf.includes("name")
-                      ? `${r.a!.name} → ${r.b!.name}`
-                      : item.name}
-                  </TableCell>
+                  <TableCell>{formatSeasonLabel(item.dateFrom, item.dateTo)}</TableCell>
                   <TableCell className={cellClass("dateFrom", cf)}>
                     {r.status === "changed" && cf.includes("dateFrom")
                       ? `${fmtDate(r.a!.dateFrom)} → ${fmtDate(r.b!.dateFrom)}`
@@ -452,7 +446,7 @@ function BaseRatesSection({ a, b }: { a: ContractFull; b: ContractFull }) {
   const rows = diffArrays(
     a.baseRates,
     b.baseRates,
-    (br) => br.season.code,
+    (br) => br.season.id,
     (ba, bb) => {
       const changed: string[] = [];
       if (fmtDecimal(ba.rate) !== fmtDecimal(bb.rate)) changed.push("rate");
@@ -487,7 +481,7 @@ function BaseRatesSection({ a, b }: { a: ContractFull; b: ContractFull }) {
               const cf = r.changedFields ?? [];
               return (
                 <TableRow key={r.key} className={ROW_BG[r.status]}>
-                  <TableCell className="font-mono">{item.season.code}</TableCell>
+                  <TableCell>{formatSeasonLabel(item.season.dateFrom, item.season.dateTo)}</TableCell>
                   <TableCell className={`text-right ${cellClass("rate", cf)}`}>
                     {r.status === "changed" && cf.includes("rate")
                       ? `${fmtDecimal(r.a!.rate)} → ${fmtDecimal(r.b!.rate)}`
@@ -684,7 +678,7 @@ function SpecialOffersSection({ a, b }: { a: ContractFull; b: ContractFull }) {
 
 function AllotmentsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
   const getKey = (al: ContractFull["allotments"][number]) =>
-    `${al.season.code}|${al.roomType.code}`;
+    `${al.season.id}|${al.roomType.code}`;
 
   const rows = diffArrays(
     a.allotments,
@@ -721,7 +715,7 @@ function AllotmentsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
               const cf = r.changedFields ?? [];
               return (
                 <TableRow key={r.key} className={ROW_BG[r.status]}>
-                  <TableCell className="font-mono">{item.season.code}</TableCell>
+                  <TableCell>{formatSeasonLabel(item.season.dateFrom, item.season.dateTo)}</TableCell>
                   <TableCell>{item.roomType.name}</TableCell>
                   <TableCell className={`text-right ${cellClass("totalRooms", cf)}`}>
                     {r.status === "changed" && cf.includes("totalRooms")

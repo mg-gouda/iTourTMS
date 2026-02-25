@@ -204,8 +204,6 @@ export const contractUpdateSchema = z.object({
 
 export const contractSeasonCreateSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
-  name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required").max(20),
   dateFrom: z.string().min(1, "Date from is required"),
   dateTo: z.string().min(1, "Date to is required"),
   sortOrder: z.number().int().default(0),
@@ -217,8 +215,6 @@ export const contractSeasonCreateSchema = z.object({
 });
 
 export const contractSeasonUpdateSchema = z.object({
-  name: z.string().min(1, "Name is required").optional(),
-  code: z.string().min(1, "Code is required").max(20).optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   sortOrder: z.number().int().optional(),

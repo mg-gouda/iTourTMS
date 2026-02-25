@@ -1,4 +1,4 @@
-// Decimal-like type (Prisma Decimal or string with toString)
+import { formatSeasonLabel } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,8 +31,7 @@ export interface ResolveContext {
 
 export interface TariffRateEntry {
   seasonId: string;
-  seasonName: string;
-  seasonCode: string;
+  seasonLabel: string;
   roomTypeId: string;
   roomTypeName: string;
   roomTypeCode: string;
@@ -155,7 +154,7 @@ export function generateTariffRates(
     contractCode: string;
     hotelName: string;
     rateBasis: string;
-    seasons: { id: string; name: string; code: string }[];
+    seasons: { id: string; dateFrom: string; dateTo: string }[];
     roomTypes: { roomTypeId: string; roomType: { id: string; name: string; code: string } }[];
     mealBases: { mealBasisId: string; mealBasis: { id: string; name: string; mealCode: string } }[];
     baseRates: { seasonId: string; rate: { toString(): string } }[];
@@ -212,8 +211,7 @@ export function generateTariffRates(
 
         rates.push({
           seasonId: season.id,
-          seasonName: season.name,
-          seasonCode: season.code,
+          seasonLabel: formatSeasonLabel(season.dateFrom, season.dateTo),
           roomTypeId: rt.roomTypeId,
           roomTypeName: rt.roomType.name,
           roomTypeCode: rt.roomType.code,

@@ -3,13 +3,12 @@
  * and unified stay simulation with per-night rate calculation.
  */
 
+import { formatSeasonLabel } from "@/lib/utils";
 import { calculateRate, type RateContractData, type RateBreakdown } from "./rate-calculator";
 import { checkStopSales, type StopSaleRecord } from "./stop-sale-checker";
 
 export interface SeasonRecord {
   id: string;
-  name: string;
-  code: string;
   dateFrom: Date;
   dateTo: Date;
   releaseDays: number | null;
@@ -18,7 +17,7 @@ export interface SeasonRecord {
 export interface NightBreakdown {
   date: string;
   seasonId: string | null;
-  seasonName: string;
+  seasonLabel: string;
 }
 
 /**
@@ -46,7 +45,9 @@ export function buildNightBreakdown(
     breakdown.push({
       date: dateStr,
       seasonId: matchingSeason?.id ?? null,
-      seasonName: matchingSeason?.name ?? "No Season",
+      seasonLabel: matchingSeason
+        ? formatSeasonLabel(matchingSeason.dateFrom, matchingSeason.dateTo)
+        : "No Season",
     });
 
     if (!matchingSeason) {
@@ -77,7 +78,7 @@ export function checkReleaseDays(
         );
         if (hasNightsInSeason) {
           warnings.push(
-            `Season "${season.name}" has a ${season.releaseDays}-day release; booking deadline was ${releaseDeadline.toISOString().slice(0, 10)}`,
+            `Season "${formatSeasonLabel(season.dateFrom, season.dateTo)}" has a ${season.releaseDays}-day release; booking deadline was ${releaseDeadline.toISOString().slice(0, 10)}`,
           );
         }
       }
@@ -92,7 +93,7 @@ export interface AllotmentRecord {
   freeSale: boolean;
   totalRooms: number;
   soldRooms: number;
-  season: { id: string; name: string } | null;
+  season: { id: string; dateFrom: Date; dateTo: Date } | null;
   roomType: { id: string; name: string } | null;
 }
 
@@ -114,7 +115,7 @@ export function checkAllotmentAvailability(
       const available = allotment.totalRooms - allotment.soldRooms;
       if (available <= 0) {
         warnings.push(
-          `No allotment available for ${roomTypeName} in ${season.name}`,
+          `No allotment available for ${roomTypeName} in ${formatSeasonLabel(season.dateFrom, season.dateTo)}`,
         );
       }
     }
@@ -127,7 +128,7 @@ export function checkAllotmentAvailability(
 export interface NightlyRate {
   date: string;
   seasonId: string | null;
-  seasonName: string;
+  seasonLabel: string;
   rate: number;
   breakdown: RateBreakdown;
 }
@@ -248,7 +249,7 @@ export function simulateStay(
           nightlyRates.push({
             date: night.date,
             seasonId: null,
-            seasonName: night.seasonName,
+            seasonLabel: night.seasonLabel,
             rate: 0,
             breakdown: emptyBreakdown,
           });
@@ -271,7 +272,7 @@ export function simulateStay(
         nightlyRates.push({
           date: night.date,
           seasonId: night.seasonId,
-          seasonName: night.seasonName,
+          seasonLabel: night.seasonLabel,
           rate: nightRate,
           breakdown,
         });

@@ -31,7 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
-import { cn } from "@/lib/utils";
+import { cn, formatSeasonLabel } from "@/lib/utils";
 
 export default function SeasonCoveragePage() {
   const router = useRouter();
@@ -52,8 +52,7 @@ export default function SeasonCoveragePage() {
   // Build coverage data per contract
   const coverageData = (data ?? []).map((contract) => {
     const seasons = (contract.seasons ?? []).map((s) => ({
-      name: s.name,
-      code: s.code,
+      id: s.id,
       dateFrom: new Date(s.dateFrom),
       dateTo: new Date(s.dateTo),
     }));
@@ -139,7 +138,7 @@ export default function SeasonCoveragePage() {
                     c.name,
                     c.code,
                     c.hotelName,
-                    s.name,
+                    formatSeasonLabel(s.dateFrom, s.dateTo),
                     format(s.dateFrom, "dd MMM yyyy"),
                     format(s.dateTo, "dd MMM yyyy"),
                     `${c.coveragePercent}%`,
@@ -165,7 +164,7 @@ export default function SeasonCoveragePage() {
                     c.name,
                     c.code,
                     c.hotelName,
-                    s.name,
+                    formatSeasonLabel(s.dateFrom, s.dateTo),
                     format(s.dateFrom, "dd MMM yyyy"),
                     format(s.dateTo, "dd MMM yyyy"),
                     c.coveragePercent,
@@ -263,7 +262,7 @@ export default function SeasonCoveragePage() {
 
                       return (
                         <div
-                          key={season.code}
+                          key={season.id}
                           className={cn(
                             "absolute h-full",
                             colors[idx % colors.length],
@@ -272,7 +271,7 @@ export default function SeasonCoveragePage() {
                             left: `${leftPct}%`,
                             width: `${widthPct}%`,
                           }}
-                          title={`${season.name}: ${format(season.dateFrom, "dd MMM")} — ${format(season.dateTo, "dd MMM")}`}
+                          title={`${formatSeasonLabel(season.dateFrom, season.dateTo)}: ${format(season.dateFrom, "dd MMM")} — ${format(season.dateTo, "dd MMM")}`}
                         />
                       );
                     })}

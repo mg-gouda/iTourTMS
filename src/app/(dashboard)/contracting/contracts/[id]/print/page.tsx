@@ -17,6 +17,7 @@ import {
 } from "@/lib/constants/contracting";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
+import { formatSeasonLabel } from "@/lib/utils";
 import type { AppRouter } from "@/server/trpc/router";
 import type { inferRouterOutputs } from "@trpc/server";
 
@@ -196,8 +197,7 @@ function SeasonsTable({ contract }: { contract: ExportContract }) {
       <table>
         <thead>
           <tr>
-            <th>Code</th>
-            <th>Name</th>
+            <th>Season</th>
             <th>Date From</th>
             <th>Date To</th>
             <th>Release Days</th>
@@ -207,8 +207,7 @@ function SeasonsTable({ contract }: { contract: ExportContract }) {
         <tbody>
           {contract.seasons.map((s) => (
             <tr key={s.id}>
-              <td className="font-mono">{s.code}</td>
-              <td>{s.name}</td>
+              <td>{formatSeasonLabel(s.dateFrom, s.dateTo)}</td>
               <td>{fmtDate(s.dateFrom)}</td>
               <td>{fmtDate(s.dateTo)}</td>
               <td>{s.releaseDays}</td>
@@ -279,7 +278,7 @@ function RateSheet({ contract }: { contract: ExportContract }) {
   // Build season-indexed rate map
   const rateMap = new Map<string, typeof contract.baseRates[number]>();
   for (const br of contract.baseRates) {
-    rateMap.set(br.season.code, br);
+    rateMap.set(br.season.id, br);
   }
 
   return (
@@ -297,12 +296,11 @@ function RateSheet({ contract }: { contract: ExportContract }) {
         </thead>
         <tbody>
           {contract.seasons.map((season) => {
-            const rate = rateMap.get(season.code);
+            const rate = rateMap.get(season.id);
             return (
               <tr key={season.id}>
                 <td>
-                  <span className="font-mono">{season.code}</span>{" "}
-                  <span className="text-muted-foreground">({season.name})</span>
+                  {formatSeasonLabel(season.dateFrom, season.dateTo)}
                 </td>
                 <td className="text-right font-mono">{rate ? fmtDecimal(rate.rate) : "—"}</td>
                 <td className="text-right font-mono">{rate ? fmtDecimal(rate.singleRate) : "—"}</td>
@@ -417,7 +415,7 @@ function AllotmentsTable({ contract }: { contract: ExportContract }) {
         <tbody>
           {contract.allotments.map((a) => (
             <tr key={a.id}>
-              <td className="font-mono">{a.season.code}</td>
+              <td>{formatSeasonLabel(a.season.dateFrom, a.season.dateTo)}</td>
               <td>{a.roomType.name}</td>
               <td className="text-right">{a.totalRooms}</td>
               <td>{a.freeSale ? "Yes" : "No"}</td>

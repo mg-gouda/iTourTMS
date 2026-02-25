@@ -37,6 +37,7 @@ import {
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
+import { formatSeasonLabel } from "@/lib/utils";
 
 export default function RateComparisonPage() {
   const router = useRouter();
@@ -87,7 +88,7 @@ export default function RateComparisonPage() {
                   rows.push([
                     c.name,
                     c.code,
-                    s.name,
+                    formatSeasonLabel(s.dateFrom, s.dateTo),
                     rate ? Number(rate.rate).toFixed(2) : "—",
                     rate?.singleRate ? Number(rate.singleRate).toFixed(2) : "—",
                     rate?.doubleRate ? Number(rate.doubleRate).toFixed(2) : "—",
@@ -114,7 +115,7 @@ export default function RateComparisonPage() {
                   rows.push([
                     c.name,
                     c.code,
-                    s.name,
+                    formatSeasonLabel(s.dateFrom, s.dateTo),
                     rate ? Number(rate.rate) : 0,
                     rate?.singleRate ? Number(rate.singleRate) : 0,
                     rate?.doubleRate ? Number(rate.doubleRate) : 0,
@@ -201,40 +202,28 @@ export default function RateComparisonPage() {
                     {(() => {
                       const allSeasons = new Map<
                         string,
-                        { name: string; dateFrom?: string; dateTo?: string }
+                        { id: string; dateFrom: Date; dateTo: Date }
                       >();
                       for (const c of data.contracts) {
                         for (const s of c.seasons) {
-                          if (!allSeasons.has(s.code)) {
-                            allSeasons.set(s.code, {
-                              name: s.name,
-                              dateFrom: s.dateFrom
-                                ? format(
-                                    new Date(s.dateFrom),
-                                    "dd MMM",
-                                  )
-                                : undefined,
-                              dateTo: s.dateTo
-                                ? format(new Date(s.dateTo), "dd MMM")
-                                : undefined,
+                          if (!allSeasons.has(s.id)) {
+                            allSeasons.set(s.id, {
+                              id: s.id,
+                              dateFrom: s.dateFrom,
+                              dateTo: s.dateTo,
                             });
                           }
                         }
                       }
                       return Array.from(allSeasons.entries()).map(
-                        ([seasonCode, season]) => (
-                          <TableRow key={seasonCode}>
+                        ([seasonId, season]) => (
+                          <TableRow key={seasonId}>
                             <TableCell className="sticky left-0 bg-background z-10 font-medium">
-                              <div>{season.name}</div>
-                              {season.dateFrom && (
-                                <div className="text-xs text-muted-foreground">
-                                  {season.dateFrom} — {season.dateTo}
-                                </div>
-                              )}
+                              <div>{formatSeasonLabel(season.dateFrom, season.dateTo)}</div>
                             </TableCell>
                             {data.contracts.map((c) => {
                               const cSeason = c.seasons.find(
-                                (s) => s.code === seasonCode,
+                                (s) => s.id === seasonId,
                               );
                               const rate = cSeason
                                 ? c.baseRates.find(
