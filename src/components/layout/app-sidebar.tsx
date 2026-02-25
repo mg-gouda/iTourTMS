@@ -134,6 +134,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Destinations", href: "/contracting/destinations" },
           { label: "Hotels", href: "/contracting/hotels" },
           { label: "Markets", href: "/contracting/markets" },
+          { label: "Tour Operators", href: "/contracting/tour-operators" },
         ],
       },
       {
@@ -142,8 +143,17 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Contracts", href: "/contracting/contracts" },
           { label: "Templates", href: "/contracting/templates" },
           { label: "Rates", href: "/contracting/rates" },
+          { label: "Allotments", href: "/contracting/allotments" },
+          { label: "Stop Sales", href: "/contracting/stop-sales" },
           { label: "Expiring", href: "/contracting/expiring" },
           { label: "Import", href: "/contracting/import" },
+        ],
+      },
+      {
+        label: "Commercial",
+        routes: [
+          { label: "Markup Rules", href: "/contracting/markups" },
+          { label: "Tariffs", href: "/contracting/tariffs" },
         ],
       },
       {
@@ -152,6 +162,9 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Contract Summary", href: "/contracting/reports/contract-summary" },
           { label: "Rate Comparison", href: "/contracting/reports/rate-comparison" },
           { label: "Season Coverage", href: "/contracting/reports/season-coverage" },
+          { label: "Seasonal Offers", href: "/contracting/reports/seasonal-offers" },
+          { label: "EBD Conditions", href: "/contracting/reports/ebd-conditions" },
+          { label: "Allotment Utilization", href: "/contracting/reports/allotment-utilization" },
         ],
       },
     ],

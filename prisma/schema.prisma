@@ -115,6 +115,11 @@ model Company {
   hotels           Hotel[]
   contracts        Contract[]
   markets          Market[]
+  tourOperators    TourOperator[]
+  markupRules      MarkupRule[]
+  tariffs          Tariff[]
+  rateVerifications RateVerification[]
+  copyLogs         ContractCopyLog[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -162,6 +167,8 @@ model User {
   contractsCreated   Contract[] @relation("ContractCreator")
   contractsPosted    Contract[] @relation("ContractPoster")
   contractsPublished Contract[] @relation("ContractPublisher")
+  contractCopyLogs       ContractCopyLog[]
+  rateVerifications      RateVerification[]  @relation("RateVerificationCreator")
 
   @@index([companyId])
   @@index([email])
@@ -249,8 +256,9 @@ model Country {
   fiscalPositions FiscalPosition[]
 
   // Contracting relations
-  destinations Destination[]
-  hotels       Hotel[]
+  destinations  Destination[]
+  hotels        Hotel[]
+  tourOperators TourOperator[] @relation("TOCountry")
 
   @@index([code])
   @@index([name])
@@ -621,6 +629,14 @@ enum SupplementType {
   OCCUPANCY
   CHILD
   EXTRA_BED
+  VIEW
+}
+
+enum CopyRateMode {
+  FREEZE
+  INCREASE
+  DECREASE
+  AVERAGE
 }
 
 enum SupplementValueType {
@@ -1299,10 +1315,11 @@ model Destination {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  country Country @relation(fields: [countryId], references: [id])
-  hotels  Hotel[]
-  cities  City[]
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country     Country      @relation(fields: [countryId], references: [id])
+  hotels      Hotel[]
+  cities      City[]
+  markupRules MarkupRule[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1415,6 +1432,9 @@ model Hotel {
   mealBasis        HotelMealBasis[]
   images           HotelImage[]
   contracts        Contract[]
+
+  tourOperators    HotelTourOperator[]
+  markupRules      MarkupRule[]       @relation("MarkupRuleHotel")
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1593,6 +1613,13 @@ model Contract {
   cancellationPolicies  ContractCancellationPolicy[]
   markets               ContractMarket[]
   auditLogs             ContractAuditLog[]
+  tourOperators         ContractTourOperator[]
+  markupRules           MarkupRule[]
+  tariffs               Tariff[]
+  specialMeals          ContractSpecialMeal[]
+  rateVerifications     RateVerification[]
+  copyLogsAsSource      ContractCopyLog[]     @relation("CopyLogSource")
+  copyLogsAsTarget      ContractCopyLog[]     @relation("CopyLogTarget")
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1786,16 +1813,24 @@ model ContractSeasonSpo {
   @@map("ct_contract_season_spo")
 }
 
+enum AllocationBasis {
+  FREESALE
+  ON_REQUEST
+  COMMITMENT
+  ALLOCATION
+}
+
 model ContractAllotment {
-  id         String   @id @default(cuid())
+  id         String          @id @default(cuid())
   contractId String
   seasonId   String
   roomTypeId String
+  basis      AllocationBasis @default(ALLOCATION)
   totalRooms Int
-  freeSale   Boolean  @default(false)
-  soldRooms  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  freeSale   Boolean         @default(false)
+  soldRooms  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
   contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
   season   ContractSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
@@ -1876,8 +1911,10 @@ model Market {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contracts ContractMarket[]
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contracts     ContractMarket[]
+  tourOperators TourOperator[]
+  markupRules   MarkupRule[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1896,6 +1933,225 @@ model ContractMarket {
   @@unique([contractId, marketId])
   @@index([contractId])
   @@map("ct_contract_market")
+}
+
+// ============================================================================
+// TOUR OPERATOR — CONTRACT & HOTEL ASSIGNMENTS
+// ============================================================================
+
+model TourOperator {
+  id            String   @id @default(cuid())
+  companyId     String
+  name          String
+  code          String
+  contactPerson String?
+  email         String?
+  phone         String?
+  countryId     String?
+  marketId      String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country            Country?               @relation("TOCountry", fields: [countryId], references: [id])
+  market             Market?                @relation(fields: [marketId], references: [id])
+  contractAssignments ContractTourOperator[]
+  hotelAssignments    HotelTourOperator[]
+  markupRules         MarkupRule[]
+  tariffs             Tariff[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("ct_tour_operator")
+}
+
+model ContractTourOperator {
+  id             String   @id @default(cuid())
+  contractId     String
+  tourOperatorId String
+  assignedAt     DateTime @default(now())
+  notes          String?
+
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, tourOperatorId])
+  @@index([contractId])
+  @@index([tourOperatorId])
+  @@map("ct_contract_tour_operator")
+}
+
+model HotelTourOperator {
+  id             String   @id @default(cuid())
+  hotelId        String
+  tourOperatorId String
+  assignedAt     DateTime @default(now())
+  notes          String?
+
+  hotel        Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, tourOperatorId])
+  @@index([hotelId])
+  @@index([tourOperatorId])
+  @@map("ct_hotel_tour_operator")
+}
+
+// ============================================================================
+// MARKUP & TARIFF
+// ============================================================================
+
+enum MarkupType {
+  PERCENTAGE
+  FIXED_PER_NIGHT
+  FIXED_PER_BOOKING
+}
+
+model MarkupRule {
+  id            String     @id @default(cuid())
+  companyId     String
+  name          String
+  markupType    MarkupType
+  value         Decimal    @db.Decimal(12, 4)
+  // Scope targets (optional — more specific = higher priority)
+  contractId    String?
+  hotelId       String?
+  destinationId String?
+  marketId      String?
+  tourOperatorId String?
+  priority      Int        @default(0)
+  active        Boolean    @default(true)
+  validFrom     DateTime?  @db.Date
+  validTo       DateTime?  @db.Date
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract     Contract?     @relation(fields: [contractId], references: [id])
+  hotel        Hotel?        @relation("MarkupRuleHotel", fields: [hotelId], references: [id])
+  destination  Destination?  @relation(fields: [destinationId], references: [id])
+  market       Market?       @relation(fields: [marketId], references: [id])
+  tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
+  tariffs      Tariff[]
+
+  @@index([companyId])
+  @@map("ct_markup_rule")
+}
+
+model Tariff {
+  id            String   @id @default(cuid())
+  companyId     String
+  name          String
+  contractId    String
+  tourOperatorId String
+  markupRuleId  String?
+  currencyCode  String
+  data          Json     // Full generated tariff data
+  generatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract     Contract      @relation(fields: [contractId], references: [id])
+  tourOperator TourOperator  @relation(fields: [tourOperatorId], references: [id])
+  markupRule   MarkupRule?   @relation(fields: [markupRuleId], references: [id])
+
+  @@index([companyId])
+  @@index([contractId])
+  @@index([tourOperatorId])
+  @@map("ct_tariff")
+}
+
+// ============================================================================
+// SPECIAL MEALS (Gala Dinners)
+// ============================================================================
+
+enum SpecialMealOccasion {
+  NYE
+  CHRISTMAS
+  EASTER
+  CUSTOM
+}
+
+model ContractSpecialMeal {
+  id            String              @id @default(cuid())
+  contractId    String
+  occasion      SpecialMealOccasion
+  customName    String?             // For CUSTOM occasion
+  dateFrom      DateTime            @db.Date
+  dateTo        DateTime            @db.Date
+  mandatory     Boolean             @default(true)
+  adultPrice    Decimal             @db.Decimal(12, 2)
+  childPrice    Decimal?            @db.Decimal(12, 2)
+  teenPrice     Decimal?            @db.Decimal(12, 2)
+  infantPrice   Decimal?            @db.Decimal(12, 2)
+  excludedMealBases String?         // comma-separated meal codes excluded (e.g. "AI,UAI")
+  notes         String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("ct_contract_special_meal")
+}
+
+// ============================================================================
+// RATE VERIFICATION (Booking Simulator)
+// ============================================================================
+
+model RateVerification {
+  id           String   @id @default(cuid())
+  companyId    String
+  contractId   String
+  checkIn      DateTime @db.Date
+  checkOut     DateTime @db.Date
+  adults       Int      @default(2)
+  children     Int      @default(0)
+  childAges    Json?    // Array of ages
+  bookingDate  DateTime? @db.Date
+  resultData   Json     // Full simulation result
+  warnings     Json?    // Array of warning strings
+  status       String   @default("OK") // OK, WARNING, ERROR
+  createdAt    DateTime @default(now())
+  createdById  String?
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("RateVerificationCreator", fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([contractId])
+  @@map("ct_rate_verification")
+}
+
+// ============================================================================
+// CONTRACT COPY LOG
+// ============================================================================
+
+model ContractCopyLog {
+  id                  String       @id @default(cuid())
+  companyId           String
+  sourceContractId    String
+  targetContractId    String
+  rateMode            CopyRateMode @default(FREEZE)
+  ratePercent         Decimal?     @db.Decimal(8, 4)
+  averageSourceIds    Json?        // Array of contract IDs for AVERAGE mode
+  copiedEntities      Json?        // List of entity types copied
+  dateShiftDays       Int?
+  createdAt           DateTime     @default(now())
+  createdById         String?
+
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceContract Contract  @relation("CopyLogSource", fields: [sourceContractId], references: [id])
+  targetContract Contract  @relation("CopyLogTarget", fields: [targetContractId], references: [id])
+  createdBy      User?     @relation(fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([sourceContractId])
+  @@index([targetContractId])
+  @@map("ct_contract_copy_log")
 }
 
 // ============================================================================

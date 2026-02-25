@@ -7,7 +7,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { ArrowLeftRight, FileDown, FileSpreadsheet } from "lucide-react";
+import { ArrowLeftRight, FileDown, FileSpreadsheet, Plus, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -375,6 +376,7 @@ export default function ContractDetailPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="markets">Markets</TabsTrigger>
+          <TabsTrigger value="tourOperators">Tour Operators</TabsTrigger>
           <TabsTrigger value="seasons">
             Seasons ({contract.seasons.length})
           </TabsTrigger>
@@ -391,7 +393,9 @@ export default function ContractDetailPage() {
           <TabsTrigger value="seasonSpos">Season SPOs</TabsTrigger>
           <TabsTrigger value="allotments">Allotments</TabsTrigger>
           <TabsTrigger value="childPolicies">Child Policies</TabsTrigger>
+          <TabsTrigger value="specialMeals">Special Meals</TabsTrigger>
           <TabsTrigger value="cancellation">Cancellation</TabsTrigger>
+          <TabsTrigger value="simulator">Simulator</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -400,6 +404,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="markets">
           <MarketsTab contractId={id} />
+        </TabsContent>
+        <TabsContent value="tourOperators">
+          <TourOperatorsTab contractId={id} />
         </TabsContent>
         <TabsContent value="seasons">
           <SeasonsTab contractId={id} contract={contract} />
@@ -431,8 +438,14 @@ export default function ContractDetailPage() {
         <TabsContent value="childPolicies">
           <ChildPoliciesTab contractId={id} hotelId={contract.hotelId} />
         </TabsContent>
+        <TabsContent value="specialMeals">
+          <SpecialMealsTab contractId={id} />
+        </TabsContent>
         <TabsContent value="cancellation">
           <CancellationPolicyTab contractId={id} />
+        </TabsContent>
+        <TabsContent value="simulator">
+          <SimulatorTab contractId={id} />
         </TabsContent>
         <TabsContent value="activity">
           <ActivityTab contractId={id} />
@@ -1817,6 +1830,14 @@ function SupplementsTab({
         utils={utils}
       />
 
+      {/* View Supplements */}
+      <ViewSupplementGrid
+        contractId={contractId}
+        roomTypes={contract.roomTypes}
+        existing={byType["VIEW"] ?? []}
+        utils={utils}
+      />
+
     </div>
   );
 }
@@ -2468,6 +2489,192 @@ function ExtraBedSupplementGrid({
 }
 
 // ─── View Supplement Section ──────────────────────────────
+
+type ViewRow = {
+  roomTypeId: string;
+  label: string;
+  value: string;
+  valueType: string;
+  perPerson: boolean;
+  perNight: boolean;
+};
+
+function ViewSupplementGrid({
+  contractId,
+  roomTypes,
+  existing,
+  utils,
+}: {
+  contractId: string;
+  roomTypes: ContractRoomTypeData[];
+  existing: SupplementData[];
+  utils: ReturnType<typeof trpc.useUtils>;
+}) {
+  const [rows, setRows] = useState<ViewRow[]>(() =>
+    existing.length > 0
+      ? existing.map((s) => ({
+          roomTypeId: s.roomTypeId ?? "",
+          label: s.label ?? "",
+          value: String(Number(s.value)),
+          valueType: s.valueType,
+          perPerson: s.perPerson,
+          perNight: s.perNight,
+        }))
+      : [{ roomTypeId: "", label: "", value: "", valueType: "FIXED", perPerson: true, perNight: true }],
+  );
+
+  const saveMutation = trpc.contracting.contractSupplement.bulkSaveView.useMutation({
+    onSuccess: () => utils.contracting.contract.getById.invalidate({ id: contractId }),
+  });
+
+  function addRow() {
+    setRows((prev) => [
+      ...prev,
+      { roomTypeId: "", label: "", value: "", valueType: "FIXED", perPerson: true, perNight: true },
+    ]);
+  }
+
+  function removeRow(idx: number) {
+    setRows((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateRow(idx: number, field: keyof ViewRow, val: string | boolean) {
+    setRows((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, [field]: val } : r)),
+    );
+  }
+
+  function handleSave() {
+    const items = rows
+      .filter((r) => r.roomTypeId && r.label && r.value && Number(r.value) !== 0)
+      .map((r) => ({
+        roomTypeId: r.roomTypeId,
+        label: r.label,
+        value: Number(r.value),
+        valueType: r.valueType as "FIXED" | "PERCENTAGE",
+        perPerson: r.perPerson,
+        perNight: r.perNight,
+      }));
+    saveMutation.mutate({ contractId, items });
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>View Supplements</CardTitle>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={addRow}>
+            <Plus className="mr-1 size-3" /> Add Row
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {saveMutation.error && (
+          <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
+        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Room Type</TableHead>
+              <TableHead>View Label</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Per Person</TableHead>
+              <TableHead>Per Night</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, idx) => (
+              <TableRow key={idx}>
+                <TableCell>
+                  <Select
+                    value={row.roomTypeId}
+                    onValueChange={(v) => updateRow(idx, "roomTypeId", v)}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roomTypes.map((rt) => (
+                        <SelectItem key={rt.roomTypeId} value={rt.roomTypeId}>
+                          {rt.roomType.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Input
+                    placeholder="e.g. Sea View"
+                    className="w-36"
+                    value={row.label}
+                    onChange={(e) => updateRow(idx, "label", e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="w-24"
+                    value={row.value}
+                    onChange={(e) => updateRow(idx, "value", e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={row.valueType}
+                    onValueChange={(v) => updateRow(idx, "valueType", v)}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
+                      <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    checked={row.perPerson}
+                    onCheckedChange={(checked) => updateRow(idx, "perPerson", checked === true)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    checked={row.perNight}
+                    onCheckedChange={(checked) => updateRow(idx, "perNight", checked === true)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => removeRow(idx)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                  No view supplements. Click &quot;Add Row&quot; to add one.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ─── Season SPO Dialog ──────────────────────────────────
 
@@ -3189,6 +3396,7 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
 type AllotmentCellValue = {
   totalRooms: string;
   freeSale: boolean;
+  basis: "FREESALE" | "ON_REQUEST" | "COMMITMENT" | "ALLOCATION";
 };
 type AllotmentGridState = Record<string, AllotmentCellValue>;
 
@@ -3252,6 +3460,7 @@ function AllotmentGrid({
       init[cellKey(a.roomTypeId, a.seasonId)] = {
         totalRooms: a.freeSale ? "" : String(a.totalRooms),
         freeSale: a.freeSale,
+        basis: a.basis as AllotmentCellValue["basis"],
       };
     }
     setGrid(init);
@@ -3265,7 +3474,7 @@ function AllotmentGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; roomTypeId: string; totalRooms: number; freeSale: boolean }[] = [];
+    const items: { seasonId: string; roomTypeId: string; basis: AllotmentCellValue["basis"]; totalRooms: number; freeSale: boolean }[] = [];
     for (const rt of roomTypes) {
       for (const season of seasons) {
         const cell = grid[cellKey(rt.roomTypeId, season.id)];
@@ -3273,6 +3482,7 @@ function AllotmentGrid({
           items.push({
             seasonId: season.id,
             roomTypeId: rt.roomTypeId,
+            basis: cell.basis,
             totalRooms: cell.freeSale ? 0 : (Number(cell.totalRooms) || 0),
             freeSale: cell.freeSale,
           });
@@ -3282,11 +3492,11 @@ function AllotmentGrid({
     saveMutation.mutate({ contractId, items });
   }
 
-  function updateCell(key: string, field: "totalRooms" | "freeSale", value: string | boolean) {
+  function updateCell(key: string, field: "totalRooms" | "freeSale" | "basis", value: string | boolean) {
     setGrid((prev) => ({
       ...prev,
       [key]: {
-        ...prev[key] ?? { totalRooms: "", freeSale: false },
+        ...prev[key] ?? { totalRooms: "", freeSale: false, basis: "ALLOCATION" as const },
         [field]: value,
       },
     }));
@@ -3337,32 +3547,48 @@ function AllotmentGrid({
                 </TableCell>
                 {seasons.map((s) => {
                   const key = cellKey(rt.roomTypeId, s.id);
-                  const cell = grid[key] ?? { totalRooms: "", freeSale: false };
+                  const cell = grid[key] ?? { totalRooms: "", freeSale: false, basis: "ALLOCATION" as const };
                   return (
                     <TableCell key={s.id}>
-                      <div className="flex items-center gap-2">
-                        {cell.freeSale ? (
-                          <div className="flex h-9 w-20 items-center justify-center rounded-md border bg-muted text-lg font-semibold text-muted-foreground">
-                            &infin;
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          {cell.freeSale ? (
+                            <div className="flex h-9 w-20 items-center justify-center rounded-md border bg-muted text-lg font-semibold text-muted-foreground">
+                              &infin;
+                            </div>
+                          ) : (
+                            <Input
+                              type="number"
+                              min={0}
+                              className="w-20"
+                              value={cell.totalRooms}
+                              onChange={(e) => updateCell(key, "totalRooms", e.target.value)}
+                            />
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Checkbox
+                              checked={cell.freeSale}
+                              onCheckedChange={(checked) =>
+                                updateCell(key, "freeSale", checked === true)
+                              }
+                            />
+                            <span className="text-xs text-muted-foreground">Free</span>
                           </div>
-                        ) : (
-                          <Input
-                            type="number"
-                            min={0}
-                            className="w-20"
-                            value={cell.totalRooms}
-                            onChange={(e) => updateCell(key, "totalRooms", e.target.value)}
-                          />
-                        )}
-                        <div className="flex items-center gap-1">
-                          <Checkbox
-                            checked={cell.freeSale}
-                            onCheckedChange={(checked) =>
-                              updateCell(key, "freeSale", checked === true)
-                            }
-                          />
-                          <span className="text-xs text-muted-foreground">Free</span>
                         </div>
+                        <Select
+                          value={cell.basis}
+                          onValueChange={(v) => updateCell(key, "basis", v)}
+                        >
+                          <SelectTrigger className="h-7 w-full text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ALLOCATION">Allocation</SelectItem>
+                            <SelectItem value="FREESALE">Free Sale</SelectItem>
+                            <SelectItem value="ON_REQUEST">On Request</SelectItem>
+                            <SelectItem value="COMMITMENT">Commitment</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </TableCell>
                   );
@@ -5053,6 +5279,677 @@ function formatRelativeTime(date: Date | string) {
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay}d ago`;
   return format(d, "dd MMM yyyy HH:mm");
+}
+
+function TourOperatorsTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const { data: assignedRaw } =
+    trpc.contracting.tourOperator.listByContract.useQuery({ contractId });
+  const assigned = assignedRaw ?? [];
+  const { data: allTOs } = trpc.contracting.tourOperator.list.useQuery();
+  const tourOperators = allTOs ?? [];
+
+  const assignMutation = trpc.contracting.tourOperator.assignToContract.useMutation({
+    onSuccess: () =>
+      utils.contracting.tourOperator.listByContract.invalidate({ contractId }),
+  });
+  const unassignMutation = trpc.contracting.tourOperator.unassignFromContract.useMutation({
+    onSuccess: () =>
+      utils.contracting.tourOperator.listByContract.invalidate({ contractId }),
+  });
+  const [showAssign, setShowAssign] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const assignedTOIds = new Set(assigned.map((a) => a.tourOperator.id));
+  const availableTOs = tourOperators.filter(
+    (t) => !assignedTOIds.has(t.id) && t.active,
+  );
+
+  function handleAssign() {
+    if (selectedIds.length === 0) return;
+    assignMutation.mutate(
+      { contractId, tourOperatorIds: selectedIds },
+      {
+        onSuccess: () => {
+          setShowAssign(false);
+          setSelectedIds([]);
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Tour Operators</h3>
+          <p className="text-sm text-muted-foreground">
+            Assign tour operators who can access this contract&apos;s rates and tariffs.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {tourOperators.length > 0 && (
+            <Button size="sm" onClick={() => setShowAssign(true)}>
+              Add Tour Operator
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {assigned.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            {tourOperators.length === 0
+              ? "No tour operators defined. Go to Master Data > Tour Operators to create them."
+              : "No tour operators assigned to this contract yet."}
+          </CardContent>
+        </Card>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Market</TableHead>
+              <TableHead>Country</TableHead>
+              <TableHead className="w-[80px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {assigned.map((a) => (
+              <TableRow key={a.id}>
+                <TableCell className="font-medium">{a.tourOperator.name}</TableCell>
+                <TableCell className="font-mono">{a.tourOperator.code}</TableCell>
+                <TableCell>
+                  {a.tourOperator.contactPerson || a.tourOperator.email || "—"}
+                </TableCell>
+                <TableCell>{a.tourOperator.market?.name ?? "—"}</TableCell>
+                <TableCell>{a.tourOperator.country?.name ?? "—"}</TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      unassignMutation.mutate({
+                        contractId,
+                        tourOperatorId: a.tourOperator.id,
+                      })
+                    }
+                  >
+                    <X className="size-3" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* Assign Dialog */}
+      <Dialog open={showAssign} onOpenChange={setShowAssign}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Tour Operators</DialogTitle>
+            <DialogDescription>
+              Select tour operators to assign to this contract.
+            </DialogDescription>
+          </DialogHeader>
+          {availableTOs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">
+              All active tour operators are already assigned.
+            </p>
+          ) : (
+            <div className="max-h-64 overflow-y-auto space-y-1 py-2">
+              {availableTOs.map((to) => (
+                <label
+                  key={to.id}
+                  className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
+                >
+                  <Checkbox
+                    checked={selectedIds.includes(to.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedIds((prev) =>
+                        checked
+                          ? [...prev, to.id]
+                          : prev.filter((id) => id !== to.id),
+                      );
+                    }}
+                  />
+                  <span className="font-medium">{to.name}</span>
+                  <span className="text-muted-foreground font-mono">({to.code})</span>
+                </label>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssign(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssign}
+              disabled={selectedIds.length === 0 || assignMutation.isPending}
+            >
+              {assignMutation.isPending
+                ? "Assigning..."
+                : `Assign (${selectedIds.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Special Meals Tab (Gala Dinners)
+// ---------------------------------------------------------------------------
+
+const OCCASION_LABELS: Record<string, string> = {
+  NYE: "New Year's Eve",
+  CHRISTMAS: "Christmas",
+  EASTER: "Easter",
+  CUSTOM: "Custom",
+};
+
+function SpecialMealsTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const { data: meals, isLoading } =
+    trpc.contracting.specialMeal.listByContract.useQuery({ contractId });
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // Create form state
+  const [occasion, setOccasion] = useState<string>("NYE");
+  const [customName, setCustomName] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [mandatory, setMandatory] = useState(true);
+  const [adultPrice, setAdultPrice] = useState(0);
+  const [childPrice, setChildPrice] = useState(0);
+  const [teenPrice, setTeenPrice] = useState(0);
+  const [infantPrice, setInfantPrice] = useState(0);
+  const [notes, setNotes] = useState("");
+
+  const createMutation = trpc.contracting.specialMeal.create.useMutation({
+    onSuccess: () => {
+      utils.contracting.specialMeal.listByContract.invalidate({ contractId });
+      setShowCreate(false);
+      resetForm();
+    },
+  });
+
+  const deleteMutation = trpc.contracting.specialMeal.delete.useMutation({
+    onSuccess: () => {
+      utils.contracting.specialMeal.listByContract.invalidate({ contractId });
+    },
+  });
+
+  function resetForm() {
+    setOccasion("NYE");
+    setCustomName("");
+    setDateFrom("");
+    setDateTo("");
+    setMandatory(true);
+    setAdultPrice(0);
+    setChildPrice(0);
+    setTeenPrice(0);
+    setInfantPrice(0);
+    setNotes("");
+    setEditId(null);
+  }
+
+  function handleSubmit() {
+    createMutation.mutate({
+      contractId,
+      occasion: occasion as "NYE" | "CHRISTMAS" | "EASTER" | "CUSTOM",
+      customName: occasion === "CUSTOM" ? customName : undefined,
+      dateFrom,
+      dateTo,
+      mandatory,
+      adultPrice,
+      childPrice: childPrice || undefined,
+      teenPrice: teenPrice || undefined,
+      infantPrice: infantPrice || undefined,
+      notes: notes || undefined,
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Special Meals / Gala Dinners</h3>
+        <Button size="sm" onClick={() => setShowCreate(true)}>
+          <Plus className="mr-2 size-3" /> Add Special Meal
+        </Button>
+      </div>
+
+      {/* Create Dialog */}
+      <Dialog open={showCreate} onOpenChange={(v) => { setShowCreate(v); if (!v) resetForm(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Special Meal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium">Occasion</label>
+                <Select value={occasion} onValueChange={setOccasion}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NYE">New Year&apos;s Eve</SelectItem>
+                    <SelectItem value="CHRISTMAS">Christmas</SelectItem>
+                    <SelectItem value="EASTER">Easter</SelectItem>
+                    <SelectItem value="CUSTOM">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {occasion === "CUSTOM" && (
+                <div>
+                  <label className="text-xs font-medium">Custom Name</label>
+                  <Input value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium">Date From</label>
+                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium">Date To</label>
+                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium">Adult Price</label>
+                <Input type="number" step="0.01" value={adultPrice} onChange={(e) => setAdultPrice(parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium">Child Price</label>
+                <Input type="number" step="0.01" value={childPrice} onChange={(e) => setChildPrice(parseFloat(e.target.value) || 0)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium">Teen Price</label>
+                <Input type="number" step="0.01" value={teenPrice} onChange={(e) => setTeenPrice(parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium">Infant Price</label>
+                <Input type="number" step="0.01" value={infantPrice} onChange={(e) => setInfantPrice(parseFloat(e.target.value) || 0)} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="mandatory" checked={mandatory} onCheckedChange={(v) => setMandatory(!!v)} />
+              <label htmlFor="mandatory" className="text-sm">Mandatory (charged to all guests)</label>
+            </div>
+            <div>
+              <label className="text-xs font-medium">Notes</label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreate(false); resetForm(); }}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending || !dateFrom || !dateTo}>
+              {createMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : meals && meals.length > 0 ? (
+        <Card>
+          <CardContent className="pt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Occasion</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Mandatory</TableHead>
+                  <TableHead className="text-right">Adult</TableHead>
+                  <TableHead className="text-right">Child</TableHead>
+                  <TableHead className="text-right">Teen</TableHead>
+                  <TableHead className="text-right">Infant</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {meals.map((meal) => (
+                  <TableRow key={meal.id}>
+                    <TableCell className="font-medium">
+                      {meal.occasion === "CUSTOM"
+                        ? meal.customName || "Custom"
+                        : OCCASION_LABELS[meal.occasion] || meal.occasion}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {new Date(meal.dateFrom).toLocaleDateString()} -{" "}
+                      {new Date(meal.dateTo).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={meal.mandatory ? "default" : ("secondary" as "default" | "secondary")}>
+                        {meal.mandatory ? "Yes" : "No"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {parseFloat(meal.adultPrice.toString()).toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {meal.childPrice ? parseFloat(meal.childPrice.toString()).toFixed(2) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {meal.teenPrice ? parseFloat(meal.teenPrice.toString()).toFixed(2) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {meal.infantPrice ? parseFloat(meal.infantPrice.toString()).toFixed(2) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-destructive"
+                        onClick={() => deleteMutation.mutate({ id: meal.id })}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No special meals configured. Click &quot;Add Special Meal&quot; to create one.
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Simulator Tab (Rate Verification)
+// ---------------------------------------------------------------------------
+
+function SimulatorTab({ contractId }: { contractId: string }) {
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [adults, setAdults] = useState(2);
+  const [bookingDate, setBookingDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [showOffers, setShowOffers] = useState(true);
+  const [runSim, setRunSim] = useState(false);
+
+  const { data: simResult, isLoading: simLoading } =
+    trpc.contracting.rateVerification.simulate.useQuery(
+      {
+        contractId,
+        checkIn,
+        checkOut,
+        adults,
+        childAges: [],
+        bookingDate,
+        showOffers,
+      },
+      { enabled: runSim && !!checkIn && !!checkOut },
+    );
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking Simulator</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                Check-in
+              </label>
+              <Input
+                type="date"
+                value={checkIn}
+                onChange={(e) => {
+                  setCheckIn(e.target.value);
+                  setRunSim(false);
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                Check-out
+              </label>
+              <Input
+                type="date"
+                value={checkOut}
+                onChange={(e) => {
+                  setCheckOut(e.target.value);
+                  setRunSim(false);
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                Adults
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={6}
+                value={adults}
+                onChange={(e) => {
+                  setAdults(parseInt(e.target.value) || 2);
+                  setRunSim(false);
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                Booking Date
+              </label>
+              <Input
+                type="date"
+                value={bookingDate}
+                onChange={(e) => {
+                  setBookingDate(e.target.value);
+                  setRunSim(false);
+                }}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={() => setRunSim(true)}
+                disabled={!checkIn || !checkOut || simLoading}
+                className="w-full"
+              >
+                {simLoading ? "Simulating..." : "Simulate"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="showOffers"
+              checked={showOffers}
+              onCheckedChange={(v) => {
+                setShowOffers(!!v);
+                setRunSim(false);
+              }}
+            />
+            <label htmlFor="showOffers" className="text-sm">
+              Show offer eligibility
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {simResult && (
+        <>
+          {/* Warnings */}
+          {simResult.warnings.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
+                  Warnings ({simResult.warnings.length})
+                </p>
+                <ul className="space-y-1">
+                  {simResult.warnings.map((w, i) => (
+                    <li
+                      key={i}
+                      className="text-xs text-amber-600 dark:text-amber-500"
+                    >
+                      &bull; {w}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Summary */}
+          <div className="grid gap-4 sm:grid-cols-4">
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Nights</p>
+                <p className="text-2xl font-bold">{simResult.nights}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Guests</p>
+                <p className="text-2xl font-bold">{simResult.adults} adults</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Seasons Spanned</p>
+                <p className="text-2xl font-bold">
+                  {new Set(simResult.nightBreakdown.map((n) => n.seasonName)).size}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Rate Basis</p>
+                <p className="text-2xl font-bold">
+                  {simResult.rateBasis === "PER_PERSON" ? "Per Person" : "Per Room"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Rate Matrix */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Rate Matrix</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Room Type</TableHead>
+                    <TableHead>Meal Plan</TableHead>
+                    <TableHead className="text-right">Avg/Night</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {simResult.rateMatrix.map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>
+                        {row.roomTypeName}{" "}
+                        <span className="text-xs text-muted-foreground">
+                          ({row.roomTypeCode})
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {row.mealBasisName}{" "}
+                        <span className="text-xs text-muted-foreground">
+                          ({row.mealCode})
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {row.avgPerNight.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold">
+                        {row.totalRate.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Offer Eligibility */}
+          {simResult.offerEligibility.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Offer Eligibility</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Offer</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Discount</TableHead>
+                      <TableHead>Eligible</TableHead>
+                      <TableHead>Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {simResult.offerEligibility.map((offer) => (
+                      <TableRow key={offer.offerId}>
+                        <TableCell className="font-medium">
+                          {offer.offerName}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {offer.offerType.replace(/_/g, " ")}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          {offer.discountType === "PERCENTAGE"
+                            ? `${offer.discountValue}%`
+                            : offer.discountValue.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              offer.eligible ? "default" : ("secondary" as "default" | "secondary")
+                            }
+                          >
+                            {offer.eligible ? "Yes" : "No"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {offer.reasons.join("; ")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function ActivityTab({ contractId }: { contractId: string }) {

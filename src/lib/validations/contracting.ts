@@ -315,6 +315,18 @@ export const supplementExtraBedBulkSaveSchema = z.object({
   })),
 });
 
+export const supplementViewBulkSaveSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  items: z.array(z.object({
+    roomTypeId: z.string().min(1),
+    label: z.string().min(1, "View label is required"),
+    value: z.number(),
+    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    perPerson: z.boolean().default(true),
+    perNight: z.boolean().default(true),
+  })),
+});
+
 // ── Rate Calculator Schemas ──
 
 export const rateCalculatorInputSchema = z.object({
@@ -470,6 +482,7 @@ export const allotmentBulkSaveSchema = z.object({
   items: z.array(z.object({
     seasonId: z.string().min(1),
     roomTypeId: z.string().min(1),
+    basis: z.enum(["FREESALE", "ON_REQUEST", "COMMITMENT", "ALLOCATION"]).default("ALLOCATION"),
     totalRooms: z.number().int().min(0),
     freeSale: z.boolean().default(false),
   })),
@@ -496,9 +509,42 @@ export const contractCloneSchema = z.object({
   code: z.string().min(1, "Code is required").max(100),
   validFrom: z.string().min(1, "Valid From is required"),
   validTo: z.string().min(1, "Valid To is required"),
+  // Enhanced copy options
+  rateMode: z.enum(["FREEZE", "INCREASE", "DECREASE", "AVERAGE"]).default("FREEZE"),
+  ratePercent: z.number().min(0).max(100).optional(),
+  averageContractIds: z.array(z.string()).optional(),
+  dateShift: z.boolean().default(false),
+  selectiveEntities: z.object({
+    seasons: z.boolean().default(true),
+    roomTypes: z.boolean().default(true),
+    mealBases: z.boolean().default(true),
+    baseRates: z.boolean().default(true),
+    supplements: z.boolean().default(true),
+    specialOffers: z.boolean().default(true),
+    allotments: z.boolean().default(true),
+    stopSales: z.boolean().default(true),
+    childPolicies: z.boolean().default(true),
+    cancellationPolicies: z.boolean().default(true),
+  }).optional(),
 }).refine((d) => d.validTo > d.validFrom, {
   message: "Valid To must be after Valid From",
   path: ["validTo"],
+}).refine((d) => {
+  if ((d.rateMode === "INCREASE" || d.rateMode === "DECREASE") && !d.ratePercent) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Rate percent is required for INCREASE/DECREASE modes",
+  path: ["ratePercent"],
+}).refine((d) => {
+  if (d.rateMode === "AVERAGE" && (!d.averageContractIds || d.averageContractIds.length === 0)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "At least one contract must be selected for AVERAGE mode",
+  path: ["averageContractIds"],
 });
 
 // ── Market Schemas ──
@@ -515,6 +561,93 @@ export const marketUpdateSchema = z.object({
   code: z.string().min(1).max(10).optional(),
   countryIds: z.array(z.string()).min(1).optional(),
   active: z.boolean().optional(),
+});
+
+// ── Tour Operator Schemas ──
+
+export const tourOperatorCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required").max(20),
+  contactPerson: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().optional(),
+  countryId: z.string().optional(),
+  marketId: z.string().optional(),
+  active: z.boolean().default(true),
+});
+
+export const tourOperatorUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  code: z.string().min(1).max(20).optional(),
+  contactPerson: z.string().nullable().optional(),
+  email: z.string().email().optional().or(z.literal("")).nullable().optional(),
+  phone: z.string().nullable().optional(),
+  countryId: z.string().nullable().optional(),
+  marketId: z.string().nullable().optional(),
+  active: z.boolean().optional(),
+});
+
+// ── Markup Rules ──
+
+export const markupRuleCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING"]),
+  value: z.number().min(0, "Value must be >= 0"),
+  contractId: z.string().optional(),
+  hotelId: z.string().optional(),
+  destinationId: z.string().optional(),
+  marketId: z.string().optional(),
+  tourOperatorId: z.string().optional(),
+  priority: z.number().int().default(0),
+  active: z.boolean().default(true),
+  validFrom: z.string().optional(),
+  validTo: z.string().optional(),
+});
+
+export const markupRuleUpdateSchema = markupRuleCreateSchema.partial();
+
+// ── Tariff ──
+
+export const tariffGenerateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  contractId: z.string().min(1, "Contract is required"),
+  tourOperatorId: z.string().min(1, "Tour Operator is required"),
+  markupRuleId: z.string().optional(),
+  currencyCode: z.string().min(1, "Currency is required"),
+});
+
+// ── Special Meals ──
+
+export const specialMealCreateSchema = z.object({
+  contractId: z.string().min(1),
+  occasion: z.enum(["NYE", "CHRISTMAS", "EASTER", "CUSTOM"]),
+  customName: z.string().optional(),
+  dateFrom: z.string().min(1, "Date from is required"),
+  dateTo: z.string().min(1, "Date to is required"),
+  mandatory: z.boolean().default(true),
+  adultPrice: z.number().min(0, "Price must be >= 0"),
+  childPrice: z.number().min(0).optional(),
+  teenPrice: z.number().min(0).optional(),
+  infantPrice: z.number().min(0).optional(),
+  excludedMealBases: z.string().optional(),
+  notes: z.string().optional(),
+}).refine((d) => d.dateTo >= d.dateFrom, {
+  message: "Date To must be on or after Date From",
+  path: ["dateTo"],
+});
+
+export const specialMealUpdateSchema = z.object({
+  occasion: z.enum(["NYE", "CHRISTMAS", "EASTER", "CUSTOM"]).optional(),
+  customName: z.string().nullable().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  mandatory: z.boolean().optional(),
+  adultPrice: z.number().min(0).optional(),
+  childPrice: z.number().min(0).nullable().optional(),
+  teenPrice: z.number().min(0).nullable().optional(),
+  infantPrice: z.number().min(0).nullable().optional(),
+  excludedMealBases: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 // ── Contract Child Policies ──

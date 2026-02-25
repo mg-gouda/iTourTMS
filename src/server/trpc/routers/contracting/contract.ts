@@ -333,6 +333,9 @@ export const contractRouter = createTRPCRouter({
   clone: proc
     .input(contractCloneSchema)
     .mutation(async ({ ctx, input }) => {
+      const { adjustRate, averageRates, shiftDate, calculateDateShift } =
+        await import("@/server/services/contracting/rate-adjuster");
+
       // Fetch source contract with ALL child records
       const source = await ctx.db.contract.findFirstOrThrow({
         where: { id: input.sourceContractId, companyId: ctx.companyId },
@@ -350,7 +353,36 @@ export const contractRouter = createTRPCRouter({
         },
       });
 
-      // Compute version: count existing contracts in the lineage + 1
+      // Rate mode defaults
+      const rateMode = input.rateMode ?? "FREEZE";
+      const ratePercent = input.ratePercent ?? 0;
+      const entities = input.selectiveEntities ?? {
+        seasons: true, roomTypes: true, mealBases: true, baseRates: true,
+        supplements: true, specialOffers: true, allotments: true, stopSales: true,
+        childPolicies: true, cancellationPolicies: true,
+      };
+
+      // Date shift calculation
+      const dateDelta = input.dateShift
+        ? calculateDateShift(source.validFrom, new Date(input.validFrom))
+        : 0;
+
+      // For AVERAGE mode, fetch rates from other contracts
+      let averageRateMap: Map<string, number[]> | null = null;
+      if (rateMode === "AVERAGE" && input.averageContractIds?.length) {
+        averageRateMap = new Map();
+        const avgContracts = await ctx.db.contractBaseRate.findMany({
+          where: { contractId: { in: input.averageContractIds } },
+          include: { season: { select: { code: true } } },
+        });
+        for (const br of avgContracts) {
+          const key = br.season.code;
+          if (!averageRateMap.has(key)) averageRateMap.set(key, []);
+          averageRateMap.get(key)!.push(parseFloat(br.rate.toString()));
+        }
+      }
+
+      // Compute version
       let rootId = source.parentContractId ?? source.id;
       let walker = source.parentContractId
         ? await ctx.db.contract.findUnique({
@@ -365,8 +397,6 @@ export const contractRouter = createTRPCRouter({
           select: { parentContractId: true },
         });
       }
-
-      // BFS to count all contracts in lineage
       const queue = [rootId];
       let lineageCount = 0;
       while (queue.length > 0) {
@@ -378,10 +408,23 @@ export const contractRouter = createTRPCRouter({
         });
         queue.push(...children.map((c) => c.id));
       }
-
       const newVersion = lineageCount + 1;
 
+      // Rate adjuster helper
+      function adj(val: unknown): number {
+        const num = parseFloat(String(val ?? 0));
+        if (rateMode === "AVERAGE") return num; // handled separately
+        return adjustRate(num, rateMode, ratePercent);
+      }
+
+      function adjOrNull(val: unknown): number | null {
+        if (val === null || val === undefined) return null;
+        return adj(val);
+      }
+
       return ctx.db.$transaction(async (tx) => {
+        const copiedEntities: string[] = [];
+
         // 1. Create the new contract
         const newContract = await tx.contract.create({
           data: {
@@ -407,26 +450,31 @@ export const contractRouter = createTRPCRouter({
           },
         });
 
-        // 2. Clone seasons and build ID remap
+        // 2. Clone seasons
         const seasonIdMap = new Map<string, string>();
-        for (const season of source.seasons) {
-          const newSeason = await tx.contractSeason.create({
-            data: {
-              contractId: newContract.id,
-              name: season.name,
-              code: season.code,
-              dateFrom: season.dateFrom,
-              dateTo: season.dateTo,
-              sortOrder: season.sortOrder,
-              releaseDays: season.releaseDays,
-              minimumStay: season.minimumStay,
-            },
-          });
-          seasonIdMap.set(season.id, newSeason.id);
+        const seasonCodeMap = new Map<string, string>(); // seasonId -> code
+        if (entities.seasons) {
+          for (const season of source.seasons) {
+            seasonCodeMap.set(season.id, season.code);
+            const newSeason = await tx.contractSeason.create({
+              data: {
+                contractId: newContract.id,
+                name: season.name,
+                code: season.code,
+                dateFrom: dateDelta ? shiftDate(season.dateFrom, dateDelta) : season.dateFrom,
+                dateTo: dateDelta ? shiftDate(season.dateTo, dateDelta) : season.dateTo,
+                sortOrder: season.sortOrder,
+                releaseDays: season.releaseDays,
+                minimumStay: season.minimumStay,
+              },
+            });
+            seasonIdMap.set(season.id, newSeason.id);
+          }
+          copiedEntities.push("seasons");
         }
 
         // 3. Clone room types
-        if (source.roomTypes.length > 0) {
+        if (entities.roomTypes && source.roomTypes.length > 0) {
           await tx.contractRoomType.createMany({
             data: source.roomTypes.map((rt) => ({
               contractId: newContract.id,
@@ -435,10 +483,11 @@ export const contractRouter = createTRPCRouter({
               sortOrder: rt.sortOrder,
             })),
           });
+          copiedEntities.push("roomTypes");
         }
 
         // 4. Clone meal bases
-        if (source.mealBases.length > 0) {
+        if (entities.mealBases && source.mealBases.length > 0) {
           await tx.contractMealBasis.createMany({
             data: source.mealBases.map((mb) => ({
               contractId: newContract.id,
@@ -447,24 +496,47 @@ export const contractRouter = createTRPCRouter({
               sortOrder: mb.sortOrder,
             })),
           });
+          copiedEntities.push("mealBases");
         }
 
-        // 5. Clone base rates (remap seasonId)
-        if (source.baseRates.length > 0) {
+        // 5. Clone base rates with rate adjustment
+        if (entities.baseRates && source.baseRates.length > 0 && seasonIdMap.size > 0) {
           await tx.contractBaseRate.createMany({
-            data: source.baseRates.map((br) => ({
-              contractId: newContract.id,
-              seasonId: seasonIdMap.get(br.seasonId)!,
-              rate: br.rate,
-              singleRate: br.singleRate,
-              doubleRate: br.doubleRate,
-              tripleRate: br.tripleRate,
-            })),
+            data: source.baseRates.map((br) => {
+              let rate = adj(br.rate);
+              let singleRate = adjOrNull(br.singleRate);
+              let doubleRate = adjOrNull(br.doubleRate);
+              let tripleRate = adjOrNull(br.tripleRate);
+
+              // AVERAGE mode: average with other contracts
+              if (rateMode === "AVERAGE" && averageRateMap) {
+                const seasonCode = seasonCodeMap.get(br.seasonId);
+                const otherRates = seasonCode
+                  ? averageRateMap.get(seasonCode) ?? []
+                  : [];
+                if (otherRates.length > 0) {
+                  rate = averageRates([
+                    parseFloat(br.rate.toString()),
+                    ...otherRates,
+                  ]);
+                }
+              }
+
+              return {
+                contractId: newContract.id,
+                seasonId: seasonIdMap.get(br.seasonId)!,
+                rate,
+                singleRate,
+                doubleRate,
+                tripleRate,
+              };
+            }),
           });
+          copiedEntities.push("baseRates");
         }
 
-        // 6. Clone supplements
-        if (source.supplements.length > 0) {
+        // 6. Clone supplements with rate adjustment
+        if (entities.supplements && source.supplements.length > 0) {
           await tx.contractSupplement.createMany({
             data: source.supplements.map((s) => ({
               contractId: newContract.id,
@@ -476,7 +548,7 @@ export const contractRouter = createTRPCRouter({
               forChildBedding: s.forChildBedding,
               childPosition: s.childPosition,
               valueType: s.valueType,
-              value: s.value,
+              value: s.valueType === "FIXED" ? adj(s.value) : parseFloat(s.value.toString()),
               isReduction: s.isReduction,
               perPerson: s.perPerson,
               perNight: s.perNight,
@@ -485,19 +557,20 @@ export const contractRouter = createTRPCRouter({
               sortOrder: s.sortOrder,
             })),
           });
+          copiedEntities.push("supplements");
         }
 
-        // 7. Clone special offers (no seasonId)
-        if (source.specialOffers.length > 0) {
+        // 7. Clone special offers with date shift
+        if (entities.specialOffers && source.specialOffers.length > 0) {
           await tx.contractSpecialOffer.createMany({
             data: source.specialOffers.map((so) => ({
               contractId: newContract.id,
               name: so.name,
               offerType: so.offerType,
               description: so.description,
-              validFrom: so.validFrom,
-              validTo: so.validTo,
-              bookByDate: so.bookByDate,
+              validFrom: dateDelta && so.validFrom ? shiftDate(so.validFrom, dateDelta) : so.validFrom,
+              validTo: dateDelta && so.validTo ? shiftDate(so.validTo, dateDelta) : so.validTo,
+              bookByDate: dateDelta && so.bookByDate ? shiftDate(so.bookByDate, dateDelta) : so.bookByDate,
               minimumNights: so.minimumNights,
               minimumRooms: so.minimumRooms,
               advanceBookDays: so.advanceBookDays,
@@ -510,10 +583,11 @@ export const contractRouter = createTRPCRouter({
               sortOrder: so.sortOrder,
             })),
           });
+          copiedEntities.push("specialOffers");
         }
 
-        // 8. Clone allotments (remap seasonId, reset soldRooms)
-        if (source.allotments.length > 0) {
+        // 8. Clone allotments
+        if (entities.allotments && source.allotments.length > 0 && seasonIdMap.size > 0) {
           await tx.contractAllotment.createMany({
             data: source.allotments.map((a) => ({
               contractId: newContract.id,
@@ -524,23 +598,25 @@ export const contractRouter = createTRPCRouter({
               soldRooms: 0,
             })),
           });
+          copiedEntities.push("allotments");
         }
 
-        // 9. Clone stop sales (no seasonId)
-        if (source.stopSales.length > 0) {
+        // 9. Clone stop sales with date shift
+        if (entities.stopSales && source.stopSales.length > 0) {
           await tx.contractStopSale.createMany({
             data: source.stopSales.map((ss) => ({
               contractId: newContract.id,
               roomTypeId: ss.roomTypeId,
-              dateFrom: ss.dateFrom,
-              dateTo: ss.dateTo,
+              dateFrom: dateDelta ? shiftDate(ss.dateFrom, dateDelta) : ss.dateFrom,
+              dateTo: dateDelta ? shiftDate(ss.dateTo, dateDelta) : ss.dateTo,
               reason: ss.reason,
             })),
           });
+          copiedEntities.push("stopSales");
         }
 
         // 10. Clone child policies
-        if (source.childPolicies.length > 0) {
+        if (entities.childPolicies && source.childPolicies.length > 0) {
           await tx.contractChildPolicy.createMany({
             data: source.childPolicies.map((cp) => ({
               contractId: newContract.id,
@@ -555,10 +631,11 @@ export const contractRouter = createTRPCRouter({
               notes: cp.notes,
             })),
           });
+          copiedEntities.push("childPolicies");
         }
 
         // 11. Clone cancellation policies
-        if (source.cancellationPolicies.length > 0) {
+        if (entities.cancellationPolicies && source.cancellationPolicies.length > 0) {
           await tx.contractCancellationPolicy.createMany({
             data: source.cancellationPolicies.map((cp) => ({
               contractId: newContract.id,
@@ -569,13 +646,31 @@ export const contractRouter = createTRPCRouter({
               sortOrder: cp.sortOrder,
             })),
           });
+          copiedEntities.push("cancellationPolicies");
         }
+
+        // 12. Create copy log
+        await tx.contractCopyLog.create({
+          data: {
+            companyId: ctx.companyId,
+            sourceContractId: source.id,
+            targetContractId: newContract.id,
+            rateMode,
+            ratePercent: ratePercent || null,
+            averageSourceIds: input.averageContractIds
+              ? JSON.parse(JSON.stringify(input.averageContractIds))
+              : null,
+            copiedEntities: JSON.parse(JSON.stringify(copiedEntities)),
+            dateShiftDays: dateDelta || null,
+            createdById: ctx.session.user.id,
+          },
+        });
 
         await logContractAction(tx, {
           contractId: newContract.id,
           action: "CLONE",
           entity: "CONTRACT",
-          summary: `Cloned from "${source.name}" (${source.code}) as v${newVersion}`,
+          summary: `Cloned from "${source.name}" (${source.code}) as v${newVersion} [${rateMode}${ratePercent ? ` ${ratePercent}%` : ""}]`,
           userId: ctx.session.user.id,
           userName: ctx.session.user.name ?? "Unknown",
         });
