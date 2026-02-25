@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -47,8 +48,19 @@ export default function NewMarketPage() {
     createMutation.mutate(values);
   }
 
+  const [countrySearch, setCountrySearch] = useState("");
+
   // Toggle a country in the countryIds array
   const countryIds = form.watch("countryIds") ?? [];
+
+  const filteredCountries = useMemo(() => {
+    const q = countrySearch.toLowerCase().trim();
+    if (!q) return countries ?? [];
+    return (countries ?? []).filter(
+      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q),
+    );
+  }, [countries, countrySearch]);
+
   function toggleCountry(id: string) {
     const current = form.getValues("countryIds") ?? [];
     if (current.includes(id)) {
@@ -99,8 +111,14 @@ export default function NewMarketPage() {
 
           <div className="space-y-2">
             <FormLabel>Countries</FormLabel>
+            <Input
+              placeholder="Search countries..."
+              value={countrySearch}
+              onChange={(e) => setCountrySearch(e.target.value)}
+              className="h-8"
+            />
             <div className="max-h-48 overflow-y-auto rounded-md border p-3 space-y-1">
-              {(countries ?? []).map((c) => (
+              {filteredCountries.map((c) => (
                 <label
                   key={c.id}
                   className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
@@ -112,6 +130,11 @@ export default function NewMarketPage() {
                   {c.name} ({c.code})
                 </label>
               ))}
+              {filteredCountries.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2 text-center">
+                  No countries match &ldquo;{countrySearch}&rdquo;
+                </p>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               {countryIds.length} selected

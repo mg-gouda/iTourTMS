@@ -2,10 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Pencil, Save, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -59,6 +59,13 @@ export default function TourOperatorDetailPage() {
   const utils = trpc.useUtils();
   const [editing, setEditing] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showAssignHotel, setShowAssignHotel] = useState(false);
+  const [showAssignContract, setShowAssignContract] = useState(false);
+  const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null);
+  const [cascadeToContracts, setCascadeToContracts] = useState(true);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [hotelSearch, setHotelSearch] = useState("");
+  const [contractSearch, setContractSearch] = useState("");
 
   const { data: to, isLoading } = trpc.contracting.tourOperator.getById.useQuery(
     { id: params.id },
@@ -113,6 +120,68 @@ export default function TourOperatorDetailPage() {
         utils.contracting.tourOperator.getById.invalidate({ id: params.id });
       },
     });
+
+  const { data: allHotels } = trpc.contracting.hotel.list.useQuery(undefined, {
+    enabled: showAssignHotel,
+  });
+  const { data: allContracts } = trpc.contracting.contract.list.useQuery(undefined, {
+    enabled: showAssignContract,
+  });
+
+  const assignHotelMutation =
+    trpc.contracting.tourOperator.assignToHotel.useMutation({
+      onSuccess: () => {
+        utils.contracting.tourOperator.getById.invalidate({ id: params.id });
+        setShowAssignHotel(false);
+        setSelectedHotelId(null);
+        setHotelSearch("");
+        setCascadeToContracts(true);
+      },
+    });
+
+  const assignContractMutation =
+    trpc.contracting.tourOperator.assignToContract.useMutation({
+      onSuccess: () => {
+        utils.contracting.tourOperator.getById.invalidate({ id: params.id });
+        setShowAssignContract(false);
+        setSelectedContractId(null);
+        setContractSearch("");
+      },
+    });
+
+  // Already-assigned IDs for filtering out from selection
+  const assignedHotelIds = useMemo(
+    () => new Set((to?.hotelAssignments ?? []).map((a) => a.hotel.id)),
+    [to?.hotelAssignments],
+  );
+  const assignedContractIds = useMemo(
+    () => new Set((to?.contractAssignments ?? []).map((a) => a.contract.id)),
+    [to?.contractAssignments],
+  );
+
+  const availableHotels = useMemo(() => {
+    const list = (allHotels ?? []).filter((h) => !assignedHotelIds.has(h.id));
+    const q = hotelSearch.toLowerCase().trim();
+    if (!q) return list;
+    return list.filter(
+      (h) =>
+        h.name.toLowerCase().includes(q) ||
+        h.code.toLowerCase().includes(q) ||
+        (h.city ?? "").toLowerCase().includes(q),
+    );
+  }, [allHotels, assignedHotelIds, hotelSearch]);
+
+  const availableContracts = useMemo(() => {
+    const list = (allContracts ?? []).filter((c) => !assignedContractIds.has(c.id));
+    const q = contractSearch.toLowerCase().trim();
+    if (!q) return list;
+    return list.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        (c.hotel?.name ?? "").toLowerCase().includes(q),
+    );
+  }, [allContracts, assignedContractIds, contractSearch]);
 
   function onSubmit(values: FormValues) {
     updateMutation.mutate({ id: params.id, data: values });
@@ -387,8 +456,11 @@ export default function TourOperatorDetailPage() {
         {/* ── Contracts Tab ── */}
         <TabsContent value="contracts">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Assigned Contracts</CardTitle>
+              <Button size="sm" onClick={() => setShowAssignContract(true)}>
+                <Plus className="mr-1 size-3" /> Assign Contract
+              </Button>
             </CardHeader>
             <CardContent>
               {to.contractAssignments.length === 0 ? (
@@ -468,8 +540,11 @@ export default function TourOperatorDetailPage() {
         {/* ── Hotels Tab ── */}
         <TabsContent value="hotels">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Assigned Hotels</CardTitle>
+              <Button size="sm" onClick={() => setShowAssignHotel(true)}>
+                <Plus className="mr-1 size-3" /> Assign Hotel
+              </Button>
             </CardHeader>
             <CardContent>
               {to.hotelAssignments.length === 0 ? (
@@ -552,6 +627,185 @@ export default function TourOperatorDetailPage() {
               onClick={() => deleteMutation.mutate({ id: to.id })}
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Hotel Dialog */}
+      <Dialog
+        open={showAssignHotel}
+        onOpenChange={(open) => {
+          setShowAssignHotel(open);
+          if (!open) {
+            setSelectedHotelId(null);
+            setHotelSearch("");
+            setCascadeToContracts(true);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Hotel</DialogTitle>
+            <DialogDescription>
+              Select a hotel to assign to this tour operator.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Search hotels..."
+              value={hotelSearch}
+              onChange={(e) => setHotelSearch(e.target.value)}
+              className="h-8"
+            />
+            <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-0.5">
+              {availableHotels.map((h) => (
+                <label
+                  key={h.id}
+                  className={`flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 ${
+                    selectedHotelId === h.id
+                      ? "bg-primary/10 font-medium"
+                      : "hover:bg-muted/50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assignHotel"
+                    className="accent-primary"
+                    checked={selectedHotelId === h.id}
+                    onChange={() => setSelectedHotelId(h.id)}
+                  />
+                  <span>
+                    {h.name}{" "}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {h.code}
+                    </span>
+                    {h.city && (
+                      <span className="text-xs text-muted-foreground">
+                        {" "}— {h.city}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              ))}
+              {availableHotels.length === 0 && (
+                <p className="text-xs text-muted-foreground py-3 text-center">
+                  {hotelSearch ? "No hotels match your search" : "No unassigned hotels available"}
+                </p>
+              )}
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={cascadeToContracts}
+                onCheckedChange={(v) => setCascadeToContracts(!!v)}
+              />
+              Also assign to published contracts
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAssignHotel(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!selectedHotelId || assignHotelMutation.isPending}
+              onClick={() => {
+                if (!selectedHotelId) return;
+                assignHotelMutation.mutate({
+                  hotelId: selectedHotelId,
+                  tourOperatorIds: [to.id],
+                  cascadeToContracts,
+                });
+              }}
+            >
+              {assignHotelMutation.isPending ? "Assigning..." : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Contract Dialog */}
+      <Dialog
+        open={showAssignContract}
+        onOpenChange={(open) => {
+          setShowAssignContract(open);
+          if (!open) {
+            setSelectedContractId(null);
+            setContractSearch("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Contract</DialogTitle>
+            <DialogDescription>
+              Select a contract to assign to this tour operator.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Search contracts..."
+              value={contractSearch}
+              onChange={(e) => setContractSearch(e.target.value)}
+              className="h-8"
+            />
+            <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-0.5">
+              {availableContracts.map((c) => (
+                <label
+                  key={c.id}
+                  className={`flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 ${
+                    selectedContractId === c.id
+                      ? "bg-primary/10 font-medium"
+                      : "hover:bg-muted/50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assignContract"
+                    className="accent-primary"
+                    checked={selectedContractId === c.id}
+                    onChange={() => setSelectedContractId(c.id)}
+                  />
+                  <span>
+                    {c.name}{" "}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {c.code}
+                    </span>
+                    {c.hotel?.name && (
+                      <span className="text-xs text-muted-foreground">
+                        {" "}— {c.hotel.name}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              ))}
+              {availableContracts.length === 0 && (
+                <p className="text-xs text-muted-foreground py-3 text-center">
+                  {contractSearch ? "No contracts match your search" : "No unassigned contracts available"}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAssignContract(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!selectedContractId || assignContractMutation.isPending}
+              onClick={() => {
+                if (!selectedContractId) return;
+                assignContractMutation.mutate({
+                  contractId: selectedContractId,
+                  tourOperatorIds: [to.id],
+                });
+              }}
+            >
+              {assignContractMutation.isPending ? "Assigning..." : "Assign"}
             </Button>
           </DialogFooter>
         </DialogContent>
