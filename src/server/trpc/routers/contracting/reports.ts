@@ -283,7 +283,7 @@ export const reportsRouter = createTRPCRouter({
         include: {
           hotel: { select: { id: true, name: true } },
           specialOffers: {
-            where: { active: true, offerType: "EARLY_BIRD" },
+            where: { active: true, offerType: { in: ["EARLY_BIRD", "NORMAL_EBD"] } },
             orderBy: { sortOrder: "asc" },
           },
         },

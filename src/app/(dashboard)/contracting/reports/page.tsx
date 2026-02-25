@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Calendar, FileBarChart } from "lucide-react";
+import { BarChart3, Calendar, FileBarChart, Gift, Clock, Layers } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -29,6 +29,24 @@ const reports = [
     description: "Visualize date coverage by contract seasons across the year",
     href: "/contracting/reports/season-coverage",
     icon: Calendar,
+  },
+  {
+    title: "Seasonal Offers",
+    description: "Overview of special offers and promotions across all contracts",
+    href: "/contracting/reports/seasonal-offers",
+    icon: Gift,
+  },
+  {
+    title: "EBD Conditions",
+    description: "Early booking discount conditions and deadlines by contract",
+    href: "/contracting/reports/ebd-conditions",
+    icon: Clock,
+  },
+  {
+    title: "Allotment Utilization",
+    description: "Room allotment usage and availability across contracts",
+    href: "/contracting/reports/allotment-utilization",
+    icon: Layers,
   },
 ];
 

@@ -345,12 +345,16 @@ export const contractRouter = createTRPCRouter({
           mealBases: { orderBy: { sortOrder: "asc" } },
           baseRates: true,
           supplements: { orderBy: [{ supplementType: "asc" }, { sortOrder: "asc" }] },
-          specialOffers: { orderBy: { sortOrder: "asc" } },
+          specialOffers: { include: { tiers: true }, orderBy: { sortOrder: "asc" } },
           allotments: true,
           stopSales: true,
           childPolicies: true,
           cancellationPolicies: true,
           specialMeals: true,
+          markets: true,
+          tourOperators: true,
+          seasonSpos: { orderBy: { sortOrder: "asc" } },
+          marketingContributions: true,
         },
       });
 
@@ -361,6 +365,7 @@ export const contractRouter = createTRPCRouter({
         seasons: true, roomTypes: true, mealBases: true, baseRates: true,
         supplements: true, specialOffers: true, allotments: true, stopSales: true,
         childPolicies: true, cancellationPolicies: true, specialMeals: true,
+        markets: true, tourOperators: true, seasonSpos: true, marketingContributions: true,
       };
 
       // Date shift calculation
@@ -560,29 +565,48 @@ export const contractRouter = createTRPCRouter({
           copiedEntities.push("supplements");
         }
 
-        // 7. Clone special offers with date shift
+        // 7. Clone special offers with date shift + tiers
         if (entities.specialOffers && source.specialOffers.length > 0) {
-          await tx.contractSpecialOffer.createMany({
-            data: source.specialOffers.map((so) => ({
-              contractId: newContract.id,
-              name: so.name,
-              offerType: so.offerType,
-              description: so.description,
-              validFrom: dateDelta && so.validFrom ? shiftDate(so.validFrom, dateDelta) : so.validFrom,
-              validTo: dateDelta && so.validTo ? shiftDate(so.validTo, dateDelta) : so.validTo,
-              bookByDate: dateDelta && so.bookByDate ? shiftDate(so.bookByDate, dateDelta) : so.bookByDate,
-              minimumNights: so.minimumNights,
-              minimumRooms: so.minimumRooms,
-              advanceBookDays: so.advanceBookDays,
-              discountType: so.discountType,
-              discountValue: so.discountValue,
-              stayNights: so.stayNights,
-              payNights: so.payNights,
-              combinable: so.combinable,
-              active: so.active,
-              sortOrder: so.sortOrder,
-            })),
-          });
+          for (const so of source.specialOffers) {
+            const newOffer = await tx.contractSpecialOffer.create({
+              data: {
+                contractId: newContract.id,
+                name: so.name,
+                offerType: so.offerType,
+                description: so.description,
+                validFrom: dateDelta && so.validFrom ? shiftDate(so.validFrom, dateDelta) : so.validFrom,
+                validTo: dateDelta && so.validTo ? shiftDate(so.validTo, dateDelta) : so.validTo,
+                bookByDate: dateDelta && so.bookByDate ? shiftDate(so.bookByDate, dateDelta) : so.bookByDate,
+                bookFromDate: dateDelta && so.bookFromDate ? shiftDate(so.bookFromDate, dateDelta) : so.bookFromDate,
+                minimumNights: so.minimumNights,
+                minimumRooms: so.minimumRooms,
+                advanceBookDays: so.advanceBookDays,
+                discountType: so.discountType,
+                discountValue: so.discountValue,
+                stayNights: so.stayNights,
+                payNights: so.payNights,
+                stayDateType: so.stayDateType,
+                paymentPct: so.paymentPct,
+                paymentDeadline: dateDelta && so.paymentDeadline ? shiftDate(so.paymentDeadline, dateDelta) : so.paymentDeadline,
+                roomingListBy: dateDelta && so.roomingListBy ? shiftDate(so.roomingListBy, dateDelta) : so.roomingListBy,
+                combinable: so.combinable,
+                active: so.active,
+                sortOrder: so.sortOrder,
+              },
+            });
+            // Clone offer tiers
+            if (so.tiers.length > 0) {
+              await tx.contractOfferTier.createMany({
+                data: so.tiers.map((t) => ({
+                  offerId: newOffer.id,
+                  thresholdValue: t.thresholdValue,
+                  discountType: t.discountType,
+                  discountValue: t.discountValue,
+                  sortOrder: t.sortOrder,
+                })),
+              });
+            }
+          }
           copiedEntities.push("specialOffers");
         }
 
@@ -592,6 +616,8 @@ export const contractRouter = createTRPCRouter({
             data: source.allotments.map((a) => ({
               contractId: newContract.id,
               roomTypeId: a.roomTypeId,
+              seasonId: a.seasonId ? seasonIdMap.get(a.seasonId) ?? null : null,
+              basis: a.basis,
               totalRooms: a.totalRooms,
               freeSale: a.freeSale,
               soldRooms: 0,
@@ -669,7 +695,69 @@ export const contractRouter = createTRPCRouter({
           copiedEntities.push("specialMeals");
         }
 
-        // 13. Create copy log
+        // 13. Clone markets
+        if (entities.markets && source.markets.length > 0) {
+          await tx.contractMarket.createMany({
+            data: source.markets.map((m) => ({
+              contractId: newContract.id,
+              marketId: m.marketId,
+            })),
+          });
+          copiedEntities.push("markets");
+        }
+
+        // 14. Clone tour operators
+        if (entities.tourOperators && source.tourOperators.length > 0) {
+          await tx.contractTourOperator.createMany({
+            data: source.tourOperators.map((to) => ({
+              contractId: newContract.id,
+              tourOperatorId: to.tourOperatorId,
+              notes: to.notes,
+            })),
+          });
+          copiedEntities.push("tourOperators");
+        }
+
+        // 15. Clone season SPOs with date shift
+        if (entities.seasonSpos && source.seasonSpos.length > 0) {
+          await tx.contractSeasonSpo.createMany({
+            data: source.seasonSpos.map((spo) => ({
+              contractId: newContract.id,
+              spoType: spo.spoType,
+              dateFrom: dateDelta ? shiftDate(spo.dateFrom, dateDelta) : spo.dateFrom,
+              dateTo: dateDelta ? shiftDate(spo.dateTo, dateDelta) : spo.dateTo,
+              basePp: spo.basePp,
+              sglSup: spo.sglSup,
+              thirdAdultRed: spo.thirdAdultRed,
+              firstChildPct: spo.firstChildPct,
+              secondChildPct: spo.secondChildPct,
+              bookFrom: dateDelta && spo.bookFrom ? shiftDate(spo.bookFrom, dateDelta) : spo.bookFrom,
+              bookTo: dateDelta && spo.bookTo ? shiftDate(spo.bookTo, dateDelta) : spo.bookTo,
+              value: spo.value,
+              valueType: spo.valueType,
+              active: spo.active,
+              sortOrder: spo.sortOrder,
+            })),
+          });
+          copiedEntities.push("seasonSpos");
+        }
+
+        // 16. Clone marketing contributions
+        if (entities.marketingContributions && source.marketingContributions.length > 0) {
+          await tx.contractMarketingContribution.createMany({
+            data: source.marketingContributions.map((mc) => ({
+              contractId: newContract.id,
+              marketId: mc.marketId,
+              seasonId: mc.seasonId ? seasonIdMap.get(mc.seasonId) ?? null : null,
+              valueType: mc.valueType,
+              value: mc.value,
+              notes: mc.notes,
+            })),
+          });
+          copiedEntities.push("marketingContributions");
+        }
+
+        // 17. Create copy log
         await tx.contractCopyLog.create({
           data: {
             companyId: ctx.companyId,
@@ -717,12 +805,16 @@ export const contractRouter = createTRPCRouter({
           mealBases: { orderBy: { sortOrder: "asc" } },
           baseRates: true,
           supplements: { orderBy: [{ supplementType: "asc" }, { sortOrder: "asc" }] },
-          specialOffers: { orderBy: { sortOrder: "asc" } },
+          specialOffers: { include: { tiers: true }, orderBy: { sortOrder: "asc" } },
           allotments: true,
           stopSales: true,
           childPolicies: true,
           cancellationPolicies: true,
           specialMeals: true,
+          markets: true,
+          tourOperators: true,
+          seasonSpos: { orderBy: { sortOrder: "asc" } },
+          marketingContributions: true,
         },
       });
 
@@ -829,29 +921,47 @@ export const contractRouter = createTRPCRouter({
           });
         }
 
-        // Clone special offers
+        // Clone special offers + tiers
         if (source.specialOffers.length > 0) {
-          await tx.contractSpecialOffer.createMany({
-            data: source.specialOffers.map((so) => ({
-              contractId: template.id,
-              name: so.name,
-              offerType: so.offerType,
-              description: so.description,
-              validFrom: so.validFrom,
-              validTo: so.validTo,
-              bookByDate: so.bookByDate,
-              minimumNights: so.minimumNights,
-              minimumRooms: so.minimumRooms,
-              advanceBookDays: so.advanceBookDays,
-              discountType: so.discountType,
-              discountValue: so.discountValue,
-              stayNights: so.stayNights,
-              payNights: so.payNights,
-              combinable: so.combinable,
-              active: so.active,
-              sortOrder: so.sortOrder,
-            })),
-          });
+          for (const so of source.specialOffers) {
+            const newOffer = await tx.contractSpecialOffer.create({
+              data: {
+                contractId: template.id,
+                name: so.name,
+                offerType: so.offerType,
+                description: so.description,
+                validFrom: so.validFrom,
+                validTo: so.validTo,
+                bookByDate: so.bookByDate,
+                bookFromDate: so.bookFromDate,
+                minimumNights: so.minimumNights,
+                minimumRooms: so.minimumRooms,
+                advanceBookDays: so.advanceBookDays,
+                discountType: so.discountType,
+                discountValue: so.discountValue,
+                stayNights: so.stayNights,
+                payNights: so.payNights,
+                stayDateType: so.stayDateType,
+                paymentPct: so.paymentPct,
+                paymentDeadline: so.paymentDeadline,
+                roomingListBy: so.roomingListBy,
+                combinable: so.combinable,
+                active: so.active,
+                sortOrder: so.sortOrder,
+              },
+            });
+            if (so.tiers.length > 0) {
+              await tx.contractOfferTier.createMany({
+                data: so.tiers.map((t) => ({
+                  offerId: newOffer.id,
+                  thresholdValue: t.thresholdValue,
+                  discountType: t.discountType,
+                  discountValue: t.discountValue,
+                  sortOrder: t.sortOrder,
+                })),
+              });
+            }
+          }
         }
 
         // Clone allotments
@@ -860,6 +970,8 @@ export const contractRouter = createTRPCRouter({
             data: source.allotments.map((a) => ({
               contractId: template.id,
               roomTypeId: a.roomTypeId,
+              seasonId: a.seasonId ? seasonIdMap.get(a.seasonId) ?? null : null,
+              basis: a.basis,
               totalRooms: a.totalRooms,
               freeSale: a.freeSale,
               soldRooms: 0,
@@ -928,6 +1040,64 @@ export const contractRouter = createTRPCRouter({
               infantPrice: sm.infantPrice,
               excludedMealBases: sm.excludedMealBases,
               notes: sm.notes,
+            })),
+          });
+        }
+
+        // Clone markets
+        if (source.markets.length > 0) {
+          await tx.contractMarket.createMany({
+            data: source.markets.map((m) => ({
+              contractId: template.id,
+              marketId: m.marketId,
+            })),
+          });
+        }
+
+        // Clone tour operators
+        if (source.tourOperators.length > 0) {
+          await tx.contractTourOperator.createMany({
+            data: source.tourOperators.map((to) => ({
+              contractId: template.id,
+              tourOperatorId: to.tourOperatorId,
+              notes: to.notes,
+            })),
+          });
+        }
+
+        // Clone season SPOs
+        if (source.seasonSpos.length > 0) {
+          await tx.contractSeasonSpo.createMany({
+            data: source.seasonSpos.map((spo) => ({
+              contractId: template.id,
+              spoType: spo.spoType,
+              dateFrom: spo.dateFrom,
+              dateTo: spo.dateTo,
+              basePp: spo.basePp,
+              sglSup: spo.sglSup,
+              thirdAdultRed: spo.thirdAdultRed,
+              firstChildPct: spo.firstChildPct,
+              secondChildPct: spo.secondChildPct,
+              bookFrom: spo.bookFrom,
+              bookTo: spo.bookTo,
+              value: spo.value,
+              valueType: spo.valueType,
+              active: spo.active,
+              sortOrder: spo.sortOrder,
+            })),
+          });
+        }
+
+        // Clone marketing contributions
+        if (source.marketingContributions.length > 0) {
+          await tx.contractMarketingContribution.createMany({
+            data: source.marketingContributions.map((mc) => ({
+              contractId: template.id,
+              marketId: mc.marketId,
+              seasonId: mc.seasonId ? seasonIdMap.get(mc.seasonId) ?? null : null,
+              valueType: mc.valueType,
+              value: mc.value,
+              notes: mc.notes,
             })),
           });
         }
@@ -1042,6 +1212,7 @@ export const contractRouter = createTRPCRouter({
           allotments: {
             include: {
               roomType: { select: { id: true, name: true, code: true } },
+              season: { select: { id: true, dateFrom: true, dateTo: true } },
             },
           },
           stopSales: {

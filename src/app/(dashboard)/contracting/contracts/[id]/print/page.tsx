@@ -14,6 +14,8 @@ import {
   OFFER_TYPE_LABELS,
   CHILD_AGE_CATEGORY_LABELS,
   CANCELLATION_CHARGE_TYPE_LABELS,
+  ALLOCATION_BASIS_LABELS,
+  SPECIAL_MEAL_OCCASION_LABELS,
 } from "@/lib/constants/contracting";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
@@ -110,13 +112,25 @@ export default function ContractPrintPage() {
       {/* ─── Section 7: Allotments ───────────────────── */}
       <AllotmentsTable contract={contract} />
 
-      {/* ─── Section 8: Child Policies ───────────────── */}
+      {/* ─── Section 8: Stop Sales ─────────────────── */}
+      <StopSalesTable contract={contract} />
+
+      {/* ─── Section 9: Child Policies ───────────────── */}
       <ChildPoliciesTable contract={contract} />
 
-      {/* ─── Section 9: Cancellation Policies ────────── */}
+      {/* ─── Section 10: Cancellation Policies ────────── */}
       <CancellationTable contract={contract} />
 
-      {/* ─── Section 10: Terms & Notes ───────────────── */}
+      {/* ─── Section 11: Special Meals ───────────────── */}
+      <SpecialMealsTable contract={contract} />
+
+      {/* ─── Section 12: Markets ─────────────────────── */}
+      <MarketsTable contract={contract} />
+
+      {/* ─── Section 13: Marketing Contributions ─────── */}
+      <MarketingContributionsTable contract={contract} />
+
+      {/* ─── Section 14: Terms & Notes ───────────────── */}
       <TermsAndNotes contract={contract} />
 
       {/* Footer */}
@@ -407,6 +421,8 @@ function AllotmentsTable({ contract }: { contract: ExportContract }) {
         <thead>
           <tr>
             <th>Room Type</th>
+            <th>Season</th>
+            <th>Basis</th>
             <th className="text-right">Total Rooms</th>
             <th>Free Sale</th>
           </tr>
@@ -415,8 +431,39 @@ function AllotmentsTable({ contract }: { contract: ExportContract }) {
           {contract.allotments.map((a) => (
             <tr key={a.id}>
               <td>{a.roomType.name}</td>
+              <td>{a.season ? formatSeasonLabel(a.season.dateFrom, a.season.dateTo) : "All Seasons"}</td>
+              <td>{ALLOCATION_BASIS_LABELS[a.basis] ?? a.basis}</td>
               <td className="text-right">{a.totalRooms}</td>
               <td>{a.freeSale ? "Yes" : "No"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StopSalesTable({ contract }: { contract: ExportContract }) {
+  if (contract.stopSales.length === 0) return null;
+  return (
+    <div className="print-avoid-break">
+      <SectionTitle>Stop Sales</SectionTitle>
+      <table>
+        <thead>
+          <tr>
+            <th>Room Type</th>
+            <th>Date From</th>
+            <th>Date To</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contract.stopSales.map((ss) => (
+            <tr key={ss.id}>
+              <td>{ss.roomType?.name ?? "All Rooms"}</td>
+              <td>{fmtDate(ss.dateFrom)}</td>
+              <td>{fmtDate(ss.dateTo)}</td>
+              <td>{ss.reason ?? "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -488,6 +535,101 @@ function CancellationTable({ contract }: { contract: ExportContract }) {
               <td>{CANCELLATION_CHARGE_TYPE_LABELS[cp.chargeType] ?? cp.chargeType}</td>
               <td className="font-mono">{formatCharge(cp)}</td>
               <td>{cp.description ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SpecialMealsTable({ contract }: { contract: ExportContract }) {
+  if (contract.specialMeals.length === 0) return null;
+  return (
+    <div className="print-avoid-break">
+      <SectionTitle>Special Meals</SectionTitle>
+      <table>
+        <thead>
+          <tr>
+            <th>Occasion</th>
+            <th>Date From</th>
+            <th>Date To</th>
+            <th>Mandatory</th>
+            <th className="text-right">Adult</th>
+            <th className="text-right">Child</th>
+            <th className="text-right">Teen</th>
+            <th className="text-right">Infant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contract.specialMeals.map((sm) => (
+            <tr key={sm.id}>
+              <td>{sm.customName ?? SPECIAL_MEAL_OCCASION_LABELS[sm.occasion] ?? sm.occasion}</td>
+              <td>{fmtDate(sm.dateFrom)}</td>
+              <td>{fmtDate(sm.dateTo)}</td>
+              <td>{sm.mandatory ? "Yes" : "No"}</td>
+              <td className="text-right font-mono">{fmtDecimal(sm.adultPrice)}</td>
+              <td className="text-right font-mono">{fmtDecimal(sm.childPrice)}</td>
+              <td className="text-right font-mono">{fmtDecimal(sm.teenPrice)}</td>
+              <td className="text-right font-mono">{fmtDecimal(sm.infantPrice)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MarketsTable({ contract }: { contract: ExportContract }) {
+  if (contract.markets.length === 0) return null;
+  return (
+    <div className="print-avoid-break">
+      <SectionTitle>Markets</SectionTitle>
+      <table>
+        <thead>
+          <tr>
+            <th>Market</th>
+            <th>Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contract.markets.map((m) => (
+            <tr key={m.id}>
+              <td>{m.market.name}</td>
+              <td className="font-mono">{m.market.code}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MarketingContributionsTable({ contract }: { contract: ExportContract }) {
+  if (contract.marketingContributions.length === 0) return null;
+  return (
+    <div className="print-avoid-break">
+      <SectionTitle>Marketing Contributions</SectionTitle>
+      <table>
+        <thead>
+          <tr>
+            <th>Market</th>
+            <th>Season</th>
+            <th>Type</th>
+            <th className="text-right">Value</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contract.marketingContributions.map((mc) => (
+            <tr key={mc.id}>
+              <td>{mc.market?.name ?? "All Markets"}</td>
+              <td>{mc.season ? formatSeasonLabel(mc.season.dateFrom, mc.season.dateTo) : "All Seasons"}</td>
+              <td>{mc.valueType}</td>
+              <td className="text-right font-mono">
+                {fmtDecimal(mc.value)}{mc.valueType === "PERCENTAGE" ? "%" : ""}
+              </td>
+              <td>{mc.notes ?? "—"}</td>
             </tr>
           ))}
         </tbody>

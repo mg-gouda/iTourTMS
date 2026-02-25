@@ -541,6 +541,10 @@ export const contractCloneSchema = z.object({
     childPolicies: z.boolean().default(true),
     cancellationPolicies: z.boolean().default(true),
     specialMeals: z.boolean().default(true),
+    markets: z.boolean().default(true),
+    tourOperators: z.boolean().default(true),
+    seasonSpos: z.boolean().default(true),
+    marketingContributions: z.boolean().default(true),
   }).optional(),
 }).refine((d) => d.validTo > d.validFrom, {
   message: "Valid To must be after Valid From",

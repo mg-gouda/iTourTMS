@@ -56,9 +56,9 @@ export const contractChildPolicyRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
 
-      const { id, contractId, ...data } = input;
+      const { id, contractId: _contractId, ...data } = input;
       return ctx.db.contractChildPolicy.update({
-        where: { id, contractId },
+        where: { id },
         data,
       });
     }),
@@ -68,7 +68,7 @@ export const contractChildPolicyRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
       return ctx.db.contractChildPolicy.delete({
-        where: { id: input.id, contractId: input.contractId },
+        where: { id: input.id },
       });
     }),
 });
