@@ -5,6 +5,7 @@ import {
   specialOfferUpdateSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { logContractAction } from "@/server/services/contracting/audit-logger";
 import type { PrismaClient } from "@prisma/client";
 
 const proc = moduleProcedure("contracting");
@@ -47,7 +48,7 @@ export const specialOfferRouter = createTRPCRouter({
     .input(specialOfferCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
-      return ctx.db.contractSpecialOffer.create({
+      const created = await ctx.db.contractSpecialOffer.create({
         data: {
           contractId: input.contractId,
           name: input.name,
@@ -73,6 +74,18 @@ export const specialOfferRouter = createTRPCRouter({
           sortOrder: input.sortOrder,
         },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "CREATE",
+        entity: "OFFER",
+        entityId: created.id,
+        summary: `Created offer "${input.name}"`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return created;
     }),
 
   update: proc
@@ -109,10 +122,22 @@ export const specialOfferRouter = createTRPCRouter({
       if (input.data.active !== undefined) data.active = input.data.active;
       if (input.data.sortOrder !== undefined) data.sortOrder = input.data.sortOrder;
 
-      return ctx.db.contractSpecialOffer.update({
+      const updated = await ctx.db.contractSpecialOffer.update({
         where: { id: input.id },
         data,
       });
+
+      await logContractAction(ctx.db, {
+        contractId: offer.contractId,
+        action: "UPDATE",
+        entity: "OFFER",
+        entityId: input.id,
+        summary: `Updated offer`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return updated;
     }),
 
   delete: proc
@@ -125,9 +150,21 @@ export const specialOfferRouter = createTRPCRouter({
       if (offer.contract.companyId !== ctx.companyId) {
         throw new Error("Not found");
       }
-      return ctx.db.contractSpecialOffer.delete({
+      const deleted = await ctx.db.contractSpecialOffer.delete({
         where: { id: input.id },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: offer.contractId,
+        action: "DELETE",
+        entity: "OFFER",
+        entityId: input.id,
+        summary: `Deleted offer`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return deleted;
     }),
 
   toggleActive: proc
@@ -140,9 +177,21 @@ export const specialOfferRouter = createTRPCRouter({
       if (offer.contract.companyId !== ctx.companyId) {
         throw new Error("Not found");
       }
-      return ctx.db.contractSpecialOffer.update({
+      const toggled = await ctx.db.contractSpecialOffer.update({
         where: { id: input.id },
         data: { active: !offer.active },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: offer.contractId,
+        action: "UPDATE",
+        entity: "OFFER",
+        entityId: input.id,
+        summary: `Toggled offer active status`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return toggled;
     }),
 });

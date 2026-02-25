@@ -2,9 +2,10 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import {
   DataTable,
@@ -12,6 +13,13 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CONTRACT_STATUS_LABELS,
@@ -104,6 +112,103 @@ export default function ContractsPage() {
   const router = useRouter();
   const { data, isLoading } = trpc.contracting.contract.list.useQuery();
 
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [hotelFilter, setHotelFilter] = useState("ALL");
+  const [currencyFilter, setCurrencyFilter] = useState("ALL");
+
+  // Derive unique hotels and currencies from data
+  const { hotels, currencies } = useMemo(() => {
+    const hotelMap = new Map<string, string>();
+    const currencyMap = new Map<string, string>();
+    for (const c of (data ?? []) as ContractRow[]) {
+      if (c.hotel) hotelMap.set(c.hotel.id, c.hotel.name);
+      if (c.baseCurrency) currencyMap.set(c.baseCurrency.code, c.baseCurrency.code);
+    }
+    return {
+      hotels: Array.from(hotelMap.entries()).sort((a, b) =>
+        a[1].localeCompare(b[1]),
+      ),
+      currencies: Array.from(currencyMap.keys()).sort(),
+    };
+  }, [data]);
+
+  // Apply filters
+  const filteredData = useMemo(() => {
+    let result = (data ?? []) as ContractRow[];
+    if (statusFilter !== "ALL") {
+      result = result.filter((c) => c.status === statusFilter);
+    }
+    if (hotelFilter !== "ALL") {
+      result = result.filter((c) => c.hotel?.id === hotelFilter);
+    }
+    if (currencyFilter !== "ALL") {
+      result = result.filter((c) => c.baseCurrency?.code === currencyFilter);
+    }
+    return result;
+  }, [data, statusFilter, hotelFilter, currencyFilter]);
+
+  const hasFilters =
+    statusFilter !== "ALL" || hotelFilter !== "ALL" || currencyFilter !== "ALL";
+
+  function clearFilters() {
+    setStatusFilter("ALL");
+    setHotelFilter("ALL");
+    setCurrencyFilter("ALL");
+  }
+
+  const filterToolbar = (
+    <div className="flex items-center gap-2">
+      <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <SelectTrigger className="h-9 w-[130px]">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Status</SelectItem>
+          {Object.entries(CONTRACT_STATUS_LABELS).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={hotelFilter} onValueChange={setHotelFilter}>
+        <SelectTrigger className="h-9 w-[160px]">
+          <SelectValue placeholder="Hotel" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Hotels</SelectItem>
+          {hotels.map(([id, name]) => (
+            <SelectItem key={id} value={id}>
+              {name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={currencyFilter} onValueChange={setCurrencyFilter}>
+        <SelectTrigger className="h-9 w-[120px]">
+          <SelectValue placeholder="Currency" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Currencies</SelectItem>
+          {currencies.map((code) => (
+            <SelectItem key={code} value={code}>
+              {code}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {hasFilters && (
+        <Button variant="ghost" size="sm" onClick={clearFilters}>
+          <X className="mr-1 h-3 w-3" />
+          Clear
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -140,9 +245,10 @@ export default function ContractsPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={(data as ContractRow[]) ?? []}
+          data={filteredData}
           searchKey="name"
           searchPlaceholder="Search contracts..."
+          toolbar={filterToolbar}
           onRowClick={(row) =>
             router.push(`/contracting/contracts/${row.id}`)
           }

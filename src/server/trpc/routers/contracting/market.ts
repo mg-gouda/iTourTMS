@@ -9,9 +9,37 @@ export const marketRouter = createTRPCRouter({
   list: proc.query(async ({ ctx }) => {
     return ctx.db.market.findMany({
       where: { companyId: ctx.companyId },
+      include: {
+        _count: { select: { contracts: true } },
+      },
       orderBy: { name: "asc" },
     });
   }),
+
+  getById: proc
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.market.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: {
+          contracts: {
+            include: {
+              contract: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                  status: true,
+                  validFrom: true,
+                  validTo: true,
+                  hotel: { select: { name: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+    }),
 
   create: proc
     .input(marketCreateSchema)

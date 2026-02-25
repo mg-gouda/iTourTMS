@@ -388,9 +388,11 @@ export default function ContractDetailPage() {
           <TabsTrigger value="supplements">Supplements</TabsTrigger>
           <TabsTrigger value="rateSheet">Rate Sheet</TabsTrigger>
           <TabsTrigger value="specialOffers">Special Offers</TabsTrigger>
+          <TabsTrigger value="seasonSpos">Season SPOs</TabsTrigger>
           <TabsTrigger value="allotments">Allotments</TabsTrigger>
           <TabsTrigger value="childPolicies">Child Policies</TabsTrigger>
           <TabsTrigger value="cancellation">Cancellation</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -420,6 +422,9 @@ export default function ContractDetailPage() {
         <TabsContent value="specialOffers">
           <SpecialOffersTab contractId={id} />
         </TabsContent>
+        <TabsContent value="seasonSpos">
+          <SeasonSpoTab contractId={id} />
+        </TabsContent>
         <TabsContent value="allotments">
           <AllotmentsTab contractId={id} contract={contract} />
         </TabsContent>
@@ -428,6 +433,9 @@ export default function ContractDetailPage() {
         </TabsContent>
         <TabsContent value="cancellation">
           <CancellationPolicyTab contractId={id} />
+        </TabsContent>
+        <TabsContent value="activity">
+          <ActivityTab contractId={id} />
         </TabsContent>
       </Tabs>
 
@@ -2496,9 +2504,8 @@ function emptyRow(): SeasonSpoRow {
   };
 }
 
-function SeasonSpoButton({ contractId }: { contractId: string }) {
+function SeasonSpoTab({ contractId }: { contractId: string }) {
   const utils = trpc.useUtils();
-  const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("RATE_OVERRIDE");
 
   const [rateRows, setRateRows] = useState<SeasonSpoRow[]>([]);
@@ -2507,7 +2514,6 @@ function SeasonSpoButton({ contractId }: { contractId: string }) {
 
   const { data: allSpos } = trpc.contracting.seasonSpo.listByContract.useQuery(
     { contractId },
-    { enabled: open },
   );
 
   const bulkSaveMutation = trpc.contracting.seasonSpo.bulkSave.useMutation({
@@ -2605,27 +2611,23 @@ function SeasonSpoButton({ contractId }: { contractId: string }) {
   }
 
   return (
-    <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-        Season SPO
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[1200px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Season Special Offers</DialogTitle>
-            <DialogDescription>
-              Manage season-level rate overrides, booking window offers, and percentage discounts.
-            </DialogDescription>
-          </DialogHeader>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="RATE_OVERRIDE">Rate Override</TabsTrigger>
-              <TabsTrigger value="BOOKING_WINDOW">Booking Window</TabsTrigger>
-              <TabsTrigger value="PERCENTAGE">Percentage SPO</TabsTrigger>
-            </TabsList>
+    <Card>
+      <CardHeader>
+        <CardTitle>Season Special Offers</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Manage season-level rate overrides, booking window offers, and percentage discounts.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="RATE_OVERRIDE">Rate Override</TabsTrigger>
+            <TabsTrigger value="BOOKING_WINDOW">Booking Window</TabsTrigger>
+            <TabsTrigger value="PERCENTAGE">Percentage SPO</TabsTrigger>
+          </TabsList>
 
-            {/* ── Rate Override Grid ── */}
-            <TabsContent value="RATE_OVERRIDE">
+          {/* ── Rate Override Grid ── */}
+          <TabsContent value="RATE_OVERRIDE">
               <div className="space-y-3">
                 <Table>
                   <TableHeader>
@@ -2741,10 +2743,9 @@ function SeasonSpoButton({ contractId }: { contractId: string }) {
                 </div>
               </div>
             </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-    </>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2933,12 +2934,9 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Special Offers</CardTitle>
-        <div className="flex gap-2">
-          <SeasonSpoButton contractId={contractId} />
-          <Button size="sm" onClick={openCreate}>
-            Add Contract Offers
-          </Button>
-        </div>
+        <Button size="sm" onClick={openCreate}>
+          Add Contract Offers
+        </Button>
       </CardHeader>
       <CardContent>
         {typedOffers.length === 0 ? (
@@ -5016,5 +5014,116 @@ function CancellationPolicyTab({ contractId }: { contractId: string }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Activity Tab — Audit log timeline
+// ---------------------------------------------------------------------------
+
+const ACTION_ICONS: Record<string, string> = {
+  CREATE: "plus-circle",
+  UPDATE: "pencil",
+  DELETE: "trash-2",
+  POST: "send",
+  PUBLISH: "check-circle",
+  RESET_DRAFT: "rotate-ccw",
+  CLONE: "copy",
+};
+
+const ACTION_COLORS: Record<string, string> = {
+  CREATE: "bg-emerald-500",
+  UPDATE: "bg-blue-500",
+  DELETE: "bg-red-500",
+  POST: "bg-amber-500",
+  PUBLISH: "bg-green-600",
+  RESET_DRAFT: "bg-slate-500",
+  CLONE: "bg-violet-500",
+};
+
+function formatRelativeTime(date: Date | string) {
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return format(d, "dd MMM yyyy HH:mm");
+}
+
+function ActivityTab({ contractId }: { contractId: string }) {
+  const { data, isLoading } =
+    trpc.contracting.auditLog.listByContract.useQuery({
+      contractId,
+      limit: 100,
+    });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity Log</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="h-6 w-6 rounded-full bg-muted animate-pulse" />
+              <div className="flex-1 space-y-1">
+                <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-1/3 rounded bg-muted animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const items = data?.items ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Activity Log</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-6">
+            No activity recorded yet.
+          </p>
+        ) : (
+          <div className="space-y-0">
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className="flex items-start gap-3 py-3 border-b last:border-b-0"
+              >
+                <div
+                  className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${ACTION_COLORS[item.action] ?? "bg-gray-400"}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm">{item.summary}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground">
+                      {item.userName}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatRelativeTime(item.createdAt)}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {item.entity}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

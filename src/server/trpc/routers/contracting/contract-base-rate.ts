@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { contractBaseRateBulkSaveSchema } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { logContractAction } from "@/server/services/contracting/audit-logger";
 
 const proc = moduleProcedure("contracting");
 
@@ -54,6 +55,15 @@ export const contractBaseRateRouter = createTRPCRouter({
           }),
         ),
       );
+
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "BASE_RATE",
+        summary: `Updated base rates`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
 
       return { success: true };
     }),

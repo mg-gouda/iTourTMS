@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   FileStack,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bar,
@@ -22,6 +23,7 @@ import {
 } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -168,8 +170,11 @@ export default function ContractingDashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Expiring Soon */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Expiring Soon</CardTitle>
+            <Button variant="link" size="sm" asChild className="text-xs">
+              <Link href="/contracting/expiring">View all</Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {isLoading ? (

@@ -1,9 +1,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import {
   DataTable,
@@ -11,6 +12,13 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { STAR_RATING_LABELS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
@@ -86,6 +94,100 @@ export default function HotelsPage() {
   const router = useRouter();
   const { data, isLoading } = trpc.contracting.hotel.list.useQuery();
 
+  const [destinationFilter, setDestinationFilter] = useState("ALL");
+  const [starFilter, setStarFilter] = useState("ALL");
+  const [activeFilter, setActiveFilter] = useState("ALL");
+
+  const { destinations, starRatings } = useMemo(() => {
+    const destSet = new Map<string, string>();
+    const starSet = new Set<string>();
+    for (const h of (data ?? []) as HotelRow[]) {
+      if (h.destination) destSet.set(h.destination.name, h.destination.name);
+      if (h.starRating) starSet.add(h.starRating);
+    }
+    return {
+      destinations: Array.from(destSet.values()).sort(),
+      starRatings: Array.from(starSet).sort(),
+    };
+  }, [data]);
+
+  const filteredData = useMemo(() => {
+    let result = (data ?? []) as HotelRow[];
+    if (destinationFilter !== "ALL") {
+      result = result.filter((h) => h.destination?.name === destinationFilter);
+    }
+    if (starFilter !== "ALL") {
+      result = result.filter((h) => h.starRating === starFilter);
+    }
+    if (activeFilter !== "ALL") {
+      result = result.filter((h) =>
+        activeFilter === "ACTIVE" ? h.active : !h.active,
+      );
+    }
+    return result;
+  }, [data, destinationFilter, starFilter, activeFilter]);
+
+  const hasFilters =
+    destinationFilter !== "ALL" ||
+    starFilter !== "ALL" ||
+    activeFilter !== "ALL";
+
+  function clearFilters() {
+    setDestinationFilter("ALL");
+    setStarFilter("ALL");
+    setActiveFilter("ALL");
+  }
+
+  const filterToolbar = (
+    <div className="flex items-center gap-2">
+      <Select value={destinationFilter} onValueChange={setDestinationFilter}>
+        <SelectTrigger className="h-9 w-[160px]">
+          <SelectValue placeholder="Destination" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Destinations</SelectItem>
+          {destinations.map((d) => (
+            <SelectItem key={d} value={d}>
+              {d}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={starFilter} onValueChange={setStarFilter}>
+        <SelectTrigger className="h-9 w-[140px]">
+          <SelectValue placeholder="Stars" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Stars</SelectItem>
+          {starRatings.map((s) => (
+            <SelectItem key={s} value={s}>
+              {STAR_RATING_LABELS[s] ?? s}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={activeFilter} onValueChange={setActiveFilter}>
+        <SelectTrigger className="h-9 w-[120px]">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Status</SelectItem>
+          <SelectItem value="ACTIVE">Active</SelectItem>
+          <SelectItem value="INACTIVE">Inactive</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {hasFilters && (
+        <Button variant="ghost" size="sm" onClick={clearFilters}>
+          <X className="mr-1 h-3 w-3" />
+          Clear
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -122,9 +224,10 @@ export default function HotelsPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={(data as HotelRow[]) ?? []}
+          data={filteredData}
           searchKey="name"
           searchPlaceholder="Search hotels..."
+          toolbar={filterToolbar}
           onRowClick={(row) => router.push(`/contracting/hotels/${row.id}`)}
         />
       )}

@@ -8,6 +8,7 @@ import {
   supplementRoomTypeBulkSaveSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { logContractAction } from "@/server/services/contracting/audit-logger";
 import type { PrismaClient } from "@prisma/client";
 
 const proc = moduleProcedure("contracting");
@@ -63,6 +64,15 @@ export const contractSupplementRouter = createTRPCRouter({
         }
       });
 
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "SUPPLEMENT",
+        summary: `Updated supplements`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
       return { success: true };
     }),
 
@@ -90,6 +100,15 @@ export const contractSupplementRouter = createTRPCRouter({
             })),
           });
         }
+      });
+
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "SUPPLEMENT",
+        summary: `Updated supplements`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
       });
 
       return { success: true };
@@ -120,6 +139,15 @@ export const contractSupplementRouter = createTRPCRouter({
         }
       });
 
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "SUPPLEMENT",
+        summary: `Updated supplements`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
       return { success: true };
     }),
 
@@ -148,6 +176,15 @@ export const contractSupplementRouter = createTRPCRouter({
         }
       });
 
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "SUPPLEMENT",
+        summary: `Updated supplements`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
       return { success: true };
     }),
 
@@ -174,6 +211,15 @@ export const contractSupplementRouter = createTRPCRouter({
         }
       });
 
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "SUPPLEMENT",
+        summary: `Updated supplements`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
       return { success: true };
     }),
 
@@ -189,6 +235,18 @@ export const contractSupplementRouter = createTRPCRouter({
         throw new Error("Not found");
       }
 
-      return ctx.db.contractSupplement.delete({ where: { id: input.id } });
+      const deleted = await ctx.db.contractSupplement.delete({ where: { id: input.id } });
+
+      await logContractAction(ctx.db, {
+        contractId: supplement.contractId,
+        action: "DELETE",
+        entity: "SUPPLEMENT",
+        entityId: input.id,
+        summary: `Deleted supplement`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return deleted;
     }),
 });

@@ -6,6 +6,7 @@ import {
   contractCreateSchema,
   contractUpdateSchema,
 } from "@/lib/validations/contracting";
+import { logContractAction } from "@/server/services/contracting/audit-logger";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 
 const proc = moduleProcedure("contracting");
@@ -148,6 +149,15 @@ export const contractRouter = createTRPCRouter({
         });
       }
 
+      await logContractAction(ctx.db, {
+        contractId: contract.id,
+        action: "CREATE",
+        entity: "CONTRACT",
+        summary: `Created contract "${input.name}" (${input.code})`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "Unknown",
+      });
+
       return contract;
     }),
 
@@ -169,10 +179,21 @@ export const contractRouter = createTRPCRouter({
       if (input.data.validFrom) data.validFrom = new Date(input.data.validFrom);
       if (input.data.validTo) data.validTo = new Date(input.data.validTo);
 
-      return ctx.db.contract.update({
+      const updated = await ctx.db.contract.update({
         where: { id: input.id },
         data,
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.id,
+        action: "UPDATE",
+        entity: "CONTRACT",
+        summary: `Updated contract fields: ${Object.keys(input.data).join(", ")}`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "Unknown",
+      });
+
+      return updated;
     }),
 
   delete: proc
@@ -188,6 +209,15 @@ export const contractRouter = createTRPCRouter({
           message: "Only DRAFT contracts can be deleted",
         });
       }
+
+      await logContractAction(ctx.db, {
+        contractId: input.id,
+        action: "DELETE",
+        entity: "CONTRACT",
+        summary: `Deleted contract "${contract.name}" (${contract.code})`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "Unknown",
+      });
 
       return ctx.db.contract.delete({ where: { id: input.id } });
     }),
@@ -214,7 +244,7 @@ export const contractRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.contract.update({
+      const posted = await ctx.db.contract.update({
         where: { id: input.id },
         data: {
           status: "POSTED",
@@ -222,6 +252,17 @@ export const contractRouter = createTRPCRouter({
           postedAt: new Date(),
         },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.id,
+        action: "POST",
+        entity: "CONTRACT",
+        summary: `Posted contract "${contract.name}"`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "Unknown",
+      });
+
+      return posted;
     }),
 
   publish: proc
@@ -238,7 +279,7 @@ export const contractRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.contract.update({
+      const published = await ctx.db.contract.update({
         where: { id: input.id },
         data: {
           status: "PUBLISHED",
@@ -246,6 +287,17 @@ export const contractRouter = createTRPCRouter({
           publishedAt: new Date(),
         },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.id,
+        action: "PUBLISH",
+        entity: "CONTRACT",
+        summary: `Published contract "${contract.name}"`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "Unknown",
+      });
+
+      return published;
     }),
 
   resetToDraft: proc
@@ -255,7 +307,7 @@ export const contractRouter = createTRPCRouter({
         where: { id: input.id, companyId: ctx.companyId },
       });
 
-      return ctx.db.contract.update({
+      const reset = await ctx.db.contract.update({
         where: { id: input.id },
         data: {
           status: "DRAFT",
@@ -265,6 +317,17 @@ export const contractRouter = createTRPCRouter({
           publishedAt: null,
         },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.id,
+        action: "RESET_DRAFT",
+        entity: "CONTRACT",
+        summary: "Reset contract to draft",
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "Unknown",
+      });
+
+      return reset;
     }),
 
   clone: proc
@@ -507,6 +570,15 @@ export const contractRouter = createTRPCRouter({
             })),
           });
         }
+
+        await logContractAction(tx, {
+          contractId: newContract.id,
+          action: "CLONE",
+          entity: "CONTRACT",
+          summary: `Cloned from "${source.name}" (${source.code}) as v${newVersion}`,
+          userId: ctx.session.user.id,
+          userName: ctx.session.user.name ?? "Unknown",
+        });
 
         return { id: newContract.id };
       });
@@ -923,6 +995,42 @@ export const contractRouter = createTRPCRouter({
       ]);
 
       return { contractA, contractB };
+    }),
+
+  listExpiring: proc
+    .input(
+      z.object({
+        days: z.number().min(1).max(365).default(60),
+        includeExpired: z.boolean().default(false),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const futureDate = new Date(
+        now.getTime() + input.days * 24 * 60 * 60 * 1000,
+      );
+
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        isTemplate: false,
+      };
+
+      if (input.includeExpired) {
+        // Show both expired and expiring within range
+        where.validTo = { lte: futureDate };
+      } else {
+        // Only expiring (not yet expired) within range
+        where.validTo = { gte: now, lte: futureDate };
+      }
+
+      return ctx.db.contract.findMany({
+        where,
+        include: {
+          hotel: { select: { id: true, name: true } },
+          baseCurrency: { select: { id: true, code: true } },
+        },
+        orderBy: { validTo: "asc" },
+      });
     }),
 
   dashboard: proc.query(async ({ ctx }) => {

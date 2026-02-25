@@ -133,6 +133,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         routes: [
           { label: "Destinations", href: "/contracting/destinations" },
           { label: "Hotels", href: "/contracting/hotels" },
+          { label: "Markets", href: "/contracting/markets" },
         ],
       },
       {
@@ -141,6 +142,16 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Contracts", href: "/contracting/contracts" },
           { label: "Templates", href: "/contracting/templates" },
           { label: "Rates", href: "/contracting/rates" },
+          { label: "Expiring", href: "/contracting/expiring" },
+          { label: "Import", href: "/contracting/import" },
+        ],
+      },
+      {
+        label: "Reports",
+        routes: [
+          { label: "Contract Summary", href: "/contracting/reports/contract-summary" },
+          { label: "Rate Comparison", href: "/contracting/reports/rate-comparison" },
+          { label: "Season Coverage", href: "/contracting/reports/season-coverage" },
         ],
       },
     ],

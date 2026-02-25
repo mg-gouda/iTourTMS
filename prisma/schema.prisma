@@ -1592,6 +1592,7 @@ model Contract {
   childPolicies         ContractChildPolicy[]
   cancellationPolicies  ContractCancellationPolicy[]
   markets               ContractMarket[]
+  auditLogs             ContractAuditLog[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1895,4 +1896,25 @@ model ContractMarket {
   @@unique([contractId, marketId])
   @@index([contractId])
   @@map("ct_contract_market")
+}
+
+// ============================================================================
+// CONTRACT AUDIT LOG
+// ============================================================================
+
+model ContractAuditLog {
+  id         String   @id @default(cuid())
+  contractId String
+  action     String   // CREATE, UPDATE, DELETE, POST, PUBLISH, RESET_DRAFT, CLONE
+  entity     String   // CONTRACT, SEASON, ROOM_TYPE, MEAL_BASIS, BASE_RATE, SUPPLEMENT, OFFER, ALLOTMENT, SPO, CHILD_POLICY, CANCELLATION
+  entityId   String?
+  summary    String   // Human-readable summary
+  userId     String
+  userName   String   // Denormalized for display
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, createdAt])
+  @@map("ct_contract_audit_log")
 }

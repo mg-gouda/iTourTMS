@@ -6,6 +6,7 @@ import {
   contractSeasonUpdateSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { logContractAction } from "@/server/services/contracting/audit-logger";
 
 const proc = moduleProcedure("contracting");
 
@@ -44,7 +45,7 @@ export const contractSeasonRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.contractSeason.create({
+      const season = await ctx.db.contractSeason.create({
         data: {
           contractId: input.contractId,
           name: input.name,
@@ -56,6 +57,18 @@ export const contractSeasonRouter = createTRPCRouter({
           minimumStay: input.minimumStay ?? null,
         },
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "CREATE",
+        entity: "SEASON",
+        entityId: season.id,
+        summary: `Added season "${input.name}" (${input.code})`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return season;
     }),
 
   update: proc
@@ -87,10 +100,22 @@ export const contractSeasonRouter = createTRPCRouter({
         data.dateTo = dateTo;
       }
 
-      return ctx.db.contractSeason.update({
+      const updated = await ctx.db.contractSeason.update({
         where: { id: input.id },
         data,
       });
+
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "UPDATE",
+        entity: "SEASON",
+        entityId: input.id,
+        summary: `Updated season "${input.data.name ?? 'season'}"`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return updated;
     }),
 
   delete: proc
@@ -100,6 +125,18 @@ export const contractSeasonRouter = createTRPCRouter({
         where: { id: input.contractId, companyId: ctx.companyId },
       });
 
-      return ctx.db.contractSeason.delete({ where: { id: input.id } });
+      const deleted = await ctx.db.contractSeason.delete({ where: { id: input.id } });
+
+      await logContractAction(ctx.db, {
+        contractId: input.contractId,
+        action: "DELETE",
+        entity: "SEASON",
+        entityId: input.id,
+        summary: `Deleted season`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return deleted;
     }),
 });

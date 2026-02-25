@@ -22,16 +22,16 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 
-type DestRow = {
+type MarketRow = {
   id: string;
   name: string;
   code: string;
   active: boolean;
-  country: { id: string; name: string; code: string } | null;
-  _count: { hotels: number; cities: number };
+  countryIds: string[];
+  _count: { contracts: number };
 };
 
-const columns: ColumnDef<DestRow>[] = [
+const columns: ColumnDef<MarketRow>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -49,19 +49,14 @@ const columns: ColumnDef<DestRow>[] = [
     ),
   },
   {
-    accessorKey: "country",
-    header: "Country",
-    cell: ({ row }) => row.original.country?.name ?? "—",
+    id: "countries",
+    header: "Countries",
+    cell: ({ row }) => row.original.countryIds.length || "—",
   },
   {
-    id: "cities",
-    header: "Cities",
-    cell: ({ row }) => row.original._count.cities,
-  },
-  {
-    id: "hotels",
-    header: "Hotels",
-    cell: ({ row }) => row.original._count.hotels,
+    id: "contracts",
+    header: "Contracts",
+    cell: ({ row }) => row.original._count.contracts,
   },
   {
     accessorKey: "active",
@@ -74,59 +69,26 @@ const columns: ColumnDef<DestRow>[] = [
   },
 ];
 
-export default function DestinationsPage() {
+export default function MarketsPage() {
   const router = useRouter();
-  const { data, isLoading } = trpc.contracting.destination.list.useQuery();
+  const { data, isLoading } = trpc.contracting.market.list.useQuery();
 
-  const [countryFilter, setCountryFilter] = useState("ALL");
   const [activeFilter, setActiveFilter] = useState("ALL");
 
-  const countries = useMemo(() => {
-    const countryMap = new Map<string, string>();
-    for (const d of (data ?? []) as DestRow[]) {
-      if (d.country) countryMap.set(d.country.id, d.country.name);
-    }
-    return Array.from(countryMap.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1]),
-    );
-  }, [data]);
-
   const filteredData = useMemo(() => {
-    let result = (data ?? []) as DestRow[];
-    if (countryFilter !== "ALL") {
-      result = result.filter((d) => d.country?.id === countryFilter);
-    }
+    let result = (data ?? []) as MarketRow[];
     if (activeFilter !== "ALL") {
-      result = result.filter((d) =>
-        activeFilter === "ACTIVE" ? d.active : !d.active,
+      result = result.filter((m) =>
+        activeFilter === "ACTIVE" ? m.active : !m.active,
       );
     }
     return result;
-  }, [data, countryFilter, activeFilter]);
+  }, [data, activeFilter]);
 
-  const hasFilters = countryFilter !== "ALL" || activeFilter !== "ALL";
-
-  function clearFilters() {
-    setCountryFilter("ALL");
-    setActiveFilter("ALL");
-  }
+  const hasFilters = activeFilter !== "ALL";
 
   const filterToolbar = (
     <div className="flex items-center gap-2">
-      <Select value={countryFilter} onValueChange={setCountryFilter}>
-        <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Country" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All Countries</SelectItem>
-          {countries.map(([id, name]) => (
-            <SelectItem key={id} value={id}>
-              {name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
       <Select value={activeFilter} onValueChange={setActiveFilter}>
         <SelectTrigger className="h-9 w-[120px]">
           <SelectValue placeholder="Status" />
@@ -139,7 +101,7 @@ export default function DestinationsPage() {
       </Select>
 
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters}>
+        <Button variant="ghost" size="sm" onClick={() => setActiveFilter("ALL")}>
           <X className="mr-1 h-3 w-3" />
           Clear
         </Button>
@@ -151,14 +113,14 @@ export default function DestinationsPage() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Destinations</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Markets</h1>
           <p className="text-muted-foreground">
-            City and region groupings for hotel locations
+            Geographic market segments for contract availability
           </p>
         </div>
         <Button asChild>
-          <Link href="/contracting/destinations/new">
-            <Plus className="mr-2 size-4" /> New Destination
+          <Link href="/contracting/markets/new">
+            <Plus className="mr-2 size-4" /> New Market
           </Link>
         </Button>
       </div>
@@ -172,8 +134,7 @@ export default function DestinationsPage() {
               <div key={i} className="flex items-center gap-4 border-b px-4 py-3">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-4 w-12" />
                 <Skeleton className="h-5 w-16 rounded-full" />
               </div>
@@ -185,11 +146,9 @@ export default function DestinationsPage() {
           columns={columns}
           data={filteredData}
           searchKey="name"
-          searchPlaceholder="Search destinations..."
+          searchPlaceholder="Search markets..."
           toolbar={filterToolbar}
-          onRowClick={(row) =>
-            router.push(`/contracting/destinations/${row.id}`)
-          }
+          onRowClick={(row) => router.push(`/contracting/markets/${row.id}`)}
         />
       )}
     </div>
