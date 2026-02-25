@@ -1,9 +1,13 @@
 "use client";
 
 import { format } from "date-fns";
-import { useState } from "react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -26,6 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 
 function fmtDate(d: string | Date | null | undefined) {
@@ -34,13 +40,29 @@ function fmtDate(d: string | Date | null | undefined) {
 }
 
 export default function EbdConditionsReportPage() {
+  const router = useRouter();
   const [hotelId, setHotelId] = useState("ALL");
+  const [minAdvanceDays, setMinAdvanceDays] = useState("ALL");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
-  const { data, isLoading } =
+  const { data: rawData, isLoading } =
     trpc.contracting.reports.ebdConditions.useQuery(
       hotelId === "ALL" ? {} : { hotelId },
     );
+
+  // Client-side filter by minimum advance days threshold
+  const data = useMemo(() => {
+    if (!rawData || minAdvanceDays === "ALL") return rawData;
+    const threshold = parseInt(minAdvanceDays, 10);
+    return rawData
+      .map((c) => ({
+        ...c,
+        ebdOffers: c.ebdOffers.filter(
+          (ebd) => ebd.advanceBookDays && ebd.advanceBookDays >= threshold,
+        ),
+      }))
+      .filter((c) => c.ebdOffers.length > 0);
+  }, [rawData, minAdvanceDays]);
 
   const totalContracts = data?.length ?? 0;
   const totalEbds = data?.reduce((s, c) => s + c.ebdOffers.length, 0) ?? 0;
@@ -54,19 +76,87 @@ export default function EbdConditionsReportPage() {
             Cross-contract Early Bird Discount comparison
           </p>
         </div>
-        <Select value={hotelId} onValueChange={setHotelId}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Hotels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Hotels</SelectItem>
-            {(hotels ?? []).map((h) => (
-              <SelectItem key={h.id} value={h.id}>
-                {h.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={hotelId} onValueChange={setHotelId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Hotels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Hotels</SelectItem>
+              {(hotels ?? []).map((h) => (
+                <SelectItem key={h.id} value={h.id}>
+                  {h.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={minAdvanceDays} onValueChange={setMinAdvanceDays}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Min Advance" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Advance</SelectItem>
+              <SelectItem value="30">30+ days</SelectItem>
+              <SelectItem value="60">60+ days</SelectItem>
+              <SelectItem value="90">90+ days</SelectItem>
+              <SelectItem value="120">120+ days</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={() => {
+              if (!data) return;
+              const headers = ["Hotel", "Contract", "EBD Name", "Discount", "Book By", "Advance Days", "Valid From", "Valid To", "Min Nights", "Payment %"];
+              const rows: string[][] = data.flatMap((c) =>
+                c.ebdOffers.map((ebd) => [
+                  c.hotelName,
+                  c.name,
+                  ebd.name,
+                  `${ebd.discountValue}${ebd.discountType === "PERCENTAGE" ? "%" : ""}`,
+                  fmtDate(ebd.bookByDate),
+                  ebd.advanceBookDays ? `${ebd.advanceBookDays}d` : "—",
+                  fmtDate(ebd.validFrom),
+                  fmtDate(ebd.validTo),
+                  ebd.minimumNights ? `${ebd.minimumNights}N` : "—",
+                  ebd.paymentPct ? `${ebd.paymentPct}%` : "—",
+                ]),
+              );
+              exportReportToPdf({ title: "EBD Conditions", headers, rows });
+              toast.success("PDF downloaded");
+            }}
+          >
+            <FileDown className="mr-1 size-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={async () => {
+              if (!data) return;
+              const headers = ["Hotel", "Contract", "EBD Name", "Discount", "Book By", "Advance Days", "Valid From", "Valid To", "Min Nights", "Payment %"];
+              const rows: (string | number)[][] = data.flatMap((c) =>
+                c.ebdOffers.map((ebd) => [
+                  c.hotelName,
+                  c.name,
+                  ebd.name,
+                  `${ebd.discountValue}${ebd.discountType === "PERCENTAGE" ? "%" : ""}`,
+                  fmtDate(ebd.bookByDate),
+                  ebd.advanceBookDays ?? 0,
+                  fmtDate(ebd.validFrom),
+                  fmtDate(ebd.validTo),
+                  ebd.minimumNights ?? 0,
+                  ebd.paymentPct ?? 0,
+                ]),
+              );
+              await exportReportToExcel({ title: "EBD Conditions", headers, rows });
+              toast.success("Excel downloaded");
+            }}
+          >
+            <FileSpreadsheet className="mr-1 size-4" /> Excel
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 grid-cols-2">
@@ -121,7 +211,11 @@ export default function EbdConditionsReportPage() {
               <TableBody>
                 {data.flatMap((contract) =>
                   contract.ebdOffers.map((ebd) => (
-                    <TableRow key={ebd.id}>
+                    <TableRow
+                      key={ebd.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => router.push(`/contracting/contracts/${contract.id}`)}
+                    >
                       <TableCell className="font-medium">
                         {contract.hotelName}
                       </TableCell>

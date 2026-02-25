@@ -1,11 +1,16 @@
 import { z } from "zod";
 
 import {
+  offerTierSaveSchema,
   specialOfferCreateSchema,
   specialOfferUpdateSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
+import {
+  evaluateCombinability as evaluateOfferCombinability,
+  type OfferInput,
+} from "@/server/services/contracting/offer-engine";
 import type { PrismaClient } from "@prisma/client";
 
 const proc = moduleProcedure("contracting");
@@ -193,5 +198,118 @@ export const specialOfferRouter = createTRPCRouter({
       });
 
       return toggled;
+    }),
+
+  // ── Offer Tiers ──
+
+  listTiers: proc
+    .input(z.object({ offerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
+        where: { id: input.offerId },
+        include: { contract: { select: { companyId: true } } },
+      });
+      if (offer.contract.companyId !== ctx.companyId) {
+        throw new Error("Not found");
+      }
+      return ctx.db.contractOfferTier.findMany({
+        where: { offerId: input.offerId },
+        orderBy: { sortOrder: "asc" },
+      });
+    }),
+
+  saveTiers: proc
+    .input(offerTierSaveSchema)
+    .mutation(async ({ ctx, input }) => {
+      const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
+        where: { id: input.offerId },
+        include: { contract: { select: { companyId: true } } },
+      });
+      if (offer.contract.companyId !== ctx.companyId) {
+        throw new Error("Not found");
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.contractOfferTier.deleteMany({
+          where: { offerId: input.offerId },
+        });
+
+        if (input.tiers.length > 0) {
+          await tx.contractOfferTier.createMany({
+            data: input.tiers.map((t, idx) => ({
+              offerId: input.offerId,
+              thresholdValue: t.thresholdValue,
+              discountType: t.discountType,
+              discountValue: t.discountValue,
+              sortOrder: t.sortOrder ?? idx,
+            })),
+          });
+        }
+      });
+
+      await logContractAction(ctx.db, {
+        contractId: offer.contractId,
+        action: "UPDATE",
+        entity: "OFFER",
+        entityId: input.offerId,
+        summary: `Updated offer tiers (${input.tiers.length} tiers)`,
+        userId: ctx.session.user.id,
+        userName: ctx.session.user.name ?? "",
+      });
+
+      return { success: true };
+    }),
+
+  // ── Offer Combinability Engine ──
+
+  evaluateCombinability: proc
+    .input(
+      z.object({
+        contractId: z.string(),
+        checkInDate: z.string(),
+        bookingDate: z.string(),
+        nights: z.number().int().min(1),
+        rooms: z.number().int().min(1).default(1),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifyContract(ctx.db, input.contractId, ctx.companyId);
+
+      const offers = await ctx.db.contractSpecialOffer.findMany({
+        where: { contractId: input.contractId, active: true },
+        include: { tiers: { orderBy: { thresholdValue: "desc" } } },
+        orderBy: { sortOrder: "asc" },
+      });
+
+      const offerInputs: OfferInput[] = offers.map((o) => ({
+        id: o.id,
+        name: o.name,
+        offerType: o.offerType,
+        discountType: o.discountType,
+        discountValue: o.discountValue,
+        combinable: o.combinable,
+        validFrom: o.validFrom,
+        validTo: o.validTo,
+        bookByDate: o.bookByDate,
+        bookFromDate: o.bookFromDate,
+        advanceBookDays: o.advanceBookDays,
+        minimumNights: o.minimumNights,
+        minimumRooms: o.minimumRooms,
+        stayNights: o.stayNights,
+        payNights: o.payNights,
+        tiers: o.tiers.map((t) => ({
+          id: t.id,
+          thresholdValue: t.thresholdValue,
+          discountType: t.discountType,
+          discountValue: t.discountValue,
+        })),
+      }));
+
+      return evaluateOfferCombinability(offerInputs, {
+        checkInDate: new Date(input.checkInDate),
+        bookingDate: new Date(input.bookingDate),
+        nights: input.nights,
+        rooms: input.rooms,
+      });
     }),
 });

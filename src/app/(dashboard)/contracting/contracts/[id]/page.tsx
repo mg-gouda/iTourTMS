@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -2988,6 +2989,10 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
   const utils = trpc.useUtils();
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<SpecialOfferData | null>(null);
+  const [tierOfferId, setTierOfferId] = useState<string | null>(null);
+  const [tierOfferName, setTierOfferName] = useState("");
+  const [tierOfferType, setTierOfferType] = useState("");
+  const [tierRows, setTierRows] = useState<{ thresholdValue: string; discountType: string; discountValue: string }[]>([]);
 
   // Form state
   const [name, setName] = useState("");
@@ -3037,6 +3042,55 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
   const toggleMutation = trpc.contracting.specialOffer.toggleActive.useMutation({
     onSuccess: () => utils.contracting.specialOffer.listByContract.invalidate({ contractId }),
   });
+
+  const { data: tierData } = trpc.contracting.specialOffer.listTiers.useQuery(
+    { offerId: tierOfferId! },
+    { enabled: !!tierOfferId },
+  );
+
+  const saveTiersMutation = trpc.contracting.specialOffer.saveTiers.useMutation({
+    onSuccess: () => {
+      setTierOfferId(null);
+      toast.success("Tiers saved");
+    },
+    onError: (err: { message: string }) => toast.error(err.message),
+  });
+
+  function openTiers(o: SpecialOfferData) {
+    setTierOfferId(o.id);
+    setTierOfferName(o.name);
+    setTierOfferType(o.offerType);
+    // Tiers will load via the query above, we set initial state when data arrives
+    setTierRows([]);
+  }
+
+  // Sync tier rows when data loads
+  useEffect(() => {
+    if (tierData && tierOfferId) {
+      if (tierData.length > 0) {
+        setTierRows(tierData.map((t) => ({
+          thresholdValue: String(t.thresholdValue),
+          discountType: t.discountType,
+          discountValue: String(Number(t.discountValue)),
+        })));
+      } else {
+        setTierRows([{ thresholdValue: "", discountType: "PERCENTAGE", discountValue: "" }]);
+      }
+    }
+  }, [tierData, tierOfferId]);
+
+  function handleSaveTiers() {
+    if (!tierOfferId) return;
+    const tiers = tierRows
+      .filter((r) => r.thresholdValue && r.discountValue)
+      .map((r, idx) => ({
+        thresholdValue: Number(r.thresholdValue),
+        discountType: r.discountType as "FIXED" | "PERCENTAGE",
+        discountValue: Number(r.discountValue),
+        sortOrder: idx,
+      }));
+    saveTiersMutation.mutate({ offerId: tierOfferId, tiers });
+  }
 
   function resetForm() {
     setName("");
@@ -3208,6 +3262,11 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
                     />
                   </TableCell>
                   <TableCell className="text-right">
+                    {(o.offerType === "EARLY_BIRD" || o.offerType === "LONG_STAY") && (
+                      <Button variant="ghost" size="sm" onClick={() => openTiers(o)}>
+                        Tiers
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => openEdit(o)}>
                       Edit
                     </Button>
@@ -3225,6 +3284,104 @@ function SpecialOffersTab({ contractId }: { contractId: string }) {
             </TableBody>
           </Table>
         )}
+
+        {/* Tier Management Dialog */}
+        <Dialog open={!!tierOfferId} onOpenChange={(open) => { if (!open) setTierOfferId(null); }}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>
+                Manage Tiers — {tierOfferName}
+              </DialogTitle>
+              <DialogDescription>
+                {tierOfferType === "EARLY_BIRD"
+                  ? "Define graduated discounts based on advance booking days."
+                  : "Define graduated discounts based on minimum stay nights."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      {tierOfferType === "EARLY_BIRD" ? "Min Advance Days" : "Min Nights"}
+                    </TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tierRows.map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={1}
+                          className="w-24"
+                          value={row.thresholdValue}
+                          onChange={(e) => setTierRows((prev) =>
+                            prev.map((r, i) => i === idx ? { ...r, thresholdValue: e.target.value } : r)
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          className="w-24"
+                          value={row.discountValue}
+                          onChange={(e) => setTierRows((prev) =>
+                            prev.map((r, i) => i === idx ? { ...r, discountValue: e.target.value } : r)
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={row.discountType}
+                          onValueChange={(v) => setTierRows((prev) =>
+                            prev.map((r, i) => i === idx ? { ...r, discountType: v } : r)
+                          )}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PERCENTAGE">%</SelectItem>
+                            <SelectItem value="FIXED">Fixed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setTierRows((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTierRows((prev) => [...prev, { thresholdValue: "", discountType: "PERCENTAGE", discountValue: "" }])}
+              >
+                <Plus className="mr-1 size-3" /> Add Tier
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTierOfferId(null)}>Cancel</Button>
+              <Button onClick={handleSaveTiers} disabled={saveTiersMutation.isPending}>
+                {saveTiersMutation.isPending ? "Saving..." : "Save Tiers"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent className="sm:max-w-[1100px]">
@@ -5895,57 +6052,111 @@ function SimulatorTab({ contractId }: { contractId: string }) {
           </Card>
 
           {/* Offer Eligibility */}
-          {simResult.offerEligibility.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Offer Eligibility</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Offer</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Discount</TableHead>
-                      <TableHead>Eligible</TableHead>
-                      <TableHead>Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {simResult.offerEligibility.map((offer) => (
-                      <TableRow key={offer.offerId}>
-                        <TableCell className="font-medium">
-                          {offer.offerName}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {offer.offerType.replace(/_/g, " ")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono">
-                          {offer.discountType === "PERCENTAGE"
-                            ? `${offer.discountValue}%`
-                            : offer.discountValue.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              offer.eligible ? "default" : ("secondary" as "default" | "secondary")
-                            }
-                          >
-                            {offer.eligible ? "Yes" : "No"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {offer.reasons.join("; ")}
-                        </TableCell>
+          {simResult.offerEligibility.length > 0 && (() => {
+            const eligible = simResult.offerEligibility.filter((o) => o.eligible);
+            const ineligible = simResult.offerEligibility.filter((o) => !o.eligible);
+            const combinable = eligible.filter((o) => o.combinable);
+            const nonCombinable = eligible.filter((o) => !o.combinable);
+            const bestNonCombinable = nonCombinable.length > 0
+              ? nonCombinable.reduce((a, b) => a.discountValue > b.discountValue ? a : b)
+              : null;
+
+            return (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Offer Eligibility</CardTitle>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {eligible.length} eligible
+                      </span>
+                      <span className="text-muted-foreground">
+                        {ineligible.length} ineligible
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Stacking Summary */}
+                  {eligible.length > 0 && (
+                    <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                      <p className="font-medium">Applied Offers:</p>
+                      {combinable.length > 0 && (
+                        <p className="text-emerald-600 dark:text-emerald-400">
+                          Stacked (combinable): {combinable.map((o) => o.offerName).join(" + ")}
+                        </p>
+                      )}
+                      {bestNonCombinable && (
+                        <p className="text-blue-600 dark:text-blue-400">
+                          Best non-combinable: {bestNonCombinable.offerName}{" "}
+                          ({bestNonCombinable.discountType === "PERCENTAGE"
+                            ? `${bestNonCombinable.discountValue}%`
+                            : bestNonCombinable.discountValue.toFixed(2)})
+                        </p>
+                      )}
+                      {nonCombinable.length > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          {nonCombinable.length - 1} other non-combinable offer{nonCombinable.length > 2 ? "s" : ""} excluded
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8" />
+                        <TableHead>Offer</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Discount</TableHead>
+                        <TableHead>Combinable</TableHead>
+                        <TableHead>Details</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+                    </TableHeader>
+                    <TableBody>
+                      {simResult.offerEligibility.map((offer) => (
+                        <TableRow
+                          key={offer.offerId}
+                          className={offer.eligible ? "" : "opacity-50"}
+                        >
+                          <TableCell>
+                            {offer.eligible ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 text-lg">&#10003;</span>
+                            ) : (
+                              <span className="text-destructive text-lg">&#10007;</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {offer.offerName}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {OFFER_TYPE_LABELS[offer.offerType] ?? offer.offerType.replace(/_/g, " ")}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono">
+                            {offer.discountType === "PERCENTAGE"
+                              ? `${offer.discountValue}%`
+                              : offer.discountValue.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {offer.combinable ? (
+                              <Badge variant="secondary" className="text-xs">Stackable</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">Exclusive</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[300px]">
+                            {offer.reasons.join("; ")}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </>
       )}
     </div>

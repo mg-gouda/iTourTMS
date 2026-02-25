@@ -1,9 +1,13 @@
 "use client";
 
 import { format } from "date-fns";
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -30,9 +34,12 @@ import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_VARIANTS,
 } from "@/lib/constants/contracting";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 
 export default function RateComparisonPage() {
+  const router = useRouter();
   const [selectedHotelId, setSelectedHotelId] = useState<string>("");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
@@ -53,18 +60,74 @@ export default function RateComparisonPage() {
             Compare base rates across contracts for the same hotel
           </p>
         </div>
-        <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
-          <SelectTrigger className="w-[250px]">
-            <SelectValue placeholder="Select a hotel..." />
-          </SelectTrigger>
-          <SelectContent>
-            {(hotels ?? []).map((h: { id: string; name: string }) => (
-              <SelectItem key={h.id} value={h.id}>
-                {h.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
+            <SelectTrigger className="w-[250px]">
+              <SelectValue placeholder="Select a hotel..." />
+            </SelectTrigger>
+            <SelectContent>
+              {(hotels ?? []).map((h: { id: string; name: string }) => (
+                <SelectItem key={h.id} value={h.id}>
+                  {h.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.contracts.length === 0}
+            onClick={() => {
+              if (!data) return;
+              const headers = ["Contract", "Code", "Season", "Base Rate", "Single Rate", "Double Rate"];
+              const rows: string[][] = [];
+              for (const c of data.contracts) {
+                for (const s of c.seasons) {
+                  const rate = c.baseRates.find((r) => r.season?.id === s.id);
+                  rows.push([
+                    c.name,
+                    c.code,
+                    s.name,
+                    rate ? Number(rate.rate).toFixed(2) : "—",
+                    rate?.singleRate ? Number(rate.singleRate).toFixed(2) : "—",
+                    rate?.doubleRate ? Number(rate.doubleRate).toFixed(2) : "—",
+                  ]);
+                }
+              }
+              exportReportToPdf({ title: "Rate Comparison", subtitle: data.hotelName, headers, rows });
+              toast.success("PDF downloaded");
+            }}
+          >
+            <FileDown className="mr-1 size-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.contracts.length === 0}
+            onClick={async () => {
+              if (!data) return;
+              const headers = ["Contract", "Code", "Season", "Base Rate", "Single Rate", "Double Rate"];
+              const rows: (string | number)[][] = [];
+              for (const c of data.contracts) {
+                for (const s of c.seasons) {
+                  const rate = c.baseRates.find((r) => r.season?.id === s.id);
+                  rows.push([
+                    c.name,
+                    c.code,
+                    s.name,
+                    rate ? Number(rate.rate) : 0,
+                    rate?.singleRate ? Number(rate.singleRate) : 0,
+                    rate?.doubleRate ? Number(rate.doubleRate) : 0,
+                  ]);
+                }
+              }
+              await exportReportToExcel({ title: "Rate Comparison", headers, rows });
+              toast.success("Excel downloaded");
+            }}
+          >
+            <FileSpreadsheet className="mr-1 size-4" /> Excel
+          </Button>
+        </div>
       </div>
 
       {!selectedHotelId && (
@@ -110,7 +173,8 @@ export default function RateComparisonPage() {
                       {data.contracts.map((c) => (
                         <TableHead
                           key={c.id}
-                          className="text-center min-w-[120px]"
+                          className="text-center min-w-[120px] cursor-pointer hover:bg-muted/50"
+                          onClick={() => router.push(`/contracting/contracts/${c.id}`)}
                         >
                           <div>
                             <div className="font-medium">{c.name}</div>

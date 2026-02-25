@@ -2,7 +2,10 @@
 
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,8 @@ import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_VARIANTS,
 } from "@/lib/constants/contracting";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 
 type GroupBy = "hotel" | "status" | "currency";
@@ -39,8 +44,21 @@ type GroupBy = "hotel" | "status" | "currency";
 export default function ContractSummaryPage() {
   const router = useRouter();
   const [groupBy, setGroupBy] = useState<GroupBy>("hotel");
-  const { data, isLoading } =
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const { data: rawData, isLoading } =
     trpc.contracting.reports.contractSummary.useQuery({ groupBy });
+
+  // Client-side status filter
+  const data = useMemo(() => {
+    if (!rawData || statusFilter === "ALL") return rawData;
+    return rawData
+      .map((g) => ({
+        ...g,
+        contracts: g.contracts.filter((c) => c.status === statusFilter),
+        contractCount: g.contracts.filter((c) => c.status === statusFilter).length,
+      }))
+      .filter((g) => g.contractCount > 0);
+  }, [rawData, statusFilter]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -54,6 +72,17 @@ export default function ContractSummaryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Status</SelectItem>
+              <SelectItem value="DRAFT">Draft</SelectItem>
+              <SelectItem value="POSTED">Posted</SelectItem>
+              <SelectItem value="PUBLISHED">Published</SelectItem>
+            </SelectContent>
+          </Select>
           <span className="text-sm text-muted-foreground">Group by:</span>
           <Select
             value={groupBy}
@@ -68,6 +97,50 @@ export default function ContractSummaryPage() {
               <SelectItem value="currency">Currency</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={() => {
+              const allContracts = (data ?? []).flatMap((g) => g.contracts);
+              exportReportToPdf({
+                title: "Contract Summary",
+                subtitle: `Grouped by ${groupBy}`,
+                headers: ["Contract", "Code", "Hotel", "Currency", "Valid From", "Valid To", "Seasons", "Rooms", "Status"],
+                rows: allContracts.map((c) => [
+                  c.name, c.code, c.hotelName, c.currencyCode,
+                  format(new Date(c.validFrom), "dd MMM yyyy"),
+                  format(new Date(c.validTo), "dd MMM yyyy"),
+                  String(c.seasonCount), String(c.roomTypeCount), c.status,
+                ]),
+              });
+              toast.success("PDF downloaded");
+            }}
+          >
+            <FileDown className="mr-1 size-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={async () => {
+              const allContracts = (data ?? []).flatMap((g) => g.contracts);
+              await exportReportToExcel({
+                title: "Contract_Summary",
+                headers: ["Contract", "Code", "Hotel", "Currency", "Valid From", "Valid To", "Seasons", "Rooms", "Status"],
+                rows: allContracts.map((c) => [
+                  c.name, c.code, c.hotelName, c.currencyCode,
+                  format(new Date(c.validFrom), "dd MMM yyyy"),
+                  format(new Date(c.validTo), "dd MMM yyyy"),
+                  c.seasonCount, c.roomTypeCount, c.status,
+                ]),
+                columnWidths: [24, 12, 22, 10, 14, 14, 8, 8, 12],
+              });
+              toast.success("Excel downloaded");
+            }}
+          >
+            <FileSpreadsheet className="mr-1 size-4" /> Excel
+          </Button>
         </div>
       </div>
 

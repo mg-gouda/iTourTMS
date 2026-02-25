@@ -4,9 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,6 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { tariffGenerateSchema } from "@/lib/validations/contracting";
@@ -35,6 +45,7 @@ type FormValues = z.infer<typeof tariffGenerateSchema>;
 export default function GenerateTariffPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const [previewInput, setPreviewInput] = useState<FormValues | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(tariffGenerateSchema),
@@ -53,6 +64,12 @@ export default function GenerateTariffPage() {
   const selectedContractId = form.watch("contractId");
   const selectedContract = contracts?.find((c) => c.id === selectedContractId);
 
+  // Preview query — only runs when preview is requested
+  const { data: previewData, isLoading: previewLoading } =
+    trpc.contracting.tariff.preview.useQuery(previewInput!, {
+      enabled: !!previewInput,
+    });
+
   const generateMutation = trpc.contracting.tariff.generate.useMutation({
     onSuccess: (result) => {
       utils.contracting.tariff.list.invalidate();
@@ -66,6 +83,13 @@ export default function GenerateTariffPage() {
 
   const onSubmit = (values: FormValues) => {
     generateMutation.mutate(values);
+  };
+
+  const handlePreview = async () => {
+    const valid = await form.trigger();
+    if (valid) {
+      setPreviewInput(form.getValues());
+    }
   };
 
   // Auto-resolve markup rule preview
@@ -278,6 +302,14 @@ export default function GenerateTariffPage() {
 
           <div className="flex gap-3">
             <Button
+              type="button"
+              variant="outline"
+              onClick={handlePreview}
+              disabled={previewLoading}
+            >
+              {previewLoading ? "Loading preview..." : "Preview Rates"}
+            </Button>
+            <Button
               type="submit"
               disabled={generateMutation.isPending}
             >
@@ -289,6 +321,70 @@ export default function GenerateTariffPage() {
               <Link href="/contracting/tariffs">Cancel</Link>
             </Button>
           </div>
+
+          {/* Preview Section */}
+          {previewData && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Rate Preview</CardTitle>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant="outline">{previewData.currencyCode}</Badge>
+                    <Badge variant="outline">{previewData.rateBasis.replace(/_/g, " ")}</Badge>
+                    {previewData.markupRuleName && (
+                      <Badge variant="secondary">
+                        Markup: {previewData.markupRuleName} (
+                        {previewData.markupType === "PERCENTAGE"
+                          ? `${previewData.markupValue}%`
+                          : previewData.markupValue.toFixed(2)}
+                        )
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {previewData.rates.length} rate entries across{" "}
+                  {new Set(previewData.rates.map((r) => r.seasonId)).size} season(s),{" "}
+                  {new Set(previewData.rates.map((r) => r.roomTypeId)).size} room type(s),{" "}
+                  {new Set(previewData.rates.map((r) => r.mealBasisId)).size} meal basis(es)
+                </p>
+                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky top-0 bg-background">Season</TableHead>
+                        <TableHead className="sticky top-0 bg-background">Room Type</TableHead>
+                        <TableHead className="sticky top-0 bg-background">Meal</TableHead>
+                        <TableHead className="sticky top-0 bg-background text-right">Base Rate</TableHead>
+                        <TableHead className="sticky top-0 bg-background text-right">Markup</TableHead>
+                        <TableHead className="sticky top-0 bg-background text-right">Selling Rate</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewData.rates.map((rate, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium">{rate.seasonName}</TableCell>
+                          <TableCell>{rate.roomTypeName}</TableCell>
+                          <TableCell>{rate.mealBasisName}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {rate.baseRate.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-muted-foreground">
+                            +{rate.markup.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-medium">
+                            {rate.sellingRate.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </form>
       </Form>
     </div>

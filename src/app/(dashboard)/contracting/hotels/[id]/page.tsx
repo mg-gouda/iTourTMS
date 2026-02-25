@@ -58,6 +58,7 @@ import {
   CONTRACT_STATUS_VARIANTS,
 } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import {
   roomTypeCreateSchema,
   roomTypeUpdateSchema,
@@ -69,6 +70,175 @@ import {
 // ============================================================================
 // Main Page
 // ============================================================================
+
+function HotelTourOperatorsTab({ hotelId }: { hotelId: string }) {
+  const utils = trpc.useUtils();
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [selectedTOs, setSelectedTOs] = useState<string[]>([]);
+  const [cascade, setCascade] = useState(true);
+
+  const { data: assignments, isLoading } =
+    trpc.contracting.tourOperator.listByHotel.useQuery({ hotelId });
+
+  const { data: allTOs } = trpc.contracting.tourOperator.list.useQuery(
+    undefined,
+    { enabled: assignOpen },
+  );
+
+  const assignedIds = new Set((assignments ?? []).map((a) => a.tourOperatorId));
+  const availableTOs = (allTOs ?? []).filter(
+    (to) => to.active && !assignedIds.has(to.id),
+  );
+
+  const assignMutation = trpc.contracting.tourOperator.assignToHotel.useMutation({
+    onSuccess: (result) => {
+      utils.contracting.tourOperator.listByHotel.invalidate({ hotelId });
+      setAssignOpen(false);
+      setSelectedTOs([]);
+      toast.success(
+        `Assigned ${result.hotelAssigned} TO(s)${result.contractAssignments > 0 ? `, cascaded to ${result.contractAssignments} contract assignment(s)` : ""}`,
+      );
+    },
+  });
+
+  const unassignMutation = trpc.contracting.tourOperator.unassignFromHotel.useMutation({
+    onSuccess: () => {
+      utils.contracting.tourOperator.listByHotel.invalidate({ hotelId });
+      toast.success("Tour operator unassigned");
+    },
+  });
+
+  if (isLoading) {
+    return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {assignments?.length ?? 0} tour operator(s) assigned
+        </p>
+        <Button size="sm" onClick={() => setAssignOpen(true)}>
+          Add Tour Operator
+        </Button>
+      </div>
+
+      {(assignments?.length ?? 0) === 0 ? (
+        <div className="py-8 text-center text-muted-foreground">
+          No tour operators assigned to this hotel.
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Country</TableHead>
+              <TableHead>Market</TableHead>
+              <TableHead>Assigned</TableHead>
+              <TableHead className="w-[60px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(assignments ?? []).map((a) => (
+              <TableRow key={a.id}>
+                <TableCell className="font-medium">{a.tourOperator.name}</TableCell>
+                <TableCell className="font-mono">{a.tourOperator.code}</TableCell>
+                <TableCell>{a.tourOperator.country?.name ?? "—"}</TableCell>
+                <TableCell>{a.tourOperator.market?.name ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {format(new Date(a.assignedAt), "dd MMM yyyy")}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-destructive hover:text-destructive"
+                    onClick={() =>
+                      unassignMutation.mutate({
+                        hotelId,
+                        tourOperatorId: a.tourOperatorId,
+                      })
+                    }
+                  >
+                    ✕
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* Assign Dialog */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Tour Operators</DialogTitle>
+            <DialogDescription>
+              Select tour operators to assign to this hotel.
+            </DialogDescription>
+          </DialogHeader>
+
+          {availableTOs.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              All active tour operators are already assigned.
+            </p>
+          ) : (
+            <div className="max-h-[300px] space-y-2 overflow-y-auto">
+              {availableTOs.map((to) => (
+                <label
+                  key={to.id}
+                  className="flex items-center gap-2 rounded p-2 hover:bg-muted/50 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={selectedTOs.includes(to.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedTOs((prev) =>
+                        checked ? [...prev, to.id] : prev.filter((id) => id !== to.id),
+                      );
+                    }}
+                  />
+                  <span className="text-sm font-medium">{to.name}</span>
+                  <span className="text-xs text-muted-foreground font-mono">{to.code}</span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="cascade"
+              checked={cascade}
+              onCheckedChange={(v) => setCascade(!!v)}
+            />
+            <label htmlFor="cascade" className="text-sm">
+              Also assign to published contracts
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={selectedTOs.length === 0 || assignMutation.isPending}
+              onClick={() =>
+                assignMutation.mutate({
+                  hotelId,
+                  tourOperatorIds: selectedTOs,
+                  cascadeToContracts: cascade,
+                })
+              }
+            >
+              Assign ({selectedTOs.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 export default function HotelDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -141,6 +311,7 @@ export default function HotelDetailPage() {
           <TabsTrigger value="gallery">
             Gallery ({hotel.images?.length ?? 0})
           </TabsTrigger>
+          <TabsTrigger value="tour-operators">Tour Operators</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
         </TabsList>
 
@@ -165,6 +336,10 @@ export default function HotelDetailPage() {
 
         <TabsContent value="gallery" className="mt-4">
           <GalleryTab hotelId={id} images={hotel.images ?? []} />
+        </TabsContent>
+
+        <TabsContent value="tour-operators" className="mt-4">
+          <HotelTourOperatorsTab hotelId={id} />
         </TabsContent>
 
         <TabsContent value="contracts" className="mt-4">

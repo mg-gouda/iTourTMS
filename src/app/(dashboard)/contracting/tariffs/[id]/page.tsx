@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, FileDown, FileSpreadsheet, RefreshCw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -26,6 +26,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { exportTariffToExcel, type TariffExportData } from "@/lib/export/tariff-excel";
+import { exportTariffToPdf } from "@/lib/export/tariff-pdf";
 import { trpc } from "@/lib/trpc";
 
 interface TariffRateEntry {
@@ -101,6 +103,24 @@ export default function TariffDetailPage() {
   const tariffData = data.data as unknown as TariffDataShape;
   const rates = tariffData?.rates ?? [];
 
+  function buildExportData(): TariffExportData {
+    return {
+      tariffName: data!.name,
+      contractName: data!.contract.name,
+      contractCode: data!.contract.code,
+      hotelName: (data!.contract as any).hotel?.name ?? tariffData?.hotelName,
+      tourOperatorName: data!.tourOperator.name,
+      tourOperatorCode: data!.tourOperator.code,
+      markupRuleName: data!.markupRule?.name ?? null,
+      markupType: data!.markupRule?.markupType,
+      markupValue: data!.markupRule ? Number(data!.markupRule.value) : undefined,
+      currencyCode: data!.currencyCode,
+      rateBasis: data!.contract.rateBasis,
+      generatedAt: data!.generatedAt as unknown as string,
+      rates,
+    };
+  }
+
   // Group rates by season
   const seasonGroups = new Map<string, TariffRateEntry[]>();
   for (const rate of rates) {
@@ -135,6 +155,30 @@ export default function TariffDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              exportTariffToPdf(buildExportData(), "iTour TMS");
+              toast.success("PDF downloaded");
+            }}
+            disabled={rates.length === 0}
+          >
+            <FileDown className="mr-2 size-4" />
+            PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await exportTariffToExcel(buildExportData());
+              toast.success("Excel downloaded");
+            }}
+            disabled={rates.length === 0}
+          >
+            <FileSpreadsheet className="mr-2 size-4" />
+            Excel
+          </Button>
           <Button
             variant="outline"
             size="sm"

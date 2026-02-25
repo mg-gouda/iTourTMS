@@ -1772,10 +1772,27 @@ model ContractSpecialOffer {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract Contract             @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tiers    ContractOfferTier[]
 
   @@index([contractId])
   @@map("ct_contract_special_offer")
+}
+
+model ContractOfferTier {
+  id             String   @id @default(cuid())
+  offerId        String
+  thresholdValue Int      // advance days (EBD) or min nights (Long Stay)
+  discountType   SupplementValueType @default(FIXED)
+  discountValue  Decimal  @db.Decimal(12, 4)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  offer ContractSpecialOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId])
+  @@map("ct_contract_offer_tier")
 }
 
 model ContractSeasonSpo {

@@ -8,8 +8,12 @@ import {
   isWithinInterval,
   startOfYear,
 } from "date-fns";
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -24,10 +28,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 export default function SeasonCoveragePage() {
+  const router = useRouter();
   const [selectedHotelId, setSelectedHotelId] = useState<string>("ALL");
   const [year, setYear] = useState(new Date().getFullYear());
 
@@ -119,6 +126,58 @@ export default function SeasonCoveragePage() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={coverageData.length === 0}
+            onClick={() => {
+              const headers = ["Contract", "Code", "Hotel", "Season", "Date From", "Date To", "Coverage %"];
+              const rows: string[][] = [];
+              for (const c of coverageData) {
+                for (const s of c.seasons) {
+                  rows.push([
+                    c.name,
+                    c.code,
+                    c.hotelName,
+                    s.name,
+                    format(s.dateFrom, "dd MMM yyyy"),
+                    format(s.dateTo, "dd MMM yyyy"),
+                    `${c.coveragePercent}%`,
+                  ]);
+                }
+              }
+              exportReportToPdf({ title: "Season Coverage", subtitle: `Year ${year}`, headers, rows });
+              toast.success("PDF downloaded");
+            }}
+          >
+            <FileDown className="mr-1 size-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={coverageData.length === 0}
+            onClick={async () => {
+              const headers = ["Contract", "Code", "Hotel", "Season", "Date From", "Date To", "Coverage %"];
+              const rows: (string | number)[][] = [];
+              for (const c of coverageData) {
+                for (const s of c.seasons) {
+                  rows.push([
+                    c.name,
+                    c.code,
+                    c.hotelName,
+                    s.name,
+                    format(s.dateFrom, "dd MMM yyyy"),
+                    format(s.dateTo, "dd MMM yyyy"),
+                    c.coveragePercent,
+                  ]);
+                }
+              }
+              await exportReportToExcel({ title: "Season Coverage", headers, rows });
+              toast.success("Excel downloaded");
+            }}
+          >
+            <FileSpreadsheet className="mr-1 size-4" /> Excel
+          </Button>
         </div>
       </div>
 
@@ -165,7 +224,10 @@ export default function SeasonCoveragePage() {
             <div className="space-y-1">
               {coverageData.map((contract) => (
                 <div key={contract.id} className="flex items-center">
-                  <div className="w-48 shrink-0 pr-3">
+                  <div
+                    className="w-48 shrink-0 pr-3 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => router.push(`/contracting/contracts/${contract.id}`)}
+                  >
                     <div className="text-sm font-medium truncate">
                       {contract.name}
                     </div>

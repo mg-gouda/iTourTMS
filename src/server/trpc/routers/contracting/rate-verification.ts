@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import {
+  buildNightBreakdown,
+  checkReleaseDays,
+  checkAllotmentAvailability,
+} from "@/server/services/contracting/booking-simulator";
+import { checkStopSales } from "@/server/services/contracting/stop-sale-checker";
 
 const proc = moduleProcedure("contracting");
 
@@ -73,65 +79,19 @@ export const rateVerificationRouter = createTRPCRouter({
       }
 
       // Determine which seasons cover which nights
-      interface NightBreakdown {
-        date: string;
-        seasonId: string | null;
-        seasonName: string;
-      }
-      const nightBreakdown: NightBreakdown[] = [];
-      for (let i = 0; i < nights; i++) {
-        const nightDate = new Date(checkIn);
-        nightDate.setDate(nightDate.getDate() + i);
-        const dateStr = nightDate.toISOString().slice(0, 10);
-
-        const matchingSeason = contract.seasons.find((s) => {
-          const from = s.dateFrom.toISOString().slice(0, 10);
-          const to = s.dateTo.toISOString().slice(0, 10);
-          return dateStr >= from && dateStr <= to;
-        });
-
-        nightBreakdown.push({
-          date: dateStr,
-          seasonId: matchingSeason?.id ?? null,
-          seasonName: matchingSeason?.name ?? "No Season",
-        });
-
-        if (!matchingSeason) {
-          warnings.push(`Night ${dateStr} has no matching season`);
-        }
-      }
+      const { breakdown: nightBreakdown, warnings: nightWarnings } =
+        buildNightBreakdown(checkIn, nights, contract.seasons);
+      warnings.push(...nightWarnings);
 
       // Check release days per season
-      for (const season of contract.seasons) {
-        if (season.releaseDays) {
-          const seasonFrom = season.dateFrom.toISOString().slice(0, 10);
-          const releaseDeadline = new Date(seasonFrom);
-          releaseDeadline.setDate(releaseDeadline.getDate() - season.releaseDays);
-          if (bookingDate > releaseDeadline) {
-            const hasNightsInSeason = nightBreakdown.some(
-              (n) => n.seasonId === season.id,
-            );
-            if (hasNightsInSeason) {
-              warnings.push(
-                `Season "${season.name}" has a ${season.releaseDays}-day release; booking deadline was ${releaseDeadline.toISOString().slice(0, 10)}`,
-              );
-            }
-          }
-        }
-      }
+      warnings.push(
+        ...checkReleaseDays(contract.seasons, nightBreakdown, bookingDate),
+      );
 
       // Check stop sales
-      const checkInStr = input.checkIn;
-      const checkOutStr = input.checkOut;
-      for (const ss of contract.stopSales) {
-        const ssFrom = ss.dateFrom.toISOString().slice(0, 10);
-        const ssTo = ss.dateTo.toISOString().slice(0, 10);
-        if (checkInStr <= ssTo && checkOutStr > ssFrom) {
-          warnings.push(
-            `Stop sale active ${ssFrom} to ${ssTo}${ss.reason ? `: ${ss.reason}` : ""}`,
-          );
-        }
-      }
+      warnings.push(
+        ...checkStopSales(contract.stopSales, input.checkIn, input.checkOut),
+      );
 
       // Build rate matrix: room type × meal basis × season
       interface RateRow {
@@ -150,19 +110,14 @@ export const rateVerificationRouter = createTRPCRouter({
 
       for (const rt of contract.roomTypes) {
         // Check allotment availability
-        for (const season of contract.seasons) {
-          const allotment = contract.allotments.find(
-            (a) => a.seasonId === season.id && a.roomTypeId === rt.roomTypeId,
-          );
-          if (allotment && !allotment.freeSale) {
-            const available = allotment.totalRooms - allotment.soldRooms;
-            if (available <= 0) {
-              warnings.push(
-                `No allotment available for ${rt.roomType.name} in ${season.name}`,
-              );
-            }
-          }
-        }
+        warnings.push(
+          ...checkAllotmentAvailability(
+            contract.allotments,
+            contract.seasons,
+            rt.roomTypeId,
+            rt.roomType.name,
+          ),
+        );
 
         for (const mb of contract.mealBases) {
           const nightlyRates: { date: string; seasonName: string; rate: number }[] = [];
@@ -234,6 +189,7 @@ export const rateVerificationRouter = createTRPCRouter({
         reasons: string[];
         discountType: string;
         discountValue: number;
+        combinable: boolean;
       }
 
       const offerEligibility: OfferEligibility[] = [];
@@ -307,6 +263,7 @@ export const rateVerificationRouter = createTRPCRouter({
             reasons,
             discountType: offer.discountType,
             discountValue: parseFloat(offer.discountValue.toString()),
+            combinable: offer.combinable,
           });
         }
       }

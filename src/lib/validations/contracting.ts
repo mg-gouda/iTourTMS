@@ -453,6 +453,19 @@ export const specialOfferUpdateSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+// ── Offer Tier Schemas ──
+
+export const offerTierSaveSchema = z.object({
+  offerId: z.string().min(1),
+  tiers: z.array(z.object({
+    id: z.string().nullish(),
+    thresholdValue: z.number().int().min(1, "Threshold must be at least 1"),
+    discountType: z.enum(["FIXED", "PERCENTAGE"]).default("PERCENTAGE"),
+    discountValue: z.number().min(0, "Discount must be non-negative"),
+    sortOrder: z.number().int().default(0),
+  })),
+});
+
 // ── Season SPO Schemas ──
 
 export const seasonSpoBulkSaveSchema = z.object({

@@ -1,9 +1,13 @@
 "use client";
 
 import { format } from "date-fns";
-import { useState } from "react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -26,6 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 
 const OFFER_TYPE_LABELS: Record<string, string> = {
@@ -45,13 +51,26 @@ function fmtDate(d: string | Date | null | undefined) {
 }
 
 export default function SeasonalOffersReportPage() {
+  const router = useRouter();
   const [hotelId, setHotelId] = useState("ALL");
+  const [offerTypeFilter, setOfferTypeFilter] = useState("ALL");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
-  const { data, isLoading } =
+  const { data: rawData, isLoading } =
     trpc.contracting.reports.seasonalOffers.useQuery(
       hotelId === "ALL" ? {} : { hotelId },
     );
+
+  // Client-side offer type filter
+  const data = useMemo(() => {
+    if (!rawData || offerTypeFilter === "ALL") return rawData;
+    return rawData
+      .map((c) => ({
+        ...c,
+        offers: c.offers.filter((o) => o.offerType === offerTypeFilter),
+      }))
+      .filter((c) => c.offers.length > 0);
+  }, [rawData, offerTypeFilter]);
 
   const totalContracts = data?.length ?? 0;
   const totalOffers = data?.reduce((s, c) => s + c.offers.length, 0) ?? 0;
@@ -65,19 +84,98 @@ export default function SeasonalOffersReportPage() {
             Special offers grouped by contract and season
           </p>
         </div>
-        <Select value={hotelId} onValueChange={setHotelId}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Hotels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Hotels</SelectItem>
-            {(hotels ?? []).map((h) => (
-              <SelectItem key={h.id} value={h.id}>
-                {h.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={hotelId} onValueChange={setHotelId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Hotels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Hotels</SelectItem>
+              {(hotels ?? []).map((h) => (
+                <SelectItem key={h.id} value={h.id}>
+                  {h.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={offerTypeFilter} onValueChange={setOfferTypeFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Types</SelectItem>
+              {Object.entries(OFFER_TYPE_LABELS).map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={() => {
+              if (!data) return;
+              const headers = ["Hotel", "Contract", "Offer", "Type", "Discount", "Valid From", "Valid To", "Book By", "Min Nights", "Advance Days"];
+              const rows: string[][] = [];
+              for (const c of data) {
+                for (const o of c.offers) {
+                  rows.push([
+                    c.hotelName,
+                    c.name,
+                    o.name,
+                    OFFER_TYPE_LABELS[o.offerType] ?? o.offerType,
+                    o.offerType === "FREE_NIGHTS"
+                      ? `Stay ${o.stayNights}, Pay ${o.payNights}`
+                      : `${o.discountValue}${o.discountType === "PERCENTAGE" ? "%" : ""}`,
+                    fmtDate(o.validFrom),
+                    fmtDate(o.validTo),
+                    fmtDate(o.bookByDate),
+                    o.minimumNights ? String(o.minimumNights) : "—",
+                    o.advanceBookDays ? String(o.advanceBookDays) : "—",
+                  ]);
+                }
+              }
+              exportReportToPdf({ title: "Seasonal Offers", headers, rows });
+              toast.success("PDF downloaded");
+            }}
+          >
+            <FileDown className="mr-1 size-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={async () => {
+              if (!data) return;
+              const headers = ["Hotel", "Contract", "Offer", "Type", "Discount", "Valid From", "Valid To", "Book By", "Min Nights", "Advance Days"];
+              const rows: (string | number)[][] = [];
+              for (const c of data) {
+                for (const o of c.offers) {
+                  rows.push([
+                    c.hotelName,
+                    c.name,
+                    o.name,
+                    OFFER_TYPE_LABELS[o.offerType] ?? o.offerType,
+                    o.offerType === "FREE_NIGHTS"
+                      ? `Stay ${o.stayNights}, Pay ${o.payNights}`
+                      : `${o.discountValue}${o.discountType === "PERCENTAGE" ? "%" : ""}`,
+                    fmtDate(o.validFrom),
+                    fmtDate(o.validTo),
+                    fmtDate(o.bookByDate),
+                    o.minimumNights ?? 0,
+                    o.advanceBookDays ?? 0,
+                  ]);
+                }
+              }
+              await exportReportToExcel({ title: "Seasonal Offers", headers, rows });
+              toast.success("Excel downloaded");
+            }}
+          >
+            <FileSpreadsheet className="mr-1 size-4" /> Excel
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 grid-cols-2 md:grid-cols-2">
@@ -113,7 +211,10 @@ export default function SeasonalOffersReportPage() {
         <div className="space-y-4">
           {data.map((contract) => (
             <Card key={contract.id}>
-              <CardHeader className="pb-3">
+              <CardHeader
+                className="pb-3 cursor-pointer hover:bg-muted/30 rounded-t-lg transition-colors"
+                onClick={() => router.push(`/contracting/contracts/${contract.id}`)}
+              >
                 <CardTitle className="text-base">
                   {contract.name}{" "}
                   <span className="text-muted-foreground font-normal">

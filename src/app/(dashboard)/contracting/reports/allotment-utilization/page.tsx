@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -25,6 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
@@ -53,13 +59,46 @@ function UtilizationBar({ percent }: { percent: number }) {
 }
 
 export default function AllotmentUtilizationPage() {
+  const router = useRouter();
   const [hotelId, setHotelId] = useState("ALL");
+  const [basisFilter, setBasisFilter] = useState("ALL");
+  const [utilizationFilter, setUtilizationFilter] = useState("ALL");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
-  const { data, isLoading } =
+  const { data: rawData, isLoading } =
     trpc.contracting.reports.allotmentUtilization.useQuery(
       hotelId === "ALL" ? {} : { hotelId },
     );
+
+  // Client-side filtering by basis and utilization threshold
+  const data = useMemo(() => {
+    if (!rawData) return rawData;
+    return rawData
+      .map((c) => {
+        let allots = c.allotments;
+        if (basisFilter !== "ALL") {
+          allots = allots.filter((a) => a.basis === basisFilter);
+        }
+        if (utilizationFilter === "HIGH") {
+          allots = allots.filter((a) => !a.freeSale && a.utilization >= 80);
+        } else if (utilizationFilter === "LOW") {
+          allots = allots.filter((a) => !a.freeSale && a.utilization < 50);
+        }
+        const totalRooms = allots.reduce(
+          (s, a) => s + (a.freeSale ? 0 : a.totalRooms),
+          0,
+        );
+        const soldRooms = allots.reduce((s, a) => s + a.soldRooms, 0);
+        return {
+          ...c,
+          allotments: allots,
+          totalRooms,
+          soldRooms,
+          utilization: totalRooms > 0 ? Math.round((soldRooms / totalRooms) * 100) : 0,
+        };
+      })
+      .filter((c) => c.allotments.length > 0);
+  }, [rawData, basisFilter, utilizationFilter]);
 
   const totalRooms = data?.reduce((s, c) => s + c.totalRooms, 0) ?? 0;
   const totalSold = data?.reduce((s, c) => s + c.soldRooms, 0) ?? 0;
@@ -76,19 +115,94 @@ export default function AllotmentUtilizationPage() {
             Room allocation usage across contracts
           </p>
         </div>
-        <Select value={hotelId} onValueChange={setHotelId}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Hotels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Hotels</SelectItem>
-            {(hotels ?? []).map((h) => (
-              <SelectItem key={h.id} value={h.id}>
-                {h.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={hotelId} onValueChange={setHotelId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Hotels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Hotels</SelectItem>
+              {(hotels ?? []).map((h) => (
+                <SelectItem key={h.id} value={h.id}>
+                  {h.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={basisFilter} onValueChange={setBasisFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="All Basis" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Basis</SelectItem>
+              {Object.entries(BASIS_LABELS).map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={utilizationFilter} onValueChange={setUtilizationFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Utilization" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Levels</SelectItem>
+              <SelectItem value="HIGH">High (80%+)</SelectItem>
+              <SelectItem value="LOW">Low (&lt;50%)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={() => {
+              if (!data) return;
+              const headers = ["Hotel", "Contract", "Room Type", "Season", "Basis", "Total", "Sold", "Utilization %"];
+              const rows: string[][] = data.flatMap((c) =>
+                c.allotments.map((a) => [
+                  c.hotelName,
+                  c.name,
+                  a.roomTypeName,
+                  a.seasonName,
+                  BASIS_LABELS[a.basis] ?? a.basis,
+                  a.freeSale ? "Free Sale" : String(a.totalRooms),
+                  String(a.soldRooms),
+                  a.freeSale ? "N/A" : `${a.utilization}%`,
+                ]),
+              );
+              exportReportToPdf({ title: "Allotment Utilization", headers, rows });
+              toast.success("PDF downloaded");
+            }}
+          >
+            <FileDown className="mr-1 size-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={async () => {
+              if (!data) return;
+              const headers = ["Hotel", "Contract", "Room Type", "Season", "Basis", "Total", "Sold", "Utilization %"];
+              const rows: (string | number)[][] = data.flatMap((c) =>
+                c.allotments.map((a) => [
+                  c.hotelName,
+                  c.name,
+                  a.roomTypeName,
+                  a.seasonName,
+                  BASIS_LABELS[a.basis] ?? a.basis,
+                  a.freeSale ? "Free Sale" : a.totalRooms,
+                  a.soldRooms,
+                  a.freeSale ? "N/A" : a.utilization,
+                ]),
+              );
+              await exportReportToExcel({ title: "Allotment Utilization", headers, rows });
+              toast.success("Excel downloaded");
+            }}
+          >
+            <FileSpreadsheet className="mr-1 size-4" /> Excel
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
@@ -144,7 +258,10 @@ export default function AllotmentUtilizationPage() {
         <div className="space-y-4">
           {data.map((contract) => (
             <Card key={contract.id}>
-              <CardHeader className="pb-3">
+              <CardHeader
+                className="pb-3 cursor-pointer hover:bg-muted/30 rounded-t-lg transition-colors"
+                onClick={() => router.push(`/contracting/contracts/${contract.id}`)}
+              >
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
                     {contract.name}{" "}
