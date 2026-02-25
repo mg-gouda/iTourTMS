@@ -545,6 +545,7 @@ export const contractRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: source.supplements.map((s) => ({
               contractId: newContract.id,
+              seasonId: s.seasonId ? seasonIdMap.get(s.seasonId) ?? null : null,
               supplementType: s.supplementType,
               roomTypeId: s.roomTypeId,
               mealBasisId: s.mealBasisId,
@@ -902,6 +903,7 @@ export const contractRouter = createTRPCRouter({
           await tx.contractSupplement.createMany({
             data: source.supplements.map((s) => ({
               contractId: template.id,
+              seasonId: s.seasonId ? seasonIdMap.get(s.seasonId) ?? null : null,
               supplementType: s.supplementType,
               roomTypeId: s.roomTypeId,
               mealBasisId: s.mealBasisId,
@@ -1208,7 +1210,10 @@ export const contractRouter = createTRPCRouter({
             },
             orderBy: [{ supplementType: "asc" as const }, { sortOrder: "asc" as const }],
           },
-          specialOffers: { orderBy: { sortOrder: "asc" as const } },
+          specialOffers: {
+            include: { tiers: { orderBy: { sortOrder: "asc" as const } } },
+            orderBy: { sortOrder: "asc" as const },
+          },
           allotments: {
             include: {
               roomType: { select: { id: true, name: true, code: true } },
@@ -1232,6 +1237,7 @@ export const contractRouter = createTRPCRouter({
             orderBy: { createdAt: "asc" as const },
           },
           specialMeals: { orderBy: { dateFrom: "asc" as const } },
+          seasonSpos: { orderBy: { sortOrder: "asc" as const } },
         },
       });
     }),
@@ -1284,6 +1290,7 @@ export const contractRouter = createTRPCRouter({
         allotments: {
           include: {
             roomType: { select: { id: true, name: true, code: true } },
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
           },
         },
         stopSales: {
@@ -1294,6 +1301,18 @@ export const contractRouter = createTRPCRouter({
         },
         childPolicies: { orderBy: { category: "asc" as const } },
         cancellationPolicies: { orderBy: { daysBefore: "desc" as const } },
+        markets: {
+          include: { market: { select: { id: true, name: true, code: true } } },
+        },
+        marketingContributions: {
+          include: {
+            market: { select: { id: true, name: true, code: true } },
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
+          },
+          orderBy: { createdAt: "asc" as const },
+        },
+        specialMeals: { orderBy: { dateFrom: "asc" as const } },
+        seasonSpos: { orderBy: { sortOrder: "asc" as const } },
       };
 
       const [contractA, contractB] = await Promise.all([

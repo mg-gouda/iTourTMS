@@ -478,6 +478,7 @@ export const allotmentBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
     roomTypeId: z.string().min(1),
+    seasonId: z.string().nullish(),
     basis: z.enum(["FREESALE", "ON_REQUEST", "COMMITMENT", "ALLOCATION"]).default("ALLOCATION"),
     totalRooms: z.number().int().min(0),
     freeSale: z.boolean().default(false),

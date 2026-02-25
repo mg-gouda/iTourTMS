@@ -50,6 +50,7 @@ export const contractAllotmentRouter = createTRPCRouter({
             data: input.items.map((item) => ({
               contractId: input.contractId,
               roomTypeId: item.roomTypeId,
+              seasonId: item.seasonId ?? null,
               basis: item.basis,
               totalRooms: item.freeSale ? 0 : item.totalRooms,
               freeSale: item.freeSale,
