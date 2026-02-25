@@ -1,12 +1,8 @@
 import { z } from "zod";
 
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
-import {
-  buildNightBreakdown,
-  checkReleaseDays,
-  checkAllotmentAvailability,
-} from "@/server/services/contracting/booking-simulator";
-import { checkStopSales } from "@/server/services/contracting/stop-sale-checker";
+import { simulateStay } from "@/server/services/contracting/booking-simulator";
+import type { RateContractData } from "@/server/services/contracting/rate-calculator";
 
 const proc = moduleProcedure("contracting");
 
@@ -62,125 +58,107 @@ export const rateVerificationRouter = createTRPCRouter({
       const nights = Math.round(
         (checkOut.getTime() - checkIn.getTime()) / (24 * 60 * 60 * 1000),
       );
-      const bookingDate = input.bookingDate ? new Date(input.bookingDate) : new Date();
+      const bookingDate = input.bookingDate
+        ? input.bookingDate
+        : new Date().toISOString().slice(0, 10);
 
-      const warnings: string[] = [];
+      // Build RateContractData for the unified calculator
+      const baseRoomType = contract.roomTypes.find((rt) => rt.isBase);
+      const baseMealBasis = contract.mealBases.find((mb) => mb.isBase);
 
-      // Check minimum/maximum stay
-      if (contract.minimumStay && nights < contract.minimumStay) {
-        warnings.push(
-          `Stay of ${nights} nights is below minimum stay of ${contract.minimumStay} nights`,
-        );
-      }
-      if (contract.maximumStay && nights > contract.maximumStay) {
-        warnings.push(
-          `Stay of ${nights} nights exceeds maximum stay of ${contract.maximumStay} nights`,
-        );
-      }
+      const rateContractData: RateContractData = {
+        rateBasis: contract.rateBasis as "PER_PERSON" | "PER_ROOM",
+        baseRoomTypeId: baseRoomType?.roomTypeId ?? contract.roomTypes[0]?.roomTypeId ?? "",
+        baseMealBasisId: baseMealBasis?.mealBasisId ?? contract.mealBases[0]?.mealBasisId ?? "",
+        seasons: contract.seasons.map((s) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code,
+          dateFrom: s.dateFrom.toISOString().slice(0, 10),
+          dateTo: s.dateTo.toISOString().slice(0, 10),
+        })),
+        roomTypes: contract.roomTypes.map((rt) => ({
+          roomTypeId: rt.roomTypeId,
+          isBase: rt.isBase,
+          roomType: rt.roomType,
+        })),
+        mealBases: contract.mealBases.map((mb) => ({
+          mealBasisId: mb.mealBasisId,
+          isBase: mb.isBase,
+          mealBasis: mb.mealBasis,
+        })),
+        baseRates: contract.baseRates.map((br) => ({
+          seasonId: br.seasonId,
+          rate: br.rate.toString(),
+          singleRate: br.singleRate?.toString() ?? null,
+          doubleRate: br.doubleRate?.toString() ?? null,
+          tripleRate: br.tripleRate?.toString() ?? null,
+        })),
+        supplements: contract.supplements.map((s) => ({
+          supplementType: s.supplementType,
+          roomTypeId: s.roomTypeId,
+          mealBasisId: s.mealBasisId,
+          forAdults: s.forAdults,
+          forChildCategory: s.forChildCategory,
+          forChildBedding: s.forChildBedding,
+          childPosition: s.childPosition,
+          valueType: s.valueType,
+          value: s.value.toString(),
+          isReduction: s.isReduction,
+          perPerson: s.perPerson,
+          perNight: s.perNight,
+          label: s.label,
+        })),
+        childPolicies: contract.childPolicies.map((cp) => ({
+          category: cp.category,
+          ageFrom: cp.ageFrom,
+          ageTo: cp.ageTo,
+          freeInSharing: cp.freeInSharing,
+          maxFreePerRoom: cp.maxFreePerRoom,
+          extraBedAllowed: cp.extraBedAllowed,
+        })),
+        specialOffers: contract.specialOffers.map((o) => ({
+          id: o.id,
+          name: o.name,
+          offerType: o.offerType,
+          validFrom: o.validFrom?.toISOString().slice(0, 10) ?? null,
+          validTo: o.validTo?.toISOString().slice(0, 10) ?? null,
+          bookByDate: o.bookByDate?.toISOString().slice(0, 10) ?? null,
+          minimumNights: o.minimumNights,
+          minimumRooms: o.minimumRooms,
+          advanceBookDays: o.advanceBookDays,
+          discountType: o.discountType,
+          discountValue: o.discountValue.toString(),
+          stayNights: o.stayNights,
+          payNights: o.payNights,
+          bookFromDate: o.bookFromDate?.toISOString().slice(0, 10) ?? null,
+          stayDateType: o.stayDateType,
+          paymentPct: o.paymentPct,
+          paymentDeadline: o.paymentDeadline?.toISOString().slice(0, 10) ?? null,
+          roomingListBy: o.roomingListBy?.toISOString().slice(0, 10) ?? null,
+          combinable: o.combinable,
+          active: o.active,
+        })),
+      };
 
-      // Determine which seasons cover which nights
-      const { breakdown: nightBreakdown, warnings: nightWarnings } =
-        buildNightBreakdown(checkIn, nights, contract.seasons);
-      warnings.push(...nightWarnings);
-
-      // Check release days per season
-      warnings.push(
-        ...checkReleaseDays(contract.seasons, nightBreakdown, bookingDate),
+      // Use unified simulateStay for rate calculation + warnings
+      const simulation = simulateStay(
+        rateContractData,
+        contract.seasons,
+        contract.stopSales,
+        contract.allotments,
+        {
+          checkIn: input.checkIn,
+          checkOut: input.checkOut,
+          adults: input.adults,
+          childAges: input.childAges,
+          bookingDate,
+          minimumStay: contract.minimumStay,
+          maximumStay: contract.maximumStay,
+        },
       );
 
-      // Check stop sales
-      warnings.push(
-        ...checkStopSales(contract.stopSales, input.checkIn, input.checkOut),
-      );
-
-      // Build rate matrix: room type × meal basis × season
-      interface RateRow {
-        roomTypeId: string;
-        roomTypeName: string;
-        roomTypeCode: string;
-        mealBasisId: string;
-        mealBasisName: string;
-        mealCode: string;
-        nightlyRates: { date: string; seasonName: string; rate: number }[];
-        totalRate: number;
-        avgPerNight: number;
-      }
-
-      const rateMatrix: RateRow[] = [];
-
-      for (const rt of contract.roomTypes) {
-        // Check allotment availability
-        warnings.push(
-          ...checkAllotmentAvailability(
-            contract.allotments,
-            contract.seasons,
-            rt.roomTypeId,
-            rt.roomType.name,
-          ),
-        );
-
-        for (const mb of contract.mealBases) {
-          const nightlyRates: { date: string; seasonName: string; rate: number }[] = [];
-          let totalRate = 0;
-
-          for (const night of nightBreakdown) {
-            if (!night.seasonId) {
-              nightlyRates.push({ date: night.date, seasonName: night.seasonName, rate: 0 });
-              continue;
-            }
-
-            // Base rate for this season
-            const baseRate = contract.baseRates.find(
-              (br) => br.seasonId === night.seasonId,
-            );
-            let rate = baseRate ? parseFloat(baseRate.rate.toString()) : 0;
-
-            // Room type supplement
-            const roomSup = contract.supplements.find(
-              (s) =>
-                s.supplementType === "ROOM_TYPE" &&
-                s.roomTypeId === rt.roomTypeId,
-            );
-            if (roomSup) {
-              const supVal = parseFloat(roomSup.value.toString());
-              rate += roomSup.isReduction ? -supVal : supVal;
-            }
-
-            // Meal supplement
-            const mealSup = contract.supplements.find(
-              (s) =>
-                s.supplementType === "MEAL" &&
-                s.mealBasisId === mb.mealBasisId,
-            );
-            if (mealSup) {
-              const supVal = parseFloat(mealSup.value.toString());
-              rate += mealSup.isReduction ? -supVal : supVal;
-            }
-
-            // Per person basis: multiply by adults
-            if (contract.rateBasis === "PER_PERSON") {
-              rate = rate * input.adults;
-            }
-
-            nightlyRates.push({ date: night.date, seasonName: night.seasonName, rate: Math.round(rate * 100) / 100 });
-            totalRate += rate;
-          }
-
-          rateMatrix.push({
-            roomTypeId: rt.roomTypeId,
-            roomTypeName: rt.roomType.name,
-            roomTypeCode: rt.roomType.code,
-            mealBasisId: mb.mealBasisId,
-            mealBasisName: mb.mealBasis.name,
-            mealCode: mb.mealBasis.mealCode,
-            nightlyRates,
-            totalRate: Math.round(totalRate * 100) / 100,
-            avgPerNight: Math.round((totalRate / (nights || 1)) * 100) / 100,
-          });
-        }
-      }
-
-      // Offer eligibility
+      // Offer eligibility (separate from rate calculation for UI display)
       interface OfferEligibility {
         offerId: string;
         offerName: string;
@@ -192,13 +170,13 @@ export const rateVerificationRouter = createTRPCRouter({
         combinable: boolean;
       }
 
+      const bookingDateObj = new Date(bookingDate);
       const offerEligibility: OfferEligibility[] = [];
       if (input.showOffers) {
         for (const offer of contract.specialOffers) {
           const reasons: string[] = [];
           let eligible = true;
 
-          // Check travel date validity
           if (offer.validFrom) {
             const offerFrom = offer.validFrom.toISOString().slice(0, 10);
             if (input.checkIn < offerFrom) {
@@ -214,20 +192,17 @@ export const rateVerificationRouter = createTRPCRouter({
             }
           }
 
-          // Check booking date
           if (offer.bookByDate) {
             const bookBy = offer.bookByDate.toISOString().slice(0, 10);
-            const bDate = bookingDate.toISOString().slice(0, 10);
-            if (bDate > bookBy) {
+            if (bookingDate > bookBy) {
               eligible = false;
               reasons.push(`Booking date past deadline (${bookBy})`);
             }
           }
 
-          // Check advance booking days
           if (offer.advanceBookDays) {
             const daysBefore = Math.round(
-              (checkIn.getTime() - bookingDate.getTime()) / (24 * 60 * 60 * 1000),
+              (checkIn.getTime() - bookingDateObj.getTime()) / (24 * 60 * 60 * 1000),
             );
             if (daysBefore < offer.advanceBookDays) {
               eligible = false;
@@ -237,13 +212,11 @@ export const rateVerificationRouter = createTRPCRouter({
             }
           }
 
-          // Check minimum nights
           if (offer.minimumNights && nights < offer.minimumNights) {
             eligible = false;
             reasons.push(`${nights} nights vs ${offer.minimumNights} min required`);
           }
 
-          // Check free nights
           if (offer.offerType === "FREE_NIGHTS" && offer.stayNights) {
             if (nights < offer.stayNights) {
               eligible = false;
@@ -278,12 +251,12 @@ export const rateVerificationRouter = createTRPCRouter({
         nights,
         adults: input.adults,
         childAges: input.childAges,
-        bookingDate: bookingDate.toISOString().slice(0, 10),
-        nightBreakdown,
-        rateMatrix,
+        bookingDate,
+        nightBreakdown: simulation.nightBreakdown,
+        rateMatrix: simulation.rateMatrix,
         offerEligibility,
-        warnings,
-        status: warnings.length > 0 ? "WARNING" : "OK",
+        warnings: simulation.warnings,
+        status: simulation.warnings.length > 0 ? "WARNING" : "OK",
       };
     }),
 

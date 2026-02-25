@@ -350,6 +350,7 @@ export const contractRouter = createTRPCRouter({
           stopSales: true,
           childPolicies: true,
           cancellationPolicies: true,
+          specialMeals: true,
         },
       });
 
@@ -359,7 +360,7 @@ export const contractRouter = createTRPCRouter({
       const entities = input.selectiveEntities ?? {
         seasons: true, roomTypes: true, mealBases: true, baseRates: true,
         supplements: true, specialOffers: true, allotments: true, stopSales: true,
-        childPolicies: true, cancellationPolicies: true,
+        childPolicies: true, cancellationPolicies: true, specialMeals: true,
       };
 
       // Date shift calculation
@@ -649,7 +650,28 @@ export const contractRouter = createTRPCRouter({
           copiedEntities.push("cancellationPolicies");
         }
 
-        // 12. Create copy log
+        // 12. Clone special meals with date shift
+        if (entities.specialMeals && source.specialMeals.length > 0) {
+          await tx.contractSpecialMeal.createMany({
+            data: source.specialMeals.map((sm) => ({
+              contractId: newContract.id,
+              occasion: sm.occasion,
+              customName: sm.customName,
+              dateFrom: dateDelta ? shiftDate(sm.dateFrom, dateDelta) : sm.dateFrom,
+              dateTo: dateDelta ? shiftDate(sm.dateTo, dateDelta) : sm.dateTo,
+              mandatory: sm.mandatory,
+              adultPrice: sm.adultPrice,
+              childPrice: sm.childPrice,
+              teenPrice: sm.teenPrice,
+              infantPrice: sm.infantPrice,
+              excludedMealBases: sm.excludedMealBases,
+              notes: sm.notes,
+            })),
+          });
+          copiedEntities.push("specialMeals");
+        }
+
+        // 13. Create copy log
         await tx.contractCopyLog.create({
           data: {
             companyId: ctx.companyId,
@@ -702,6 +724,7 @@ export const contractRouter = createTRPCRouter({
           stopSales: true,
           childPolicies: true,
           cancellationPolicies: true,
+          specialMeals: true,
         },
       });
 
@@ -890,6 +913,26 @@ export const contractRouter = createTRPCRouter({
               chargeValue: cp.chargeValue,
               description: cp.description,
               sortOrder: cp.sortOrder,
+            })),
+          });
+        }
+
+        // Clone special meals
+        if (source.specialMeals.length > 0) {
+          await tx.contractSpecialMeal.createMany({
+            data: source.specialMeals.map((sm) => ({
+              contractId: template.id,
+              occasion: sm.occasion,
+              customName: sm.customName,
+              dateFrom: sm.dateFrom,
+              dateTo: sm.dateTo,
+              mandatory: sm.mandatory,
+              adultPrice: sm.adultPrice,
+              childPrice: sm.childPrice,
+              teenPrice: sm.teenPrice,
+              infantPrice: sm.infantPrice,
+              excludedMealBases: sm.excludedMealBases,
+              notes: sm.notes,
             })),
           });
         }

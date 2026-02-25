@@ -66,7 +66,7 @@ export interface TariffData {
 // ---------------------------------------------------------------------------
 // Resolve the best-matching markup rule using hierarchy:
 //   contract > hotel > destination > global
-// Within each level, higher priority wins. Ties broken by most-specific scope.
+// Most-specific scope wins; priority breaks ties within the same specificity.
 // ---------------------------------------------------------------------------
 
 export function resolveMarkupRule(
@@ -111,8 +111,8 @@ export function resolveMarkupRule(
     const s = specificity(rule);
     if (s < 0) continue; // scope mismatch
 
-    // Higher priority first, then higher specificity
-    const effective = rule.priority * 1000 + s;
+    // More-specific scope wins first; priority breaks ties within same specificity
+    const effective = s * 1000 + rule.priority;
     if (effective > bestScore) {
       bestScore = effective;
       best = rule;
@@ -199,7 +199,7 @@ export function generateTariffRates(
         // Find meal supplement
         const mealSup = contractData.supplements.find(
           (s) =>
-            s.supplementType === "MEAL_BASIS" &&
+            s.supplementType === "MEAL" &&
             s.mealBasisId === mb.mealBasisId,
         );
         const mealSupValue = mealSup
