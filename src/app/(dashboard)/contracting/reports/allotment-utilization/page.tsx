@@ -158,13 +158,12 @@ export default function AllotmentUtilizationPage() {
             disabled={!data || data.length === 0}
             onClick={() => {
               if (!data) return;
-              const headers = ["Hotel", "Contract", "Room Type", "Season", "Basis", "Total", "Sold", "Utilization %"];
+              const headers = ["Hotel", "Contract", "Room Type", "Basis", "Total", "Sold", "Utilization %"];
               const rows: string[][] = data.flatMap((c) =>
                 c.allotments.map((a) => [
                   c.hotelName,
                   c.name,
                   a.roomTypeName,
-                  a.seasonName,
                   BASIS_LABELS[a.basis] ?? a.basis,
                   a.freeSale ? "Free Sale" : String(a.totalRooms),
                   String(a.soldRooms),
@@ -183,13 +182,12 @@ export default function AllotmentUtilizationPage() {
             disabled={!data || data.length === 0}
             onClick={async () => {
               if (!data) return;
-              const headers = ["Hotel", "Contract", "Room Type", "Season", "Basis", "Total", "Sold", "Utilization %"];
+              const headers = ["Hotel", "Contract", "Room Type", "Basis", "Total", "Sold", "Utilization %"];
               const rows: (string | number)[][] = data.flatMap((c) =>
                 c.allotments.map((a) => [
                   c.hotelName,
                   c.name,
                   a.roomTypeName,
-                  a.seasonName,
                   BASIS_LABELS[a.basis] ?? a.basis,
                   a.freeSale ? "Free Sale" : a.totalRooms,
                   a.soldRooms,
@@ -277,7 +275,6 @@ export default function AllotmentUtilizationPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Room Type</TableHead>
-                      <TableHead>Season</TableHead>
                       <TableHead>Basis</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="text-right">Sold</TableHead>
@@ -290,7 +287,6 @@ export default function AllotmentUtilizationPage() {
                         <TableCell className="font-medium">
                           {a.roomTypeName}
                         </TableCell>
-                        <TableCell>{a.seasonName}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">
                             {BASIS_LABELS[a.basis] ?? a.basis}

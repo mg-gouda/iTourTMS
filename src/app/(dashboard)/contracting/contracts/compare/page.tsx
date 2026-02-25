@@ -678,7 +678,7 @@ function SpecialOffersSection({ a, b }: { a: ContractFull; b: ContractFull }) {
 
 function AllotmentsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
   const getKey = (al: ContractFull["allotments"][number]) =>
-    `${al.season.id}|${al.roomType.code}`;
+    al.roomType.code;
 
   const rows = diffArrays(
     a.allotments,
@@ -697,7 +697,6 @@ function AllotmentsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Season</TableHead>
             <TableHead>Room Type</TableHead>
             <TableHead className="text-right">Total Rooms</TableHead>
             <TableHead>Free Sale</TableHead>
@@ -707,7 +706,7 @@ function AllotmentsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
         <TableBody>
           {rows.filter((r) => r.status !== "unchanged").length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">All allotments identical</TableCell>
+              <TableCell colSpan={4} className="text-center text-muted-foreground">All allotments identical</TableCell>
             </TableRow>
           ) : (
             rows.filter((r) => r.status !== "unchanged").map((r) => {
@@ -715,7 +714,6 @@ function AllotmentsSection({ a, b }: { a: ContractFull; b: ContractFull }) {
               const cf = r.changedFields ?? [];
               return (
                 <TableRow key={r.key} className={ROW_BG[r.status]}>
-                  <TableCell>{formatSeasonLabel(item.season.dateFrom, item.season.dateTo)}</TableCell>
                   <TableCell>{item.roomType.name}</TableCell>
                   <TableCell className={`text-right ${cellClass("totalRooms", cf)}`}>
                     {r.status === "changed" && cf.includes("totalRooms")

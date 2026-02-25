@@ -587,11 +587,10 @@ export const contractRouter = createTRPCRouter({
         }
 
         // 8. Clone allotments
-        if (entities.allotments && source.allotments.length > 0 && seasonIdMap.size > 0) {
+        if (entities.allotments && source.allotments.length > 0) {
           await tx.contractAllotment.createMany({
             data: source.allotments.map((a) => ({
               contractId: newContract.id,
-              seasonId: seasonIdMap.get(a.seasonId)!,
               roomTypeId: a.roomTypeId,
               totalRooms: a.totalRooms,
               freeSale: a.freeSale,
@@ -860,7 +859,6 @@ export const contractRouter = createTRPCRouter({
           await tx.contractAllotment.createMany({
             data: source.allotments.map((a) => ({
               contractId: template.id,
-              seasonId: seasonIdMap.get(a.seasonId)!,
               roomTypeId: a.roomTypeId,
               totalRooms: a.totalRooms,
               freeSale: a.freeSale,
@@ -1043,7 +1041,6 @@ export const contractRouter = createTRPCRouter({
           specialOffers: { orderBy: { sortOrder: "asc" as const } },
           allotments: {
             include: {
-              season: { select: { id: true, dateFrom: true, dateTo: true } },
               roomType: { select: { id: true, name: true, code: true } },
             },
           },
@@ -1053,6 +1050,17 @@ export const contractRouter = createTRPCRouter({
           },
           childPolicies: { orderBy: { category: "asc" as const } },
           cancellationPolicies: { orderBy: { daysBefore: "desc" as const } },
+          markets: {
+            include: { market: { select: { id: true, name: true, code: true } } },
+          },
+          marketingContributions: {
+            include: {
+              market: { select: { id: true, name: true, code: true } },
+              season: { select: { id: true, dateFrom: true, dateTo: true } },
+            },
+            orderBy: { createdAt: "asc" as const },
+          },
+          specialMeals: { orderBy: { dateFrom: "asc" as const } },
         },
       });
     }),
@@ -1104,7 +1112,6 @@ export const contractRouter = createTRPCRouter({
         specialOffers: { orderBy: { sortOrder: "asc" as const } },
         allotments: {
           include: {
-            season: { select: { id: true, dateFrom: true, dateTo: true } },
             roomType: { select: { id: true, name: true, code: true } },
           },
         },

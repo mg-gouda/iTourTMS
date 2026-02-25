@@ -78,3 +78,30 @@ export const CANCELLATION_CHARGE_TYPE_LABELS: Record<string, string> = {
   FIXED: "Fixed Amount",
   FIRST_NIGHT: "First Night",
 };
+
+export const ALLOCATION_BASIS_LABELS: Record<string, string> = {
+  FREESALE: "Free Sale",
+  ON_REQUEST: "On Request",
+  COMMITMENT: "Commitment",
+  ALLOCATION: "Allocation",
+};
+
+export const MARKUP_TYPE_LABELS: Record<string, string> = {
+  PERCENTAGE: "Percentage",
+  FIXED_PER_NIGHT: "Fixed Per Night",
+  FIXED_PER_BOOKING: "Fixed Per Booking",
+};
+
+export const SPECIAL_MEAL_OCCASION_LABELS: Record<string, string> = {
+  NYE: "New Year's Eve",
+  CHRISTMAS: "Christmas",
+  EASTER: "Easter",
+  CUSTOM: "Custom",
+};
+
+export const COPY_RATE_MODE_LABELS: Record<string, string> = {
+  FREEZE: "Freeze",
+  INCREASE: "Increase",
+  DECREASE: "Decrease",
+  AVERAGE: "Average",
+};

@@ -44,7 +44,6 @@ export const rateVerificationRouter = createTRPCRouter({
           specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" } },
           allotments: {
             include: {
-              season: { select: { id: true, dateFrom: true, dateTo: true } },
               roomType: { select: { id: true, name: true } },
             },
           },

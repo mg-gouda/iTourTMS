@@ -22,7 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { formatSeasonLabel } from "@/lib/utils";
 
 const BASIS_LABELS: Record<string, string> = {
   FREESALE: "Free Sale",
@@ -200,7 +199,6 @@ export default function AllotmentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Room Type</TableHead>
-                      <TableHead>Season</TableHead>
                       <TableHead>Basis</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="text-right">Sold</TableHead>
@@ -213,7 +211,6 @@ export default function AllotmentsPage() {
                         <TableCell className="font-medium">
                           {a.roomType.name}
                         </TableCell>
-                        <TableCell>{formatSeasonLabel(a.season.dateFrom, a.season.dateTo)}</TableCell>
                         <TableCell>
                           <Badge variant={BASIS_COLORS[a.basis] ?? "secondary"}>
                             {BASIS_LABELS[a.basis] ?? a.basis}

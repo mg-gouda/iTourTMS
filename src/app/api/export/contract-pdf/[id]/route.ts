@@ -7,10 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { generateContractPdf } from "@/lib/export/contract-pdf";
 import { db } from "@/server/db";
-import {
-  computeFullRateGrid,
-  type RateContractData,
-} from "@/server/services/contracting/rate-calculator";
 
 export async function GET(
   _req: NextRequest,
@@ -36,7 +32,7 @@ export async function GET(
       );
     }
 
-    // Fetch contract with the same includes as getForExport
+    // Fetch contract with all related data
     const contract = await db.contract.findFirst({
       where: { id, companyId },
       include: {
@@ -45,7 +41,13 @@ export async function GET(
             id: true,
             name: true,
             code: true,
-            childrenPolicies: { orderBy: { ageFrom: "asc" as const } },
+            starRating: true,
+            city: true,
+            address: true,
+            phone: true,
+            fax: true,
+            email: true,
+            website: true,
           },
         },
         baseCurrency: { select: { id: true, code: true, name: true } },
@@ -55,17 +57,31 @@ export async function GET(
         roomTypes: {
           include: {
             roomType: {
-              select: { id: true, name: true, code: true, maxAdults: true, maxChildren: true },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                minAdults: true,
+                standardAdults: true,
+                maxAdults: true,
+                maxChildren: true,
+                maxOccupancy: true,
+                extraBedAvailable: true,
+              },
             },
           },
           orderBy: { sortOrder: "asc" as const },
         },
         mealBases: {
-          include: { mealBasis: { select: { id: true, name: true, mealCode: true } } },
+          include: {
+            mealBasis: { select: { id: true, name: true, mealCode: true } },
+          },
           orderBy: { sortOrder: "asc" as const },
         },
         baseRates: {
-          include: { season: { select: { id: true, dateFrom: true, dateTo: true } } },
+          include: {
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
+          },
         },
         supplements: {
           include: {
@@ -80,9 +96,16 @@ export async function GET(
         specialOffers: { orderBy: { sortOrder: "asc" as const } },
         allotments: {
           include: {
+            roomType: { select: { id: true, name: true, code: true } },
             season: { select: { id: true, dateFrom: true, dateTo: true } },
+          },
+          orderBy: { roomTypeId: "asc" as const },
+        },
+        stopSales: {
+          include: {
             roomType: { select: { id: true, name: true, code: true } },
           },
+          orderBy: { dateFrom: "asc" as const },
         },
         childPolicies: { orderBy: { category: "asc" as const } },
         cancellationPolicies: { orderBy: { daysBefore: "desc" as const } },
@@ -91,11 +114,22 @@ export async function GET(
             market: { select: { id: true, name: true, code: true } },
           },
         },
+        marketingContributions: {
+          include: {
+            market: { select: { id: true, name: true, code: true } },
+            season: { select: { id: true, dateFrom: true, dateTo: true } },
+          },
+          orderBy: { createdAt: "asc" as const },
+        },
+        specialMeals: { orderBy: { dateFrom: "asc" as const } },
       },
     });
 
     if (!contract) {
-      return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Contract not found" },
+        { status: 404 },
+      );
     }
 
     // Fetch company branding
@@ -111,9 +145,14 @@ export async function GET(
     let logoFormat: string | undefined;
     if (company?.reportsLogoUrl) {
       try {
-        const logoPath = path.join(process.cwd(), "public", company.reportsLogoUrl);
+        const logoPath = path.join(
+          process.cwd(),
+          "public",
+          company.reportsLogoUrl,
+        );
         const logoBuffer = await readFile(logoPath);
-        const ext = company.reportsLogoUrl.split(".").pop()?.toLowerCase() ?? "png";
+        const ext =
+          company.reportsLogoUrl.split(".").pop()?.toLowerCase() ?? "png";
         const mimeMap: Record<string, string> = {
           png: "image/png",
           jpg: "image/jpeg",
@@ -129,109 +168,74 @@ export async function GET(
       }
     }
 
-    // Compute full rate grid for "Calculated Rates Grid" section
-    const contractOverrides = new Map(
-      contract.childPolicies.map((cp) => [cp.category, cp]),
-    );
-    const hotelDefaults = contract.hotel.childrenPolicies;
-    const allCategories = new Set([
-      ...hotelDefaults.map((p) => p.category),
-      ...contract.childPolicies.map((p) => p.category),
-    ]);
-
-    const rateContractData: RateContractData = {
-      rateBasis: contract.rateBasis as "PER_PERSON" | "PER_ROOM",
-      baseRoomTypeId: contract.baseRoomTypeId,
-      baseMealBasisId: contract.baseMealBasisId,
-      seasons: contract.seasons.map((s) => ({
-        id: s.id,
-        dateFrom: s.dateFrom.toISOString().slice(0, 10),
-        dateTo: s.dateTo.toISOString().slice(0, 10),
-      })),
-      roomTypes: contract.roomTypes.map((rt) => ({
-        roomTypeId: rt.roomTypeId,
-        isBase: rt.isBase,
-        roomType: rt.roomType,
-      })),
-      mealBases: contract.mealBases.map((mb) => ({
-        mealBasisId: mb.mealBasisId,
-        isBase: mb.isBase,
-        mealBasis: mb.mealBasis,
-      })),
-      baseRates: contract.baseRates.map((br) => ({
-        seasonId: br.seasonId,
-        rate: br.rate.toString(),
-        singleRate: br.singleRate?.toString() ?? null,
-        doubleRate: br.doubleRate?.toString() ?? null,
-        tripleRate: br.tripleRate?.toString() ?? null,
-      })),
-      supplements: contract.supplements.map((s) => ({
-        seasonId: s.seasonId,
-        supplementType: s.supplementType,
-        roomTypeId: s.roomTypeId,
-        mealBasisId: s.mealBasisId,
-        forAdults: s.forAdults,
-        forChildCategory: s.forChildCategory,
-        forChildBedding: s.forChildBedding,
-        childPosition: s.childPosition,
-        valueType: s.valueType,
-        value: s.value.toString(),
-        isReduction: s.isReduction,
-        perPerson: s.perPerson,
-        perNight: s.perNight,
-        label: s.label,
-      })),
-      childPolicies: Array.from(allCategories).map((category) => {
-        const override = contractOverrides.get(category);
-        if (override) {
-          return {
-            category: override.category,
-            ageFrom: override.ageFrom,
-            ageTo: override.ageTo,
-            freeInSharing: override.freeInSharing,
-            maxFreePerRoom: override.maxFreePerRoom,
-            extraBedAllowed: override.extraBedAllowed,
-          };
-        }
-        const hotel = hotelDefaults.find((p) => p.category === category)!;
-        return {
-          category: hotel.category,
-          ageFrom: hotel.ageFrom,
-          ageTo: hotel.ageTo,
-          freeInSharing: hotel.freeInSharing,
-          maxFreePerRoom: hotel.maxFreePerRoom,
-          extraBedAllowed: hotel.extraBedAllowed,
-        };
-      }),
-      specialOffers: contract.specialOffers.map((o) => ({
-        id: o.id,
-        name: o.name,
-        offerType: o.offerType,
-        validFrom: o.validFrom?.toISOString().slice(0, 10) ?? null,
-        validTo: o.validTo?.toISOString().slice(0, 10) ?? null,
-        bookByDate: o.bookByDate?.toISOString().slice(0, 10) ?? null,
-        minimumNights: o.minimumNights,
-        minimumRooms: o.minimumRooms,
-        advanceBookDays: o.advanceBookDays,
-        discountType: o.discountType,
-        discountValue: o.discountValue.toString(),
-        stayNights: o.stayNights,
-        payNights: o.payNights,
-        bookFromDate: o.bookFromDate?.toISOString().slice(0, 10) ?? null,
-        stayDateType: o.stayDateType,
-        paymentPct: o.paymentPct,
-        paymentDeadline: o.paymentDeadline?.toISOString().slice(0, 10) ?? null,
-        roomingListBy: o.roomingListBy?.toISOString().slice(0, 10) ?? null,
-        combinable: o.combinable,
-        active: o.active,
-      })),
-    };
-
-    const fullRateGrid = computeFullRateGrid(rateContractData);
-
     // Generate PDF
     const pdfBuffer = generateContractPdf(
-      { ...contract, fullRateGrid },
+      {
+        ...contract,
+        hotel: {
+          name: contract.hotel.name,
+          code: contract.hotel.code,
+          starRating: contract.hotel.starRating,
+          city: contract.hotel.city,
+          address: contract.hotel.address,
+          phone: contract.hotel.phone,
+          fax: contract.hotel.fax,
+          email: contract.hotel.email,
+          website: contract.hotel.website,
+        },
+        allotments: contract.allotments.map((a) => ({
+          totalRooms: a.totalRooms,
+          freeSale: a.freeSale,
+          basis: a.basis,
+          roomType: a.roomType,
+          season: a.season,
+        })),
+        stopSales: contract.stopSales.map((ss) => ({
+          roomType: ss.roomType,
+          dateFrom: ss.dateFrom,
+          dateTo: ss.dateTo,
+          reason: ss.reason,
+        })),
+        marketingContributions: contract.marketingContributions.map((mc) => ({
+          market: mc.market,
+          season: mc.season,
+          valueType: mc.valueType,
+          value: mc.value,
+          notes: mc.notes,
+        })),
+        specialMeals: contract.specialMeals.map((sm) => ({
+          occasion: sm.occasion,
+          customName: sm.customName,
+          dateFrom: sm.dateFrom,
+          dateTo: sm.dateTo,
+          mandatory: sm.mandatory,
+          adultPrice: sm.adultPrice,
+          childPrice: sm.childPrice,
+          teenPrice: sm.teenPrice,
+          infantPrice: sm.infantPrice,
+          excludedMealBases: sm.excludedMealBases,
+          notes: sm.notes,
+        })),
+        specialOffers: contract.specialOffers.map((so) => ({
+          name: so.name,
+          offerType: so.offerType,
+          discountType: so.discountType,
+          discountValue: so.discountValue,
+          validFrom: so.validFrom,
+          validTo: so.validTo,
+          bookByDate: so.bookByDate,
+          bookFromDate: so.bookFromDate,
+          minimumNights: so.minimumNights,
+          stayNights: so.stayNights,
+          payNights: so.payNights,
+          stayDateType: so.stayDateType,
+          combinable: so.combinable,
+          paymentPct: so.paymentPct,
+          paymentDeadline: so.paymentDeadline,
+          roomingListBy: so.roomingListBy,
+          active: so.active,
+        })),
+      },
       {
         companyName,
         logoBase64,
@@ -253,7 +257,9 @@ export async function GET(
   } catch (err) {
     console.error("[contract-pdf export]", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "PDF generation failed" },
+      {
+        error: err instanceof Error ? err.message : "PDF generation failed",
+      },
       { status: 500 },
     );
   }

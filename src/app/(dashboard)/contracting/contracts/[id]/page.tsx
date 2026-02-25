@@ -392,10 +392,12 @@ export default function ContractDetailPage() {
           <TabsTrigger value="specialOffers">Special Offers</TabsTrigger>
           <TabsTrigger value="seasonSpos">Season SPOs</TabsTrigger>
           <TabsTrigger value="allotments">Allotments</TabsTrigger>
+          <TabsTrigger value="stopSales">Stop Sales</TabsTrigger>
           <TabsTrigger value="childPolicies">Child Policies</TabsTrigger>
           <TabsTrigger value="specialMeals">Special Meals</TabsTrigger>
           <TabsTrigger value="cancellation">Cancellation</TabsTrigger>
-          <TabsTrigger value="simulator">Simulator</TabsTrigger>
+          <TabsTrigger value="mc">MC</TabsTrigger>
+          <TabsTrigger value="simulator">Rate Calculator</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -435,6 +437,9 @@ export default function ContractDetailPage() {
         <TabsContent value="allotments">
           <AllotmentsTab contractId={id} contract={contract} />
         </TabsContent>
+        <TabsContent value="stopSales">
+          <StopSalesTab contractId={id} contract={contract} />
+        </TabsContent>
         <TabsContent value="childPolicies">
           <ChildPoliciesTab contractId={id} hotelId={contract.hotelId} />
         </TabsContent>
@@ -444,8 +449,11 @@ export default function ContractDetailPage() {
         <TabsContent value="cancellation">
           <CancellationPolicyTab contractId={id} />
         </TabsContent>
+        <TabsContent value="mc">
+          <MarketingContributionTab contractId={id} contract={contract} />
+        </TabsContent>
         <TabsContent value="simulator">
-          <SimulatorTab contractId={id} />
+          <SimulatorTab contractId={id} contract={contract} />
         </TabsContent>
         <TabsContent value="activity">
           <ActivityTab contractId={id} />
@@ -1642,6 +1650,18 @@ function BaseRatesTab({
     );
   }
 
+  // Compute summary data for the seasonality table
+  const summaryRows = contract.seasons.map((s) => {
+    const from = new Date(s.dateFrom);
+    const to = new Date(s.dateTo);
+    const days = Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    const rate = Number(rates[s.id]?.rate) || 0;
+    return { seasonId: s.id, days, rate, amount: Math.round(days * rate * 100) / 100 };
+  });
+  const totalDays = summaryRows.reduce((sum, r) => sum + r.days, 0);
+  const totalAmount = summaryRows.reduce((sum, r) => sum + r.amount, 0);
+  const avgRate = totalDays > 0 ? Math.round((totalAmount / totalDays) * 100) / 100 : 0;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -1656,33 +1676,66 @@ function BaseRatesTab({
         </p>
       )}
 
-      <Table className="w-auto">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Season</TableHead>
-            <TableHead>Base Rate</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {contract.seasons.map((s) => (
-            <TableRow key={s.id}>
-              <TableCell className="font-medium">
-                {formatSeasonLabel(s.dateFrom, s.dateTo)}
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="w-28"
-                  value={rates[s.id]?.rate ?? ""}
-                  onChange={(e) => updateRate(s.id, e.target.value)}
-                />
-              </TableCell>
+      <div className="flex gap-6 items-start">
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Base Rate</h3>
+          <Table className="w-auto">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="rounded-tl-lg">Season</TableHead>
+                <TableHead className="rounded-tr-lg">Base Rate</TableHead>
+              </TableRow>
+            </TableHeader>
+          <TableBody>
+            {contract.seasons.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="font-medium">
+                  {formatSeasonLabel(s.dateFrom, s.dateTo)}
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-28"
+                    value={rates[s.id]?.rate ?? ""}
+                    onChange={(e) => updateRate(s.id, e.target.value)}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          </Table>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Average Contract Rate</h3>
+          <Table className="w-auto">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-right rounded-tl-lg">Total Days</TableHead>
+                <TableHead className="text-right rounded-tr-lg">Total Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+          <TableBody>
+            {summaryRows.map((r) => (
+              <TableRow key={r.seasonId}>
+                <TableCell className="text-right font-mono">{r.days}</TableCell>
+                <TableCell className="text-right font-mono">{r.amount.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+            <TableRow className="border-t-2 font-semibold">
+              <TableCell className="text-right font-mono">{totalDays}</TableCell>
+              <TableCell className="text-right font-mono">{totalAmount.toFixed(2)}</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+            <TableRow>
+              <TableCell className="font-medium rounded-bl-lg">Average Contract Rate</TableCell>
+              <TableCell className="text-right font-mono font-semibold rounded-br-lg">{avgRate.toFixed(2)}</TableCell>
+            </TableRow>
+          </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1785,14 +1838,6 @@ function SupplementsTab({
       <ExtraBedSupplementGrid
         contractId={contractId}
         existing={byType["EXTRA_BED"] ?? []}
-        utils={utils}
-      />
-
-      {/* View Supplements */}
-      <ViewSupplementGrid
-        contractId={contractId}
-        roomTypes={contract.roomTypes}
-        existing={byType["VIEW"] ?? []}
         utils={utils}
       />
 
@@ -2447,192 +2492,6 @@ function ExtraBedSupplementGrid({
 }
 
 // ─── View Supplement Section ──────────────────────────────
-
-type ViewRow = {
-  roomTypeId: string;
-  label: string;
-  value: string;
-  valueType: string;
-  perPerson: boolean;
-  perNight: boolean;
-};
-
-function ViewSupplementGrid({
-  contractId,
-  roomTypes,
-  existing,
-  utils,
-}: {
-  contractId: string;
-  roomTypes: ContractRoomTypeData[];
-  existing: SupplementData[];
-  utils: ReturnType<typeof trpc.useUtils>;
-}) {
-  const [rows, setRows] = useState<ViewRow[]>(() =>
-    existing.length > 0
-      ? existing.map((s) => ({
-          roomTypeId: s.roomTypeId ?? "",
-          label: s.label ?? "",
-          value: String(Number(s.value)),
-          valueType: s.valueType,
-          perPerson: s.perPerson,
-          perNight: s.perNight,
-        }))
-      : [{ roomTypeId: "", label: "", value: "", valueType: "FIXED", perPerson: true, perNight: true }],
-  );
-
-  const saveMutation = trpc.contracting.contractSupplement.bulkSaveView.useMutation({
-    onSuccess: () => utils.contracting.contract.getById.invalidate({ id: contractId }),
-  });
-
-  function addRow() {
-    setRows((prev) => [
-      ...prev,
-      { roomTypeId: "", label: "", value: "", valueType: "FIXED", perPerson: true, perNight: true },
-    ]);
-  }
-
-  function removeRow(idx: number) {
-    setRows((prev) => prev.filter((_, i) => i !== idx));
-  }
-
-  function updateRow(idx: number, field: keyof ViewRow, val: string | boolean) {
-    setRows((prev) =>
-      prev.map((r, i) => (i === idx ? { ...r, [field]: val } : r)),
-    );
-  }
-
-  function handleSave() {
-    const items = rows
-      .filter((r) => r.roomTypeId && r.label && r.value && Number(r.value) !== 0)
-      .map((r) => ({
-        roomTypeId: r.roomTypeId,
-        label: r.label,
-        value: Number(r.value),
-        valueType: r.valueType as "FIXED" | "PERCENTAGE",
-        perPerson: r.perPerson,
-        perNight: r.perNight,
-      }));
-    saveMutation.mutate({ contractId, items });
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>View Supplements</CardTitle>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={addRow}>
-            <Plus className="mr-1 size-3" /> Add Row
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? "Saving..." : "Save"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {saveMutation.error && (
-          <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
-        )}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Room Type</TableHead>
-              <TableHead>View Label</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Per Person</TableHead>
-              <TableHead>Per Night</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row, idx) => (
-              <TableRow key={idx}>
-                <TableCell>
-                  <Select
-                    value={row.roomTypeId}
-                    onValueChange={(v) => updateRow(idx, "roomTypeId", v)}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roomTypes.map((rt) => (
-                        <SelectItem key={rt.roomTypeId} value={rt.roomTypeId}>
-                          {rt.roomType.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    placeholder="e.g. Sea View"
-                    className="w-36"
-                    value={row.label}
-                    onChange={(e) => updateRow(idx, "label", e.target.value)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    className="w-24"
-                    value={row.value}
-                    onChange={(e) => updateRow(idx, "value", e.target.value)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={row.valueType}
-                    onValueChange={(v) => updateRow(idx, "valueType", v)}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="FIXED">{SUPPLEMENT_VALUE_TYPE_LABELS.FIXED}</SelectItem>
-                      <SelectItem value="PERCENTAGE">{SUPPLEMENT_VALUE_TYPE_LABELS.PERCENTAGE}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Checkbox
-                    checked={row.perPerson}
-                    onCheckedChange={(checked) => updateRow(idx, "perPerson", checked === true)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Checkbox
-                    checked={row.perNight}
-                    onCheckedChange={(checked) => updateRow(idx, "perNight", checked === true)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => removeRow(idx)}
-                  >
-                    <X className="size-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
-                  No view supplements. Click &quot;Add Row&quot; to add one.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
 
 // ─── Season SPO Dialog ──────────────────────────────────
 
@@ -3524,10 +3383,6 @@ type StopSaleData = {
   roomType: { id: string; name: string; code: string } | null;
 };
 
-function cellKey(rowId: string, colId: string) {
-  return `${rowId}:${colId}`;
-}
-
 function AllotmentsTab({
   contractId,
   contract,
@@ -3536,27 +3391,33 @@ function AllotmentsTab({
   contract: ContractData;
 }) {
   return (
-    <div className="space-y-6">
-      <AllotmentGrid
-        contractId={contractId}
-        seasons={contract.seasons}
-        roomTypes={contract.roomTypes}
-      />
-      <StopSalesSection
-        contractId={contractId}
-        roomTypes={contract.roomTypes}
-      />
-    </div>
+    <AllotmentGrid
+      contractId={contractId}
+      roomTypes={contract.roomTypes}
+    />
+  );
+}
+
+function StopSalesTab({
+  contractId,
+  contract,
+}: {
+  contractId: string;
+  contract: ContractData;
+}) {
+  return (
+    <StopSalesSection
+      contractId={contractId}
+      roomTypes={contract.roomTypes}
+    />
   );
 }
 
 function AllotmentGrid({
   contractId,
-  seasons,
   roomTypes,
 }: {
   contractId: string;
-  seasons: SeasonData[];
   roomTypes: ContractRoomTypeData[];
 }) {
   const utils = trpc.useUtils();
@@ -3571,7 +3432,7 @@ function AllotmentGrid({
     if (!allotments) return;
     const init: AllotmentGridState = {};
     for (const a of allotments) {
-      init[cellKey(a.roomTypeId, a.seasonId)] = {
+      init[a.roomTypeId] = {
         totalRooms: a.freeSale ? "" : String(a.totalRooms),
         freeSale: a.freeSale,
         basis: a.basis as AllotmentCellValue["basis"],
@@ -3588,19 +3449,16 @@ function AllotmentGrid({
   });
 
   function handleSave() {
-    const items: { seasonId: string; roomTypeId: string; basis: AllotmentCellValue["basis"]; totalRooms: number; freeSale: boolean }[] = [];
+    const items: { roomTypeId: string; basis: AllotmentCellValue["basis"]; totalRooms: number; freeSale: boolean }[] = [];
     for (const rt of roomTypes) {
-      for (const season of seasons) {
-        const cell = grid[cellKey(rt.roomTypeId, season.id)];
-        if (cell && (cell.freeSale || (cell.totalRooms && Number(cell.totalRooms) > 0))) {
-          items.push({
-            seasonId: season.id,
-            roomTypeId: rt.roomTypeId,
-            basis: cell.basis,
-            totalRooms: cell.freeSale ? 0 : (Number(cell.totalRooms) || 0),
-            freeSale: cell.freeSale,
-          });
-        }
+      const cell = grid[rt.roomTypeId];
+      if (cell && (cell.freeSale || (cell.totalRooms && Number(cell.totalRooms) > 0))) {
+        items.push({
+          roomTypeId: rt.roomTypeId,
+          basis: cell.basis,
+          totalRooms: cell.freeSale ? 0 : (Number(cell.totalRooms) || 0),
+          freeSale: cell.freeSale,
+        });
       }
     }
     saveMutation.mutate({ contractId, items });
@@ -3616,10 +3474,10 @@ function AllotmentGrid({
     }));
   }
 
-  if (seasons.length === 0 || roomTypes.length === 0) {
+  if (roomTypes.length === 0) {
     return (
       <div className="py-10 text-center text-muted-foreground">
-        Configure seasons and room types first to set up allotments.
+        Configure room types first to set up allotments.
       </div>
     );
   }
@@ -3641,74 +3499,67 @@ function AllotmentGrid({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px]">Room Type</TableHead>
-              {seasons.map((s) => (
-                <TableHead key={s.id} className="text-center">
-                  {formatSeasonLabel(s.dateFrom, s.dateTo)}
-                </TableHead>
-              ))}
+              <TableHead>Basis</TableHead>
+              <TableHead className="text-center">Total Rooms</TableHead>
+              <TableHead className="text-center">Free Sale</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {roomTypes.map((rt) => (
-              <TableRow key={rt.roomTypeId}>
-                <TableCell className="font-medium">
-                  {rt.roomType.name}
-                  {rt.isBase && (
-                    <Badge variant="secondary" className="ml-2">
-                      Base
-                    </Badge>
-                  )}
-                </TableCell>
-                {seasons.map((s) => {
-                  const key = cellKey(rt.roomTypeId, s.id);
-                  const cell = grid[key] ?? { totalRooms: "", freeSale: false, basis: "ALLOCATION" as const };
-                  return (
-                    <TableCell key={s.id}>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          {cell.freeSale ? (
-                            <div className="flex h-9 w-20 items-center justify-center rounded-md border bg-muted text-lg font-semibold text-muted-foreground">
-                              &infin;
-                            </div>
-                          ) : (
-                            <Input
-                              type="number"
-                              min={0}
-                              className="w-20"
-                              value={cell.totalRooms}
-                              onChange={(e) => updateCell(key, "totalRooms", e.target.value)}
-                            />
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Checkbox
-                              checked={cell.freeSale}
-                              onCheckedChange={(checked) =>
-                                updateCell(key, "freeSale", checked === true)
-                              }
-                            />
-                            <span className="text-xs text-muted-foreground">Free</span>
-                          </div>
-                        </div>
-                        <Select
-                          value={cell.basis}
-                          onValueChange={(v) => updateCell(key, "basis", v)}
-                        >
-                          <SelectTrigger className="h-7 w-full text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ALLOCATION">Allocation</SelectItem>
-                            <SelectItem value="FREESALE">Free Sale</SelectItem>
-                            <SelectItem value="ON_REQUEST">On Request</SelectItem>
-                            <SelectItem value="COMMITMENT">Commitment</SelectItem>
-                          </SelectContent>
-                        </Select>
+            {roomTypes.map((rt) => {
+              const key = rt.roomTypeId;
+              const cell = grid[key] ?? { totalRooms: "", freeSale: false, basis: "ALLOCATION" as const };
+              return (
+                <TableRow key={rt.roomTypeId}>
+                  <TableCell className="font-medium">
+                    {rt.roomType.name}
+                    {rt.isBase && (
+                      <Badge variant="secondary" className="ml-2">
+                        Base
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={cell.basis}
+                      onValueChange={(v) => updateCell(key, "basis", v)}
+                    >
+                      <SelectTrigger className="h-8 w-[140px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALLOCATION">Allocation</SelectItem>
+                        <SelectItem value="FREESALE">Free Sale</SelectItem>
+                        <SelectItem value="ON_REQUEST">On Request</SelectItem>
+                        <SelectItem value="COMMITMENT">Commitment</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {cell.freeSale ? (
+                      <div className="flex h-9 w-20 items-center justify-center rounded-md border bg-muted text-lg font-semibold text-muted-foreground mx-auto">
+                        &infin;
                       </div>
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
+                    ) : (
+                      <Input
+                        type="number"
+                        min={0}
+                        className="w-20 mx-auto"
+                        value={cell.totalRooms}
+                        onChange={(e) => updateCell(key, "totalRooms", e.target.value)}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={cell.freeSale}
+                      onCheckedChange={(checked) =>
+                        updateCell(key, "freeSale", checked === true)
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
@@ -3885,47 +3736,6 @@ function RateSheetTab({
   const { data: rateSheet, isLoading } =
     trpc.contracting.rateCalculator.getRateSheet.useQuery({ contractId });
 
-  // Calculator state — booking-oriented flow
-  const [arrivalDate, setArrivalDate] = useState("");
-  const [departureDate, setDepartureDate] = useState("");
-  const [adults, setAdults] = useState(2);
-  const [childCount, setChildCount] = useState(0);
-  const [childDobs, setChildDobs] = useState<string[]>([]);
-  const [mealBasisId, setMealBasisId] = useState(contract.mealBases[0]?.mealBasisId ?? "");
-  const [extraBed, setExtraBed] = useState(false);
-  const [bookingDate, setBookingDate] = useState("");
-
-  // Auto-calculate nights
-  const calcNights = arrivalDate && departureDate
-    ? Math.max(0, Math.floor((new Date(departureDate).getTime() - new Date(arrivalDate).getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
-
-  // Sync childDobs array length with childCount
-  useEffect(() => {
-    setChildDobs((prev) => {
-      if (prev.length === childCount) return prev;
-      if (childCount < prev.length) return prev.slice(0, childCount);
-      return [...prev, ...Array(childCount - prev.length).fill("")];
-    });
-  }, [childCount]);
-
-  const allChildDobsFilled = childCount === 0 || childDobs.every((d) => d.length > 0);
-
-  const { data: multiResult, isLoading: isCalculating } =
-    trpc.contracting.rateCalculator.calculateMultiRoom.useQuery(
-      {
-        contractId,
-        arrivalDate,
-        departureDate,
-        adults,
-        childDobs: childDobs.filter((d) => d.length > 0),
-        mealBasisId,
-        extraBed,
-        bookingDate: bookingDate || null,
-      },
-      { enabled: !!arrivalDate && !!departureDate && departureDate > arrivalDate && !!mealBasisId && allChildDobsFilled },
-    );
-
   if (contract.seasons.length === 0 || contract.baseRates.length === 0) {
     return (
       <div className="py-10 text-center text-muted-foreground">
@@ -4043,356 +3853,6 @@ function RateSheetTab({
               </TableBody>
             </Table>
           ) : null}
-        </CardContent>
-      </Card>
-
-      {/* Interactive Calculator */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Rate Calculator</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Row 1: Arrival, Departure, Nights, Adults */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <div>
-              <label className="text-sm font-medium">Arrival Date</label>
-              <Input
-                type="date"
-                value={arrivalDate}
-                onChange={(e) => setArrivalDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Departure Date</label>
-              <Input
-                type="date"
-                value={departureDate}
-                onChange={(e) => setDepartureDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Nights</label>
-              <Input
-                type="number"
-                value={calcNights}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Adults</label>
-              <Input
-                type="number"
-                min={1}
-                max={6}
-                value={adults}
-                onChange={(e) => setAdults(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Children, Meal Plan, Extra Bed, Booking Date */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <div>
-              <label className="text-sm font-medium">Children</label>
-              <Input
-                type="number"
-                min={0}
-                max={4}
-                value={childCount}
-                onChange={(e) => setChildCount(Math.max(0, Math.min(4, Number(e.target.value) || 0)))}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Meal Plan</label>
-              <Select value={mealBasisId} onValueChange={setMealBasisId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {contract.mealBases.map((mb) => (
-                    <SelectItem key={mb.mealBasisId} value={mb.mealBasisId}>
-                      {mb.mealBasis.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end gap-2 pb-2">
-              <Checkbox
-                id="extraBed"
-                checked={extraBed}
-                onCheckedChange={(checked) => setExtraBed(checked === true)}
-              />
-              <label htmlFor="extraBed" className="text-sm font-medium">
-                Extra Bed
-              </label>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Booking Date</label>
-              <Input
-                type="date"
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Row 3: Child DOBs (dynamic) */}
-          {childCount > 0 && (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {Array.from({ length: childCount }).map((_, idx) => (
-                <div key={idx}>
-                  <label className="text-sm font-medium">Child {idx + 1} DOB</label>
-                  <Input
-                    type="date"
-                    value={childDobs[idx] ?? ""}
-                    onChange={(e) =>
-                      setChildDobs((prev) =>
-                        prev.map((d, i) => (i === idx ? e.target.value : d)),
-                      )
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Separator />
-
-          {/* Results */}
-          {isCalculating ? (
-            <div className="py-4 text-center text-muted-foreground">
-              Calculating...
-            </div>
-          ) : multiResult ? (
-            <div className="space-y-4">
-              {/* Header info */}
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                {multiResult.seasonLabel && (
-                  <Badge variant="outline">
-                    Season: {multiResult.seasonLabel}
-                  </Badge>
-                )}
-                {multiResult.nights > 0 && (
-                  <Badge variant="outline">
-                    {multiResult.nights} night{multiResult.nights !== 1 ? "s" : ""}
-                  </Badge>
-                )}
-                {multiResult.resolvedChildren.map((rc, idx) => (
-                  <Badge key={idx} variant="secondary">
-                    Child {idx + 1}: age {rc.ageAtCheckIn} ({rc.category})
-                  </Badge>
-                ))}
-              </div>
-
-              {/* Room type results */}
-              {multiResult.results.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
-                  {!multiResult.seasonId
-                    ? "No season matches the selected arrival date."
-                    : "No room types match the selected occupancy criteria. Check that occupancy tables are configured for the requested combination."}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {multiResult.results.map((room) => {
-                    const bd = room.breakdown;
-                    const cc = contract.baseCurrency.code;
-                    const fmt = (n: number) => `${cc} ${formatCurrency(n)}`;
-                    const isPP = bd.rateBasis === "PER_PERSON";
-                    const adultRoomPerNight = isPP ? bd.adultTotalPerNight * room.occupancyMatch.adults : bd.adultTotalPerNight;
-
-                    return (
-                    <details key={room.roomTypeId} className="group rounded-lg border">
-                      <summary className="flex cursor-pointer items-center justify-between p-4 hover:bg-muted/50">
-                        <div>
-                          <span className="font-semibold">{room.roomTypeName}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            ({room.occupancyMatch.adults}A
-                            {room.occupancyMatch.children > 0 && `+${room.occupancyMatch.children}C`}
-                            {room.occupancyMatch.infants > 0 && `+${room.occupancyMatch.infants}I`}
-                            {room.occupancyMatch.extraBeds > 0 && `+${room.occupancyMatch.extraBeds}EB`})
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold">
-                            {fmt(room.totalPerRoomAfterOffers)}
-                          </div>
-                          {room.totalPerRoom !== room.totalPerRoomAfterOffers && (
-                            <div className="text-xs text-muted-foreground line-through">
-                              {fmt(room.totalPerRoom)}
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground">
-                            {fmt(room.roomTotalPerNight)} / night
-                          </div>
-                        </div>
-                      </summary>
-                      <div className="border-t p-4">
-                        <div className="rounded-lg border p-4 space-y-0">
-                          {/* Section 1: Per-person adult rate build-up */}
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            {isPP ? "Adult Rate (per person / night)" : "Room Rate (per night)"}
-                          </p>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span>{bd.baseRateLabel}</span>
-                              <span className="font-mono">{fmt(bd.baseRate)}</span>
-                            </div>
-                            {bd.roomTypeSupplement && bd.roomTypeSupplement.amount !== 0 && (
-                              <div className="flex justify-between text-sm">
-                                <span>
-                                  <span className="text-muted-foreground">{bd.roomTypeSupplement.amount > 0 ? "+" : ""} </span>
-                                  Room Type ({bd.roomTypeSupplement.label})
-                                </span>
-                                <span className="font-mono">{fmt(bd.roomTypeSupplement.amount)}</span>
-                              </div>
-                            )}
-                            {bd.mealSupplement && bd.mealSupplement.amount !== 0 && (
-                              <div className="flex justify-between text-sm">
-                                <span>
-                                  <span className="text-muted-foreground">{bd.mealSupplement.amount >= 0 ? "+" : ""} </span>
-                                  Meal Plan ({bd.mealSupplement.label})
-                                </span>
-                                <span className="font-mono">{fmt(bd.mealSupplement.amount)}</span>
-                              </div>
-                            )}
-                            {bd.occupancySupplement && bd.occupancySupplement.amount !== 0 && (
-                              <div className="flex justify-between text-sm">
-                                <span>
-                                  <span className="text-muted-foreground">{bd.occupancySupplement.amount >= 0 ? "+" : ""} </span>
-                                  {bd.occupancySupplement.label}
-                                </span>
-                                <span className="font-mono">{fmt(bd.occupancySupplement.amount)}</span>
-                              </div>
-                            )}
-                            {bd.extraBedSupplement && bd.extraBedSupplement.amount !== 0 && (
-                              <div className="flex justify-between text-sm">
-                                <span>
-                                  <span className="text-muted-foreground">+ </span>
-                                  {bd.extraBedSupplement.label}
-                                </span>
-                                <span className="font-mono">{fmt(bd.extraBedSupplement.amount)}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <Separator className="my-2" />
-
-                          <div className="flex justify-between text-sm font-semibold">
-                            <span>{isPP ? "Per Person / Night" : "Room Rate / Night"}</span>
-                            <span className="font-mono">{fmt(bd.adultTotalPerNight)}</span>
-                          </div>
-
-                          {/* Section 2: Multiply by adults (PER_PERSON only) */}
-                          {isPP && room.occupancyMatch.adults > 0 && (
-                            <>
-                              <Separator className="my-2" />
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Room Calculation</p>
-                              <div className="flex justify-between text-sm">
-                                <span>{fmt(bd.adultTotalPerNight)} x {room.occupancyMatch.adults} adult{room.occupancyMatch.adults !== 1 ? "s" : ""}</span>
-                                <span className="font-mono">{fmt(adultRoomPerNight)}</span>
-                              </div>
-                            </>
-                          )}
-
-                          {/* Section 3: Child charges */}
-                          {bd.childCharges.length > 0 && (
-                            <>
-                              {!(isPP && room.occupancyMatch.adults > 0) && <Separator className="my-2" />}
-                              <div className="mt-1 space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground">Children</p>
-                                {bd.childCharges.map((chc, idx) => (
-                                  <div key={idx} className="flex justify-between text-sm">
-                                    <span>
-                                      <span className="text-muted-foreground">+ </span>
-                                      {chc.label}
-                                      {chc.isFree && (
-                                        <Badge variant="secondary" className="ml-2 text-xs">Free</Badge>
-                                      )}
-                                    </span>
-                                    <span className="font-mono">{fmt(chc.amount)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-
-                          {/* Section 4: Room total per night */}
-                          <Separator className="my-2" />
-                          <div className="flex justify-between font-semibold">
-                            <span>Room Total / Night</span>
-                            <span className="font-mono">{fmt(room.roomTotalPerNight)}</span>
-                          </div>
-
-                          {/* Section 5: Multiply by nights */}
-                          {multiResult.nights > 1 && (
-                            <div className="mt-1 flex justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {fmt(room.roomTotalPerNight)} x {multiResult.nights} nights
-                              </span>
-                              <span className="font-mono font-semibold">{fmt(room.totalPerRoom)}</span>
-                            </div>
-                          )}
-
-                          <Separator className="my-2" />
-                          <div className="flex justify-between text-lg font-bold">
-                            <span>Total Stay</span>
-                            <span className="font-mono">{fmt(room.totalPerRoom)}</span>
-                          </div>
-
-                          {/* Section 6: Special offers */}
-                          {bd.offerDiscounts.length > 0 && (
-                            <>
-                              <Separator className="my-2" />
-                              <p className="text-xs font-medium text-muted-foreground">Special Offers</p>
-                              <div className="mt-1 space-y-1">
-                                {bd.offerDiscounts.map((od, idx) => {
-                                  const isEligible = od.discount > 0;
-                                  const roomDiscount = bd.totalStay > 0
-                                    ? od.discount * (room.totalPerRoom / bd.totalStay)
-                                    : 0;
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className={`flex justify-between text-sm ${isEligible ? "text-green-600" : "text-muted-foreground"}`}
-                                    >
-                                      <span>
-                                        {isEligible ? "−" : ""} {od.offerName}
-                                        <span className="ml-1 text-xs">({od.description})</span>
-                                      </span>
-                                      <span className="font-mono">
-                                        {isEligible ? `−${fmt(roomDiscount)}` : "—"}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
-                              {room.totalPerRoomAfterOffers !== room.totalPerRoom && (
-                                <>
-                                  <Separator className="my-2" />
-                                  <div className="flex justify-between text-lg font-bold text-green-600">
-                                    <span>Final Total</span>
-                                    <span className="font-mono">{fmt(room.totalPerRoomAfterOffers)}</span>
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </details>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-4 text-center text-sm text-muted-foreground">
-              Enter arrival &amp; departure dates with a meal plan to search available rooms.
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
@@ -5794,212 +5254,762 @@ function SpecialMealsTab({ contractId }: { contractId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Marketing Contribution Tab
+// ---------------------------------------------------------------------------
+
+function MarketingContributionTab({
+  contractId,
+  contract,
+}: {
+  contractId: string;
+  contract: ContractData;
+}) {
+  const utils = trpc.useUtils();
+  const { data: contributions, isLoading } =
+    trpc.contracting.marketingContribution.listByContract.useQuery({ contractId });
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [marketId, setMarketId] = useState<string | null>(null);
+  const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [valueType, setValueType] = useState<string>("PERCENTAGE");
+  const [value, setValue] = useState(0);
+  const [notes, setNotes] = useState("");
+
+  const createMutation = trpc.contracting.marketingContribution.create.useMutation({
+    onSuccess: () => {
+      void utils.contracting.marketingContribution.listByContract.invalidate({ contractId });
+      setShowDialog(false);
+      resetForm();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.contracting.marketingContribution.delete.useMutation({
+    onSuccess: () => utils.contracting.marketingContribution.listByContract.invalidate({ contractId }),
+    onError: (err) => toast.error(err.message),
+  });
+
+  function resetForm() {
+    setMarketId(null);
+    setSeasonId(null);
+    setValueType("PERCENTAGE");
+    setValue(0);
+    setNotes("");
+  }
+
+  function handleCreate() {
+    createMutation.mutate({
+      contractId,
+      marketId: marketId || null,
+      seasonId: seasonId || null,
+      valueType: valueType as "FIXED" | "PERCENTAGE",
+      value,
+      notes: notes || null,
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Marketing Contributions</CardTitle>
+        <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}>
+          <Plus className="mr-2 size-3" /> Add MC
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : contributions && contributions.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Market</TableHead>
+                <TableHead>Season</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Value</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {contributions.map((mc) => (
+                <TableRow key={mc.id}>
+                  <TableCell className="font-medium">
+                    {mc.market ? mc.market.name : (
+                      <span className="text-muted-foreground">All Markets</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {mc.season ? (
+                      <span className="text-sm">
+                        {format(new Date(mc.season.dateFrom), "dd MMM yyyy")} – {format(new Date(mc.season.dateTo), "dd MMM yyyy")}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">All Seasons</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {mc.valueType === "PERCENTAGE" ? "Percentage" : "Fixed"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {mc.valueType === "PERCENTAGE"
+                      ? `${parseFloat(mc.value.toString())}%`
+                      : parseFloat(mc.value.toString()).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {mc.notes || "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => deleteMutation.mutate({ id: mc.id })}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <p className="text-center text-muted-foreground py-8">
+            No marketing contributions configured.
+          </p>
+        )}
+
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Marketing Contribution</DialogTitle>
+              <DialogDescription>
+                Define a marketing contribution for specific or all markets and seasons.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div>
+                <label className="text-sm font-medium">Market</label>
+                <Select
+                  value={marketId ?? "__all__"}
+                  onValueChange={(v) => setMarketId(v === "__all__" ? null : v)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Markets</SelectItem>
+                    {contract.markets.map((m) => (
+                      <SelectItem key={m.market.id} value={m.market.id}>
+                        {m.market.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Season</label>
+                <Select
+                  value={seasonId ?? "__all__"}
+                  onValueChange={(v) => setSeasonId(v === "__all__" ? null : v)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Seasons</SelectItem>
+                    {contract.seasons.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {format(new Date(s.dateFrom), "dd MMM yyyy")} – {format(new Date(s.dateTo), "dd MMM yyyy")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Type</label>
+                  <Select value={valueType} onValueChange={setValueType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                      <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">
+                    Value {valueType === "PERCENTAGE" ? "(%)" : `(${contract.baseCurrency.code})`}
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={value}
+                    onChange={(e) => setValue(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Notes</label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Optional notes"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreate} disabled={value <= 0 || createMutation.isPending}>
+                {createMutation.isPending ? "Creating..." : "Create"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Simulator Tab (Rate Verification)
 // ---------------------------------------------------------------------------
 
-function SimulatorTab({ contractId }: { contractId: string }) {
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+function SimulatorTab({
+  contractId,
+  contract,
+}: {
+  contractId: string;
+  contract: ContractData;
+}) {
+  const [arrivalDate, setArrivalDate] = useState("");
+  const [departureDate, setDepartureDate] = useState("");
   const [adults, setAdults] = useState(2);
-  const [bookingDate, setBookingDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
-  const [showOffers, setShowOffers] = useState(true);
-  const [runSim, setRunSim] = useState(false);
+  const [childCount, setChildCount] = useState(0);
+  const [childDobs, setChildDobs] = useState<string[]>([]);
+  const [mealBasisId, setMealBasisId] = useState(contract.mealBases[0]?.mealBasisId ?? "");
+  const [extraBed, setExtraBed] = useState(false);
+  const [bookingDate, setBookingDate] = useState("");
 
-  const { data: simResult, isLoading: simLoading } =
+  // Auto-calculate nights
+  const calcNights = arrivalDate && departureDate
+    ? Math.max(0, Math.floor((new Date(departureDate).getTime() - new Date(arrivalDate).getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  // Sync childDobs array length with childCount
+  useEffect(() => {
+    setChildDobs((prev) => {
+      if (prev.length === childCount) return prev;
+      if (childCount < prev.length) return prev.slice(0, childCount);
+      return [...prev, ...Array(childCount - prev.length).fill("")];
+    });
+  }, [childCount]);
+
+  const allChildDobsFilled = childCount === 0 || childDobs.every((d) => d.length > 0);
+
+  const { data: multiResult, isLoading: isCalculating } =
+    trpc.contracting.rateCalculator.calculateMultiRoom.useQuery(
+      {
+        contractId,
+        arrivalDate,
+        departureDate,
+        adults,
+        childDobs: childDobs.filter((d) => d.length > 0),
+        mealBasisId,
+        extraBed,
+        bookingDate: bookingDate || null,
+      },
+      { enabled: !!arrivalDate && !!departureDate && departureDate > arrivalDate && !!mealBasisId && allChildDobsFilled },
+    );
+
+  // Compute child ages from DOBs for the simulate query
+  const childAges = arrivalDate
+    ? childDobs.filter((d) => d.length > 0).map((dob) => {
+        const arrival = new Date(arrivalDate);
+        const birth = new Date(dob);
+        let age = arrival.getFullYear() - birth.getFullYear();
+        const m = arrival.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && arrival.getDate() < birth.getDate())) age--;
+        return Math.max(0, age);
+      })
+    : [];
+
+  const { data: simResult } =
     trpc.contracting.rateVerification.simulate.useQuery(
       {
         contractId,
-        checkIn,
-        checkOut,
+        checkIn: arrivalDate,
+        checkOut: departureDate,
         adults,
-        childAges: [],
-        bookingDate,
-        showOffers,
+        childAges,
+        bookingDate: bookingDate || undefined,
+        showOffers: true,
       },
-      { enabled: runSim && !!checkIn && !!checkOut },
+      { enabled: !!arrivalDate && !!departureDate && departureDate > arrivalDate },
     );
 
+  if (contract.seasons.length === 0 || contract.baseRates.length === 0) {
+    return (
+      <div className="py-10 text-center text-muted-foreground">
+        Configure seasons and base rates first to use the rate calculator.
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Booking Simulator</CardTitle>
+          <CardTitle>Rate Calculator</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          {/* Row 1: Arrival, Departure, Nights, Adults */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Check-in
-              </label>
+              <label className="text-sm font-medium">Arrival Date</label>
               <Input
                 type="date"
-                value={checkIn}
-                onChange={(e) => {
-                  setCheckIn(e.target.value);
-                  setRunSim(false);
-                }}
+                value={arrivalDate}
+                onChange={(e) => setArrivalDate(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Check-out
-              </label>
+              <label className="text-sm font-medium">Departure Date</label>
               <Input
                 type="date"
-                value={checkOut}
-                onChange={(e) => {
-                  setCheckOut(e.target.value);
-                  setRunSim(false);
-                }}
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Adults
-              </label>
+              <label className="text-sm font-medium">Nights</label>
+              <Input
+                type="number"
+                value={calcNights}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Adults</label>
               <Input
                 type="number"
                 min={1}
                 max={6}
                 value={adults}
-                onChange={(e) => {
-                  setAdults(parseInt(e.target.value) || 2);
-                  setRunSim(false);
-                }}
+                onChange={(e) => setAdults(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Children, Meal Plan, Extra Bed, Booking Date */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <label className="text-sm font-medium">Children</label>
+              <Input
+                type="number"
+                min={0}
+                max={4}
+                value={childCount}
+                onChange={(e) => setChildCount(Math.max(0, Math.min(4, Number(e.target.value) || 0)))}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Booking Date
+              <label className="text-sm font-medium">Meal Plan</label>
+              <Select value={mealBasisId} onValueChange={setMealBasisId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {contract.mealBases.map((mb) => (
+                    <SelectItem key={mb.mealBasisId} value={mb.mealBasisId}>
+                      {mb.mealBasis.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end gap-2 pb-2">
+              <Checkbox
+                id="simExtraBed"
+                checked={extraBed}
+                onCheckedChange={(checked) => setExtraBed(checked === true)}
+              />
+              <label htmlFor="simExtraBed" className="text-sm font-medium">
+                Extra Bed
               </label>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Booking Date</label>
               <Input
                 type="date"
                 value={bookingDate}
-                onChange={(e) => {
-                  setBookingDate(e.target.value);
-                  setRunSim(false);
-                }}
+                onChange={(e) => setBookingDate(e.target.value)}
               />
-            </div>
-            <div className="flex items-end">
-              <Button
-                onClick={() => setRunSim(true)}
-                disabled={!checkIn || !checkOut || simLoading}
-                className="w-full"
-              >
-                {simLoading ? "Simulating..." : "Simulate"}
-              </Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="showOffers"
-              checked={showOffers}
-              onCheckedChange={(v) => {
-                setShowOffers(!!v);
-                setRunSim(false);
-              }}
-            />
-            <label htmlFor="showOffers" className="text-sm">
-              Show offer eligibility
-            </label>
-          </div>
+          {/* Row 3: Child DOBs (dynamic) */}
+          {childCount > 0 && (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {Array.from({ length: childCount }).map((_, idx) => (
+                <div key={idx}>
+                  <label className="text-sm font-medium">Child {idx + 1} DOB</label>
+                  <Input
+                    type="date"
+                    value={childDobs[idx] ?? ""}
+                    onChange={(e) =>
+                      setChildDobs((prev) =>
+                        prev.map((d, i) => (i === idx ? e.target.value : d)),
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Results */}
+          {isCalculating ? (
+            <div className="py-4 text-center text-muted-foreground">
+              Calculating...
+            </div>
+          ) : multiResult ? (
+            <div className="space-y-4">
+              {/* Header info */}
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                {multiResult.seasonLabel && (
+                  <Badge variant="outline">
+                    Season: {multiResult.seasonLabel}
+                  </Badge>
+                )}
+                {multiResult.nights > 0 && (
+                  <Badge variant="outline">
+                    {multiResult.nights} night{multiResult.nights !== 1 ? "s" : ""}
+                  </Badge>
+                )}
+                {multiResult.resolvedChildren.map((rc, idx) => (
+                  <Badge key={idx} variant="secondary">
+                    Child {idx + 1}: age {rc.ageAtCheckIn} ({rc.category})
+                  </Badge>
+                ))}
+              </div>
+
+              {/* Room type results */}
+              {multiResult.results.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+                  {!multiResult.seasonId
+                    ? "No season matches the selected arrival date."
+                    : "No room types match the selected occupancy criteria. Check that occupancy tables are configured for the requested combination."}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {multiResult.results.map((room) => {
+                    const bd = room.breakdown;
+                    const cc = contract.baseCurrency.code;
+                    const fmt = (n: number) => `${cc} ${formatCurrency(n)}`;
+                    const isPP = bd.rateBasis === "PER_PERSON";
+                    const adultRoomPerNight = isPP ? bd.adultTotalPerNight * room.occupancyMatch.adults : bd.adultTotalPerNight;
+
+                    return (
+                    <details key={room.roomTypeId} className="group rounded-lg border">
+                      <summary className="flex cursor-pointer items-center justify-between p-4 hover:bg-muted/50">
+                        <div>
+                          <span className="font-semibold">{room.roomTypeName}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({room.occupancyMatch.adults}A
+                            {room.occupancyMatch.children > 0 && `+${room.occupancyMatch.children}C`}
+                            {room.occupancyMatch.infants > 0 && `+${room.occupancyMatch.infants}I`}
+                            {room.occupancyMatch.extraBeds > 0 && `+${room.occupancyMatch.extraBeds}EB`})
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold">
+                            {fmt(room.totalPerRoomAfterOffers)}
+                          </div>
+                          {room.totalPerRoom !== room.totalPerRoomAfterOffers && (
+                            <div className="text-xs text-muted-foreground line-through">
+                              {fmt(room.totalPerRoom)}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            {fmt(room.roomTotalPerNight)} / night
+                          </div>
+                        </div>
+                      </summary>
+                      <div className="border-t p-4">
+                        <div className="rounded-lg border p-4 space-y-0">
+                          {/* Section 1: Per-person adult rate build-up */}
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            {isPP ? "Adult Rate (per person / night)" : "Room Rate (per night)"}
+                          </p>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>{bd.baseRateLabel}</span>
+                              <span className="font-mono">{fmt(bd.baseRate)}</span>
+                            </div>
+                            {bd.roomTypeSupplement && bd.roomTypeSupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">{bd.roomTypeSupplement.amount > 0 ? "+" : ""} </span>
+                                  Room Type ({bd.roomTypeSupplement.label})
+                                </span>
+                                <span className="font-mono">{fmt(bd.roomTypeSupplement.amount)}</span>
+                              </div>
+                            )}
+                            {bd.mealSupplement && bd.mealSupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">{bd.mealSupplement.amount >= 0 ? "+" : ""} </span>
+                                  Meal Plan ({bd.mealSupplement.label})
+                                </span>
+                                <span className="font-mono">{fmt(bd.mealSupplement.amount)}</span>
+                              </div>
+                            )}
+                            {bd.occupancySupplement && bd.occupancySupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">{bd.occupancySupplement.amount >= 0 ? "+" : ""} </span>
+                                  {bd.occupancySupplement.label}
+                                </span>
+                                <span className="font-mono">{fmt(bd.occupancySupplement.amount)}</span>
+                              </div>
+                            )}
+                            {bd.extraBedSupplement && bd.extraBedSupplement.amount !== 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  <span className="text-muted-foreground">+ </span>
+                                  {bd.extraBedSupplement.label}
+                                </span>
+                                <span className="font-mono">{fmt(bd.extraBedSupplement.amount)}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <Separator className="my-2" />
+
+                          <div className="flex justify-between text-sm font-semibold">
+                            <span>{isPP ? "Per Person / Night" : "Room Rate / Night"}</span>
+                            <span className="font-mono">{fmt(bd.adultTotalPerNight)}</span>
+                          </div>
+
+                          {/* Section 2: Multiply by adults (PER_PERSON only) */}
+                          {isPP && room.occupancyMatch.adults > 0 && (
+                            <>
+                              <Separator className="my-2" />
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Room Calculation</p>
+                              <div className="flex justify-between text-sm">
+                                <span>{fmt(bd.adultTotalPerNight)} x {room.occupancyMatch.adults} adult{room.occupancyMatch.adults !== 1 ? "s" : ""}</span>
+                                <span className="font-mono">{fmt(adultRoomPerNight)}</span>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Section 3: Child charges */}
+                          {bd.childCharges.length > 0 && (
+                            <>
+                              {!(isPP && room.occupancyMatch.adults > 0) && <Separator className="my-2" />}
+                              <div className="mt-1 space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground">Children</p>
+                                {bd.childCharges.map((chc, idx) => (
+                                  <div key={idx} className="flex justify-between text-sm">
+                                    <span>
+                                      <span className="text-muted-foreground">+ </span>
+                                      {chc.label}
+                                      {chc.isFree && (
+                                        <Badge variant="secondary" className="ml-2 text-xs">Free</Badge>
+                                      )}
+                                    </span>
+                                    <span className="font-mono">{fmt(chc.amount)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Section 4: Room total per night */}
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-semibold">
+                            <span>Room Total / Night</span>
+                            <span className="font-mono">{fmt(room.roomTotalPerNight)}</span>
+                          </div>
+
+                          {/* Section 5: Multiply by nights */}
+                          {multiResult.nights > 1 && (
+                            <div className="mt-1 flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {fmt(room.roomTotalPerNight)} x {multiResult.nights} nights
+                              </span>
+                              <span className="font-mono font-semibold">{fmt(room.totalPerRoom)}</span>
+                            </div>
+                          )}
+
+                          <Separator className="my-2" />
+                          <div className="flex justify-between text-lg font-bold">
+                            <span>Total Stay</span>
+                            <span className="font-mono">{fmt(room.totalPerRoom)}</span>
+                          </div>
+
+                          {/* Section 6: Special offers */}
+                          {bd.offerDiscounts.length > 0 && (
+                            <>
+                              <Separator className="my-2" />
+                              <p className="text-xs font-medium text-muted-foreground">Special Offers</p>
+                              <div className="mt-1 space-y-1">
+                                {bd.offerDiscounts.map((od, idx) => {
+                                  const isEligible = od.discount > 0;
+                                  const roomDiscount = bd.totalStay > 0
+                                    ? od.discount * (room.totalPerRoom / bd.totalStay)
+                                    : 0;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`flex justify-between text-sm ${isEligible ? "text-green-600" : "text-muted-foreground"}`}
+                                    >
+                                      <span>
+                                        {isEligible ? "−" : ""} {od.offerName}
+                                        <span className="ml-1 text-xs">({od.description})</span>
+                                      </span>
+                                      <span className="font-mono">
+                                        {isEligible ? `−${fmt(roomDiscount)}` : "—"}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {room.totalPerRoomAfterOffers !== room.totalPerRoom && (
+                                <>
+                                  <Separator className="my-2" />
+                                  <div className="flex justify-between text-lg font-bold text-green-600">
+                                    <span>Final Total</span>
+                                    <span className="font-mono">{fmt(room.totalPerRoomAfterOffers)}</span>
+                                  </div>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </details>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-4 text-center text-sm text-muted-foreground">
+              Enter arrival &amp; departure dates with a meal plan to search available rooms.
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {simResult && (
-        <>
-          {/* Warnings */}
-          {simResult.warnings.length > 0 && (
-            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-              <CardContent className="pt-4">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
-                  Warnings ({simResult.warnings.length})
-                </p>
-                <ul className="space-y-1">
-                  {simResult.warnings.map((w, i) => (
-                    <li
-                      key={i}
-                      className="text-xs text-amber-600 dark:text-amber-500"
-                    >
-                      &bull; {w}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
+      {/* Offer Eligibility */}
+      {simResult && simResult.offerEligibility.length > 0 && (() => {
+        const eligible = simResult.offerEligibility.filter((o) => o.eligible);
+        const ineligible = simResult.offerEligibility.filter((o) => !o.eligible);
+        const combinable = eligible.filter((o) => o.combinable);
+        const nonCombinable = eligible.filter((o) => !o.combinable);
+        const bestNonCombinable = nonCombinable.length > 0
+          ? nonCombinable.reduce((a, b) => a.discountValue > b.discountValue ? a : b)
+          : null;
 
-          {/* Summary */}
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Nights</p>
-                <p className="text-2xl font-bold">{simResult.nights}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Guests</p>
-                <p className="text-2xl font-bold">{simResult.adults} adults</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Seasons Spanned</p>
-                <p className="text-2xl font-bold">
-                  {new Set(simResult.nightBreakdown.map((n) => n.seasonLabel)).size}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Rate Basis</p>
-                <p className="text-2xl font-bold">
-                  {simResult.rateBasis === "PER_PERSON" ? "Per Person" : "Per Room"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Rate Matrix */}
+        return (
           <Card>
             <CardHeader>
-              <CardTitle>Rate Matrix</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Special Offer Eligibility</CardTitle>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    {eligible.length} eligible
+                  </span>
+                  <span className="text-muted-foreground">
+                    {ineligible.length} ineligible
+                  </span>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Stacking Summary */}
+              {eligible.length > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                  <p className="font-medium">Applied Offers:</p>
+                  {combinable.length > 0 && (
+                    <p className="text-emerald-600 dark:text-emerald-400">
+                      Stacked (combinable): {combinable.map((o) => o.offerName).join(" + ")}
+                    </p>
+                  )}
+                  {bestNonCombinable && (
+                    <p className="text-blue-600 dark:text-blue-400">
+                      Best non-combinable: {bestNonCombinable.offerName}{" "}
+                      ({bestNonCombinable.discountType === "PERCENTAGE"
+                        ? `${bestNonCombinable.discountValue}%`
+                        : bestNonCombinable.discountValue.toFixed(2)})
+                    </p>
+                  )}
+                  {nonCombinable.length > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      {nonCombinable.length - 1} other non-combinable offer{nonCombinable.length > 2 ? "s" : ""} excluded
+                    </p>
+                  )}
+                </div>
+              )}
+
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Room Type</TableHead>
-                    <TableHead>Meal Plan</TableHead>
-                    <TableHead className="text-right">Avg/Night</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="w-8" />
+                    <TableHead>Offer</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead>Combinable</TableHead>
+                    <TableHead>Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {simResult.rateMatrix.map((row, idx) => (
-                    <TableRow key={idx}>
+                  {simResult.offerEligibility.map((offer) => (
+                    <TableRow
+                      key={offer.offerId}
+                      className={offer.eligible ? "" : "opacity-50"}
+                    >
                       <TableCell>
-                        {row.roomTypeName}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          ({row.roomTypeCode})
-                        </span>
+                        {offer.eligible ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 text-lg">&#10003;</span>
+                        ) : (
+                          <span className="text-destructive text-lg">&#10007;</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {offer.offerName}
                       </TableCell>
                       <TableCell>
-                        {row.mealBasisName}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          ({row.mealCode})
-                        </span>
+                        <Badge variant="outline">
+                          {OFFER_TYPE_LABELS[offer.offerType] ?? offer.offerType.replace(/_/g, " ")}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {row.avgPerNight.toFixed(2)}
+                      <TableCell className="font-mono">
+                        {offer.discountType === "PERCENTAGE"
+                          ? `${offer.discountValue}%`
+                          : offer.discountValue.toFixed(2)}
                       </TableCell>
-                      <TableCell className="text-right font-mono font-bold">
-                        {row.totalRate.toFixed(2)}
+                      <TableCell>
+                        {offer.combinable ? (
+                          <Badge variant="secondary" className="text-xs">Stackable</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">Exclusive</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[300px]">
+                        {offer.reasons.join("; ")}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -6007,115 +6017,8 @@ function SimulatorTab({ contractId }: { contractId: string }) {
               </Table>
             </CardContent>
           </Card>
-
-          {/* Offer Eligibility */}
-          {simResult.offerEligibility.length > 0 && (() => {
-            const eligible = simResult.offerEligibility.filter((o) => o.eligible);
-            const ineligible = simResult.offerEligibility.filter((o) => !o.eligible);
-            const combinable = eligible.filter((o) => o.combinable);
-            const nonCombinable = eligible.filter((o) => !o.combinable);
-            const bestNonCombinable = nonCombinable.length > 0
-              ? nonCombinable.reduce((a, b) => a.discountValue > b.discountValue ? a : b)
-              : null;
-
-            return (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Offer Eligibility</CardTitle>
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        {eligible.length} eligible
-                      </span>
-                      <span className="text-muted-foreground">
-                        {ineligible.length} ineligible
-                      </span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Stacking Summary */}
-                  {eligible.length > 0 && (
-                    <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
-                      <p className="font-medium">Applied Offers:</p>
-                      {combinable.length > 0 && (
-                        <p className="text-emerald-600 dark:text-emerald-400">
-                          Stacked (combinable): {combinable.map((o) => o.offerName).join(" + ")}
-                        </p>
-                      )}
-                      {bestNonCombinable && (
-                        <p className="text-blue-600 dark:text-blue-400">
-                          Best non-combinable: {bestNonCombinable.offerName}{" "}
-                          ({bestNonCombinable.discountType === "PERCENTAGE"
-                            ? `${bestNonCombinable.discountValue}%`
-                            : bestNonCombinable.discountValue.toFixed(2)})
-                        </p>
-                      )}
-                      {nonCombinable.length > 1 && (
-                        <p className="text-xs text-muted-foreground">
-                          {nonCombinable.length - 1} other non-combinable offer{nonCombinable.length > 2 ? "s" : ""} excluded
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-8" />
-                        <TableHead>Offer</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Discount</TableHead>
-                        <TableHead>Combinable</TableHead>
-                        <TableHead>Details</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {simResult.offerEligibility.map((offer) => (
-                        <TableRow
-                          key={offer.offerId}
-                          className={offer.eligible ? "" : "opacity-50"}
-                        >
-                          <TableCell>
-                            {offer.eligible ? (
-                              <span className="text-emerald-600 dark:text-emerald-400 text-lg">&#10003;</span>
-                            ) : (
-                              <span className="text-destructive text-lg">&#10007;</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {offer.offerName}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {OFFER_TYPE_LABELS[offer.offerType] ?? offer.offerType.replace(/_/g, " ")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono">
-                            {offer.discountType === "PERCENTAGE"
-                              ? `${offer.discountValue}%`
-                              : offer.discountValue.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            {offer.combinable ? (
-                              <Badge variant="secondary" className="text-xs">Stackable</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">Exclusive</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[300px]">
-                            {offer.reasons.join("; ")}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            );
-          })()}
-        </>
-      )}
+        );
+      })()}
     </div>
   );
 }

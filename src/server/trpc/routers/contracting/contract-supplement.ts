@@ -6,7 +6,6 @@ import {
   supplementMealBulkSaveSchema,
   supplementOccupancyBulkSaveSchema,
   supplementRoomTypeBulkSaveSchema,
-  supplementViewBulkSaveSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
@@ -217,44 +216,6 @@ export const contractSupplementRouter = createTRPCRouter({
         action: "UPDATE",
         entity: "SUPPLEMENT",
         summary: `Updated supplements`,
-        userId: ctx.session.user.id,
-        userName: ctx.session.user.name ?? "",
-      });
-
-      return { success: true };
-    }),
-
-  bulkSaveView: proc
-    .input(supplementViewBulkSaveSchema)
-    .mutation(async ({ ctx, input }) => {
-      await verifyContract(ctx.db, input.contractId, ctx.companyId);
-
-      await ctx.db.$transaction(async (tx) => {
-        await tx.contractSupplement.deleteMany({
-          where: { contractId: input.contractId, supplementType: "VIEW" },
-        });
-
-        if (input.items.length > 0) {
-          await tx.contractSupplement.createMany({
-            data: input.items.map((item) => ({
-              contractId: input.contractId,
-              supplementType: "VIEW" as const,
-              roomTypeId: item.roomTypeId,
-              label: item.label,
-              value: item.value,
-              valueType: item.valueType,
-              perPerson: item.perPerson,
-              perNight: item.perNight,
-            })),
-          });
-        }
-      });
-
-      await logContractAction(ctx.db, {
-        contractId: input.contractId,
-        action: "UPDATE",
-        entity: "SUPPLEMENT",
-        summary: `Updated view supplements`,
         userId: ctx.session.user.id,
         userName: ctx.session.user.name ?? "",
       });

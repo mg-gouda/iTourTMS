@@ -311,18 +311,6 @@ export const supplementExtraBedBulkSaveSchema = z.object({
   })),
 });
 
-export const supplementViewBulkSaveSchema = z.object({
-  contractId: z.string().min(1, "Contract is required"),
-  items: z.array(z.object({
-    roomTypeId: z.string().min(1),
-    label: z.string().min(1, "View label is required"),
-    value: z.number(),
-    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
-    perPerson: z.boolean().default(true),
-    perNight: z.boolean().default(true),
-  })),
-});
-
 // ── Rate Calculator Schemas ──
 
 export const rateCalculatorInputSchema = z.object({
@@ -489,7 +477,6 @@ export const seasonSpoBulkSaveSchema = z.object({
 export const allotmentBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
   items: z.array(z.object({
-    seasonId: z.string().min(1),
     roomTypeId: z.string().min(1),
     basis: z.enum(["FREESALE", "ON_REQUEST", "COMMITMENT", "ALLOCATION"]).default("ALLOCATION"),
     totalRooms: z.number().int().min(0),
@@ -508,6 +495,25 @@ export const stopSaleCreateSchema = z.object({
 }).refine((d) => d.dateTo >= d.dateFrom, {
   message: "Date To must be on or after Date From",
   path: ["dateTo"],
+});
+
+// ── Marketing Contribution ──
+
+export const marketingContributionCreateSchema = z.object({
+  contractId: z.string().min(1, "Contract is required"),
+  marketId: z.string().nullish(),
+  seasonId: z.string().nullish(),
+  valueType: z.enum(["FIXED", "PERCENTAGE"]).default("PERCENTAGE"),
+  value: z.number().min(0, "Value must be >= 0"),
+  notes: z.string().nullish(),
+});
+
+export const marketingContributionUpdateSchema = z.object({
+  marketId: z.string().nullable().optional(),
+  seasonId: z.string().nullable().optional(),
+  valueType: z.enum(["FIXED", "PERCENTAGE"]).optional(),
+  value: z.number().min(0).optional(),
+  notes: z.string().nullable().optional(),
 });
 
 // ── Contract Cloning ──
@@ -690,9 +696,6 @@ export const contractChildPolicyUpdateSchema = z.object({
   mealsIncluded: z.boolean().optional(),
   notes: z.string().nullish(),
 });
-
-// Keep the old name as alias for backwards compatibility during transition
-export const contractChildPolicyUpsertSchema = contractChildPolicyCreateSchema;
 
 // ── Cancellation Policies ──
 

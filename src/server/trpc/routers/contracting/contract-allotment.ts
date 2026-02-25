@@ -29,10 +29,9 @@ export const contractAllotmentRouter = createTRPCRouter({
       return ctx.db.contractAllotment.findMany({
         where: { contractId: input.contractId },
         include: {
-          season: { select: { id: true, dateFrom: true, dateTo: true } },
           roomType: { select: { id: true, name: true, code: true } },
         },
-        orderBy: [{ seasonId: "asc" }],
+        orderBy: [{ roomTypeId: "asc" }],
       });
     }),
 
@@ -50,7 +49,6 @@ export const contractAllotmentRouter = createTRPCRouter({
           await tx.contractAllotment.createMany({
             data: input.items.map((item) => ({
               contractId: input.contractId,
-              seasonId: item.seasonId,
               roomTypeId: item.roomTypeId,
               basis: item.basis,
               totalRooms: item.freeSale ? 0 : item.totalRooms,
@@ -76,7 +74,6 @@ export const contractAllotmentRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const contractFilter: Record<string, unknown> = {
         companyId: ctx.companyId,
-        status: "ACTIVE",
       };
       if (input.hotelId) {
         contractFilter.hotelId = input.hotelId;
@@ -101,13 +98,8 @@ export const contractAllotmentRouter = createTRPCRouter({
       const allotments = await ctx.db.contractAllotment.findMany({
         where: {
           contractId: { in: contractIds },
-          season: {
-            dateFrom: { lte: dateTo },
-            dateTo: { gte: dateFrom },
-          },
         },
         include: {
-          season: { select: { id: true, dateFrom: true, dateTo: true } },
           roomType: { select: { id: true, name: true, code: true } },
         },
       });

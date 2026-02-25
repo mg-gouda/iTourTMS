@@ -88,36 +88,30 @@ export function checkReleaseDays(
 }
 
 export interface AllotmentRecord {
-  seasonId: string | null;
   roomTypeId: string;
   freeSale: boolean;
   totalRooms: number;
   soldRooms: number;
-  season: { id: string; dateFrom: Date; dateTo: Date } | null;
   roomType: { id: string; name: string } | null;
 }
 
 /**
- * Check allotment availability for a room type across seasons.
+ * Check allotment availability for a room type (per-contract, one entry per room type).
  */
 export function checkAllotmentAvailability(
   allotments: AllotmentRecord[],
-  seasons: SeasonRecord[],
+  _seasons: SeasonRecord[],
   roomTypeId: string,
   roomTypeName: string,
 ): string[] {
   const warnings: string[] = [];
-  for (const season of seasons) {
-    const allotment = allotments.find(
-      (a) => a.seasonId === season.id && a.roomTypeId === roomTypeId,
-    );
-    if (allotment && !allotment.freeSale) {
-      const available = allotment.totalRooms - allotment.soldRooms;
-      if (available <= 0) {
-        warnings.push(
-          `No allotment available for ${roomTypeName} in ${formatSeasonLabel(season.dateFrom, season.dateTo)}`,
-        );
-      }
+  const allotment = allotments.find((a) => a.roomTypeId === roomTypeId);
+  if (allotment && !allotment.freeSale) {
+    const available = allotment.totalRooms - allotment.soldRooms;
+    if (available <= 0) {
+      warnings.push(
+        `No allotment available for ${roomTypeName}`,
+      );
     }
   }
   return warnings;

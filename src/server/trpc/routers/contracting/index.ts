@@ -20,6 +20,7 @@ import { hotelRouter } from "./hotel";
 import { marketRouter } from "./market";
 import { mealBasisRouter } from "./meal-basis";
 import { roomTypeRouter } from "./room-type";
+import { marketingContributionRouter } from "./marketing-contribution";
 import { markupRuleRouter } from "./markup-rule";
 import { rateVerificationRouter } from "./rate-verification";
 import { specialMealRouter } from "./special-meal";
@@ -48,6 +49,7 @@ export const contractingRouter = createTRPCRouter({
   mealBasis: mealBasisRouter,
   roomType: roomTypeRouter,
   tourOperator: tourOperatorRouter,
+  marketingContribution: marketingContributionRouter,
   markupRule: markupRuleRouter,
   rateVerification: rateVerificationRouter,
   specialMeal: specialMealRouter,

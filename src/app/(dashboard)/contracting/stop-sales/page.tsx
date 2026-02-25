@@ -38,7 +38,8 @@ type StopSaleRow = {
 
 const columns: ColumnDef<StopSaleRow>[] = [
   {
-    accessorKey: "contract.hotel.name",
+    id: "hotelName",
+    accessorFn: (row) => row.contract.hotel.name,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Hotel" />
     ),
@@ -47,7 +48,8 @@ const columns: ColumnDef<StopSaleRow>[] = [
     ),
   },
   {
-    accessorKey: "contract.name",
+    id: "contractName",
+    accessorFn: (row) => row.contract.name,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Contract" />
     ),
@@ -204,7 +206,7 @@ export default function StopSalesPage() {
         <DataTable
           columns={columns}
           data={filteredData}
-          searchKey="contract.hotel.name"
+          searchKey="hotelName"
           searchPlaceholder="Search by hotel..."
           toolbar={filterToolbar}
         />

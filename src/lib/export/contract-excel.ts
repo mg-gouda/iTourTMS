@@ -1,12 +1,14 @@
 import { format } from "date-fns";
 
 import {
-  CONTRACT_STATUS_LABELS,
-  RATE_BASIS_LABELS,
-  SUPPLEMENT_TYPE_LABELS,
-  OFFER_TYPE_LABELS,
-  CHILD_AGE_CATEGORY_LABELS,
+  ALLOCATION_BASIS_LABELS,
   CANCELLATION_CHARGE_TYPE_LABELS,
+  CHILD_AGE_CATEGORY_LABELS,
+  CONTRACT_STATUS_LABELS,
+  OFFER_TYPE_LABELS,
+  RATE_BASIS_LABELS,
+  SPECIAL_MEAL_OCCASION_LABELS,
+  SUPPLEMENT_TYPE_LABELS,
 } from "@/lib/constants/contracting";
 import { formatSeasonLabel } from "@/lib/utils";
 
@@ -24,7 +26,11 @@ interface ExportData {
   maximumStay: number | null;
   validFrom: string | Date;
   validTo: string | Date;
+  travelFrom?: string | Date | null;
+  travelTo?: string | Date | null;
   terms: string | null;
+  hotelNotes?: string | null;
+  internalNotes?: string | null;
   hotel: { name: string; code: string };
   baseCurrency: { code: string; name: string };
   baseRoomType: { name: string; code: string };
@@ -83,8 +89,37 @@ interface ExportData {
   allotments: Array<{
     totalRooms: number;
     freeSale: boolean;
-    season: { id: string; dateFrom: string | Date; dateTo: string | Date };
+    basis?: string;
     roomType: { name: string; code: string };
+  }>;
+  stopSales?: Array<{
+    roomType: { name: string } | null;
+    dateFrom: string | Date;
+    dateTo: string | Date;
+    reason: string | null;
+  }>;
+  markets?: Array<{
+    market: { name: string; code: string };
+  }>;
+  marketingContributions?: Array<{
+    market: { name: string } | null;
+    season: { dateFrom: string | Date; dateTo: string | Date } | null;
+    valueType: string;
+    value: unknown;
+    notes: string | null;
+  }>;
+  specialMeals?: Array<{
+    occasion: string;
+    customName: string | null;
+    dateFrom: string | Date;
+    dateTo: string | Date;
+    mandatory: boolean;
+    adultPrice: unknown;
+    childPrice: unknown;
+    teenPrice: unknown;
+    infantPrice: unknown;
+    excludedMealBases: string | null;
+    notes: string | null;
   }>;
   childPolicies: Array<{
     category: string;
@@ -143,7 +178,21 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
     ["Base Meal Basis", `${data.baseMealBasis.name} (${data.baseMealBasis.mealCode})`],
     ["Min Stay", data.minimumStay],
     ["Max Stay", data.maximumStay ?? ""],
+    ["Travel From", fmtDate(data.travelFrom)],
+    ["Travel To", fmtDate(data.travelTo)],
+    [
+      "Markets",
+      data.markets && data.markets.length > 0
+        ? data.markets.map((m) => m.market.name).join(", ")
+        : "All Markets",
+    ],
   ];
+  if (data.hotelNotes) {
+    summaryRows.push([], ["Hotel Notes", data.hotelNotes]);
+  }
+  if (data.internalNotes) {
+    summaryRows.push([], ["Internal Notes", data.internalNotes]);
+  }
   if (data.terms) {
     summaryRows.push([], ["Terms", data.terms]);
   }
@@ -245,16 +294,16 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
   // ─── Sheet 6: Allotments ─────────────────────────────
   if (data.allotments.length > 0) {
     const allotRows: (string | number)[][] = [
-      ["Season", "Room Type", "Total Rooms", "Free Sale"],
+      ["Room Type", "Total Rooms", "Free Sale", "Basis"],
       ...data.allotments.map((a) => [
-        formatSeasonLabel(a.season.dateFrom, a.season.dateTo),
         a.roomType.name,
         a.totalRooms,
         a.freeSale ? "Yes" : "No",
+        a.basis ? (ALLOCATION_BASIS_LABELS[a.basis] ?? a.basis) : "",
       ]),
     ];
     const wsAllot = XLSX.utils.aoa_to_sheet(allotRows);
-    wsAllot["!cols"] = [{ wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 10 }];
+    wsAllot["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 14 }];
     XLSX.utils.book_append_sheet(wb, wsAllot, "Allotments");
   }
 
@@ -295,6 +344,71 @@ export async function exportContractToExcel(data: ExportData): Promise<void> {
     const wsCancel = XLSX.utils.aoa_to_sheet(cancelRows);
     wsCancel["!cols"] = [{ wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, wsCancel, "Cancellation");
+  }
+
+  // ─── Sheet 9: Stop Sales ────────────────────────────
+  if (data.stopSales && data.stopSales.length > 0) {
+    const ssRows: (string | number)[][] = [
+      ["Room Type", "Date From", "Date To", "Reason"],
+      ...data.stopSales.map((ss) => [
+        ss.roomType?.name ?? "All Room Types",
+        fmtDate(ss.dateFrom),
+        fmtDate(ss.dateTo),
+        ss.reason ?? "",
+      ]),
+    ];
+    const wsSS = XLSX.utils.aoa_to_sheet(ssRows);
+    wsSS["!cols"] = [{ wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, wsSS, "Stop Sales");
+  }
+
+  // ─── Sheet 10: Marketing Contributions ─────────────
+  if (data.marketingContributions && data.marketingContributions.length > 0) {
+    const mcRows: (string | number)[][] = [
+      ["Market", "Season", "Type", "Value", "Notes"],
+      ...data.marketingContributions.map((mc) => {
+        const suffix = mc.valueType === "PERCENTAGE" ? "%" : "";
+        return [
+          mc.market?.name ?? "All Markets",
+          mc.season
+            ? formatSeasonLabel(mc.season.dateFrom, mc.season.dateTo)
+            : "All Seasons",
+          mc.valueType === "PERCENTAGE" ? "Percentage" : "Fixed",
+          `${num(mc.value)}${suffix}`,
+          mc.notes ?? "",
+        ];
+      }),
+    ];
+    const wsMC = XLSX.utils.aoa_to_sheet(mcRows);
+    wsMC["!cols"] = [{ wch: 20 }, { wch: 24 }, { wch: 12 }, { wch: 12 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, wsMC, "Marketing");
+  }
+
+  // ─── Sheet 11: Special Meals ───────────────────────
+  if (data.specialMeals && data.specialMeals.length > 0) {
+    const smRows: (string | number)[][] = [
+      ["Occasion", "Name", "Date From", "Date To", "Mandatory", "Adult", "Child", "Teen", "Infant", "Excl. Meals", "Notes"],
+      ...data.specialMeals.map((sm) => [
+        SPECIAL_MEAL_OCCASION_LABELS[sm.occasion] ?? sm.occasion,
+        sm.customName ?? "",
+        fmtDate(sm.dateFrom),
+        fmtDate(sm.dateTo),
+        sm.mandatory ? "Yes" : "No",
+        num(sm.adultPrice),
+        sm.childPrice != null ? num(sm.childPrice) : "",
+        sm.teenPrice != null ? num(sm.teenPrice) : "",
+        sm.infantPrice != null ? num(sm.infantPrice) : "",
+        sm.excludedMealBases ?? "",
+        sm.notes ?? "",
+      ]),
+    ];
+    const wsSM = XLSX.utils.aoa_to_sheet(smRows);
+    wsSM["!cols"] = [
+      { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 14 },
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+      { wch: 10 }, { wch: 16 }, { wch: 30 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSM, "Special Meals");
   }
 
   // ─── Download ────────────────────────────────────────

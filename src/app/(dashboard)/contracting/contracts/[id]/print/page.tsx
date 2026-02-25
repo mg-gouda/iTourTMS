@@ -406,7 +406,6 @@ function AllotmentsTable({ contract }: { contract: ExportContract }) {
       <table>
         <thead>
           <tr>
-            <th>Season</th>
             <th>Room Type</th>
             <th className="text-right">Total Rooms</th>
             <th>Free Sale</th>
@@ -415,7 +414,6 @@ function AllotmentsTable({ contract }: { contract: ExportContract }) {
         <tbody>
           {contract.allotments.map((a) => (
             <tr key={a.id}>
-              <td>{formatSeasonLabel(a.season.dateFrom, a.season.dateTo)}</td>
               <td>{a.roomType.name}</td>
               <td className="text-right">{a.totalRooms}</td>
               <td>{a.freeSale ? "Yes" : "No"}</td>

@@ -629,7 +629,6 @@ enum SupplementType {
   OCCUPANCY
   CHILD
   EXTRA_BED
-  VIEW
 }
 
 enum CopyRateMode {
@@ -1617,6 +1616,7 @@ model Contract {
   markupRules           MarkupRule[]
   tariffs               Tariff[]
   specialMeals          ContractSpecialMeal[]
+  marketingContributions ContractMarketingContribution[]
   rateVerifications     RateVerification[]
   copyLogsAsSource      ContractCopyLog[]     @relation("CopyLogSource")
   copyLogsAsTarget      ContractCopyLog[]     @relation("CopyLogTarget")
@@ -1640,10 +1640,11 @@ model ContractSeason {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  contract    Contract             @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  baseRates   ContractBaseRate[]
-  supplements ContractSupplement[]
-  allotments  ContractAllotment[]
+  contract               Contract             @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  baseRates              ContractBaseRate[]
+  supplements            ContractSupplement[]
+  allotments             ContractAllotment[]
+  marketingContributions ContractMarketingContribution[]
 
   @@index([contractId])
   @@map("ct_contract_season")
@@ -1837,7 +1838,7 @@ enum AllocationBasis {
 model ContractAllotment {
   id         String          @id @default(cuid())
   contractId String
-  seasonId   String
+  seasonId   String?
   roomTypeId String
   basis      AllocationBasis @default(ALLOCATION)
   totalRooms Int
@@ -1846,13 +1847,12 @@ model ContractAllotment {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
-  contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  season   ContractSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  roomType HotelRoomType  @relation(fields: [roomTypeId], references: [id])
+  contract Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  season   ContractSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  roomType HotelRoomType   @relation(fields: [roomTypeId], references: [id])
 
-  @@unique([contractId, seasonId, roomTypeId])
+  @@unique([contractId, roomTypeId])
   @@index([contractId])
-  @@index([seasonId])
   @@map("ct_contract_allotment")
 }
 
@@ -1872,6 +1872,25 @@ model ContractStopSale {
   @@index([contractId])
   @@index([contractId, dateFrom, dateTo])
   @@map("ct_contract_stop_sale")
+}
+
+model ContractMarketingContribution {
+  id         String   @id @default(cuid())
+  contractId String
+  marketId   String?
+  seasonId   String?
+  valueType  SupplementValueType @default(FIXED)
+  value      Decimal  @db.Decimal(12, 4)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contract Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  market   Market?         @relation(fields: [marketId], references: [id])
+  season   ContractSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("ct_contract_marketing_contribution")
 }
 
 model ContractChildPolicy {
@@ -1926,9 +1945,10 @@ model Market {
   updatedAt  DateTime @updatedAt
 
   company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contracts     ContractMarket[]
-  tourOperators TourOperator[]
-  markupRules   MarkupRule[]
+  contracts               ContractMarket[]
+  tourOperators           TourOperator[]
+  markupRules             MarkupRule[]
+  marketingContributions  ContractMarketingContribution[]
 
   @@unique([companyId, code])
   @@index([companyId])
