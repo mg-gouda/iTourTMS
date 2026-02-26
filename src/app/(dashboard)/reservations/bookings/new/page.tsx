@@ -38,7 +38,7 @@ type FormValues = z.input<typeof bookingCreateSchema>;
 const STEPS = [
   "Hotel",
   "Tour Operator",
-  "Contract & Dates",
+  "Dates",
   "Rooms",
   "Guest Info",
   "Review",
@@ -87,10 +87,8 @@ export default function NewBookingPage() {
   // Watched fields
   const hotelId = form.watch("hotelId");
   const tourOperatorId = form.watch("tourOperatorId");
-  const contractId = form.watch("contractId");
   const checkIn = form.watch("checkIn");
   const checkOut = form.watch("checkOut");
-  const manualRate = form.watch("manualRate");
   const rooms = form.watch("rooms");
 
   // ── Data fetches ──
@@ -103,24 +101,32 @@ export default function NewBookingPage() {
 
   const { data: contracts } = trpc.contracting.contract.list.useQuery(
     undefined,
-    { enabled: step >= 2 && !!hotelId },
+    { enabled: !!hotelId },
   );
 
-  const { data: currencies } = trpc.finance.currency.list.useQuery(
-    undefined,
-    { enabled: step >= 2 },
-  );
+  // Auto-resolve contract: find published contract for hotel that covers the check-in date
+  const matchedContract = useMemo(() => {
+    if (!hotelId || !checkIn) return null;
+    const ciDate = new Date(checkIn);
+    return (
+      (contracts ?? []).find(
+        (c) =>
+          c.hotelId === hotelId &&
+          c.status === "PUBLISHED" &&
+          new Date(c.validFrom) <= ciDate &&
+          new Date(c.validTo) >= ciDate,
+      ) ?? null
+    );
+  }, [contracts, hotelId, checkIn]);
 
-  // Filter contracts for selected hotel
-  const hotelContracts = useMemo(
-    () =>
-      (contracts ?? []).filter(
-        (c) => c.hotelId === hotelId && c.status === "PUBLISHED",
-      ),
-    [contracts, hotelId],
-  );
+  const contractId = matchedContract?.id ?? null;
 
-  // Fetch full contract detail when one is selected
+  // Sync contractId into form whenever it changes
+  useEffect(() => {
+    form.setValue("contractId", contractId ?? "");
+  }, [contractId, form]);
+
+  // Fetch full contract detail when one is matched
   const { data: contractDetail } = trpc.contracting.contract.getById.useQuery(
     { id: contractId! },
     { enabled: !!contractId },
@@ -139,7 +145,7 @@ export default function NewBookingPage() {
     [contractDetail],
   );
 
-  const selectedContract = contractDetail ?? hotelContracts.find((c) => c.id === contractId);
+  const selectedContract = contractDetail ?? matchedContract;
 
   // Auto-set currency from contract
   useEffect(() => {
@@ -156,8 +162,7 @@ export default function NewBookingPage() {
     checkOut &&
     checkOut > checkIn &&
     rooms.length > 0 &&
-    rooms.every((r) => r.roomTypeId && r.mealBasisId) &&
-    !manualRate
+    rooms.every((r) => r.roomTypeId && r.mealBasisId)
   );
 
   const rateCalcInput = useMemo(
@@ -178,7 +183,8 @@ export default function NewBookingPage() {
             })),
           }
         : null,
-    [canCalcRates, contractId, hotelId, tourOperatorId, checkIn, checkOut, rooms],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canCalcRates, contractId, hotelId, tourOperatorId, checkIn, checkOut, JSON.stringify(rooms)],
   );
 
   const {
@@ -205,7 +211,7 @@ export default function NewBookingPage() {
       case 1:
         return true; // TO is optional
       case 2:
-        return !!(checkIn && checkOut && checkOut > checkIn && (contractId || manualRate));
+        return !!(checkIn && checkOut && checkOut > checkIn && contractId);
       case 3:
         return rooms.length > 0 && rooms.every((r) => r.roomTypeId && r.mealBasisId);
       case 4:
@@ -402,66 +408,13 @@ export default function NewBookingPage() {
             </Card>
           )}
 
-          {/* Step 2: Contract & Dates */}
+          {/* Step 2: Dates */}
           {step === 2 && (
             <Card>
               <CardHeader>
-                <CardTitle>Contract & Dates</CardTitle>
+                <CardTitle>Stay Dates</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="manualRate"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>Manual rate (skip contract selection)</FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                {!manualRate && (
-                  <FormField
-                    control={form.control}
-                    name="contractId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contract *</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select published contract" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {hotelContracts.length === 0 ? (
-                              <SelectItem value="" disabled>
-                                No published contracts for this hotel
-                              </SelectItem>
-                            ) : (
-                              hotelContracts.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.name} ({c.code}) — {format(new Date(c.validFrom), "MMM yyyy")} to{" "}
-                                  {format(new Date(c.validTo), "MMM yyyy")}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -497,34 +450,23 @@ export default function NewBookingPage() {
                   </p>
                 )}
 
-                {manualRate && (
-                  <FormField
-                    control={form.control}
-                    name="currencyId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency *</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {(currencies ?? []).map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.code} — {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                {checkIn && checkOut && checkOut > checkIn && (
+                  <div className="rounded-md border p-3 text-sm">
+                    {matchedContract ? (
+                      <div className="space-y-1">
+                        <p className="font-medium text-green-600">Contract matched</p>
+                        <p>
+                          {matchedContract.name} ({matchedContract.code}) —{" "}
+                          {format(new Date(matchedContract.validFrom), "dd MMM yyyy")} to{" "}
+                          {format(new Date(matchedContract.validTo), "dd MMM yyyy")}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-destructive">
+                        No published contract covers these dates for the selected hotel.
+                      </p>
                     )}
-                  />
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -688,50 +630,6 @@ export default function NewBookingPage() {
                       />
                     </div>
 
-                    {manualRate && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name={`rooms.${index}.buyingRatePerNight`}
-                          render={({ field: f }) => (
-                            <FormItem>
-                              <FormLabel>Buying Rate / Night</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min={0}
-                                  {...f}
-                                  onChange={(e) =>
-                                    f.onChange(parseFloat(e.target.value) || 0)
-                                  }
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`rooms.${index}.sellingRatePerNight`}
-                          render={({ field: f }) => (
-                            <FormItem>
-                              <FormLabel>Selling Rate / Night</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min={0}
-                                  {...f}
-                                  onChange={(e) =>
-                                    f.onChange(parseFloat(e.target.value) || 0)
-                                  }
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -754,7 +652,7 @@ export default function NewBookingPage() {
               </Button>
 
               {/* Rate Preview */}
-              {!manualRate && canCalcRates && (
+              {canCalcRates && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Rate Preview</CardTitle>
@@ -790,13 +688,17 @@ export default function NewBookingPage() {
                             {ratePreview.sellingTotal.toFixed(2)}
                           </span>
                         </div>
-                        {ratePreview.markupAmount > 0 && (
+                        {ratePreview.markupRuleName ? (
                           <p className="text-xs text-muted-foreground">
-                            Markup:{" "}
+                            Markup: {ratePreview.markupRuleName} —{" "}
                             {ratePreview.markupType === "PERCENTAGE"
                               ? `${ratePreview.markupValue}%`
-                              : ratePreview.markupValue}{" "}
+                              : `${ratePreview.markupValue} / night`}{" "}
                             = {ratePreview.markupAmount.toFixed(2)}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-amber-600">
+                            No markup rule matched — selling = buying
                           </p>
                         )}
                       </div>
@@ -945,9 +847,7 @@ export default function NewBookingPage() {
                     value={
                       selectedContract
                         ? `${selectedContract.name} (${selectedContract.code})`
-                        : manualRate
-                          ? "Manual Rate"
-                          : "—"
+                        : "—"
                     }
                   />
                   <InfoRow label="Check-in" value={checkIn ? format(new Date(checkIn), "dd MMM yyyy") : "—"} />
@@ -959,7 +859,7 @@ export default function NewBookingPage() {
                     value={form.getValues("leadGuestName") || "—"}
                   />
 
-                  {ratePreview && !manualRate && (
+                  {ratePreview && (
                     <>
                       <div className="my-2 border-t" />
                       <InfoRow
@@ -979,18 +879,6 @@ export default function NewBookingPage() {
                     </>
                   )}
 
-                  {manualRate && (
-                    <>
-                      <div className="my-2 border-t" />
-                      {rooms.map((r, i) => (
-                        <InfoRow
-                          key={i}
-                          label={`Room ${i + 1}`}
-                          value={`Buy: ${((r.buyingRatePerNight ?? 0) * nights).toFixed(2)} | Sell: ${((r.sellingRatePerNight ?? 0) * nights).toFixed(2)}`}
-                        />
-                      ))}
-                    </>
-                  )}
                 </CardContent>
               </Card>
             </div>

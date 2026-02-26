@@ -271,6 +271,7 @@ export async function calculateBookingRates(
     destinationId: null,
     marketId: null,
     tourOperatorId: input.tourOperatorId ?? "",
+    date: input.checkIn,
   };
   const rules: MarkupRuleData[] = markupRules.map((r) => ({
     id: r.id,
