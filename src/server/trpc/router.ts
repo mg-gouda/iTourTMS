@@ -1,6 +1,7 @@
 import { createTRPCRouter } from "@/server/trpc";
 import { contractingRouter } from "@/server/trpc/routers/contracting";
 import { financeRouter } from "@/server/trpc/routers/finance";
+import { reservationsRouter } from "@/server/trpc/routers/reservations";
 import { apiIntegrationRouter } from "@/server/trpc/routers/shared/api-integration";
 import { settingsRouter } from "@/server/trpc/routers/shared/settings";
 import { setupRouter } from "@/server/trpc/routers/shared/setup";
@@ -12,6 +13,7 @@ export const appRouter = createTRPCRouter({
   user: userRouter,
   finance: financeRouter,
   contracting: contractingRouter,
+  reservations: reservationsRouter,
   apiIntegration: apiIntegrationRouter,
 });
 

@@ -1,0 +1,155 @@
+import { z } from "zod";
+
+// ── Guest Schemas ──
+
+export const guestCreateSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email().nullish().or(z.literal("")),
+  phone: z.string().nullish(),
+  mobile: z.string().nullish(),
+  nationality: z.string().nullish(),
+  passportNo: z.string().nullish(),
+  passportExpiry: z.string().nullish(),
+  dateOfBirth: z.string().nullish(),
+  gender: z.enum(["M", "F", "OTHER"]).nullish(),
+  address: z.string().nullish(),
+  city: z.string().nullish(),
+  countryId: z.string().nullish(),
+  notes: z.string().nullish(),
+  isVip: z.boolean().default(false),
+});
+
+export const guestUpdateSchema = guestCreateSchema.partial();
+
+// ── Booking Room Schema ──
+
+export const bookingRoomSchema = z.object({
+  roomTypeId: z.string().min(1, "Room type is required"),
+  mealBasisId: z.string().min(1, "Meal basis is required"),
+  adults: z.number().int().min(1).max(6).default(2),
+  children: z.number().int().min(0).max(4).default(0),
+  infants: z.number().int().min(0).max(2).default(0),
+  extraBed: z.boolean().default(false),
+  buyingRatePerNight: z.number().min(0).optional(),
+  sellingRatePerNight: z.number().min(0).optional(),
+  specialRequests: z.string().nullish(),
+  guests: z
+    .array(
+      z.object({
+        guestId: z.string().min(1),
+        guestType: z.enum(["LEAD", "ADDITIONAL", "CHILD"]).default("ADDITIONAL"),
+        isLeadGuest: z.boolean().default(false),
+        childCategory: z.string().nullish(),
+        childAge: z.number().int().min(0).nullish(),
+      }),
+    )
+    .optional(),
+});
+
+// ── Booking Schemas ──
+
+export const bookingCreateSchema = z
+  .object({
+    hotelId: z.string().min(1, "Hotel is required"),
+    contractId: z.string().nullish(),
+    tourOperatorId: z.string().nullish(),
+    checkIn: z.string().min(1, "Check-in date is required"),
+    checkOut: z.string().min(1, "Check-out date is required"),
+    currencyId: z.string().min(1, "Currency is required"),
+    source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).default("DIRECT"),
+    manualRate: z.boolean().default(false),
+    specialRequests: z.string().nullish(),
+    internalNotes: z.string().nullish(),
+    externalRef: z.string().nullish(),
+    leadGuestName: z.string().nullish(),
+    leadGuestEmail: z.string().email().nullish().or(z.literal("")),
+    leadGuestPhone: z.string().nullish(),
+    rooms: z.array(bookingRoomSchema).min(1, "At least one room is required"),
+  })
+  .refine((d) => d.checkOut > d.checkIn, {
+    message: "Check-out must be after check-in",
+    path: ["checkOut"],
+  });
+
+export const bookingUpdateSchema = z.object({
+  checkIn: z.string().optional(),
+  checkOut: z.string().optional(),
+  specialRequests: z.string().nullish(),
+  internalNotes: z.string().nullish(),
+  externalRef: z.string().nullish(),
+  leadGuestName: z.string().nullish(),
+  leadGuestEmail: z.string().email().nullish().or(z.literal("")),
+  leadGuestPhone: z.string().nullish(),
+});
+
+// ── Booking Status Transition ──
+
+export const bookingStatusTransitionSchema = z.object({
+  bookingId: z.string().min(1),
+  action: z.enum(["confirm", "cancel", "check_in", "check_out", "no_show"]),
+  reason: z.string().optional(),
+});
+
+// ── Payment Schemas ──
+
+export const bookingPaymentCreateSchema = z.object({
+  bookingId: z.string().min(1, "Booking is required"),
+  amount: z.number().positive("Amount must be positive"),
+  currencyId: z.string().min(1, "Currency is required"),
+  method: z.enum(["CASH", "BANK_TRANSFER", "CREDIT_CARD", "CHEQUE"]),
+  reference: z.string().nullish(),
+  notes: z.string().nullish(),
+  paidAt: z.string().min(1, "Payment date is required"),
+  isRefund: z.boolean().default(false),
+  createFinanceRecords: z.boolean().default(false),
+  journalId: z.string().nullish(),
+});
+
+// ── Voucher Schemas ──
+
+export const voucherCreateSchema = z.object({
+  bookingId: z.string().min(1, "Booking is required"),
+  notes: z.string().nullish(),
+});
+
+export const voucherStatusSchema = z.object({
+  id: z.string().min(1),
+  action: z.enum(["use", "cancel"]),
+});
+
+// ── Rate Calculation ──
+
+export const bookingRateCalcSchema = z.object({
+  contractId: z.string().min(1),
+  hotelId: z.string().min(1),
+  tourOperatorId: z.string().nullish(),
+  checkIn: z.string().min(1),
+  checkOut: z.string().min(1),
+  rooms: z
+    .array(
+      z.object({
+        roomTypeId: z.string().min(1),
+        mealBasisId: z.string().min(1),
+        adults: z.number().int().min(1).default(2),
+        children: z
+          .array(z.object({ category: z.string() }))
+          .default([]),
+        extraBed: z.boolean().default(false),
+      }),
+    )
+    .min(1),
+});
+
+// ── Reports ──
+
+export const reportFilterSchema = z.object({
+  hotelId: z.string().nullish(),
+  tourOperatorId: z.string().nullish(),
+  dateFrom: z.string().nullish(),
+  dateTo: z.string().nullish(),
+  status: z
+    .enum(["DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"])
+    .nullish(),
+  source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).nullish(),
+});

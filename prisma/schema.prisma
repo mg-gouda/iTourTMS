@@ -123,6 +123,11 @@ model Company {
   apiKeys          ApiKey[]
   apiIntegrations  ApiIntegration[]
 
+  // Reservations relations
+  guests           Guest[]
+  bookings         Booking[]
+  vouchers         Voucher[]
+
   @@index([countryId])
   @@index([baseCurrencyId])
 }
@@ -171,6 +176,16 @@ model User {
   contractsPublished Contract[] @relation("ContractPublisher")
   contractCopyLogs       ContractCopyLog[]
   rateVerifications      RateVerification[]  @relation("RateVerificationCreator")
+
+  // Reservations relations
+  bookingsCreated    Booking[]          @relation("BookingCreator")
+  bookingsConfirmed  Booking[]          @relation("BookingConfirmer")
+  bookingsCancelled  Booking[]          @relation("BookingCanceller")
+  bookingsCheckedIn  Booking[]          @relation("BookingCheckIn")
+  bookingsCheckedOut Booking[]          @relation("BookingCheckOut")
+  bookingPayments    BookingPayment[]   @relation("BookingPaymentCreator")
+  vouchersCreated    Voucher[]          @relation("VoucherCreator")
+  bookingTimelines   BookingTimeline[]  @relation("TimelineUser")
 
   @@index([companyId])
   @@index([email])
@@ -261,6 +276,7 @@ model Country {
   destinations  Destination[]
   hotels        Hotel[]
   tourOperators TourOperator[] @relation("TOCountry")
+  guests        Guest[]        @relation("GuestCountry")
 
   @@index([code])
   @@index([name])
@@ -308,6 +324,10 @@ model Currency {
 
   // Contracting relations
   contracts              Contract[] @relation("ContractBaseCurrency")
+
+  // Reservations relations
+  bookings               Booking[]        @relation("BookingCurrency")
+  bookingPayments        BookingPayment[] @relation("BookingPaymentCurrency")
 
   @@index([code])
 }
@@ -386,6 +406,7 @@ model Partner {
   payments           Payment[]
   bankStatementLines BankStatementLine[]
   recurringEntries   RecurringEntry[]
+  guests             Guest[]
 
   @@index([companyId])
   @@index([companyId, type])
@@ -1438,6 +1459,7 @@ model Hotel {
   tourOperators         HotelTourOperator[]
   markupRules           MarkupRule[]       @relation("MarkupRuleHotel")
   apiIntegrationHotels  ApiIntegrationHotel[]
+  bookings              Booking[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1490,6 +1512,7 @@ model HotelRoomType {
   contractSupplements ContractSupplement[]
   contractAllotments  ContractAllotment[]
   contractStopSales   ContractStopSale[]
+  bookingRooms        BookingRoom[]       @relation("BookingRoomType")
 
   @@unique([hotelId, code])
   @@index([hotelId])
@@ -1552,6 +1575,7 @@ model HotelMealBasis {
   contractMealBasis   ContractMealBasis[]
   baseForContracts    Contract[]         @relation("ContractBaseMeal")
   contractSupplements ContractSupplement[]
+  bookingRooms        BookingRoom[]       @relation("BookingMealBasis")
 
   @@unique([hotelId, mealCode])
   @@index([hotelId])
@@ -1624,6 +1648,7 @@ model Contract {
   rateVerifications     RateVerification[]
   copyLogsAsSource      ContractCopyLog[]     @relation("CopyLogSource")
   copyLogsAsTarget      ContractCopyLog[]     @relation("CopyLogTarget")
+  bookings              Booking[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1649,6 +1674,7 @@ model ContractSeason {
   supplements            ContractSupplement[]
   allotments             ContractAllotment[]
   marketingContributions ContractMarketingContribution[]
+  bookings               Booking[]
 
   @@index([contractId])
   @@map("ct_contract_season")
@@ -1999,6 +2025,7 @@ model TourOperator {
   markupRules         MarkupRule[]
   tariffs             Tariff[]
   apiIntegration      ApiIntegration?
+  bookings            Booking[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2073,6 +2100,7 @@ model MarkupRule {
   market       Market?       @relation(fields: [marketId], references: [id])
   tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
   tariffs      Tariff[]
+  bookings     Booking[]
 
   @@index([companyId])
   @@map("ct_markup_rule")
@@ -2297,4 +2325,305 @@ model WebhookDelivery {
   @@index([apiIntegrationId])
   @@index([event])
   @@index([createdAt])
+}
+
+// ============================================================================
+// RESERVATIONS MODULE — Enums
+// ============================================================================
+
+enum BookingStatus {
+  DRAFT
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingSource {
+  DIRECT
+  TOUR_OPERATOR
+  API
+}
+
+enum VoucherStatus {
+  ISSUED
+  USED
+  CANCELLED
+}
+
+enum BookingPaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum GuestType {
+  LEAD
+  ADDITIONAL
+  CHILD
+}
+
+// ============================================================================
+// RESERVATIONS MODULE — Models
+// ============================================================================
+
+model Guest {
+  id             String    @id @default(cuid())
+  companyId      String
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  mobile         String?
+  nationality    String?
+  passportNo     String?
+  passportExpiry DateTime? @db.Date
+  dateOfBirth    DateTime? @db.Date
+  gender         String?
+  address        String?
+  city           String?
+  countryId      String?
+  notes          String?   @db.Text
+  partnerId      String?
+  isVip          Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country       Country? @relation("GuestCountry", fields: [countryId], references: [id])
+  partner       Partner? @relation(fields: [partnerId], references: [id])
+
+  bookingGuests BookingGuest[]
+
+  @@index([companyId])
+  @@index([companyId, email])
+  @@index([companyId, passportNo])
+  @@index([companyId, lastName, firstName])
+  @@map("rv_guest")
+}
+
+model Booking {
+  id                 String              @id @default(cuid())
+  companyId          String
+  code               String
+  status             BookingStatus       @default(DRAFT)
+  source             BookingSource       @default(DIRECT)
+
+  // Hotel & Contract
+  hotelId            String
+  contractId         String?
+  tourOperatorId     String?
+  seasonId           String?
+
+  // Dates
+  checkIn            DateTime            @db.Date
+  checkOut           DateTime            @db.Date
+  nights             Int
+
+  // Rates
+  currencyId         String
+  rateBasis          String?
+  buyingTotal        Decimal             @default(0) @db.Decimal(12, 4)
+  sellingTotal       Decimal             @default(0) @db.Decimal(12, 4)
+  manualRate         Boolean             @default(false)
+
+  // Markup tracking
+  markupRuleId       String?
+  markupType         String?
+  markupValue        Decimal?            @db.Decimal(12, 4)
+  markupAmount       Decimal             @default(0) @db.Decimal(12, 4)
+
+  // Payment tracking
+  paymentStatus      BookingPaymentStatus @default(UNPAID)
+  totalPaid          Decimal             @default(0) @db.Decimal(12, 4)
+  balanceDue         Decimal             @default(0) @db.Decimal(12, 4)
+
+  // Lead guest shortcut
+  leadGuestName      String?
+  leadGuestEmail     String?
+  leadGuestPhone     String?
+
+  // Misc
+  specialRequests    String?             @db.Text
+  internalNotes      String?             @db.Text
+  externalRef        String?
+  apiIntegrationId   String?
+
+  // Workflow
+  confirmedAt        DateTime?
+  confirmedById      String?
+  cancelledAt        DateTime?
+  cancelledById      String?
+  cancellationReason String?             @db.Text
+  checkedInAt        DateTime?
+  checkedInById      String?
+  checkedOutAt       DateTime?
+  checkedOutById     String?
+
+  // Audit
+  createdById        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  // Relations
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  hotel          Hotel            @relation(fields: [hotelId], references: [id])
+  contract       Contract?        @relation(fields: [contractId], references: [id])
+  tourOperator   TourOperator?    @relation(fields: [tourOperatorId], references: [id])
+  season         ContractSeason?  @relation(fields: [seasonId], references: [id])
+  currency       Currency         @relation("BookingCurrency", fields: [currencyId], references: [id])
+  markupRule     MarkupRule?      @relation(fields: [markupRuleId], references: [id])
+  createdBy      User?            @relation("BookingCreator", fields: [createdById], references: [id])
+  confirmedBy    User?            @relation("BookingConfirmer", fields: [confirmedById], references: [id])
+  cancelledBy    User?            @relation("BookingCanceller", fields: [cancelledById], references: [id])
+  checkedInBy    User?            @relation("BookingCheckIn", fields: [checkedInById], references: [id])
+  checkedOutBy   User?            @relation("BookingCheckOut", fields: [checkedOutById], references: [id])
+
+  rooms          BookingRoom[]
+  guests         BookingGuest[]
+  payments       BookingPayment[]
+  vouchers       Voucher[]
+  timeline       BookingTimeline[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, hotelId])
+  @@index([companyId, tourOperatorId])
+  @@index([companyId, checkIn])
+  @@index([hotelId, checkIn, checkOut])
+  @@index([contractId])
+  @@map("rv_booking")
+}
+
+model BookingRoom {
+  id                  String   @id @default(cuid())
+  bookingId           String
+  roomTypeId          String
+  mealBasisId         String
+  roomIndex           Int      @default(1)
+
+  // Occupancy
+  adults              Int      @default(2)
+  children            Int      @default(0)
+  infants             Int      @default(0)
+  extraBed            Boolean  @default(false)
+
+  // Per-room rate (buying)
+  buyingRatePerNight  Decimal  @default(0) @db.Decimal(12, 4)
+  buyingTotal         Decimal  @default(0) @db.Decimal(12, 4)
+
+  // Per-room rate (selling)
+  sellingRatePerNight Decimal  @default(0) @db.Decimal(12, 4)
+  sellingTotal        Decimal  @default(0) @db.Decimal(12, 4)
+
+  // Rate breakdown (stored as JSON for audit)
+  rateBreakdown       Json?
+
+  specialRequests     String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  roomType  HotelRoomType  @relation("BookingRoomType", fields: [roomTypeId], references: [id])
+  mealBasis HotelMealBasis @relation("BookingMealBasis", fields: [mealBasisId], references: [id])
+
+  guests    BookingGuest[]
+
+  @@index([bookingId])
+  @@map("rv_booking_room")
+}
+
+model BookingGuest {
+  id            String    @id @default(cuid())
+  bookingId     String
+  bookingRoomId String
+  guestId       String
+  guestType     GuestType @default(ADDITIONAL)
+  isLeadGuest   Boolean   @default(false)
+
+  // Child-specific
+  childCategory String?
+  childAge      Int?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  booking     Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingRoom BookingRoom @relation(fields: [bookingRoomId], references: [id], onDelete: Cascade)
+  guest       Guest       @relation(fields: [guestId], references: [id])
+
+  @@index([bookingId])
+  @@index([bookingRoomId])
+  @@index([guestId])
+  @@map("rv_booking_guest")
+}
+
+model BookingPayment {
+  id            String   @id @default(cuid())
+  bookingId     String
+  amount        Decimal  @db.Decimal(12, 4)
+  currencyId    String
+  method        String
+  reference     String?
+  notes         String?  @db.Text
+  paidAt        DateTime @db.Date
+  isRefund      Boolean  @default(false)
+
+  // Finance integration
+  finPaymentId  String?  @unique
+  finMoveId     String?  @unique
+
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  currency  Currency @relation("BookingPaymentCurrency", fields: [currencyId], references: [id])
+  createdBy User     @relation("BookingPaymentCreator", fields: [createdById], references: [id])
+
+  @@index([bookingId])
+  @@map("rv_booking_payment")
+}
+
+model Voucher {
+  id          String        @id @default(cuid())
+  companyId   String
+  code        String
+  bookingId   String
+  status      VoucherStatus @default(ISSUED)
+  issuedAt    DateTime      @default(now())
+  usedAt      DateTime?
+  cancelledAt DateTime?
+  notes       String?       @db.Text
+
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("VoucherCreator", fields: [createdById], references: [id])
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([bookingId])
+  @@map("rv_voucher")
+}
+
+model BookingTimeline {
+  id        String   @id @default(cuid())
+  bookingId String
+  action    String
+  details   String?  @db.Text
+  userId    String?
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User?   @relation("TimelineUser", fields: [userId], references: [id])
+
+  @@index([bookingId])
+  @@map("rv_booking_timeline")
 }

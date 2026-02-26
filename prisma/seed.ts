@@ -645,6 +645,21 @@ export async function seedFinance(companyId: string) {
   });
   console.log("    ✓ Payment sequence seeded");
 
+  // ── Booking & Voucher Sequences ──
+  const reservationSequences = [
+    { code: "booking", prefix: "BK", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "voucher", prefix: "VCR", separator: "/", padding: 5, resetPolicy: "yearly" },
+  ];
+
+  for (const seq of reservationSequences) {
+    await prisma.sequence.upsert({
+      where: { companyId_code: { companyId, code: seq.code } },
+      update: {},
+      create: { ...seq, companyId },
+    });
+  }
+  console.log(`    ✓ ${reservationSequences.length} reservation sequences seeded`);
+
   // ── Fiscal Position & Payment Permissions ──
   const phase3Permissions = [
     { code: "finance:fiscalPosition:read", module: "finance", resource: "fiscalPosition", action: "read", displayName: "View Fiscal Positions" },

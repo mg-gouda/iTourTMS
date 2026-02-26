@@ -193,6 +193,12 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Vouchers", href: "/reservations/vouchers" },
         ],
       },
+      {
+        label: "Analysis",
+        routes: [
+          { label: "Reports", href: "/reservations/reports" },
+        ],
+      },
     ],
   },
 };
