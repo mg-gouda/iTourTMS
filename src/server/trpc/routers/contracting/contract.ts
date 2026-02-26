@@ -7,6 +7,7 @@ import {
   contractUpdateSchema,
 } from "@/lib/validations/contracting";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
+import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 
 const proc = moduleProcedure("contracting");
@@ -295,6 +296,14 @@ export const contractRouter = createTRPCRouter({
         summary: `Published contract "${contract.name}"`,
         userId: ctx.session.user.id,
         userName: ctx.session.user.name ?? "Unknown",
+      });
+
+      // Dispatch webhook for contract publication
+      dispatchWebhooks(ctx.companyId, contract.hotelId, "contract.published", {
+        contractId: contract.id,
+        contractCode: contract.code,
+        contractName: contract.name,
+        hotelId: contract.hotelId,
       });
 
       return published;

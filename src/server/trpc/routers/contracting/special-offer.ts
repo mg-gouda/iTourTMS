@@ -11,6 +11,7 @@ import {
   evaluateCombinability as evaluateOfferCombinability,
   type OfferInput,
 } from "@/server/services/contracting/offer-engine";
+import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
 const proc = moduleProcedure("contracting");
@@ -90,6 +91,8 @@ export const specialOfferRouter = createTRPCRouter({
         userName: ctx.session.user.name ?? "",
       });
 
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, input.contractId, "spo.updated");
+
       return created;
     }),
 
@@ -142,6 +145,8 @@ export const specialOfferRouter = createTRPCRouter({
         userName: ctx.session.user.name ?? "",
       });
 
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, offer.contractId, "spo.updated");
+
       return updated;
     }),
 
@@ -168,6 +173,8 @@ export const specialOfferRouter = createTRPCRouter({
         userId: ctx.session.user.id,
         userName: ctx.session.user.name ?? "",
       });
+
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, offer.contractId, "spo.updated");
 
       return deleted;
     }),

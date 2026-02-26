@@ -3,6 +3,7 @@ import { z } from "zod";
 import { contractBaseRateBulkSaveSchema } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
+import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 
 const proc = moduleProcedure("contracting");
 
@@ -64,6 +65,8 @@ export const contractBaseRateRouter = createTRPCRouter({
         userId: ctx.session.user.id,
         userName: ctx.session.user.name ?? "",
       });
+
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, input.contractId, "rates.updated");
 
       return { success: true };
     }),

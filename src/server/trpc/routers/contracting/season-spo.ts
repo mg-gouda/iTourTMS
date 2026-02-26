@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { seasonSpoBulkSaveSchema } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
 const proc = moduleProcedure("contracting");
@@ -67,6 +68,8 @@ export const seasonSpoRouter = createTRPCRouter({
             }),
           ),
         );
+        maybeDispatchContractWebhook(ctx.db, ctx.companyId, input.contractId, "spo.updated");
+
         return created;
       });
     }),

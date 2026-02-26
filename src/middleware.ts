@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
-  const publicPaths = ["/login", "/api/auth", "/api/health", "/api/trpc", "/api/upload"];
+  const publicPaths = ["/login", "/api/auth", "/api/health", "/api/trpc", "/api/upload", "/api/v1"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }

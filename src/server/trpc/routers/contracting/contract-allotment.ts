@@ -5,6 +5,7 @@ import {
   stopSaleCreateSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
 const proc = moduleProcedure("contracting");
@@ -58,6 +59,8 @@ export const contractAllotmentRouter = createTRPCRouter({
           });
         }
       });
+
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, input.contractId, "availability.updated");
 
       return { success: true };
     }),
@@ -191,7 +194,7 @@ export const contractAllotmentRouter = createTRPCRouter({
     .input(stopSaleCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
-      return ctx.db.contractStopSale.create({
+      const stopSale = await ctx.db.contractStopSale.create({
         data: {
           contractId: input.contractId,
           roomTypeId: input.roomTypeId ?? null,
@@ -200,6 +203,10 @@ export const contractAllotmentRouter = createTRPCRouter({
           reason: input.reason ?? null,
         },
       });
+
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, input.contractId, "availability.updated");
+
+      return stopSale;
     }),
 
   deleteStopSale: proc
@@ -207,13 +214,17 @@ export const contractAllotmentRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const stopSale = await ctx.db.contractStopSale.findFirstOrThrow({
         where: { id: input.id },
-        include: { contract: { select: { companyId: true } } },
+        include: { contract: { select: { companyId: true, id: true } } },
       });
       if (stopSale.contract.companyId !== ctx.companyId) {
         throw new Error("Not found");
       }
-      return ctx.db.contractStopSale.delete({
+      const deleted = await ctx.db.contractStopSale.delete({
         where: { id: input.id },
       });
+
+      maybeDispatchContractWebhook(ctx.db, ctx.companyId, stopSale.contractId, "availability.updated");
+
+      return deleted;
     }),
 });

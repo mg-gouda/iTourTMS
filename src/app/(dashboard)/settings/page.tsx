@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ApiIntegrationsTab } from "./_components/api-integrations-tab";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { Button } from "@/components/ui/button";
 import {
@@ -527,6 +528,7 @@ function IntegrationsSettings() {
           <TabsList>
             <TabsTrigger value="googlePlaces">Google Places</TabsTrigger>
             <TabsTrigger value="giata">GIATA</TabsTrigger>
+            <TabsTrigger value="apiIntegrations">API Integrations</TabsTrigger>
           </TabsList>
 
           <TabsContent value="googlePlaces" className="mt-4 space-y-4">
@@ -581,6 +583,10 @@ function IntegrationsSettings() {
             <p className="text-xs text-muted-foreground">
               Integration fields will be enabled once the GIATA API module is configured.
             </p>
+          </TabsContent>
+
+          <TabsContent value="apiIntegrations" className="mt-4">
+            <ApiIntegrationsTab />
           </TabsContent>
         </Tabs>
       </CardContent>

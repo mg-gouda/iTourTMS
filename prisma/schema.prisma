@@ -120,6 +120,8 @@ model Company {
   tariffs          Tariff[]
   rateVerifications RateVerification[]
   copyLogs         ContractCopyLog[]
+  apiKeys          ApiKey[]
+  apiIntegrations  ApiIntegration[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -1432,8 +1434,9 @@ model Hotel {
   images           HotelImage[]
   contracts        Contract[]
 
-  tourOperators    HotelTourOperator[]
-  markupRules      MarkupRule[]       @relation("MarkupRuleHotel")
+  tourOperators         HotelTourOperator[]
+  markupRules           MarkupRule[]       @relation("MarkupRuleHotel")
+  apiIntegrationHotels  ApiIntegrationHotel[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1994,6 +1997,7 @@ model TourOperator {
   hotelAssignments    HotelTourOperator[]
   markupRules         MarkupRule[]
   tariffs             Tariff[]
+  apiIntegration      ApiIntegration?
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2207,4 +2211,89 @@ model ContractAuditLog {
 
   @@index([contractId, createdAt])
   @@map("ct_contract_audit_log")
+}
+
+// ============================================================================
+// API KEYS
+// ============================================================================
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String
+  keyHash     String    @unique
+  keyPrefix   String
+  permissions String[]  @default(["contracting:read"])
+  active      Boolean   @default(true)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id])
+  integration ApiIntegration?
+
+  @@index([companyId])
+  @@index([keyHash])
+}
+
+// ============================================================================
+// API INTEGRATIONS
+// ============================================================================
+
+model ApiIntegration {
+  id              String   @id @default(cuid())
+  companyId       String
+  tourOperatorId  String   @unique
+  apiKeyId        String   @unique
+  webhookUrl      String?
+  webhookSecret   String?
+  active          Boolean  @default(true)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator     TourOperator          @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+  apiKey           ApiKey                @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  hotels           ApiIntegrationHotel[]
+  webhookDeliveries WebhookDelivery[]
+
+  @@unique([companyId, tourOperatorId])
+  @@index([companyId])
+}
+
+model ApiIntegrationHotel {
+  id               String   @id @default(cuid())
+  apiIntegrationId String
+  hotelId          String
+  createdAt        DateTime @default(now())
+
+  integration ApiIntegration @relation(fields: [apiIntegrationId], references: [id], onDelete: Cascade)
+  hotel       Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([apiIntegrationId, hotelId])
+  @@index([apiIntegrationId])
+  @@index([hotelId])
+}
+
+model WebhookDelivery {
+  id               String   @id @default(cuid())
+  apiIntegrationId String
+  event            String
+  payload          Json
+  url              String
+  httpStatus       Int?
+  responseBody     String?  @db.Text
+  attempts         Int      @default(0)
+  lastAttemptAt    DateTime?
+  success          Boolean  @default(false)
+  error            String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  integration ApiIntegration @relation(fields: [apiIntegrationId], references: [id], onDelete: Cascade)
+
+  @@index([apiIntegrationId])
+  @@index([event])
+  @@index([createdAt])
 }
