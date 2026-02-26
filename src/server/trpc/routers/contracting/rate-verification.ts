@@ -42,6 +42,7 @@ export const rateVerificationRouter = createTRPCRouter({
           },
           supplements: true,
           specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" } },
+          seasonSpos: { where: { active: true }, orderBy: { sortOrder: "asc" } },
           allotments: {
             include: {
               roomType: { select: { id: true, name: true } },
@@ -135,6 +136,21 @@ export const rateVerificationRouter = createTRPCRouter({
           roomingListBy: o.roomingListBy?.toISOString().slice(0, 10) ?? null,
           combinable: o.combinable,
           active: o.active,
+        })),
+        seasonSpos: contract.seasonSpos.map((spo) => ({
+          spoType: spo.spoType,
+          dateFrom: spo.dateFrom.toISOString().slice(0, 10),
+          dateTo: spo.dateTo.toISOString().slice(0, 10),
+          basePp: spo.basePp?.toString() ?? null,
+          sglSup: spo.sglSup?.toString() ?? null,
+          thirdAdultRed: spo.thirdAdultRed?.toString() ?? null,
+          firstChildPct: spo.firstChildPct?.toString() ?? null,
+          secondChildPct: spo.secondChildPct?.toString() ?? null,
+          bookFrom: spo.bookFrom?.toISOString().slice(0, 10) ?? null,
+          bookTo: spo.bookTo?.toISOString().slice(0, 10) ?? null,
+          value: spo.value?.toString() ?? null,
+          valueType: spo.valueType,
+          active: spo.active,
         })),
       };
 

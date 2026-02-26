@@ -70,6 +70,21 @@ export interface RateContractData {
     combinable: boolean;
     active: boolean;
   }[];
+  seasonSpos?: {
+    spoType: string;
+    dateFrom: string;
+    dateTo: string;
+    basePp: string | number | null;
+    sglSup: string | number | null;
+    thirdAdultRed: string | number | null;
+    firstChildPct: string | number | null;
+    secondChildPct: string | number | null;
+    bookFrom: string | null;
+    bookTo: string | null;
+    value: string | number | null;
+    valueType: string | null;
+    active: boolean;
+  }[];
 }
 
 export interface BookingScenario {
@@ -201,6 +216,56 @@ function findSupplement(
   return supplements.find(
     (s) => s.supplementType === type && match(s),
   );
+}
+
+// ── Season SPO Helpers ──
+
+interface SeasonSpoAdjustment {
+  label: string;
+  amount: number;
+}
+
+/**
+ * Find applicable Season SPOs for a given night/booking date.
+ * RATE_OVERRIDE: replaces the base rate if check-in falls within SPO period.
+ * BOOKING_WINDOW: applies discount if booking date is within the window and stay within period.
+ * PERCENTAGE: applies percentage adjustment if stay date falls within period.
+ */
+function findApplicableSpos(
+  spos: NonNullable<RateContractData["seasonSpos"]>,
+  checkInDate: string | null,
+  bookingDate: string | null,
+): {
+  rateOverride: NonNullable<RateContractData["seasonSpos"]>[number] | null;
+  discountSpos: { spo: NonNullable<RateContractData["seasonSpos"]>[number]; label: string }[];
+} {
+  let rateOverride: NonNullable<RateContractData["seasonSpos"]>[number] | null = null;
+  const discountSpos: { spo: NonNullable<RateContractData["seasonSpos"]>[number]; label: string }[] = [];
+
+  for (const spo of spos) {
+    if (!spo.active) continue;
+    const spoFrom = spo.dateFrom;
+    const spoTo = spo.dateTo;
+
+    if (spo.spoType === "RATE_OVERRIDE") {
+      if (checkInDate && checkInDate >= spoFrom && checkInDate <= spoTo) {
+        rateOverride = spo;
+      }
+    } else if (spo.spoType === "BOOKING_WINDOW") {
+      const inStayPeriod = checkInDate && checkInDate >= spoFrom && checkInDate <= spoTo;
+      const inBookWindow = bookingDate && spo.bookFrom && spo.bookTo
+        && bookingDate >= spo.bookFrom && bookingDate <= spo.bookTo;
+      if (inStayPeriod && inBookWindow) {
+        discountSpos.push({ spo, label: `Booking Window SPO (${spo.bookFrom}–${spo.bookTo})` });
+      }
+    } else if (spo.spoType === "PERCENTAGE") {
+      if (checkInDate && checkInDate >= spoFrom && checkInDate <= spoTo) {
+        discountSpos.push({ spo, label: `Seasonal Adjustment (${spoFrom}–${spoTo})` });
+      }
+    }
+  }
+
+  return { rateOverride, discountSpos };
 }
 
 // ── Special Offer Helpers ──
@@ -397,8 +462,37 @@ export function calculateRate(
 ): RateBreakdown {
   const { seasonId, roomTypeId, mealBasisId, adults, children, extraBed, nights } = scenario;
 
-  // 1. Base rate
-  const { rate: baseRate, label: baseRateLabel } = resolveBaseRate(contract, seasonId, adults);
+  // 1. Base rate (may be overridden by Season SPO RATE_OVERRIDE)
+  let { rate: baseRate, label: baseRateLabel } = resolveBaseRate(contract, seasonId, adults);
+
+  const spoAdjustments: SeasonSpoAdjustment[] = [];
+  if (contract.seasonSpos && contract.seasonSpos.length > 0) {
+    const { rateOverride, discountSpos } = findApplicableSpos(
+      contract.seasonSpos,
+      scenario.checkInDate,
+      scenario.bookingDate,
+    );
+
+    // Apply RATE_OVERRIDE: replace base rate with SPO rate
+    if (rateOverride && rateOverride.basePp != null) {
+      const overrideRate = new Decimal(rateOverride.basePp);
+      const diff = overrideRate.minus(baseRate);
+      spoAdjustments.push({
+        label: `Rate Override (${rateOverride.dateFrom}–${rateOverride.dateTo})`,
+        amount: diff.toDecimalPlaces(4).toNumber(),
+      });
+      baseRate = overrideRate;
+      baseRateLabel = "SPO Rate Override";
+    }
+
+    // Store discount SPOs to apply after supplements
+    for (const { spo, label } of discountSpos) {
+      if (spo.value != null) {
+        // Will be applied after supplements are calculated
+        spoAdjustments.push({ label, amount: 0 }); // placeholder, computed below
+      }
+    }
+  }
 
   // 2. Room type supplement
   let roomTypeSupplement: SupplementLine | null = null;
@@ -554,6 +648,25 @@ export function calculateRate(
   if (mealSupplement) adultTotal = adultTotal.plus(mealSupplement.amount);
   if (occupancySupplement) adultTotal = adultTotal.plus(occupancySupplement.amount);
   if (extraBedSupplement) adultTotal = adultTotal.plus(extraBedSupplement.amount);
+
+  // 8b. Apply BOOKING_WINDOW / PERCENTAGE Season SPO discounts
+  if (contract.seasonSpos && contract.seasonSpos.length > 0) {
+    const { discountSpos } = findApplicableSpos(
+      contract.seasonSpos,
+      scenario.checkInDate,
+      scenario.bookingDate,
+    );
+    for (const { spo } of discountSpos) {
+      if (spo.value == null) continue;
+      const val = new Decimal(spo.value);
+      if (spo.valueType === "PERCENTAGE") {
+        const reduction = adultTotal.times(val).div(100);
+        adultTotal = adultTotal.minus(reduction);
+      } else {
+        adultTotal = adultTotal.minus(val);
+      }
+    }
+  }
 
   const adultTotalPerNight = adultTotal.toDecimalPlaces(4).toNumber();
   const childTotalPerNight = childCharges.reduce((sum, c) => sum + c.amount, 0);
