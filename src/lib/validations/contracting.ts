@@ -72,6 +72,7 @@ export const hotelCreateSchema = z.object({
   totalRooms: z.number().int().positive().nullish(),
   yearBuilt: z.number().int().nullish(),
   yearRenovated: z.number().int().nullish(),
+  giataId: z.string().nullish(),
   active: z.boolean().default(true),
   amenityIds: z.array(z.string()).default([]),
 });

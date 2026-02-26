@@ -57,6 +57,7 @@ export default function EditHotelPage() {
         code: hotel.code,
         starRating: hotel.starRating,
         chainName: hotel.chainName ?? "",
+        giataId: hotel.giataId ?? "",
         description: hotel.description ?? "",
         address: hotel.address ?? "",
         city: hotel.city ?? "",
@@ -192,7 +193,7 @@ export default function EditHotelPage() {
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="starRating"
@@ -229,6 +230,23 @@ export default function EditHotelPage() {
                     <FormControl>
                       <Input
                         placeholder="Marriott, Hilton..."
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="giataId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GIATA ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. 12345"
                         {...field}
                         value={field.value ?? ""}
                       />

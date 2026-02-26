@@ -1416,6 +1416,7 @@ model Hotel {
   totalRooms       Int?
   yearBuilt        Int?
   yearRenovated    Int?
+  giataId          String?
   active           Boolean    @default(true)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt

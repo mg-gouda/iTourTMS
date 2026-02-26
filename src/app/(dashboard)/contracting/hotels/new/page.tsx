@@ -49,6 +49,7 @@ export default function NewHotelPage() {
       code: "",
       starRating: "THREE",
       chainName: "",
+      giataId: "",
       description: "",
       address: "",
       city: "",
@@ -191,7 +192,7 @@ export default function NewHotelPage() {
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="starRating"
@@ -228,6 +229,23 @@ export default function NewHotelPage() {
                     <FormControl>
                       <Input
                         placeholder="Marriott, Hilton..."
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="giataId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GIATA ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. 12345"
                         {...field}
                         value={field.value ?? ""}
                       />
