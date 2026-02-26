@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
@@ -305,25 +306,21 @@ export default function NewBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hotel *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Choose a hotel" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(hotels ?? [])
+                      <FormControl>
+                        <Combobox
+                          options={(hotels ?? [])
                             .filter((h) => h.active)
-                            .map((h) => (
-                              <SelectItem key={h.id} value={h.id}>
-                                {h.name} ({h.code})
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                            .map((h) => ({
+                              value: h.id,
+                              label: `${h.name} (${h.code})`,
+                            }))}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          placeholder="Choose a hotel"
+                          searchPlaceholder="Search hotels..."
+                          emptyMessage="No hotels found."
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -354,8 +351,8 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Tour Operator</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
+                        onValueChange={(v) => field.onChange(v === "__direct__" ? "" : v)}
+                        value={field.value || "__direct__"}
                       >
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -363,7 +360,7 @@ export default function NewBookingPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Direct Booking</SelectItem>
+                          <SelectItem value="__direct__">Direct Booking</SelectItem>
                           {(tourOperators ?? [])
                             .filter((t) => t.active)
                             .map((t) => (
