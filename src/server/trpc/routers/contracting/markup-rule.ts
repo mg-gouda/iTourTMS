@@ -80,6 +80,14 @@ export const markupRuleRouter = createTRPCRouter({
     .input(z.object({ id: z.string(), data: markupRuleUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
+
+      // Scope fields: convert undefined/empty to null so Prisma clears them
+      data.contractId = input.data.contractId || null;
+      data.hotelId = input.data.hotelId || null;
+      data.destinationId = input.data.destinationId || null;
+      data.marketId = input.data.marketId || null;
+      data.tourOperatorId = input.data.tourOperatorId || null;
+
       if (input.data.validFrom !== undefined)
         data.validFrom = input.data.validFrom ? new Date(input.data.validFrom) : null;
       if (input.data.validTo !== undefined)

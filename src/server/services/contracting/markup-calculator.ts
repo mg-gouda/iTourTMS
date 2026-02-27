@@ -25,7 +25,7 @@ export interface ResolveContext {
   hotelId: string;
   destinationId: string | null;
   marketId: string | null;
-  tourOperatorId: string;
+  tourOperatorId: string | null;
   date?: string; // optional date for validity check
 }
 

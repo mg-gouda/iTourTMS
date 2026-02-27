@@ -67,6 +67,34 @@ export const GUEST_TYPE_LABELS: Record<string, string> = {
   CHILD: "Child",
 };
 
+export const PARTNER_BOOKING_STATUS_LABELS: Record<string, string> = {
+  SENT: "Sent",
+  CONFIRMED: "Confirmed",
+  REGRET: "Regret",
+  STOP_SALE: "Stop Sale",
+  CANCELLED: "Cancelled",
+};
+
+export const PARTNER_BOOKING_STATUS_VARIANTS: Record<string, string> = {
+  SENT: "secondary",
+  CONFIRMED: "success",
+  REGRET: "warning",
+  STOP_SALE: "destructive",
+  CANCELLED: "destructive",
+};
+
+export const ROOM_OCCUPANCY_LABELS: Record<string, string> = {
+  SINGLE: "Single",
+  DOUBLE: "Double",
+  TRIPLE: "Triple",
+  FAMILY: "Family",
+};
+
+export const HOTEL_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: "Cash",
+  VOUCHER: "Voucher",
+};
+
 export const TIMELINE_ACTION_LABELS: Record<string, string> = {
   CREATED: "Booking Created",
   CONFIRMED: "Booking Confirmed",

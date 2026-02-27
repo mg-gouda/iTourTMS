@@ -148,6 +148,7 @@ export const bookingRouter = createTRPCRouter({
           tourOperatorId: input.tourOperatorId ?? null,
           checkIn: input.checkIn,
           checkOut: input.checkOut,
+          bookingDate: new Date().toISOString().slice(0, 10),
           rooms: input.rooms.map((r) => ({
             roomTypeId: r.roomTypeId,
             mealBasisId: r.mealBasisId,
@@ -248,12 +249,52 @@ export const bookingRouter = createTRPCRouter({
           paymentStatus: "UNPAID",
           totalPaid: 0,
           balanceDue: sellingTotal,
+
+          // Partner booking statuses
+          htlBookingStatus: input.htlBookingStatus ?? null,
+          toBookingStatus: input.toBookingStatus ?? null,
+
+          // Flight — Arrival
+          arrivalFlightNo: input.arrivalFlightNo ?? null,
+          arrivalTime: input.arrivalTime ?? null,
+          arrivalOriginApt: input.arrivalOriginApt ?? null,
+          arrivalDestApt: input.arrivalDestApt ?? null,
+          arrivalTerminal: input.arrivalTerminal ?? null,
+
+          // Flight — Departure
+          departFlightNo: input.departFlightNo ?? null,
+          departTime: input.departTime ?? null,
+          departOriginApt: input.departOriginApt ?? null,
+          departDestApt: input.departDestApt ?? null,
+          departTerminal: input.departTerminal ?? null,
+
+          // Room summary
+          roomOccupancy: input.roomOccupancy ?? null,
+          noOfRooms: input.noOfRooms ?? 1,
+          adults: input.adults ?? 2,
+          children: input.children ?? 0,
+          infants: input.infants ?? 0,
+
+          // Guest names
+          guestNames: input.guestNames?.length ? input.guestNames : undefined,
+
+          // Child DOBs
+          childDob1: input.childDob1 ? new Date(input.childDob1) : null,
+          childDob2: input.childDob2 ? new Date(input.childDob2) : null,
+
+          // Hotel payment
+          hotelPaymentMethod: input.hotelPaymentMethod ?? null,
+          paymentOptionDate: input.paymentOptionDate ? new Date(input.paymentOptionDate) : null,
+
+          // Misc
           leadGuestName: input.leadGuestName ?? null,
           leadGuestEmail: input.leadGuestEmail ?? null,
           leadGuestPhone: input.leadGuestPhone ?? null,
           specialRequests: input.specialRequests ?? null,
           internalNotes: input.internalNotes ?? null,
           externalRef: input.externalRef ?? null,
+          bookingNotes: input.bookingNotes ?? null,
+          meetAssistVisa: input.meetAssistVisa ?? false,
           createdById: ctx.session.user.id,
           rooms: {
             create: roomsData,
@@ -487,6 +528,7 @@ export const bookingRouter = createTRPCRouter({
         tourOperatorId: input.tourOperatorId ?? null,
         checkIn: input.checkIn,
         checkOut: input.checkOut,
+        bookingDate: input.bookingDate ?? new Date().toISOString().slice(0, 10),
         rooms: input.rooms.map((r) => ({
           roomTypeId: r.roomTypeId,
           mealBasisId: r.mealBasisId,

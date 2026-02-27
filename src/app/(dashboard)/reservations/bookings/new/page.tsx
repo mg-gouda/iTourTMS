@@ -2,16 +2,17 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Form,
   FormControl,
@@ -28,41 +29,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
 type FormValues = z.input<typeof bookingCreateSchema>;
 
-const STEPS = [
-  "Hotel",
-  "Tour Operator",
-  "Dates",
-  "Rooms",
-  "Guest Info",
-  "Review",
+const PARTNER_STATUS_OPTIONS = [
+  { value: "SENT", label: "Sent" },
+  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "REGRET", label: "Regret" },
+  { value: "STOP_SALE", label: "Stop Sale" },
+  { value: "CANCELLED", label: "Cancelled" },
+] as const;
+
+const ROOM_OCCUPANCY_OPTIONS = [
+  { value: "SINGLE", label: "Single" },
+  { value: "DOUBLE", label: "Double" },
+  { value: "TRIPLE", label: "Triple" },
+  { value: "FAMILY", label: "Family" },
+] as const;
+
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH", label: "Cash" },
+  { value: "VOUCHER", label: "Voucher" },
 ] as const;
 
 export default function NewBookingPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const [step, setStep] = useState(0);
 
   const form = useForm<FormValues>({
-    resolver: step === STEPS.length - 1 ? zodResolver(bookingCreateSchema) : undefined,
+    resolver: zodResolver(bookingCreateSchema),
     defaultValues: {
       hotelId: "",
       contractId: "",
       tourOperatorId: "",
+      externalRef: "",
       checkIn: "",
       checkOut: "",
       currencyId: "",
-      source: "DIRECT",
+      source: "TOUR_OPERATOR",
       manualRate: false,
+      htlBookingStatus: "SENT",
+      toBookingStatus: "SENT",
+      arrivalFlightNo: "",
+      arrivalTime: "",
+      arrivalOriginApt: "",
+      arrivalDestApt: "",
+      arrivalTerminal: "",
+      departFlightNo: "",
+      departTime: "",
+      departOriginApt: "",
+      departDestApt: "",
+      departTerminal: "",
+      roomOccupancy: undefined,
+      noOfRooms: 1,
+      adults: 2,
+      children: 0,
+      infants: 0,
+      guestNames: [],
+      childDob1: "",
+      childDob2: "",
+      hotelPaymentMethod: undefined,
+      paymentOptionDate: "",
       specialRequests: "",
       internalNotes: "",
-      externalRef: "",
+      bookingNotes: "",
+      meetAssistVisa: false,
       leadGuestName: "",
       leadGuestEmail: "",
       leadGuestPhone: "",
@@ -79,24 +113,42 @@ export default function NewBookingPage() {
     },
   });
 
-  const { fields: roomFields, append: appendRoom, remove: removeRoom } = useFieldArray({
-    control: form.control,
-    name: "rooms",
-  });
-
   // Watched fields
   const hotelId = form.watch("hotelId");
   const tourOperatorId = form.watch("tourOperatorId");
   const checkIn = form.watch("checkIn");
   const checkOut = form.watch("checkOut");
+  const adultsCount = form.watch("adults") ?? 2;
+  const childrenCount = form.watch("children") ?? 0;
+  const hotelPaymentMethod = form.watch("hotelPaymentMethod");
   const rooms = form.watch("rooms");
+
+  // Auto-set guest name rows count
+  const guestRowCount = adultsCount + childrenCount;
+
+  // Manage guest names array size
+  useEffect(() => {
+    const current = form.getValues("guestNames") ?? [];
+    if (guestRowCount > current.length) {
+      const extended = [...current, ...Array(guestRowCount - current.length).fill("")];
+      form.setValue("guestNames", extended);
+    } else if (guestRowCount < current.length) {
+      form.setValue("guestNames", current.slice(0, guestRowCount));
+    }
+  }, [guestRowCount, form]);
 
   // ── Data fetches ──
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
+  const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
 
-  const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery(
-    undefined,
-    { enabled: step >= 1 },
+  // Load room types & meal bases directly from hotel (available as soon as hotel is selected)
+  const { data: hotelRoomTypes } = trpc.contracting.roomType.list.useQuery(
+    { hotelId: hotelId! },
+    { enabled: !!hotelId },
+  );
+  const { data: hotelMealBases } = trpc.contracting.mealBasis.list.useQuery(
+    { hotelId: hotelId! },
+    { enabled: !!hotelId },
   );
 
   const { data: contracts } = trpc.contracting.contract.list.useQuery(
@@ -104,7 +156,7 @@ export default function NewBookingPage() {
     { enabled: !!hotelId },
   );
 
-  // Auto-resolve contract: find published contract for hotel that covers the check-in date
+  // Auto-resolve contract
   const matchedContract = useMemo(() => {
     if (!hotelId || !checkIn) return null;
     const ciDate = new Date(checkIn);
@@ -121,29 +173,30 @@ export default function NewBookingPage() {
 
   const contractId = matchedContract?.id ?? null;
 
-  // Sync contractId into form whenever it changes
   useEffect(() => {
     form.setValue("contractId", contractId ?? "");
   }, [contractId, form]);
 
-  // Fetch full contract detail when one is matched
   const { data: contractDetail } = trpc.contracting.contract.getById.useQuery(
     { id: contractId! },
     { enabled: !!contractId },
   );
 
-  // Room types & meal bases from contract detail
+  // Room types: use contract room types if contract matched, else hotel room types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const contractRoomTypes: any[] = useMemo(
-    () => contractDetail?.roomTypes ?? [],
-    [contractDetail],
-  );
+  const availableRoomTypes: any[] = useMemo(() => {
+    if (contractDetail?.roomTypes?.length) return contractDetail.roomTypes;
+    if (hotelRoomTypes?.length) return hotelRoomTypes.map((rt) => ({ roomTypeId: rt.id, roomType: rt }));
+    return [];
+  }, [contractDetail, hotelRoomTypes]);
 
+  // Meal bases: use contract meal bases if contract matched, else hotel meal bases
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const contractMealBases: any[] = useMemo(
-    () => contractDetail?.mealBases ?? [],
-    [contractDetail],
-  );
+  const availableMealBases: any[] = useMemo(() => {
+    if (contractDetail?.mealBases?.length) return contractDetail.mealBases;
+    if (hotelMealBases?.length) return hotelMealBases.map((mb) => ({ mealBasisId: mb.id, mealBasis: mb }));
+    return [];
+  }, [contractDetail, hotelMealBases]);
 
   const selectedContract = contractDetail ?? matchedContract;
 
@@ -174,6 +227,7 @@ export default function NewBookingPage() {
             tourOperatorId: tourOperatorId || undefined,
             checkIn,
             checkOut,
+            bookingDate: new Date().toISOString().slice(0, 10),
             rooms: rooms.map((r) => ({
               roomTypeId: r.roomTypeId,
               mealBasisId: r.mealBasisId,
@@ -190,10 +244,34 @@ export default function NewBookingPage() {
   const {
     data: ratePreview,
     isLoading: ratesLoading,
-    error: ratesError,
   } = trpc.reservations.booking.calculateRates.useQuery(rateCalcInput!, {
-    enabled: !!rateCalcInput && step >= 3,
+    enabled: !!rateCalcInput,
   });
+
+  // Derived values
+  const nights =
+    checkIn && checkOut && checkOut > checkIn
+      ? Math.ceil(
+          (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000,
+        )
+      : 0;
+
+  const costDisplay = ratePreview
+    ? ratePreview.buyingTotal.toFixed(2)
+    : "—";
+  const sellingDisplay = ratePreview
+    ? ratePreview.sellingTotal.toFixed(2)
+    : "—";
+  const plDisplay = ratePreview
+    ? (ratePreview.sellingTotal - ratePreview.buyingTotal).toFixed(2)
+    : "—";
+  const currencyCode = selectedContract?.baseCurrency?.code ?? "";
+
+  // Selected objects
+  const selectedHotel = useMemo(
+    () => (hotels ?? []).find((h) => h.id === hotelId),
+    [hotels, hotelId],
+  );
 
   // Mutation
   const createMutation = trpc.reservations.booking.create.useMutation({
@@ -203,115 +281,193 @@ export default function NewBookingPage() {
     },
   });
 
-  // Step validation
-  function canProceed(): boolean {
-    switch (step) {
-      case 0:
-        return !!hotelId;
-      case 1:
-        return true; // TO is optional
-      case 2:
-        return !!(checkIn && checkOut && checkOut > checkIn && contractId);
-      case 3:
-        return rooms.length > 0 && rooms.every((r) => r.roomTypeId && r.mealBasisId);
-      case 4:
-        return true; // Guest info optional at creation
-      default:
-        return true;
-    }
-  }
-
-  function handleNext() {
-    if (step < STEPS.length - 1) setStep(step + 1);
-  }
-
-  function handleBack() {
-    if (step > 0) setStep(step - 1);
-  }
-
-  function handleSubmit() {
-    const values = form.getValues();
+  function onSubmit(values: FormValues) {
     const clean = { ...values };
     if (!clean.contractId) clean.contractId = null;
     if (!clean.tourOperatorId) clean.tourOperatorId = null;
     if (!clean.specialRequests) clean.specialRequests = null;
     if (!clean.internalNotes) clean.internalNotes = null;
-    if (!clean.externalRef) clean.externalRef = null;
+    if (!clean.bookingNotes) clean.bookingNotes = null;
     if (!clean.leadGuestName) clean.leadGuestName = null;
     if (!clean.leadGuestEmail) clean.leadGuestEmail = null;
     if (!clean.leadGuestPhone) clean.leadGuestPhone = null;
+    if (!clean.arrivalFlightNo) clean.arrivalFlightNo = null;
+    if (!clean.arrivalTime) clean.arrivalTime = null;
+    if (!clean.arrivalOriginApt) clean.arrivalOriginApt = null;
+    if (!clean.arrivalDestApt) clean.arrivalDestApt = null;
+    if (!clean.arrivalTerminal) clean.arrivalTerminal = null;
+    if (!clean.departFlightNo) clean.departFlightNo = null;
+    if (!clean.departTime) clean.departTime = null;
+    if (!clean.departOriginApt) clean.departOriginApt = null;
+    if (!clean.departDestApt) clean.departDestApt = null;
+    if (!clean.departTerminal) clean.departTerminal = null;
+    if (!clean.childDob1) clean.childDob1 = null;
+    if (!clean.childDob2) clean.childDob2 = null;
+    if (!clean.paymentOptionDate) clean.paymentOptionDate = null;
     if (!clean.currencyId && selectedContract?.baseCurrency?.id) {
       clean.currencyId = selectedContract.baseCurrency.id;
     }
+
+    // Auto-set source based on T/O
+    if (clean.tourOperatorId) {
+      clean.source = "TOUR_OPERATOR";
+    } else {
+      clean.source = "DIRECT";
+    }
+
+    // Set lead guest from first guest name
+    if (clean.guestNames?.length && clean.guestNames[0]) {
+      clean.leadGuestName = clean.guestNames[0];
+    }
+
+    // Sync room adults/children/infants from form-level values
+    if (clean.rooms?.[0]) {
+      clean.rooms[0].adults = clean.adults;
+      clean.rooms[0].children = clean.children;
+      clean.rooms[0].infants = clean.infants;
+    }
+
     createMutation.mutate(clean);
   }
 
-  // Selected hotel object
-  const selectedHotel = useMemo(
-    () => (hotels ?? []).find((h) => h.id === hotelId),
-    [hotels, hotelId],
-  );
-
-  const selectedTO = useMemo(
-    () => (tourOperators ?? []).find((t) => t.id === tourOperatorId),
-    [tourOperators, tourOperatorId],
-  );
-
-  const nights = checkIn && checkOut && checkOut > checkIn
-    ? Math.ceil(
-        (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000,
-      )
-    : 0;
-
   return (
-    <div className="mx-auto max-w-4xl space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Booking</h1>
-        <p className="text-muted-foreground">
-          Create a reservation step by step
-        </p>
-      </div>
-
-      {/* Step Indicator */}
-      <div className="flex items-center gap-1">
-        {STEPS.map((label, i) => (
-          <div key={label} className="flex items-center">
-            <button
-              type="button"
-              onClick={() => i < step && setStep(i)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                i === step
-                  ? "bg-primary text-primary-foreground"
-                  : i < step
-                    ? "bg-primary/10 text-primary cursor-pointer hover:bg-primary/20"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              <span className="font-mono">{i + 1}</span>
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-            {i < STEPS.length - 1 && (
-              <ChevronRight className="mx-1 size-3 text-muted-foreground" />
-            )}
-          </div>
-        ))}
+    <div className="mx-auto max-w-6xl space-y-6 animate-fade-in pb-10">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">New Booking</h1>
+          <p className="text-sm text-muted-foreground">
+            Create a new reservation
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/reservations/bookings")}
+        >
+          Cancel
+        </Button>
       </div>
 
       <Form {...form}>
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-          {/* Step 0: Hotel Selection */}
-          {step === 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Hotel</CardTitle>
-              </CardHeader>
-              <CardContent>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* ── Section 1: Booking Info & Status ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Booking Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {/* BKG Date — auto captured, read-only */}
+                <FormItem>
+                  <FormLabel>BKG Date</FormLabel>
+                  <Input
+                    value={format(new Date(), "dd MMM yyyy")}
+                    disabled
+                    className="bg-muted"
+                  />
+                </FormItem>
+
+                {/* HTL BKG Status */}
+                <FormField
+                  control={form.control}
+                  name="htlBookingStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>HTL BKG Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PARTNER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+
+                {/* T/O BKG Status */}
+                <FormField
+                  control={form.control}
+                  name="toBookingStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>T/O BKG Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PARTNER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+
+                {/* T/O BKG Ref */}
+                <FormField
+                  control={form.control}
+                  name="externalRef"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>T/O BKG Ref *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="TO-12345" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {/* Tour Operator */}
+                <FormField
+                  control={form.control}
+                  name="tourOperatorId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tour Operator</FormLabel>
+                      <FormControl>
+                        <Combobox
+                          options={(tourOperators ?? [])
+                            .filter((t) => t.active)
+                            .map((t) => ({
+                              value: t.id,
+                              label: `${t.name} (${t.code})`,
+                            }))}
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                          placeholder="Select T/O"
+                          searchPlaceholder="Search tour operators..."
+                          emptyMessage="No tour operators found."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Hotel Name */}
                 <FormField
                   control={form.control}
                   name="hotelId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hotel *</FormLabel>
+                      <FormLabel>Hotel Name *</FormLabel>
                       <FormControl>
                         <Combobox
                           options={(hotels ?? [])
@@ -322,7 +478,7 @@ export default function NewBookingPage() {
                             }))}
                           value={field.value}
                           onValueChange={field.onChange}
-                          placeholder="Choose a hotel"
+                          placeholder="Select hotel"
                           searchPlaceholder="Search hotels..."
                           emptyMessage="No hotels found."
                         />
@@ -331,464 +487,596 @@ export default function NewBookingPage() {
                     </FormItem>
                   )}
                 />
-                {selectedHotel && (
-                  <div className="mt-4 rounded bg-muted/50 p-3 text-sm">
-                    <p className="font-medium">{selectedHotel.name}</p>
-                    <p className="text-muted-foreground">
-                      {selectedHotel.code}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Step 1: Tour Operator */}
-          {step === 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Tour Operator (Optional)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                {/* Room Type */}
                 <FormField
                   control={form.control}
-                  name="tourOperatorId"
+                  name="rooms.0.roomTypeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tour Operator</FormLabel>
+                      <FormLabel>Room Type *</FormLabel>
                       <Select
-                        onValueChange={(v) => field.onChange(v === "__direct__" ? "" : v)}
-                        value={field.value || "__direct__"}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={!hotelId}
                       >
                         <FormControl>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Direct booking (no TO)" />
+                            <SelectValue placeholder={hotelId ? "Select room type" : "Select hotel first"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__direct__">Direct Booking</SelectItem>
-                          {(tourOperators ?? [])
-                            .filter((t) => t.active)
-                            .map((t) => (
-                              <SelectItem key={t.id} value={t.id}>
-                                {t.name} ({t.code})
-                              </SelectItem>
-                            ))}
+                          {availableRoomTypes.map((rt) => (
+                            <SelectItem
+                              key={rt.roomTypeId ?? rt.id}
+                              value={rt.roomTypeId ?? rt.id}
+                            >
+                              {rt.roomType?.name ?? rt.name ?? "Room"}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Contract status */}
+              {hotelId && checkIn && checkOut > checkIn && (
+                <div className="text-xs">
+                  {matchedContract ? (
+                    <span className="text-green-600">
+                      Contract: {matchedContract.name} ({matchedContract.code}) —{" "}
+                      {format(new Date(matchedContract.validFrom), "dd MMM yyyy")} to{" "}
+                      {format(new Date(matchedContract.validTo), "dd MMM yyyy")}
+                    </span>
+                  ) : (
+                    <span className="text-destructive">
+                      No published contract covers these dates.
+                    </span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Section 2: Arrival Flight ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <PlaneLanding className="size-4 text-green-600" />
+                <CardTitle className="text-base">Arrival</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
                 <FormField
                   control={form.control}
-                  name="source"
+                  name="checkIn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Booking Source</FormLabel>
+                      <FormLabel>Arrival Date *</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="arrivalFlightNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Flight No</FormLabel>
+                      <FormControl>
+                        <Input placeholder="MS-804" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="arrivalTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="arrivalOriginApt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Origin Airport</FormLabel>
+                      <FormControl>
+                        <Input placeholder="LHR" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="arrivalDestApt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dest. Airport</FormLabel>
+                      <FormControl>
+                        <Input placeholder="HRG" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="arrivalTerminal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Terminal</FormLabel>
+                      <FormControl>
+                        <Input placeholder="T1" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Section 3: Departure Flight ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <PlaneTakeoff className="size-4 text-blue-600" />
+                <CardTitle className="text-base">Departure</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
+                <FormField
+                  control={form.control}
+                  name="checkOut"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Departure Date *</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departFlightNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Flight No</FormLabel>
+                      <FormControl>
+                        <Input placeholder="MS-805" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departOriginApt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Origin Airport</FormLabel>
+                      <FormControl>
+                        <Input placeholder="HRG" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departDestApt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dest. Airport</FormLabel>
+                      <FormControl>
+                        <Input placeholder="LHR" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departTerminal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Terminal</FormLabel>
+                      <FormControl>
+                        <Input placeholder="T1" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Nights display */}
+              {nights > 0 && (
+                <div className="mt-3">
+                  <Badge variant="outline" className="font-mono text-sm">
+                    {nights} Night{nights !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Section 4: Room & Occupancy ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Room & Occupancy</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
+                {/* Room Occupancy */}
+                <FormField
+                  control={form.control}
+                  name="roomOccupancy"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Room Occupancy</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        value={field.value ?? ""}
                       >
                         <FormControl>
                           <SelectTrigger className="w-full">
-                            <SelectValue />
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="DIRECT">Direct</SelectItem>
-                          <SelectItem value="TOUR_OPERATOR">Tour Operator</SelectItem>
-                          <SelectItem value="API">API</SelectItem>
+                          {ROOM_OCCUPANCY_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Step 2: Dates */}
-          {step === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Stay Dates</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* No of Rooms */}
+                <FormField
+                  control={form.control}
+                  name="noOfRooms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>No of Rooms</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {/* AD */}
+                <FormField
+                  control={form.control}
+                  name="adults"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>AD</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={10}
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {/* CH */}
+                <FormField
+                  control={form.control}
+                  name="children"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CH</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={6}
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {/* INF */}
+                <FormField
+                  control={form.control}
+                  name="infants"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>INF</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={4}
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {/* Meal Basis */}
+                <FormField
+                  control={form.control}
+                  name="rooms.0.mealBasisId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Meal Basis *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={!hotelId}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={hotelId ? "Select meal" : "—"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableMealBases.map((mb) => (
+                            <SelectItem
+                              key={mb.mealBasisId ?? mb.id}
+                              value={mb.mealBasisId ?? mb.id}
+                            >
+                              {mb.mealBasis?.name ?? mb.name ?? "Meal"} (
+                              {mb.mealBasis?.mealCode ?? mb.mealCode ?? ""})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Section 5: Guest Names ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">
+                Guest Names
+                {guestRowCount > 0 && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    ({adultsCount} Adult{adultsCount !== 1 ? "s" : ""}{childrenCount > 0 ? ` + ${childrenCount} Child${childrenCount !== 1 ? "ren" : ""}` : ""})
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {Array.from({ length: guestRowCount }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="w-8 text-xs text-muted-foreground font-mono">
+                    {i < adultsCount ? `AD${i + 1}` : `CH${i - adultsCount + 1}`}
+                  </span>
                   <FormField
                     control={form.control}
-                    name="checkIn"
+                    name={`guestNames.${i}`}
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Check-in *</FormLabel>
+                      <FormItem className="flex-1">
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input
+                            placeholder={i < adultsCount ? `Adult ${i + 1} full name` : `Child ${i - adultsCount + 1} full name`}
+                            {...field}
+                            value={field.value ?? ""}
+                          />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="checkOut"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Check-out *</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-
-                {nights > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {nights} night{nights !== 1 ? "s" : ""}
-                  </p>
-                )}
-
-                {checkIn && checkOut && checkOut > checkIn && (
-                  <div className="rounded-md border p-3 text-sm">
-                    {matchedContract ? (
-                      <div className="space-y-1">
-                        <p className="font-medium text-green-600">Contract matched</p>
-                        <p>
-                          {matchedContract.name} ({matchedContract.code}) —{" "}
-                          {format(new Date(matchedContract.validFrom), "dd MMM yyyy")} to{" "}
-                          {format(new Date(matchedContract.validTo), "dd MMM yyyy")}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-destructive">
-                        No published contract covers these dates for the selected hotel.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Rooms */}
-          {step === 3 && (
-            <div className="space-y-4">
-              {roomFields.map((field, index) => (
-                <Card key={field.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Room {index + 1}</CardTitle>
-                      {roomFields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => removeRoom(index)}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`rooms.${index}.roomTypeId`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Room Type *</FormLabel>
-                            <Select onValueChange={f.onChange} value={f.value}>
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select room type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {contractRoomTypes.map((rt) => (
-                                  <SelectItem
-                                    key={rt.roomTypeId ?? rt.id}
-                                    value={rt.roomTypeId ?? rt.id}
-                                  >
-                                    {rt.roomType?.name ?? rt.name ?? "Room"}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`rooms.${index}.mealBasisId`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Meal Basis *</FormLabel>
-                            <Select onValueChange={f.onChange} value={f.value}>
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select meal" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {contractMealBases.map((mb) => (
-                                  <SelectItem
-                                    key={mb.mealBasisId ?? mb.id}
-                                    value={mb.mealBasisId ?? mb.id}
-                                  >
-                                    {mb.mealBasis?.name ?? mb.name ?? "Meal"} (
-                                    {mb.mealBasis?.mealCode ?? mb.mealCode ?? ""})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`rooms.${index}.adults`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Adults</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={6}
-                                {...f}
-                                onChange={(e) =>
-                                  f.onChange(parseInt(e.target.value) || 1)
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`rooms.${index}.children`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Children</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={4}
-                                {...f}
-                                onChange={(e) =>
-                                  f.onChange(parseInt(e.target.value) || 0)
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`rooms.${index}.infants`}
-                        render={({ field: f }) => (
-                          <FormItem>
-                            <FormLabel>Infants</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={2}
-                                {...f}
-                                onChange={(e) =>
-                                  f.onChange(parseInt(e.target.value) || 0)
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`rooms.${index}.extraBed`}
-                        render={({ field: f }) => (
-                          <FormItem className="flex items-end gap-2 pb-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={f.value}
-                                onCheckedChange={f.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel>Extra Bed</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                  </CardContent>
-                </Card>
               ))}
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  appendRoom({
-                    roomTypeId: "",
-                    mealBasisId: "",
-                    adults: 2,
-                    children: 0,
-                    infants: 0,
-                    extraBed: false,
-                  })
-                }
-              >
-                + Add Room
-              </Button>
-
-              {/* Rate Preview */}
-              {canCalcRates && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Rate Preview</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {ratesLoading ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin" />
-                        Calculating rates...
-                      </div>
-                    ) : ratesError ? (
-                      <p className="text-sm text-destructive">
-                        {ratesError.message}
-                      </p>
-                    ) : ratePreview ? (
-                      <div className="space-y-2 text-sm">
-                        {ratePreview.rooms.map((r, i) => (
-                          <div
-                            key={i}
-                            className="flex justify-between rounded bg-muted/50 p-2"
-                          >
-                            <span>Room {r.roomIndex}</span>
-                            <span className="font-mono">
-                              Buy: {r.buyingTotal.toFixed(2)} | Sell:{" "}
-                              {r.sellingTotal.toFixed(2)}
-                            </span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between font-medium border-t pt-2">
-                          <span>Totals</span>
-                          <span className="font-mono">
-                            Buy: {ratePreview.buyingTotal.toFixed(2)} | Sell:{" "}
-                            {ratePreview.sellingTotal.toFixed(2)}
-                          </span>
-                        </div>
-                        {ratePreview.markupRuleName ? (
-                          <p className="text-xs text-muted-foreground">
-                            Markup: {ratePreview.markupRuleName} —{" "}
-                            {ratePreview.markupType === "PERCENTAGE"
-                              ? `${ratePreview.markupValue}%`
-                              : `${ratePreview.markupValue} / night`}{" "}
-                            = {ratePreview.markupAmount.toFixed(2)}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-amber-600">
-                            No markup rule matched — selling = buying
-                          </p>
-                        )}
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
+              {guestRowCount === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Set the number of Adults and Children above to add guest rows.
+                </p>
               )}
-            </div>
-          )}
 
-          {/* Step 4: Guest Info */}
-          {step === 4 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Lead Guest Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              {/* Child DOBs */}
+              {childrenCount > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <FormField
                     control={form.control}
-                    name="leadGuestName"
+                    name="childDob1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Guest Name</FormLabel>
+                        <FormLabel>1st CHD DOB</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="John Doe"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
+                          <Input type="date" {...field} value={field.value ?? ""} />
                         </FormControl>
-                        <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="leadGuestEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="guest@example.com"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {childrenCount >= 2 && (
+                    <FormField
+                      control={form.control}
+                      name="childDob2"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>2nd CHD DOB</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} value={field.value ?? ""} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Section 6: Rates & Payment ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Rates & Payment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Rate display */}
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                <FormItem>
+                  <FormLabel>Cost</FormLabel>
+                  <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono">
+                    {ratesLoading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <>{costDisplay} {currencyCode}</>
+                    )}
+                  </div>
+                </FormItem>
+                <FormItem>
+                  <FormLabel>Selling</FormLabel>
+                  <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono">
+                    {ratesLoading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <>{sellingDisplay} {currencyCode}</>
+                    )}
+                  </div>
+                </FormItem>
+                <FormItem>
+                  <FormLabel>P/L</FormLabel>
+                  <div className={`flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono ${
+                    ratePreview && ratePreview.sellingTotal - ratePreview.buyingTotal < 0
+                      ? "text-destructive"
+                      : ratePreview && ratePreview.sellingTotal - ratePreview.buyingTotal > 0
+                        ? "text-green-600"
+                        : ""
+                  }`}>
+                    {ratesLoading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <>{plDisplay} {currencyCode}</>
+                    )}
+                  </div>
+                </FormItem>
+
+                {/* Payment Method */}
+                <FormField
+                  control={form.control}
+                  name="hotelPaymentMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Method</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+
+                {/* Payment Option Date — only shown when method is CASH */}
+                {hotelPaymentMethod === "CASH" && (
                   <FormField
                     control={form.control}
-                    name="leadGuestPhone"
+                    name="paymentOptionDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone</FormLabel>
+                        <FormLabel>P. Option Date</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="+1 234 567 890"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
+                          <Input type="date" {...field} value={field.value ?? ""} />
                         </FormControl>
-                        <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="externalRef"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>External Reference</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="TO booking ref"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                )}
+              </div>
+
+              {ratePreview?.markupRuleName && (
+                <p className="text-xs text-muted-foreground">
+                  Markup: {ratePreview.markupRuleName} —{" "}
+                  {ratePreview.markupType === "PERCENTAGE"
+                    ? `${ratePreview.markupValue}%`
+                    : `${ratePreview.markupValue} / night`}{" "}
+                  = {ratePreview.markupAmount.toFixed(2)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Section 7: Remarks & Notes ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Remarks & Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="internalNotes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Internal Remarks</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          rows={3}
+                          placeholder="Internal team notes..."
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="specialRequests"
@@ -798,121 +1086,79 @@ export default function NewBookingPage() {
                       <FormControl>
                         <Textarea
                           rows={3}
-                          placeholder="Any special requirements..."
+                          placeholder="Guest special requests..."
                           {...field}
                           value={field.value ?? ""}
                         />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="internalNotes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Internal Notes</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          rows={2}
-                          placeholder="Internal team notes..."
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-          )}
+              </div>
 
-          {/* Step 5: Review */}
-          {step === 5 && (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Booking Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <InfoRow label="Hotel" value={selectedHotel?.name ?? "—"} />
-                  <InfoRow
-                    label="Tour Operator"
-                    value={selectedTO?.name ?? "Direct Booking"}
-                  />
-                  <InfoRow
-                    label="Contract"
-                    value={
-                      selectedContract
-                        ? `${selectedContract.name} (${selectedContract.code})`
-                        : "—"
-                    }
-                  />
-                  <InfoRow label="Check-in" value={checkIn ? format(new Date(checkIn), "dd MMM yyyy") : "—"} />
-                  <InfoRow label="Check-out" value={checkOut ? format(new Date(checkOut), "dd MMM yyyy") : "—"} />
-                  <InfoRow label="Nights" value={String(nights)} />
-                  <InfoRow label="Rooms" value={String(rooms.length)} />
-                  <InfoRow
-                    label="Lead Guest"
-                    value={form.getValues("leadGuestName") || "—"}
-                  />
-
-                  {ratePreview && (
-                    <>
-                      <div className="my-2 border-t" />
-                      <InfoRow
-                        label="Buying Total"
-                        value={ratePreview.buyingTotal.toFixed(2)}
+              <FormField
+                control={form.control}
+                name="bookingNotes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Booking Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={2}
+                        placeholder="Additional booking notes..."
+                        {...field}
+                        value={field.value ?? ""}
                       />
-                      <InfoRow
-                        label="Selling Total"
-                        value={ratePreview.sellingTotal.toFixed(2)}
-                      />
-                      <InfoRow
-                        label="Margin"
-                        value={(
-                          ratePreview.sellingTotal - ratePreview.buyingTotal
-                        ).toFixed(2)}
-                      />
-                    </>
-                  )}
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-                </CardContent>
-              </Card>
-            </div>
-          )}
+              {/* Meet, Assist & Visa */}
+              <FormField
+                control={form.control}
+                name="meetAssistVisa"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-3 rounded-md border p-3">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel className="text-sm font-medium cursor-pointer">
+                        Meet, Assist & Visa
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Check if meet, assist and visa services are required for this booking
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between">
+          {/* ── Submit ── */}
+          <div className="flex items-center justify-end gap-3">
             <Button
               type="button"
               variant="outline"
-              onClick={step === 0 ? () => router.push("/reservations/bookings") : handleBack}
+              onClick={() => router.push("/reservations/bookings")}
             >
-              <ChevronLeft className="mr-1 size-4" />
-              {step === 0 ? "Cancel" : "Back"}
+              Cancel
             </Button>
-
-            {step < STEPS.length - 1 ? (
-              <Button
-                type="button"
-                onClick={handleNext}
-                disabled={!canProceed()}
-              >
-                Next
-                <ChevronRight className="ml-1 size-4" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={createMutation.isPending}
-              >
-                {createMutation.isPending ? "Creating..." : "Create Booking"}
-              </Button>
-            )}
+            <Button type="submit" disabled={createMutation.isPending}>
+              {createMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Booking"
+              )}
+            </Button>
           </div>
 
           {createMutation.error && (
@@ -922,21 +1168,6 @@ export default function NewBookingPage() {
           )}
         </form>
       </Form>
-    </div>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value ?? "—"}</span>
     </div>
   );
 }

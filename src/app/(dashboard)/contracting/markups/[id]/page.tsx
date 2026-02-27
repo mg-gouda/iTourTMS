@@ -345,11 +345,11 @@ export default function MarkupRuleDetailPage() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder="All" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
+                              <SelectItem value="__none__">All</SelectItem>
                               {contracts?.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>
                                   {c.name} ({c.code})
@@ -376,11 +376,11 @@ export default function MarkupRuleDetailPage() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder="All" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
+                              <SelectItem value="__none__">All</SelectItem>
                               {hotels?.map((h) => (
                                 <SelectItem key={h.id} value={h.id}>
                                   {h.name}
@@ -407,11 +407,11 @@ export default function MarkupRuleDetailPage() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder="All" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
+                              <SelectItem value="__none__">All</SelectItem>
                               {destinations?.map((d) => (
                                 <SelectItem key={d.id} value={d.id}>
                                   {d.name}
@@ -438,11 +438,11 @@ export default function MarkupRuleDetailPage() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder="All" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
+                              <SelectItem value="__none__">All</SelectItem>
                               {markets?.map((m) => (
                                 <SelectItem key={m.id} value={m.id}>
                                   {m.name} ({m.code})
@@ -469,11 +469,11 @@ export default function MarkupRuleDetailPage() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="None" />
+                                <SelectValue placeholder="All" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
+                              <SelectItem value="__none__">All</SelectItem>
                               {tourOperators?.map((to) => (
                                 <SelectItem key={to.id} value={to.id}>
                                   {to.name} ({to.code})

@@ -2365,6 +2365,26 @@ enum GuestType {
   CHILD
 }
 
+enum PartnerBookingStatus {
+  SENT
+  CONFIRMED
+  REGRET
+  STOP_SALE
+  CANCELLED
+}
+
+enum RoomOccupancy {
+  SINGLE
+  DOUBLE
+  TRIPLE
+  FAMILY
+}
+
+enum HotelPaymentMethod {
+  CASH
+  VOUCHER
+}
+
 // ============================================================================
 // RESERVATIONS MODULE — Models
 // ============================================================================
@@ -2445,10 +2465,48 @@ model Booking {
   leadGuestEmail     String?
   leadGuestPhone     String?
 
+  // Partner booking statuses
+  htlBookingStatus   PartnerBookingStatus?
+  toBookingStatus    PartnerBookingStatus?
+
+  // Flight — Arrival
+  arrivalFlightNo    String?
+  arrivalTime        String?
+  arrivalOriginApt   String?
+  arrivalDestApt     String?
+  arrivalTerminal    String?
+
+  // Flight — Departure
+  departFlightNo     String?
+  departTime         String?
+  departOriginApt    String?
+  departDestApt      String?
+  departTerminal     String?
+
+  // Room summary
+  roomOccupancy      RoomOccupancy?
+  noOfRooms          Int                 @default(1)
+  adults             Int                 @default(2)
+  children           Int                 @default(0)
+  infants            Int                 @default(0)
+
+  // Guest names (stored as JSON array)
+  guestNames         Json?
+
+  // Child DOBs
+  childDob1          DateTime?           @db.Date
+  childDob2          DateTime?           @db.Date
+
+  // Hotel payment
+  hotelPaymentMethod HotelPaymentMethod?
+  paymentOptionDate  DateTime?           @db.Date
+
   // Misc
   specialRequests    String?             @db.Text
   internalNotes      String?             @db.Text
   externalRef        String?
+  bookingNotes       String?             @db.Text
+  meetAssistVisa     Boolean             @default(false)
   apiIntegrationId   String?
 
   // Workflow

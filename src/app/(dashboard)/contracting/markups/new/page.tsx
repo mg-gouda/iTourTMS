@@ -242,7 +242,7 @@ export default function NewMarkupRulePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Leave empty for a global rule. More specific scopes take priority.
+                  Select &quot;All&quot; to apply globally. More specific scopes take priority.
                 </p>
 
                 <FormField
@@ -257,11 +257,11 @@ export default function NewMarkupRulePage() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder="All" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">All</SelectItem>
                           {contracts?.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.name} ({c.code})
@@ -286,11 +286,11 @@ export default function NewMarkupRulePage() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder="All" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">All</SelectItem>
                           {hotels?.map((h) => (
                             <SelectItem key={h.id} value={h.id}>
                               {h.name}
@@ -315,11 +315,11 @@ export default function NewMarkupRulePage() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder="All" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">All</SelectItem>
                           {destinations?.map((d) => (
                             <SelectItem key={d.id} value={d.id}>
                               {d.name}
@@ -344,11 +344,11 @@ export default function NewMarkupRulePage() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder="All" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">All</SelectItem>
                           {markets?.map((m) => (
                             <SelectItem key={m.id} value={m.id}>
                               {m.name} ({m.code})
@@ -373,11 +373,11 @@ export default function NewMarkupRulePage() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder="All" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">All</SelectItem>
                           {tourOperators?.map((to) => (
                             <SelectItem key={to.id} value={to.id}>
                               {to.name} ({to.code})

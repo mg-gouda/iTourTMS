@@ -54,21 +54,65 @@ export const bookingCreateSchema = z
     hotelId: z.string().min(1, "Hotel is required"),
     contractId: z.string().nullish(),
     tourOperatorId: z.string().nullish(),
-    checkIn: z.string().min(1, "Check-in date is required"),
-    checkOut: z.string().min(1, "Check-out date is required"),
+    externalRef: z.string().min(1, "T/O Booking Ref is required"),
+    checkIn: z.string().min(1, "Arrival date is required"),
+    checkOut: z.string().min(1, "Departure date is required"),
     currencyId: z.string().min(1, "Currency is required"),
-    source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).default("DIRECT"),
+    source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).default("TOUR_OPERATOR"),
     manualRate: z.boolean().default(false),
+
+    // Partner booking statuses
+    htlBookingStatus: z
+      .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+      .default("SENT"),
+    toBookingStatus: z
+      .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+      .default("SENT"),
+
+    // Flight — Arrival
+    arrivalFlightNo: z.string().nullish(),
+    arrivalTime: z.string().nullish(),
+    arrivalOriginApt: z.string().nullish(),
+    arrivalDestApt: z.string().nullish(),
+    arrivalTerminal: z.string().nullish(),
+
+    // Flight — Departure
+    departFlightNo: z.string().nullish(),
+    departTime: z.string().nullish(),
+    departOriginApt: z.string().nullish(),
+    departDestApt: z.string().nullish(),
+    departTerminal: z.string().nullish(),
+
+    // Room summary
+    roomOccupancy: z.enum(["SINGLE", "DOUBLE", "TRIPLE", "FAMILY"]).nullish(),
+    noOfRooms: z.number().int().min(1).default(1),
+    adults: z.number().int().min(1).default(2),
+    children: z.number().int().min(0).default(0),
+    infants: z.number().int().min(0).default(0),
+
+    // Guest names (array of strings)
+    guestNames: z.array(z.string()).default([]),
+
+    // Child DOBs
+    childDob1: z.string().nullish(),
+    childDob2: z.string().nullish(),
+
+    // Hotel payment
+    hotelPaymentMethod: z.enum(["CASH", "VOUCHER"]).nullish(),
+    paymentOptionDate: z.string().nullish(),
+
     specialRequests: z.string().nullish(),
     internalNotes: z.string().nullish(),
-    externalRef: z.string().nullish(),
+    bookingNotes: z.string().nullish(),
+    meetAssistVisa: z.boolean().default(false),
+
     leadGuestName: z.string().nullish(),
     leadGuestEmail: z.string().email().nullish().or(z.literal("")),
     leadGuestPhone: z.string().nullish(),
     rooms: z.array(bookingRoomSchema).min(1, "At least one room is required"),
   })
   .refine((d) => d.checkOut > d.checkIn, {
-    message: "Check-out must be after check-in",
+    message: "Departure must be after arrival",
     path: ["checkOut"],
   });
 
@@ -126,6 +170,7 @@ export const bookingRateCalcSchema = z.object({
   tourOperatorId: z.string().nullish(),
   checkIn: z.string().min(1),
   checkOut: z.string().min(1),
+  bookingDate: z.string().nullish(),
   rooms: z
     .array(
       z.object({
