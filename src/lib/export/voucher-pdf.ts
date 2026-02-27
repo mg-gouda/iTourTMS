@@ -35,6 +35,17 @@ export interface VoucherPdfData {
     // Fallback guest names from booking-level JSON field
     guestNames?: string[] | null;
     leadGuestName?: string | null;
+    // Flight details
+    arrivalFlightNo?: string | null;
+    arrivalTime?: string | null;
+    arrivalOriginApt?: string | null;
+    arrivalDestApt?: string | null;
+    arrivalTerminal?: string | null;
+    departFlightNo?: string | null;
+    departTime?: string | null;
+    departOriginApt?: string | null;
+    departDestApt?: string | null;
+    departTerminal?: string | null;
   };
   company?: {
     name: string;
@@ -173,6 +184,74 @@ export function generateVoucherPdf(data: VoucherPdfData): jsPDF {
   doc.text(fmtDate(data.booking.checkOut), marginL + colW + 4, y);
   doc.text(String(data.booking.nights), marginL + colW * 2 + 4, y);
   y += 10;
+
+  // ── Flight Details ──
+  const hasArrivalFlight = data.booking.arrivalFlightNo;
+  const hasDepartFlight = data.booking.departFlightNo;
+
+  if (hasArrivalFlight || hasDepartFlight) {
+    doc.setTextColor(...COLORS.primary);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Flight Details", marginL, y);
+    y += 2;
+    doc.setDrawColor(...COLORS.primary);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y, marginL + contentW, y);
+    y += 6;
+
+    if (hasArrivalFlight) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLORS.text);
+      doc.text("Arrival", marginL + 4, y);
+      y += 5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...COLORS.muted);
+      const arrParts: string[] = [`Flight: ${data.booking.arrivalFlightNo}`];
+      if (data.booking.arrivalTime) arrParts.push(`Time: ${data.booking.arrivalTime}`);
+      doc.text(arrParts.join("    "), marginL + 4, y);
+      y += 5;
+
+      const routeParts: string[] = [];
+      if (data.booking.arrivalOriginApt) routeParts.push(`From: ${data.booking.arrivalOriginApt}`);
+      if (data.booking.arrivalDestApt) routeParts.push(`To: ${data.booking.arrivalDestApt}`);
+      if (data.booking.arrivalTerminal) routeParts.push(`Terminal: ${data.booking.arrivalTerminal}`);
+      if (routeParts.length > 0) {
+        doc.text(routeParts.join("    "), marginL + 4, y);
+        y += 5;
+      }
+      y += 2;
+    }
+
+    if (hasDepartFlight) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLORS.text);
+      doc.text("Departure", marginL + 4, y);
+      y += 5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...COLORS.muted);
+      const depParts: string[] = [`Flight: ${data.booking.departFlightNo}`];
+      if (data.booking.departTime) depParts.push(`Time: ${data.booking.departTime}`);
+      doc.text(depParts.join("    "), marginL + 4, y);
+      y += 5;
+
+      const routeParts: string[] = [];
+      if (data.booking.departOriginApt) routeParts.push(`From: ${data.booking.departOriginApt}`);
+      if (data.booking.departDestApt) routeParts.push(`To: ${data.booking.departDestApt}`);
+      if (data.booking.departTerminal) routeParts.push(`Terminal: ${data.booking.departTerminal}`);
+      if (routeParts.length > 0) {
+        doc.text(routeParts.join("    "), marginL + 4, y);
+        y += 5;
+      }
+      y += 2;
+    }
+
+    y += 2;
+  }
 
   // ── Room Details ──
   doc.setTextColor(...COLORS.primary);

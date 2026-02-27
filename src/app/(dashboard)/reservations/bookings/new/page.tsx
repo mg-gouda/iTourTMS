@@ -1050,6 +1050,32 @@ export default function NewBookingPage() {
                   = {ratePreview.markupAmount.toFixed(2)}
                 </p>
               )}
+
+              {/* Offer eligibility feedback */}
+              {(ratePreview?.rooms?.[0]?.breakdown?.offerDiscounts?.length ?? 0) > 0 && (
+                <div className="space-y-1 pt-1">
+                  <p className="text-xs font-medium text-muted-foreground">Special Offers:</p>
+                  {ratePreview!.rooms[0]!.breakdown.offerDiscounts.map(
+                    (od: { offerName: string; discount: number; description: string }, i: number) => (
+                      <p key={i} className={`text-xs ${od.discount > 0 ? "text-green-600" : "text-muted-foreground"}`}>
+                        {od.discount > 0 ? "\u2713" : "\u2717"}{" "}
+                        {od.offerName}: {od.description}
+                        {od.discount > 0 && ` — saved ${od.discount.toFixed(2)}`}
+                      </p>
+                    ),
+                  )}
+                </div>
+              )}
+
+              {(ratePreview?.warnings?.length ?? 0) > 0 && (
+                <div className="space-y-1 pt-1">
+                  {ratePreview!.warnings.map((w: string, i: number) => (
+                    <p key={i} className="text-xs text-amber-600">
+                      {w}
+                    </p>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

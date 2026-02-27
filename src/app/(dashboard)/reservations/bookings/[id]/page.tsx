@@ -907,6 +907,17 @@ function downloadVoucher(voucher: any, booking: any) {
         ),
         guestNames: booking.guestNames as string[] | null,
         leadGuestName: booking.leadGuestName as string | null,
+        // Flight details
+        arrivalFlightNo: booking.arrivalFlightNo,
+        arrivalTime: booking.arrivalTime,
+        arrivalOriginApt: booking.arrivalOriginApt,
+        arrivalDestApt: booking.arrivalDestApt,
+        arrivalTerminal: booking.arrivalTerminal,
+        departFlightNo: booking.departFlightNo,
+        departTime: booking.departTime,
+        departOriginApt: booking.departOriginApt,
+        departDestApt: booking.departDestApt,
+        departTerminal: booking.departTerminal,
       },
     });
     doc.save(`voucher-${voucher.code}.pdf`);
