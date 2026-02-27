@@ -32,6 +32,9 @@ export interface VoucherPdfData {
       guestType: string;
       guest: { firstName: string; lastName: string; email?: string | null; phone?: string | null };
     }>;
+    // Fallback guest names from booking-level JSON field
+    guestNames?: string[] | null;
+    leadGuestName?: string | null;
   };
   company?: {
     name: string;
@@ -215,36 +218,70 @@ export function generateVoucherPdf(data: VoucherPdfData): jsPDF {
   doc.line(marginL, y, marginL + contentW, y);
   y += 6;
 
-  const leadGuest = data.booking.guests.find((g) => g.isLeadGuest);
-  if (leadGuest) {
+  const hasLinkedGuests = data.booking.guests.length > 0;
+  const guestNames = (data.booking.guestNames ?? []).filter(Boolean);
+
+  if (hasLinkedGuests) {
+    // Render from BookingGuest records (linked Guest model)
+    const leadGuest = data.booking.guests.find((g) => g.isLeadGuest);
+    if (leadGuest) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLORS.text);
+      doc.text(`Lead Guest: ${leadGuest.guest.firstName} ${leadGuest.guest.lastName}`, marginL + 4, y);
+      y += 5;
+      if (leadGuest.guest.email || leadGuest.guest.phone) {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...COLORS.muted);
+        doc.setFontSize(9);
+        const contact = [leadGuest.guest.email, leadGuest.guest.phone].filter(Boolean).join("  |  ");
+        doc.text(contact, marginL + 4, y);
+        y += 5;
+      }
+    }
+
+    const additionalGuests = data.booking.guests.filter((g) => !g.isLeadGuest);
+    if (additionalGuests.length > 0) {
+      y += 2;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...COLORS.muted);
+      doc.text("Additional Guests:", marginL + 4, y);
+      y += 5;
+      doc.setTextColor(...COLORS.text);
+      for (const g of additionalGuests) {
+        doc.text(`• ${g.guest.firstName} ${g.guest.lastName} (${g.guestType})`, marginL + 8, y);
+        y += 5;
+      }
+    }
+  } else if (guestNames.length > 0) {
+    // Fallback: render from booking-level guestNames JSON array
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...COLORS.text);
-    doc.text(`Lead Guest: ${leadGuest.guest.firstName} ${leadGuest.guest.lastName}`, marginL + 4, y);
+    doc.text(`Lead Guest: ${guestNames[0]}`, marginL + 4, y);
     y += 5;
-    if (leadGuest.guest.email || leadGuest.guest.phone) {
+
+    if (guestNames.length > 1) {
+      y += 2;
+      doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...COLORS.muted);
-      doc.setFontSize(9);
-      const contact = [leadGuest.guest.email, leadGuest.guest.phone].filter(Boolean).join("  |  ");
-      doc.text(contact, marginL + 4, y);
+      doc.text("Additional Guests:", marginL + 4, y);
       y += 5;
+      doc.setTextColor(...COLORS.text);
+      for (let i = 1; i < guestNames.length; i++) {
+        doc.text(`• ${guestNames[i]}`, marginL + 8, y);
+        y += 5;
+      }
     }
-  }
-
-  const additionalGuests = data.booking.guests.filter((g) => !g.isLeadGuest);
-  if (additionalGuests.length > 0) {
-    y += 2;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...COLORS.muted);
-    doc.text("Additional Guests:", marginL + 4, y);
-    y += 5;
+  } else if (data.booking.leadGuestName) {
+    // Last fallback: leadGuestName field
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(...COLORS.text);
-    for (const g of additionalGuests) {
-      doc.text(`• ${g.guest.firstName} ${g.guest.lastName} (${g.guestType})`, marginL + 8, y);
-      y += 5;
-    }
+    doc.text(`Lead Guest: ${data.booking.leadGuestName}`, marginL + 4, y);
+    y += 5;
   }
 
   y += 6;

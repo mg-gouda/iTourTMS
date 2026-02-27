@@ -8,10 +8,12 @@ import {
   Download,
   LogIn,
   LogOut,
+  Pencil,
   Plus,
   Trash2,
   UserX,
 } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import type { z } from "zod";
@@ -102,6 +104,7 @@ export default function BookingDetailPage() {
     return <div className="py-10 text-center text-muted-foreground">Booking not found</div>;
   }
 
+  const canAmend = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
   const canConfirm = booking.status === "DRAFT";
   const canCancel = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
   const canCheckIn = booking.status === "CONFIRMED";
@@ -148,6 +151,14 @@ export default function BookingDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canAmend && (
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/reservations/bookings/${id}/edit`}>
+                <Pencil className="mr-1 size-3.5" />
+                Amend
+              </Link>
+            </Button>
+          )}
           {canConfirm && (
             <Button
               size="sm"
@@ -894,6 +905,8 @@ function downloadVoucher(voucher: any, booking: any) {
             }),
           ),
         ),
+        guestNames: booking.guestNames as string[] | null,
+        leadGuestName: booking.leadGuestName as string | null,
       },
     });
     doc.save(`voucher-${voucher.code}.pdf`);

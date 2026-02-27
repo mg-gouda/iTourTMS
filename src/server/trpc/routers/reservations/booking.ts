@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   bookingCreateSchema,
   bookingUpdateSchema,
+  bookingAmendSchema,
   bookingStatusTransitionSchema,
   bookingRateCalcSchema,
 } from "@/lib/validations/reservations";
@@ -363,6 +364,180 @@ export const bookingRouter = createTRPCRouter({
         where: { id: input.id },
         data,
       });
+    }),
+
+  // ── Amend booking (any status except CANCELLED / CHECKED_OUT) ──
+  amend: proc
+    .input(z.object({ id: z.string(), data: bookingAmendSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: { rooms: true },
+      });
+
+      if (["CANCELLED", "CHECKED_OUT"].includes(booking.status)) {
+        throw new Error("Cannot amend a cancelled or checked-out booking");
+      }
+
+      const d = input.data;
+      const data: Record<string, unknown> = {};
+
+      // Booking info
+      if (d.htlBookingStatus !== undefined) data.htlBookingStatus = d.htlBookingStatus || null;
+      if (d.toBookingStatus !== undefined) data.toBookingStatus = d.toBookingStatus || null;
+      if (d.tourOperatorId !== undefined) data.tourOperatorId = d.tourOperatorId || null;
+      if (d.externalRef !== undefined) data.externalRef = d.externalRef || null;
+      if (d.contractId !== undefined) data.contractId = d.contractId || null;
+
+      // Dates
+      const checkIn = d.checkIn ?? booking.checkIn.toISOString().slice(0, 10);
+      const checkOut = d.checkOut ?? booking.checkOut.toISOString().slice(0, 10);
+      if (d.checkIn) data.checkIn = new Date(d.checkIn);
+      if (d.checkOut) data.checkOut = new Date(d.checkOut);
+      if (d.checkIn || d.checkOut) {
+        data.nights = computeNights(checkIn, checkOut);
+      }
+
+      // Flight — Arrival
+      if (d.arrivalFlightNo !== undefined) data.arrivalFlightNo = d.arrivalFlightNo || null;
+      if (d.arrivalTime !== undefined) data.arrivalTime = d.arrivalTime || null;
+      if (d.arrivalOriginApt !== undefined) data.arrivalOriginApt = d.arrivalOriginApt || null;
+      if (d.arrivalDestApt !== undefined) data.arrivalDestApt = d.arrivalDestApt || null;
+      if (d.arrivalTerminal !== undefined) data.arrivalTerminal = d.arrivalTerminal || null;
+
+      // Flight — Departure
+      if (d.departFlightNo !== undefined) data.departFlightNo = d.departFlightNo || null;
+      if (d.departTime !== undefined) data.departTime = d.departTime || null;
+      if (d.departOriginApt !== undefined) data.departOriginApt = d.departOriginApt || null;
+      if (d.departDestApt !== undefined) data.departDestApt = d.departDestApt || null;
+      if (d.departTerminal !== undefined) data.departTerminal = d.departTerminal || null;
+
+      // Room summary
+      if (d.roomOccupancy !== undefined) data.roomOccupancy = d.roomOccupancy || null;
+      if (d.noOfRooms !== undefined) data.noOfRooms = d.noOfRooms;
+      if (d.adults !== undefined) data.adults = d.adults;
+      if (d.children !== undefined) data.children = d.children;
+      if (d.infants !== undefined) data.infants = d.infants;
+
+      // Guest names
+      if (d.guestNames !== undefined) {
+        data.guestNames = d.guestNames.length ? d.guestNames : undefined;
+        // Also update leadGuestName from first name
+        if (d.guestNames.length && d.guestNames[0]) {
+          data.leadGuestName = d.guestNames[0];
+        }
+      }
+
+      // Child DOBs
+      if (d.childDob1 !== undefined) data.childDob1 = d.childDob1 ? new Date(d.childDob1) : null;
+      if (d.childDob2 !== undefined) data.childDob2 = d.childDob2 ? new Date(d.childDob2) : null;
+
+      // Payment
+      if (d.hotelPaymentMethod !== undefined) data.hotelPaymentMethod = d.hotelPaymentMethod || null;
+      if (d.paymentOptionDate !== undefined)
+        data.paymentOptionDate = d.paymentOptionDate ? new Date(d.paymentOptionDate) : null;
+
+      // Remarks
+      if (d.specialRequests !== undefined) data.specialRequests = d.specialRequests || null;
+      if (d.internalNotes !== undefined) data.internalNotes = d.internalNotes || null;
+      if (d.bookingNotes !== undefined) data.bookingNotes = d.bookingNotes || null;
+      if (d.meetAssistVisa !== undefined) data.meetAssistVisa = d.meetAssistVisa;
+
+      // Recalculate rates if hotel/dates/room changed and contract exists
+      const effectiveHotelId = (d.hotelId as string) ?? booking.hotelId;
+      const effectiveContractId = (d.contractId as string) ?? booking.contractId;
+      const roomChanged = d.roomTypeId || d.mealBasisId || d.adults !== undefined || d.children !== undefined;
+      const datesChanged = d.checkIn || d.checkOut;
+
+      if (effectiveContractId && (roomChanged || datesChanged)) {
+        try {
+          const existingRoom = booking.rooms[0];
+          const rateResult = await calculateBookingRates(ctx.db, ctx.companyId, {
+            contractId: effectiveContractId,
+            hotelId: effectiveHotelId,
+            tourOperatorId: (d.tourOperatorId as string) ?? booking.tourOperatorId ?? null,
+            checkIn,
+            checkOut,
+            bookingDate: new Date().toISOString().slice(0, 10),
+            rooms: [{
+              roomTypeId: d.roomTypeId ?? existingRoom?.roomTypeId ?? "",
+              mealBasisId: d.mealBasisId ?? existingRoom?.mealBasisId ?? "",
+              adults: d.adults ?? existingRoom?.adults ?? 2,
+              children: [],
+              extraBed: existingRoom?.extraBed ?? false,
+            }],
+          });
+
+          data.buyingTotal = rateResult.buyingTotal;
+          data.sellingTotal = rateResult.sellingTotal;
+          data.balanceDue = rateResult.sellingTotal - (booking.totalPaid?.toNumber?.() ?? Number(booking.totalPaid) ?? 0);
+          data.seasonId = rateResult.seasonId;
+          data.markupRuleId = rateResult.markupRuleId;
+          data.markupType = rateResult.markupType;
+          data.markupValue = rateResult.markupValue;
+          data.markupAmount = rateResult.markupAmount;
+
+          // Update the first room's rates
+          if (existingRoom) {
+            const roomRate = rateResult.rooms[0];
+            if (roomRate) {
+              await ctx.db.bookingRoom.update({
+                where: { id: existingRoom.id },
+                data: {
+                  roomTypeId: d.roomTypeId ?? existingRoom.roomTypeId,
+                  mealBasisId: d.mealBasisId ?? existingRoom.mealBasisId,
+                  adults: d.adults ?? existingRoom.adults,
+                  children: d.children ?? existingRoom.children,
+                  infants: d.infants ?? existingRoom.infants,
+                  buyingRatePerNight: roomRate.buyingRatePerNight,
+                  buyingTotal: roomRate.buyingTotal,
+                  sellingRatePerNight: roomRate.sellingRatePerNight,
+                  sellingTotal: roomRate.sellingTotal,
+                  rateBreakdown: roomRate.breakdown as never,
+                },
+              });
+            }
+          }
+        } catch {
+          // Rate calc failed — still save the other amendments
+        }
+      } else if (d.roomTypeId || d.mealBasisId) {
+        // Update room type/meal basis without rate recalc
+        const existingRoom = booking.rooms[0];
+        if (existingRoom) {
+          await ctx.db.bookingRoom.update({
+            where: { id: existingRoom.id },
+            data: {
+              ...(d.roomTypeId ? { roomTypeId: d.roomTypeId } : {}),
+              ...(d.mealBasisId ? { mealBasisId: d.mealBasisId } : {}),
+              ...(d.adults !== undefined ? { adults: d.adults } : {}),
+              ...(d.children !== undefined ? { children: d.children } : {}),
+              ...(d.infants !== undefined ? { infants: d.infants } : {}),
+            },
+          });
+        }
+      }
+
+      // If hotel changed, update hotelId
+      if (d.hotelId) data.hotelId = d.hotelId;
+
+      const updated = await ctx.db.booking.update({
+        where: { id: input.id },
+        data,
+      });
+
+      // Log the amendment to timeline
+      await logBookingAction(
+        ctx.db,
+        input.id,
+        "NOTE",
+        d.amendmentReason
+          ? `Booking amended: ${d.amendmentReason}`
+          : "Booking amended",
+        ctx.session.user.id,
+      );
+
+      return updated;
     }),
 
   // ── Delete booking (DRAFT only) ──

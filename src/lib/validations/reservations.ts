@@ -127,6 +127,65 @@ export const bookingUpdateSchema = z.object({
   leadGuestPhone: z.string().nullish(),
 });
 
+// ── Booking Amendment ──
+
+export const bookingAmendSchema = z.object({
+  // Booking info
+  htlBookingStatus: z
+    .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+    .nullish(),
+  toBookingStatus: z
+    .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+    .nullish(),
+  tourOperatorId: z.string().nullish(),
+  externalRef: z.string().nullish(),
+  hotelId: z.string().optional(),
+  contractId: z.string().nullish(),
+
+  // Room
+  roomTypeId: z.string().optional(),
+  mealBasisId: z.string().optional(),
+  roomOccupancy: z.enum(["SINGLE", "DOUBLE", "TRIPLE", "FAMILY"]).nullish(),
+  noOfRooms: z.number().int().min(1).optional(),
+  adults: z.number().int().min(1).optional(),
+  children: z.number().int().min(0).optional(),
+  infants: z.number().int().min(0).optional(),
+
+  // Dates & flight — Arrival
+  checkIn: z.string().optional(),
+  arrivalFlightNo: z.string().nullish(),
+  arrivalTime: z.string().nullish(),
+  arrivalOriginApt: z.string().nullish(),
+  arrivalDestApt: z.string().nullish(),
+  arrivalTerminal: z.string().nullish(),
+
+  // Dates & flight — Departure
+  checkOut: z.string().optional(),
+  departFlightNo: z.string().nullish(),
+  departTime: z.string().nullish(),
+  departOriginApt: z.string().nullish(),
+  departDestApt: z.string().nullish(),
+  departTerminal: z.string().nullish(),
+
+  // Guest names
+  guestNames: z.array(z.string()).optional(),
+  childDob1: z.string().nullish(),
+  childDob2: z.string().nullish(),
+
+  // Payment
+  hotelPaymentMethod: z.enum(["CASH", "VOUCHER"]).nullish(),
+  paymentOptionDate: z.string().nullish(),
+
+  // Remarks
+  specialRequests: z.string().nullish(),
+  internalNotes: z.string().nullish(),
+  bookingNotes: z.string().nullish(),
+  meetAssistVisa: z.boolean().optional(),
+
+  // Amendment reason
+  amendmentReason: z.string().optional(),
+});
+
 // ── Booking Status Transition ──
 
 export const bookingStatusTransitionSchema = z.object({
