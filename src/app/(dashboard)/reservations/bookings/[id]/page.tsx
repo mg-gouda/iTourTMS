@@ -6,12 +6,12 @@ import {
   CheckCircle,
   Clock,
   Download,
-  LogIn,
-  LogOut,
+  Lock,
   Mail,
   Pencil,
   Plus,
   Trash2,
+  Unlock,
   UserX,
 } from "lucide-react";
 import Link from "next/link";
@@ -93,6 +93,12 @@ export default function BookingDetailPage() {
     },
   });
 
+  const lockMutation = trpc.reservations.booking.lock.useMutation({
+    onSuccess: () => {
+      utils.reservations.booking.getById.invalidate({ id });
+    },
+  });
+
   const deleteMutation = trpc.reservations.booking.delete.useMutation({
     onSuccess: () => {
       utils.reservations.booking.list.invalidate();
@@ -108,13 +114,12 @@ export default function BookingDetailPage() {
     return <div className="py-10 text-center text-muted-foreground">Booking not found</div>;
   }
 
-  const canAmend = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
+  const canAmend = !["CHECKED_OUT", "CANCELLED"].includes(booking.status) && !booking.isLocked;
   const canConfirm = booking.status === "DRAFT" || booking.status === "NEW_BOOKING";
   const canCancel = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
-  const canCheckIn = booking.status === "CONFIRMED";
-  const canCheckOut = booking.status === "CHECKED_IN";
   const canNoShow = booking.status === "CONFIRMED";
   const canDelete = booking.status === "DRAFT" || booking.status === "NEW_BOOKING";
+  const canLock = !["CANCELLED", "CHECKED_OUT"].includes(booking.status);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -147,6 +152,12 @@ export default function BookingDetailPage() {
             >
               {PAYMENT_STATUS_LABELS[booking.paymentStatus] ?? booking.paymentStatus}
             </Badge>
+            {booking.isLocked && (
+              <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
+                <Lock className="size-3" />
+                Locked
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground">
             {booking.hotel.name} &bull;{" "}
@@ -178,36 +189,29 @@ export default function BookingDetailPage() {
               Confirm
             </Button>
           )}
-          {canCheckIn && (
+          {canLock && (
             <Button
               size="sm"
               variant="outline"
               onClick={() =>
-                transitionMutation.mutate({
+                lockMutation.mutate({
                   bookingId: id,
-                  action: "check_in",
+                  lock: !booking.isLocked,
                 })
               }
-              disabled={transitionMutation.isPending}
+              disabled={lockMutation.isPending}
             >
-              <LogIn className="mr-1 size-3.5" />
-              Check In
-            </Button>
-          )}
-          {canCheckOut && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                transitionMutation.mutate({
-                  bookingId: id,
-                  action: "check_out",
-                })
-              }
-              disabled={transitionMutation.isPending}
-            >
-              <LogOut className="mr-1 size-3.5" />
-              Check Out
+              {booking.isLocked ? (
+                <>
+                  <Unlock className="mr-1 size-3.5" />
+                  Unlock
+                </>
+              ) : (
+                <>
+                  <Lock className="mr-1 size-3.5" />
+                  Lock
+                </>
+              )}
             </Button>
           )}
           {canNoShow && (
@@ -263,6 +267,11 @@ export default function BookingDetailPage() {
       {transitionMutation.error && (
         <p className="text-sm text-destructive">
           {transitionMutation.error.message}
+        </p>
+      )}
+      {lockMutation.error && (
+        <p className="text-sm text-destructive">
+          {lockMutation.error.message}
         </p>
       )}
 

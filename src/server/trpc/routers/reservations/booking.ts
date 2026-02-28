@@ -4,6 +4,7 @@ import {
   bookingCreateSchema,
   bookingUpdateSchema,
   bookingAmendSchema,
+  bookingLockSchema,
   bookingStatusTransitionSchema,
   bookingRateCalcSchema,
 } from "@/lib/validations/reservations";
@@ -87,6 +88,7 @@ export const bookingRouter = createTRPCRouter({
           cancelledBy: { select: { id: true, name: true } },
           checkedInBy: { select: { id: true, name: true } },
           checkedOutBy: { select: { id: true, name: true } },
+          lockedBy: { select: { id: true, name: true } },
           rooms: {
             include: {
               roomType: { select: { id: true, name: true, code: true } },
@@ -378,6 +380,10 @@ export const bookingRouter = createTRPCRouter({
         where: { id: input.id, companyId: ctx.companyId },
         include: { rooms: true },
       });
+
+      if (booking.isLocked) {
+        throw new Error("Booking is locked and cannot be amended");
+      }
 
       if (["CANCELLED", "CHECKED_OUT"].includes(booking.status)) {
         throw new Error("Cannot amend a cancelled or checked-out booking");
@@ -682,6 +688,37 @@ export const bookingRouter = createTRPCRouter({
       }
 
       return ctx.db.booking.delete({ where: { id: input.id } });
+    }),
+
+  // ── Lock / Unlock ──
+  lock: proc
+    .input(bookingLockSchema)
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true, isLocked: true, code: true },
+      });
+
+      const userId = ctx.session.user.id;
+
+      const updated = await ctx.db.booking.update({
+        where: { id: booking.id },
+        data: {
+          isLocked: input.lock,
+          lockedAt: input.lock ? new Date() : null,
+          lockedById: input.lock ? userId : null,
+        },
+      });
+
+      await logBookingAction(
+        ctx.db,
+        booking.id,
+        input.lock ? "LOCKED" : "UNLOCKED",
+        input.lock ? "Booking locked" : "Booking unlocked",
+        userId,
+      );
+
+      return updated;
     }),
 
   // ── Status transitions ──

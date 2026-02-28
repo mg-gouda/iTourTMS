@@ -200,6 +200,13 @@ export const bookingAmendSchema = z.object({
   amendmentReason: z.string().optional(),
 });
 
+// ── Booking Lock ──
+
+export const bookingLockSchema = z.object({
+  bookingId: z.string().min(1),
+  lock: z.boolean(),
+});
+
 // ── Booking Status Transition ──
 
 export const bookingStatusTransitionSchema = z.object({

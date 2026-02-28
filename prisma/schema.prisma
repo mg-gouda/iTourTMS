@@ -184,6 +184,7 @@ model User {
   bookingsCancelled  Booking[]          @relation("BookingCanceller")
   bookingsCheckedIn  Booking[]          @relation("BookingCheckIn")
   bookingsCheckedOut Booking[]          @relation("BookingCheckOut")
+  bookingsLocked     Booking[]          @relation("BookingLocker")
   bookingPayments    BookingPayment[]   @relation("BookingPaymentCreator")
   vouchersCreated    Voucher[]          @relation("VoucherCreator")
   bookingTimelines   BookingTimeline[]  @relation("TimelineUser")
@@ -2516,6 +2517,11 @@ model Booking {
   meetAssistVisa     Boolean             @default(false)
   apiIntegrationId   String?
 
+  // Lock
+  isLocked           Boolean             @default(false)
+  lockedAt           DateTime?
+  lockedById         String?
+
   // Workflow
   confirmedAt        DateTime?
   confirmedById      String?
@@ -2546,6 +2552,7 @@ model Booking {
   cancelledBy    User?            @relation("BookingCanceller", fields: [cancelledById], references: [id])
   checkedInBy    User?            @relation("BookingCheckIn", fields: [checkedInById], references: [id])
   checkedOutBy   User?            @relation("BookingCheckOut", fields: [checkedOutById], references: [id])
+  lockedBy       User?            @relation("BookingLocker", fields: [lockedById], references: [id])
 
   rooms          BookingRoom[]
   guests         BookingGuest[]
