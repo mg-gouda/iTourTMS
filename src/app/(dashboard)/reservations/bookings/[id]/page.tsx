@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import {
+  AlertTriangle,
   Ban,
   CheckCircle,
   Clock,
@@ -10,6 +11,8 @@ import {
   Mail,
   Pencil,
   Plus,
+  ShieldCheck,
+  ShieldX,
   Trash2,
   Unlock,
   UserX,
@@ -19,6 +22,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import type { z } from "zod";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +89,9 @@ export default function BookingDetailPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
   const [spoModalOpen, setSpoModalOpen] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve");
+  const [approvalNote, setApprovalNote] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSpoBreakdown, setSelectedSpoBreakdown] = useState<any[]>([]);
 
@@ -110,6 +117,15 @@ export default function BookingDetailPage() {
     },
   });
 
+  const approvalMutation = trpc.reservations.booking.approveStopSale.useMutation({
+    onSuccess: () => {
+      utils.reservations.booking.getById.invalidate({ id });
+      utils.reservations.booking.list.invalidate();
+      setApprovalOpen(false);
+      setApprovalNote("");
+    },
+  });
+
   // Fetch contract details when modal opens
   const { data: contractDetail, isLoading: contractDetailLoading } =
     trpc.contracting.contract.getById.useQuery(
@@ -125,7 +141,8 @@ export default function BookingDetailPage() {
     return <div className="py-10 text-center text-muted-foreground">Booking not found</div>;
   }
 
-  const canAmend = !["CHECKED_OUT", "CANCELLED"].includes(booking.status) && !booking.isLocked;
+  const isPendingApproval = booking.status === "PENDING_APPROVAL";
+  const canAmend = !["CHECKED_OUT", "CANCELLED", "PENDING_APPROVAL"].includes(booking.status) && !booking.isLocked;
   const canConfirm = booking.status === "DRAFT" || booking.status === "NEW_BOOKING";
   const canCancel = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
   const canNoShow = booking.status === "CONFIRMED";
@@ -254,8 +271,8 @@ export default function BookingDetailPage() {
           <Button
             size="sm"
             variant="outline"
-            disabled={!booking.hotel.email}
-            title={!booking.hotel.email ? "Hotel has no email address" : "Send booking to hotel via email"}
+            disabled={!booking.hotel.email || isPendingApproval}
+            title={isPendingApproval ? "Booking requires manager approval before sending to hotel" : !booking.hotel.email ? "Hotel has no email address" : "Send booking to hotel via email"}
             onClick={() => handleSendToHotel(booking, company)}
           >
             <Mail className="mr-1 size-3.5" />
@@ -284,6 +301,53 @@ export default function BookingDetailPage() {
         <p className="text-sm text-destructive">
           {lockMutation.error.message}
         </p>
+      )}
+
+      {/* Pending Approval Banner */}
+      {isPendingApproval && (
+        <Alert variant="destructive" className="border-amber-500 bg-amber-50 text-amber-900 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-200 [&>svg]:text-amber-600">
+          <AlertTriangle className="size-4" />
+          <AlertTitle>Pending Manager Approval</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <p>
+              This booking was created during a stop-sale period and requires manager approval
+              before it can be sent to the hotel or counted in materialization.
+            </p>
+            {booking.approvedBy && booking.approvalStatus === "APPROVED" ? (
+              <p className="text-sm">
+                Approved by <strong>{booking.approvedBy.name}</strong> on{" "}
+                {format(new Date(booking.approvedAt!), "dd MMM yyyy HH:mm")}
+              </p>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => {
+                    setApprovalAction("approve");
+                    setApprovalNote("");
+                    setApprovalOpen(true);
+                  }}
+                >
+                  <ShieldCheck className="mr-1 size-3.5" />
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setApprovalAction("reject");
+                    setApprovalNote("");
+                    setApprovalOpen(true);
+                  }}
+                >
+                  <ShieldX className="mr-1 size-3.5" />
+                  Reject
+                </Button>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Tabs */}
@@ -501,18 +565,23 @@ export default function BookingDetailPage() {
                     | undefined;
                   if (!offers || offers.length === 0) return null;
                   const applied = offers.filter((o) => o.discount > 0);
-                  if (applied.length === 0) return null;
                   return (
                     <div className="text-sm">
                       <button
                         type="button"
-                        className="text-primary underline underline-offset-2 hover:text-primary/80 cursor-pointer text-xs font-medium"
+                        className={`underline underline-offset-2 cursor-pointer text-xs font-medium ${
+                          applied.length > 0
+                            ? "text-green-600 hover:text-green-700"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                         onClick={() => {
                           setSelectedSpoBreakdown(offers);
                           setSpoModalOpen(true);
                         }}
                       >
-                        {applied.length} Special Offer{applied.length !== 1 ? "s" : ""} Applied
+                        {applied.length > 0
+                          ? `${applied.length} Special Offer${applied.length !== 1 ? "s" : ""} Applied`
+                          : `${offers.length} Special Offer${offers.length !== 1 ? "s" : ""} Evaluated`}
                       </button>
                     </div>
                   );
@@ -994,6 +1063,64 @@ export default function BookingDetailPage() {
               ),
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog */}
+      <Dialog open={approvalOpen} onOpenChange={setApprovalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {approvalAction === "approve"
+                ? "Approve Stop-Sale Override"
+                : "Reject Stop-Sale Override"}
+            </DialogTitle>
+            <DialogDescription>
+              {approvalAction === "approve"
+                ? `Approving will change booking ${booking.code} to active status, allowing it to be sent to the hotel and counted in materialization.`
+                : `Rejecting will cancel booking ${booking.code}. The rooms will not be counted.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Note (optional)</Label>
+            <Textarea
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder={
+                approvalAction === "approve"
+                  ? "Approval note..."
+                  : "Reason for rejection..."
+              }
+              rows={3}
+            />
+          </div>
+          {approvalMutation.error && (
+            <p className="text-sm text-destructive">
+              {approvalMutation.error.message}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApprovalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant={approvalAction === "approve" ? "default" : "destructive"}
+              disabled={approvalMutation.isPending}
+              onClick={() =>
+                approvalMutation.mutate({
+                  bookingId: id,
+                  action: approvalAction,
+                  note: approvalNote || undefined,
+                })
+              }
+            >
+              {approvalMutation.isPending
+                ? "Processing..."
+                : approvalAction === "approve"
+                  ? "Approve Booking"
+                  : "Reject Booking"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

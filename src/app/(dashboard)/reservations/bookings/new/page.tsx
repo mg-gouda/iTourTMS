@@ -298,6 +298,7 @@ export default function NewBookingPage() {
 
   // Stop-sale warning dialog state
   const [stopSaleOpen, setStopSaleOpen] = useState(false);
+  const [stopSaleStep, setStopSaleStep] = useState<1 | 2>(1);
   const pendingSubmitRef = useRef<FormValues | null>(null);
 
   // Mutation
@@ -392,6 +393,7 @@ export default function NewBookingPage() {
     // If stop sales exist, show warning first
     if (stopSales && stopSales.length > 0) {
       pendingSubmitRef.current = clean;
+      setStopSaleStep(1);
       setStopSaleOpen(true);
       return;
     }
@@ -399,9 +401,15 @@ export default function NewBookingPage() {
     createMutation.mutate(clean);
   }
 
+  function handleStopSaleProceed() {
+    // Step 1 → Step 2: show approval notice
+    setStopSaleStep(2);
+  }
+
   function handleStopSaleConfirm() {
     setStopSaleOpen(false);
     if (pendingSubmitRef.current) {
+      pendingSubmitRef.current.stopSaleOverride = true;
       createMutation.mutate(pendingSubmitRef.current);
       pendingSubmitRef.current = null;
     }
@@ -1311,59 +1319,97 @@ export default function NewBookingPage() {
         </form>
       </Form>
 
-      {/* Stop-Sale Warning Dialog */}
-      <Dialog open={stopSaleOpen} onOpenChange={setStopSaleOpen}>
+      {/* Stop-Sale Warning Dialog (2-step) */}
+      <Dialog open={stopSaleOpen} onOpenChange={(open) => {
+        if (!open) {
+          setStopSaleOpen(false);
+          pendingSubmitRef.current = null;
+        }
+      }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-600">
-              <AlertTriangle className="size-5" />
-              Stop Sale Warning
-            </DialogTitle>
-            <DialogDescription>
-              The selected dates overlap with one or more stop sale periods for
-              this hotel. You may still proceed with the booking.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[240px] overflow-y-auto space-y-2">
-            {(stopSales ?? []).map((ss) => (
-              <div
-                key={ss.id}
-                className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-sm"
-              >
-                <p className="font-medium">{ss.roomTypeName}</p>
-                <p className="text-muted-foreground">
-                  {format(new Date(ss.dateFrom), "dd MMM yyyy")} &mdash;{" "}
-                  {format(new Date(ss.dateTo), "dd MMM yyyy")}
-                </p>
-                {ss.reason && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {ss.reason}
-                  </p>
-                )}
+          {stopSaleStep === 1 ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="size-5" />
+                  Stop Sale Warning
+                </DialogTitle>
+                <DialogDescription>
+                  The selected dates overlap with one or more stop sale periods
+                  for this hotel.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[240px] overflow-y-auto space-y-2">
+                {(stopSales ?? []).map((ss) => (
+                  <div
+                    key={ss.id}
+                    className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-sm"
+                  >
+                    <p className="font-medium">{ss.roomTypeName}</p>
+                    <p className="text-muted-foreground">
+                      {format(new Date(ss.dateFrom), "dd MMM yyyy")} &mdash;{" "}
+                      {format(new Date(ss.dateTo), "dd MMM yyyy")}
+                    </p>
+                    {ss.reason && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {ss.reason}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStopSaleOpen(false);
-                pendingSubmitRef.current = null;
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleStopSaleConfirm}
-              disabled={createMutation.isPending}
-            >
-              {createMutation.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : null}
-              Book Anyway
-            </Button>
-          </DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStopSaleOpen(false);
+                    pendingSubmitRef.current = null;
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button variant="default" onClick={handleStopSaleProceed}>
+                  Book Anyway
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="size-5" />
+                  Manager Approval Required
+                </DialogTitle>
+                <DialogDescription>
+                  This booking will be created with <strong>Pending Approval</strong> status.
+                  It will not count as sold in materialization reports and cannot
+                  be sent to the hotel until a reservations manager approves it.
+                  A notification will be sent to the manager.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStopSaleOpen(false);
+                    pendingSubmitRef.current = null;
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={handleStopSaleConfirm}
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : null}
+                  Confirm & Request Approval
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

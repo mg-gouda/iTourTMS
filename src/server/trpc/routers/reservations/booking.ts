@@ -28,7 +28,7 @@ export const bookingRouter = createTRPCRouter({
     .input(
       z
         .object({
-          status: z.enum(["NEW_BOOKING", "DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"]).optional(),
+          status: z.enum(["NEW_BOOKING", "DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW", "PENDING_APPROVAL"]).optional(),
           hotelId: z.string().optional(),
           tourOperatorId: z.string().optional(),
           source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).optional(),
@@ -78,6 +78,7 @@ export const bookingRouter = createTRPCRouter({
         include: {
           hotel: { select: { id: true, name: true, code: true, address: true, phone: true, email: true, checkInTime: true, checkOutTime: true } },
           contract: { select: { id: true, name: true, code: true, validFrom: true, validTo: true } },
+          approvedBy: { select: { id: true, name: true } },
           market: { select: { id: true, name: true } },
           tourOperator: { select: { id: true, name: true, code: true } },
           season: { select: { id: true, dateFrom: true, dateTo: true } },
@@ -271,7 +272,7 @@ export const bookingRouter = createTRPCRouter({
         data: {
           companyId: ctx.companyId,
           code,
-          status: "NEW_BOOKING",
+          status: input.stopSaleOverride ? "PENDING_APPROVAL" : "NEW_BOOKING",
           source,
           hotelId: input.hotelId,
           contractId: input.contractId ?? null,
@@ -339,6 +340,8 @@ export const bookingRouter = createTRPCRouter({
           externalRef: input.externalRef ?? null,
           bookingNotes: input.bookingNotes ?? null,
           meetAssistVisa: input.meetAssistVisa ?? false,
+          stopSaleOverride: input.stopSaleOverride ?? false,
+          approvalStatus: input.stopSaleOverride ? "PENDING" : null,
           createdById: ctx.session.user.id,
           rooms: {
             create: roomsData,
@@ -374,7 +377,108 @@ export const bookingRouter = createTRPCRouter({
       // Log creation
       await logBookingAction(ctx.db, booking.id, "CREATED", `Booking ${code} created`, ctx.session.user.id);
 
+      // Send notification to managers if stop-sale override
+      if (input.stopSaleOverride) {
+        await logBookingAction(
+          ctx.db, booking.id, "STOP_SALE_OVERRIDE",
+          `Booking created during stop-sale period — pending manager approval`,
+          ctx.session.user.id,
+        );
+
+        // Find users with reservations manager role (or super_admin)
+        const managers = await ctx.db.userRole.findMany({
+          where: {
+            role: {
+              companyId: ctx.companyId,
+              name: { in: ["super_admin", "reservations_manager"] },
+            },
+          },
+          select: { userId: true },
+        });
+        const uniqueManagerIds = [...new Set(managers.map((m) => m.userId))];
+
+        if (uniqueManagerIds.length > 0) {
+          await ctx.db.notification.createMany({
+            data: uniqueManagerIds.map((uid) => ({
+              companyId: ctx.companyId,
+              recipientId: uid,
+              type: "STOP_SALE_APPROVAL",
+              title: "Stop-Sale Override Approval Required",
+              message: `Booking ${code} was created during a stop-sale period and requires your approval.`,
+              link: `/reservations/bookings/${booking.id}`,
+              bookingId: booking.id,
+            })),
+          });
+        }
+      }
+
       return booking;
+    }),
+
+  // ── Approve / Reject stop-sale override ──
+  approveStopSale: proc
+    .input(
+      z.object({
+        bookingId: z.string().min(1),
+        action: z.enum(["approve", "reject"]),
+        note: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+      });
+
+      if (booking.status !== "PENDING_APPROVAL") {
+        throw new Error("Booking is not pending approval");
+      }
+
+      if (input.action === "approve") {
+        await ctx.db.booking.update({
+          where: { id: input.bookingId },
+          data: {
+            status: "NEW_BOOKING",
+            approvalStatus: "APPROVED",
+            approvedById: ctx.session.user.id,
+            approvedAt: new Date(),
+            approvalNote: input.note ?? null,
+          },
+        });
+
+        await logBookingAction(
+          ctx.db, input.bookingId, "STOP_SALE_APPROVED",
+          `Stop-sale override approved${input.note ? `: ${input.note}` : ""}`,
+          ctx.session.user.id,
+        );
+      } else {
+        await ctx.db.booking.update({
+          where: { id: input.bookingId },
+          data: {
+            status: "CANCELLED",
+            approvalStatus: "REJECTED",
+            approvedById: ctx.session.user.id,
+            approvedAt: new Date(),
+            approvalNote: input.note ?? null,
+            cancelledAt: new Date(),
+            cancelledById: ctx.session.user.id,
+            cancellationReason: `Stop-sale override rejected${input.note ? `: ${input.note}` : ""}`,
+          },
+        });
+
+        await logBookingAction(
+          ctx.db, input.bookingId, "STOP_SALE_REJECTED",
+          `Stop-sale override rejected${input.note ? `: ${input.note}` : ""}`,
+          ctx.session.user.id,
+        );
+      }
+
+      // Mark related notifications as read
+      await ctx.db.notification.updateMany({
+        where: { bookingId: input.bookingId, type: "STOP_SALE_APPROVAL" },
+        data: { read: true, readAt: new Date() },
+      });
+
+      return { success: true };
     }),
 
   // ── Update booking (DRAFT only) ──

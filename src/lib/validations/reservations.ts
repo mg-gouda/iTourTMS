@@ -114,6 +114,7 @@ export const bookingCreateSchema = z
     internalNotes: z.string().nullish(),
     bookingNotes: z.string().nullish(),
     meetAssistVisa: z.boolean().default(false),
+    stopSaleOverride: z.boolean().default(false),
 
     leadGuestName: z.string().nullish(),
     leadGuestEmail: z.string().email().nullish().or(z.literal("")),

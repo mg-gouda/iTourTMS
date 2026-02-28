@@ -6,6 +6,7 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   CHECKED_OUT: "Checked Out",
   CANCELLED: "Cancelled",
   NO_SHOW: "No Show",
+  PENDING_APPROVAL: "Pending Approval",
 };
 
 export const BOOKING_STATUS_VARIANTS: Record<string, string> = {
@@ -16,6 +17,7 @@ export const BOOKING_STATUS_VARIANTS: Record<string, string> = {
   CHECKED_OUT: "default",
   CANCELLED: "destructive",
   NO_SHOW: "warning",
+  PENDING_APPROVAL: "warning",
 };
 
 export const BOOKING_SOURCE_LABELS: Record<string, string> = {

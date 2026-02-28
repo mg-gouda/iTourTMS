@@ -128,6 +128,7 @@ model Company {
   guests           Guest[]
   bookings         Booking[]
   vouchers         Voucher[]
+  notifications    Notification[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -185,6 +186,8 @@ model User {
   bookingsCheckedIn  Booking[]          @relation("BookingCheckIn")
   bookingsCheckedOut Booking[]          @relation("BookingCheckOut")
   bookingsLocked     Booking[]          @relation("BookingLocker")
+  bookingsApproved   Booking[]          @relation("BookingApprover")
+  notifications      Notification[]     @relation("NotificationRecipient")
   bookingPayments    BookingPayment[]   @relation("BookingPaymentCreator")
   vouchersCreated    Voucher[]          @relation("VoucherCreator")
   bookingTimelines   BookingTimeline[]  @relation("TimelineUser")
@@ -2344,6 +2347,7 @@ enum BookingStatus {
   CHECKED_OUT
   CANCELLED
   NO_SHOW
+  PENDING_APPROVAL
 }
 
 enum BookingSource {
@@ -2533,6 +2537,13 @@ model Booking {
   checkedOutAt       DateTime?
   checkedOutById     String?
 
+  // Stop-sale override approval
+  stopSaleOverride   Boolean              @default(false)
+  approvalStatus     String?              // PENDING, APPROVED, REJECTED
+  approvedById       String?
+  approvedAt         DateTime?
+  approvalNote       String?              @db.Text
+
   // Audit
   createdById        String?
   createdAt          DateTime            @default(now())
@@ -2553,12 +2564,14 @@ model Booking {
   checkedInBy    User?            @relation("BookingCheckIn", fields: [checkedInById], references: [id])
   checkedOutBy   User?            @relation("BookingCheckOut", fields: [checkedOutById], references: [id])
   lockedBy       User?            @relation("BookingLocker", fields: [lockedById], references: [id])
+  approvedBy     User?            @relation("BookingApprover", fields: [approvedById], references: [id])
 
   rooms          BookingRoom[]
   guests         BookingGuest[]
   payments       BookingPayment[]
   vouchers       Voucher[]
   timeline       BookingTimeline[]
+  notifications  Notification[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2699,4 +2712,26 @@ model BookingTimeline {
 
   @@index([bookingId])
   @@map("rv_booking_timeline")
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  companyId   String
+  recipientId String
+  type        String    // e.g. "STOP_SALE_APPROVAL"
+  title       String
+  message     String    @db.Text
+  link        String?   // URL to navigate to
+  bookingId   String?
+  read        Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recipient User     @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, read])
+  @@index([companyId])
+  @@map("sys_notification")
 }

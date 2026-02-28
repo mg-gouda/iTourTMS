@@ -6,6 +6,7 @@ import { apiIntegrationRouter } from "@/server/trpc/routers/shared/api-integrati
 import { settingsRouter } from "@/server/trpc/routers/shared/settings";
 import { setupRouter } from "@/server/trpc/routers/shared/setup";
 import { userRouter } from "@/server/trpc/routers/shared/user";
+import { notificationRouter } from "@/server/trpc/routers/shared/notification";
 
 export const appRouter = createTRPCRouter({
   setup: setupRouter,
@@ -15,6 +16,7 @@ export const appRouter = createTRPCRouter({
   contracting: contractingRouter,
   reservations: reservationsRouter,
   apiIntegration: apiIntegrationRouter,
+  notification: notificationRouter,
 });
 
 export type AppRouter = typeof appRouter;
