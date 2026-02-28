@@ -95,6 +95,16 @@ function fmtDate(d: string | Date): string {
   return format(typeof d === "string" ? new Date(d) : d, "dd MMM yyyy");
 }
 
+/** Replace unicode characters that jsPDF's default font can't render */
+function sanitize(s: string): string {
+  return s
+    .replace(/\u2212/g, "-")   // minus sign
+    .replace(/\u2013/g, "-")   // en-dash
+    .replace(/\u2014/g, "-")   // em-dash
+    .replace(/\u2018|\u2019/g, "'")  // smart quotes
+    .replace(/\u201C|\u201D/g, '"'); // smart double quotes
+}
+
 // ---------------------------------------------------------------------------
 // PDF Generation
 // ---------------------------------------------------------------------------
@@ -330,8 +340,8 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
         doc.setFont("helvetica", bold ? "bold" : "normal");
         doc.setTextColor(...COLORS.text);
         doc.setFontSize(9);
-        doc.text(label, labelX, y);
-        doc.text(amount, amountX, y, { align: "right" });
+        doc.text(sanitize(label), labelX, y);
+        doc.text(sanitize(amount), amountX, y, { align: "right" });
         y += 5;
       };
 
@@ -381,12 +391,12 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
       if (bd.offerDiscounts?.length) {
         for (const od of bd.offerDiscounts) {
           doc.setTextColor(34, 139, 34); // green
-          drawLine(`− ${od.offerName}`, `−${sym}${od.discount.toFixed(2)}`);
+          drawLine(sanitize(`- ${od.offerName}`), `-${sym}${od.discount.toFixed(2)}`);
           if (od.description) {
             doc.setFontSize(7);
             doc.setFont("helvetica", "italic");
             doc.setTextColor(...COLORS.muted);
-            const descLines = doc.splitTextToSize(od.description, contentW - 20);
+            const descLines = doc.splitTextToSize(sanitize(od.description), contentW - 20);
             doc.text(descLines, labelX + 4, y);
             y += descLines.length * 3.5 + 1;
           }
