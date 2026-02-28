@@ -284,9 +284,19 @@ export const arrivalListFilterSchema = z.object({
   dateTo: z.string().min(1),
   destinationId: z.string().nullish(),
   zoneId: z.string().nullish(),
+  cityId: z.string().nullish(),
+  status: z
+    .enum(["NEW_BOOKING", "DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"])
+    .nullish(),
 });
 
 export const paymentOptionDateFilterSchema = z.object({
+  dateFrom: z.string().min(1),
+  dateTo: z.string().min(1),
+});
+
+export const materializationFilterSchema = z.object({
+  hotelId: z.string().min(1),
   dateFrom: z.string().min(1),
   dateTo: z.string().min(1),
 });

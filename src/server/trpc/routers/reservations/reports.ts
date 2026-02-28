@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   arrivalListFilterSchema,
+  materializationFilterSchema,
   paymentOptionDateFilterSchema,
   reportFilterSchema,
 } from "@/lib/validations/reservations";
@@ -252,11 +253,14 @@ export const reportsRouter = createTRPCRouter({
       const hotelWhere: Record<string, any> = {};
       if (input.destinationId) hotelWhere.destinationId = input.destinationId;
       if (input.zoneId) hotelWhere.zoneId = input.zoneId;
+      if (input.cityId) hotelWhere.cityId = input.cityId;
 
       const bookings = await ctx.db.booking.findMany({
         where: {
           companyId: ctx.companyId,
-          status: { in: ["CONFIRMED", "CHECKED_IN"] },
+          status: input.status
+            ? input.status
+            : { in: ["CONFIRMED", "CHECKED_IN"] },
           checkIn: {
             gte: new Date(input.dateFrom),
             lte: new Date(input.dateTo),
@@ -432,5 +436,187 @@ export const reportsRouter = createTRPCRouter({
       );
 
       return { rows, currencyTotals };
+    }),
+
+  materialization: proc
+    .input(materializationFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const hotelId = input.hotelId;
+      const dateFrom = new Date(input.dateFrom);
+      const dateTo = new Date(input.dateTo);
+
+      // 1. Find all contracts for this hotel belonging to the company
+      const contracts = await ctx.db.contract.findMany({
+        where: { companyId: ctx.companyId, hotelId },
+        select: { id: true },
+      });
+      const contractIds = contracts.map((c) => c.id);
+
+      // 2. Fetch allotments, stop sales, bookings, and room types in parallel
+      const [allotments, stopSales, bookings, roomTypes] = await Promise.all([
+        contractIds.length > 0
+          ? ctx.db.contractAllotment.findMany({
+              where: { contractId: { in: contractIds } },
+              select: { roomTypeId: true, totalRooms: true },
+            })
+          : Promise.resolve([]),
+        contractIds.length > 0
+          ? ctx.db.contractStopSale.findMany({
+              where: {
+                contractId: { in: contractIds },
+                dateFrom: { lte: dateTo },
+                dateTo: { gte: dateFrom },
+              },
+              select: { roomTypeId: true, dateFrom: true, dateTo: true },
+            })
+          : Promise.resolve([]),
+        ctx.db.booking.findMany({
+          where: {
+            companyId: ctx.companyId,
+            hotelId,
+            status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+            checkIn: { lte: dateTo },
+            checkOut: { gt: dateFrom },
+          },
+          select: {
+            checkIn: true,
+            checkOut: true,
+            rooms: { select: { roomTypeId: true } },
+          },
+        }),
+        ctx.db.hotelRoomType.findMany({
+          where: { hotelId, active: true },
+          select: { id: true, name: true },
+          orderBy: { sortOrder: "asc" },
+        }),
+      ]);
+
+      // 3. Sum allotments by roomTypeId
+      const allocByRoom = new Map<string, number>();
+      for (const a of allotments) {
+        allocByRoom.set(
+          a.roomTypeId,
+          (allocByRoom.get(a.roomTypeId) ?? 0) + a.totalRooms,
+        );
+      }
+
+      // 4. Build date array
+      const dates: string[] = [];
+      const cur = new Date(dateFrom);
+      while (cur <= dateTo) {
+        dates.push(cur.toISOString().slice(0, 10));
+        cur.setDate(cur.getDate() + 1);
+      }
+      const numDays = dates.length;
+
+      // 5. Pre-compute sold rooms per roomType per day-index
+      const soldMap = new Map<string, number[]>(); // key: roomTypeId
+      for (const b of bookings) {
+        const bIn = new Date(b.checkIn);
+        const bOut = new Date(b.checkOut);
+        for (const room of b.rooms) {
+          if (!soldMap.has(room.roomTypeId)) {
+            soldMap.set(room.roomTypeId, new Array(numDays).fill(0));
+          }
+          const arr = soldMap.get(room.roomTypeId)!;
+          for (let i = 0; i < numDays; i++) {
+            const day = new Date(dates[i]);
+            if (day >= bIn && day < bOut) {
+              arr[i]++;
+            }
+          }
+        }
+      }
+
+      // 6. Pre-compute stop-sale counts per roomType per day-index
+      const ssMap = new Map<string, number[]>(); // key: roomTypeId
+      for (const ss of stopSales) {
+        const ssFrom = new Date(ss.dateFrom);
+        const ssTo = new Date(ss.dateTo);
+        // Applies to specific room type or all room types
+        const targetRoomIds = ss.roomTypeId
+          ? [ss.roomTypeId]
+          : roomTypes.map((rt) => rt.id);
+        for (const rtId of targetRoomIds) {
+          if (!ssMap.has(rtId)) {
+            ssMap.set(rtId, new Array(numDays).fill(0));
+          }
+          const arr = ssMap.get(rtId)!;
+          for (let i = 0; i < numDays; i++) {
+            const day = new Date(dates[i]);
+            if (day >= ssFrom && day <= ssTo) {
+              arr[i]++;
+            }
+          }
+        }
+      }
+
+      // 7. Build per-room-type results
+      const roomTypeResults = roomTypes.map((rt) => {
+        const alloc = allocByRoom.get(rt.id) ?? 0;
+        const soldArr = soldMap.get(rt.id) ?? new Array(numDays).fill(0);
+        const ssArr = ssMap.get(rt.id) ?? new Array(numDays).fill(0);
+
+        const days = [];
+        let ttlSold = 0;
+        for (let i = 0; i < numDays; i++) {
+          const sold = soldArr[i];
+          const ss = ssArr[i];
+          ttlSold += sold;
+          days.push({
+            alloc,
+            sold,
+            ss,
+            avail: alloc - sold,
+          });
+        }
+
+        const ttlAllot = alloc * numDays;
+        const matPct = ttlAllot > 0 ? Math.round((ttlSold / ttlAllot) * 10000) / 100 : 0;
+
+        return {
+          id: rt.id,
+          name: rt.name,
+          ttlAllot,
+          ttlSold,
+          matPct,
+          days,
+        };
+      });
+
+      // 8. Hotel total row
+      const hotelTotalDays = [];
+      let hotelTtlAllot = 0;
+      let hotelTtlSold = 0;
+      for (let i = 0; i < numDays; i++) {
+        let dayAlloc = 0;
+        let daySold = 0;
+        for (const rt of roomTypeResults) {
+          dayAlloc += rt.days[i].alloc;
+          daySold += rt.days[i].sold;
+        }
+        hotelTotalDays.push({
+          alloc: dayAlloc,
+          sold: daySold,
+          avail: dayAlloc - daySold,
+        });
+        hotelTtlAllot += dayAlloc;
+        hotelTtlSold += daySold;
+      }
+      const hotelMatPct =
+        hotelTtlAllot > 0
+          ? Math.round((hotelTtlSold / hotelTtlAllot) * 10000) / 100
+          : 0;
+
+      return {
+        dates,
+        roomTypes: roomTypeResults,
+        hotelTotal: {
+          ttlAllot: hotelTtlAllot,
+          ttlSold: hotelTtlSold,
+          matPct: hotelMatPct,
+          days: hotelTotalDays,
+        },
+      };
     }),
 });

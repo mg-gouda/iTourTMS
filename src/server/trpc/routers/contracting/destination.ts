@@ -83,6 +83,14 @@ export const destinationRouter = createTRPCRouter({
 
   // ── City CRUD ──
 
+  listAllCities: proc.query(async ({ ctx }) => {
+    return ctx.db.city.findMany({
+      where: { companyId: ctx.companyId, active: true },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    });
+  }),
+
   listCities: proc
     .input(z.object({ destinationId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -133,6 +141,14 @@ export const destinationRouter = createTRPCRouter({
     }),
 
   // ── Zone CRUD ──
+
+  listAllZones: proc.query(async ({ ctx }) => {
+    return ctx.db.zone.findMany({
+      where: { companyId: ctx.companyId, active: true },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    });
+  }),
 
   listZones: proc
     .input(z.object({ cityId: z.string() }))

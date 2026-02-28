@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ArrowDown, ArrowUp, ArrowUpDown, FileDown, FileSpreadsheet } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -15,6 +15,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,11 +58,12 @@ export default function ReportsPage() {
   // Arrival List filters
   const [alDateFrom, setAlDateFrom] = useState("");
   const [alDateTo, setAlDateTo] = useState("");
-  const [alDestinationId, setAlDestinationId] = useState("");
-  const [alZoneId, setAlZoneId] = useState("");
+  const [alCityId, setAlCityId] = useState("");
+  const [alStatus, setAlStatus] = useState("");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: destinations } = trpc.contracting.destination.list.useQuery();
+  const { data: allCities } = trpc.contracting.destination.listAllCities.useQuery();
 
   const filterInput = {
     hotelId: hotelId || undefined,
@@ -78,30 +80,30 @@ export default function ReportsPage() {
   const { data: departures, isLoading: departuresLoading } =
     trpc.reservations.reports.upcomingDepartures.useQuery();
 
-  // Arrival List data — get cities for the destination, then zones for the first city
-  const { data: destCities } =
-    trpc.contracting.destination.listCities.useQuery(
-      { destinationId: alDestinationId },
-      { enabled: !!alDestinationId },
-    );
-  const firstCityId = destCities?.[0]?.id;
-  const { data: cityZones } =
-    trpc.contracting.destination.listZones.useQuery(
-      { cityId: firstCityId! },
-      { enabled: !!firstCityId },
-    );
-  const destinationZones = cityZones ?? [];
-
   const alFiltersReady = !!alDateFrom && !!alDateTo;
   const { data: arrivalList, isLoading: arrivalListLoading } =
     trpc.reservations.reports.arrivalList.useQuery(
       {
         dateFrom: alDateFrom,
         dateTo: alDateTo,
-        destinationId: alDestinationId || undefined,
-        zoneId: alZoneId || undefined,
+        cityId: alCityId || undefined,
+        status: (alStatus || undefined) as
+          | "NEW_BOOKING" | "DRAFT" | "CONFIRMED" | "CHECKED_IN"
+          | "CHECKED_OUT" | "CANCELLED" | "NO_SHOW"
+          | undefined,
       },
       { enabled: alFiltersReady },
+    );
+
+  // Materialization filters
+  const [matHotelId, setMatHotelId] = useState("");
+  const [matDateFrom, setMatDateFrom] = useState("");
+  const [matDateTo, setMatDateTo] = useState("");
+  const matFiltersReady = !!matHotelId && !!matDateFrom && !!matDateTo;
+  const { data: matData, isLoading: matLoading } =
+    trpc.reservations.reports.materialization.useQuery(
+      { hotelId: matHotelId, dateFrom: matDateFrom, dateTo: matDateTo },
+      { enabled: matFiltersReady },
     );
 
   // Payment Option Date filters
@@ -206,6 +208,7 @@ export default function ReportsPage() {
           <TabsTrigger value="arrivals">Arrivals & Departures</TabsTrigger>
           <TabsTrigger value="arrival-list">Arrival List</TabsTrigger>
           <TabsTrigger value="payment-option">Payment Option Date</TabsTrigger>
+          <TabsTrigger value="materialization">Materialization</TabsTrigger>
         </TabsList>
 
         {/* Revenue Tab */}
@@ -546,61 +549,51 @@ export default function ReportsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Destination</Label>
+                  <Label>City</Label>
+                  <Combobox
+                    options={(allCities ?? []).map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    }))}
+                    value={alCityId}
+                    onValueChange={setAlCityId}
+                    placeholder="All Cities"
+                    searchPlaceholder="Search city…"
+                    className="w-[200px]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Booking Status</Label>
                   <Select
-                    value={alDestinationId || "__all__"}
-                    onValueChange={(v) => {
-                      setAlDestinationId(v === "__all__" ? "" : v);
-                      setAlZoneId("");
-                    }}
+                    value={alStatus || "__all__"}
+                    onValueChange={(v) =>
+                      setAlStatus(v === "__all__" ? "" : v)
+                    }
                   >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="All Destinations" />
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All Destinations</SelectItem>
-                      {(destinations ?? []).map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="__all__">All Statuses</SelectItem>
+                      {Object.entries(BOOKING_STATUS_LABELS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
-                {alDestinationId && destinationZones.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label>Zone</Label>
-                    <Select
-                      value={alZoneId || "__all__"}
-                      onValueChange={(v) =>
-                        setAlZoneId(v === "__all__" ? "" : v)
-                      }
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="All Zones" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">All Zones</SelectItem>
-                        {destinationZones.map(
-                          (z: { id: string; name: string }) => (
-                            <SelectItem key={z.id} value={z.id}>
-                              {z.name}
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {(alDateFrom || alDateTo || alDestinationId) && (
+                {(alDateFrom || alDateTo || alCityId || alStatus) && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
                       setAlDateFrom("");
                       setAlDateTo("");
-                      setAlDestinationId("");
-                      setAlZoneId("");
+                      setAlCityId("");
+                      setAlStatus("");
                     }}
                   >
                     Clear Filters
@@ -1103,6 +1096,316 @@ export default function ReportsPage() {
             </Card>
           )}
         </TabsContent>
+
+        {/* Materialization Tab */}
+        <TabsContent value="materialization" className="space-y-4">
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5">
+                  <Label>Hotel *</Label>
+                  <Combobox
+                    options={(hotels ?? []).map((h) => ({
+                      value: h.id,
+                      label: h.name,
+                    }))}
+                    value={matHotelId}
+                    onValueChange={setMatHotelId}
+                    placeholder="Select hotel…"
+                    searchPlaceholder="Search hotel…"
+                    className="w-[220px]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Date From *</Label>
+                  <Input
+                    type="date"
+                    className="w-[160px]"
+                    value={matDateFrom}
+                    onChange={(e) => setMatDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Date To *</Label>
+                  <Input
+                    type="date"
+                    className="w-[160px]"
+                    value={matDateTo}
+                    onChange={(e) => setMatDateTo(e.target.value)}
+                  />
+                </div>
+                {(matHotelId || matDateFrom || matDateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setMatHotelId("");
+                      setMatDateFrom("");
+                      setMatDateTo("");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+                {matFiltersReady && matData && matData.roomTypes.length > 0 && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => exportMaterializationExcel(matData, matDateFrom, matDateTo, hotels?.find((h) => h.id === matHotelId)?.name ?? "Hotel")}
+                    >
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Export Excel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => exportMaterializationPdf(matData, matDateFrom, matDateTo, hotels?.find((h) => h.id === matHotelId)?.name ?? "Hotel")}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      Export PDF
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {!matFiltersReady ? (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-sm text-muted-foreground">
+                  Select a hotel and date range to view the materialization
+                  report.
+                </p>
+              </CardContent>
+            </Card>
+          ) : matLoading ? (
+            <Card>
+              <CardContent className="py-12">
+                <Skeleton className="h-[300px] w-full" />
+              </CardContent>
+            </Card>
+          ) : matData &&
+            matData.roomTypes.length > 0 &&
+            matData.dates.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Materialization Report
+                  <Badge variant="secondary" className="ml-2">
+                    {matData.roomTypes.length} room type
+                    {matData.roomTypes.length !== 1 ? "s" : ""} &middot;{" "}
+                    {matData.dates.length} day
+                    {matData.dates.length !== 1 ? "s" : ""}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="sticky left-0 z-10 bg-background px-2 py-1.5 text-left font-semibold min-w-[140px]">
+                          Room Type
+                        </th>
+                        <th className="px-2 py-1.5 text-center font-semibold min-w-[60px]">
+                          TTL Allot
+                        </th>
+                        <th className="px-2 py-1.5 text-center font-semibold min-w-[60px]">
+                          TTL Sold
+                        </th>
+                        <th className="px-2 py-1.5 text-center font-semibold min-w-[50px]">
+                          Mat%
+                        </th>
+                        <th className="px-2 py-1.5 text-center font-semibold min-w-[40px]">
+                          Row
+                        </th>
+                        {matData.dates.map((d, i) => (
+                          <th
+                            key={d}
+                            className="px-1.5 py-1.5 text-center font-semibold min-w-[32px]"
+                          >
+                            {i + 1}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matData.roomTypes.map((rt) => (
+                        <Fragment key={rt.id}>
+                          {/* Alloc row */}
+                          <tr className="border-b border-muted/30">
+                            <td
+                              rowSpan={3}
+                              className="sticky left-0 z-10 bg-background px-2 py-1 font-medium align-top border-b"
+                            >
+                              {rt.name}
+                            </td>
+                            <td
+                              rowSpan={3}
+                              className="px-2 py-1 text-center font-mono align-top border-b"
+                            >
+                              {rt.ttlAllot}
+                            </td>
+                            <td
+                              rowSpan={3}
+                              className="px-2 py-1 text-center font-mono align-top border-b"
+                            >
+                              {rt.ttlSold}
+                            </td>
+                            <td
+                              rowSpan={3}
+                              className="px-2 py-1 text-center font-mono align-top border-b"
+                            >
+                              {rt.matPct}%
+                            </td>
+                            <td className="px-2 py-1 text-center text-muted-foreground">
+                              Alloc
+                            </td>
+                            {rt.days.map((day, i) => (
+                              <td
+                                key={i}
+                                className="relative px-1.5 py-1 text-center font-mono"
+                              >
+                                {day.ss > 0 && <span className="absolute top-0 right-0 border-t-[8px] border-r-[8px] border-t-red-500 border-r-transparent rotate-90" />}
+                                {day.alloc}
+                              </td>
+                            ))}
+                          </tr>
+                          {/* Sold row */}
+                          <tr className="border-b border-muted/30">
+                            <td className="px-2 py-1 text-center text-muted-foreground">
+                              Sold
+                            </td>
+                            {rt.days.map((day, i) => (
+                              <td
+                                key={i}
+                                className={`relative px-1.5 py-1 text-center font-mono ${day.sold > 0 ? "bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
+                              >
+                                {day.ss > 0 && <span className="absolute top-0 right-0 border-t-[8px] border-r-[8px] border-t-red-500 border-r-transparent rotate-90" />}
+                                {day.sold}
+                              </td>
+                            ))}
+                          </tr>
+                          {/* Avail row */}
+                          <tr className="border-b">
+                            <td className="px-2 py-1 text-center text-muted-foreground">
+                              Avail
+                            </td>
+                            {rt.days.map((day, i) => (
+                              <td
+                                key={i}
+                                className="relative px-1.5 py-1 text-center font-mono"
+                              >
+                                {day.ss > 0 && <span className="absolute top-0 right-0 border-t-[8px] border-r-[8px] border-t-red-500 border-r-transparent rotate-90" />}
+                                {day.avail}
+                              </td>
+                            ))}
+                          </tr>
+                        </Fragment>
+                      ))}
+                    </tbody>
+                    {/* Hotel Total */}
+                    <tfoot>
+                      {/* Total Alloc */}
+                      <tr className="border-t-2 border-b border-muted/30">
+                        <td
+                          rowSpan={3}
+                          className="sticky left-0 z-10 bg-muted/50 px-2 py-1 font-bold align-top"
+                        >
+                          Hotel Total
+                        </td>
+                        <td
+                          rowSpan={3}
+                          className="bg-muted/50 px-2 py-1 text-center font-mono font-bold align-top"
+                        >
+                          {matData.hotelTotal.ttlAllot}
+                        </td>
+                        <td
+                          rowSpan={3}
+                          className="bg-muted/50 px-2 py-1 text-center font-mono font-bold align-top"
+                        >
+                          {matData.hotelTotal.ttlSold}
+                        </td>
+                        <td
+                          rowSpan={3}
+                          className="bg-muted/50 px-2 py-1 text-center font-mono font-bold align-top"
+                        >
+                          {matData.hotelTotal.matPct}%
+                        </td>
+                        <td className="bg-muted/50 px-2 py-1 text-center text-muted-foreground font-semibold">
+                          Alloc
+                        </td>
+                        {matData.hotelTotal.days.map((day, i) => (
+                          <td
+                            key={i}
+                            className="bg-muted/50 px-1.5 py-1 text-center font-mono font-semibold"
+                          >
+                            {day.alloc}
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Total Sold */}
+                      <tr className="border-b border-muted/30">
+                        <td className="bg-muted/50 px-2 py-1 text-center text-muted-foreground font-semibold">
+                          Sold
+                        </td>
+                        {matData.hotelTotal.days.map((day, i) => (
+                          <td
+                            key={i}
+                            className={`bg-muted/50 px-1.5 py-1 text-center font-mono font-semibold ${day.sold > 0 ? "bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
+                          >
+                            {day.sold}
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Total Avail */}
+                      <tr className="border-b">
+                        <td className="bg-muted/50 px-2 py-1 text-center text-muted-foreground font-semibold">
+                          Avail
+                        </td>
+                        {matData.hotelTotal.days.map((day, i) => (
+                          <td
+                            key={i}
+                            className="bg-muted/50 px-1.5 py-1 text-center font-mono font-semibold"
+                          >
+                            {day.avail}
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                {/* Legend */}
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block h-3.5 w-6 rounded-sm bg-green-500/10 border border-green-500/30" />
+                    Sold &gt; 0
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative inline-block h-3.5 w-6 rounded-sm border">
+                      <span className="absolute top-0 right-0 border-t-[8px] border-r-[8px] border-t-red-500 border-r-transparent rotate-90" />
+                    </span>
+                    Stop Sale
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block h-3.5 w-6 rounded-sm bg-muted/50 border" />
+                    Hotel Total
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-sm text-muted-foreground">
+                  No data found for the selected hotel and date range.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -1137,4 +1440,88 @@ function SummaryCard({
       </CardContent>
     </Card>
   );
+}
+
+// ── Materialization export types & helpers ──
+
+type MatData = {
+  dates: string[];
+  roomTypes: {
+    id: string;
+    name: string;
+    ttlAllot: number;
+    ttlSold: number;
+    matPct: number;
+    days: { alloc: number; sold: number; ss: number; avail: number }[];
+  }[];
+  hotelTotal: {
+    ttlAllot: number;
+    ttlSold: number;
+    matPct: number;
+    days: { alloc: number; sold: number; avail: number }[];
+  };
+};
+
+function buildMatRows(data: MatData) {
+  const dayNums = data.dates.map((_, i) => i + 1);
+  const headers: string[] = [
+    "Room Type",
+    "TTL Allot",
+    "TTL Sold",
+    "Mat%",
+    "Row",
+    ...dayNums.map(String),
+  ];
+
+  const rows: (string | number)[][] = [];
+  for (const rt of data.roomTypes) {
+    rows.push([rt.name, rt.ttlAllot, rt.ttlSold, `${rt.matPct}%`, "Alloc", ...rt.days.map((d) => d.alloc)]);
+    rows.push(["", "", "", "", "Sold", ...rt.days.map((d) => d.sold)]);
+    rows.push(["", "", "", "", "Avail", ...rt.days.map((d) => d.avail)]);
+  }
+  // Hotel total
+  rows.push(["Hotel Total", data.hotelTotal.ttlAllot, data.hotelTotal.ttlSold, `${data.hotelTotal.matPct}%`, "Alloc", ...data.hotelTotal.days.map((d) => d.alloc)]);
+  rows.push(["", "", "", "", "Sold", ...data.hotelTotal.days.map((d) => d.sold)]);
+  rows.push(["", "", "", "", "Avail", ...data.hotelTotal.days.map((d) => d.avail)]);
+
+  return { headers, rows };
+}
+
+function exportMaterializationExcel(
+  data: MatData,
+  dateFrom: string,
+  dateTo: string,
+  hotelName: string,
+) {
+  const { headers, rows } = buildMatRows(data);
+  exportReportToExcel({
+    title: `Materialization_${hotelName.replace(/\s+/g, "_")}`,
+    sheetName: "Materialization",
+    headers,
+    rows,
+  });
+}
+
+function exportMaterializationPdf(
+  data: MatData,
+  dateFrom: string,
+  dateTo: string,
+  hotelName: string,
+) {
+  const { headers, rows } = buildMatRows(data);
+  const fromLabel = format(new Date(dateFrom), "dd MMM yyyy");
+  const toLabel = format(new Date(dateTo), "dd MMM yyyy");
+  exportReportToPdf({
+    title: `MATERIALIZATION — ${hotelName.toUpperCase()}`,
+    subtitle: `${fromLabel}  —  ${toLabel}`,
+    headers,
+    rows: rows.map((r) => r.map(String)),
+    columnStyles: {
+      0: { cellWidth: 28 },
+      1: { halign: "center", cellWidth: 14 },
+      2: { halign: "center", cellWidth: 14 },
+      3: { halign: "center", cellWidth: 12 },
+      4: { halign: "center", cellWidth: 12 },
+    },
+  });
 }
