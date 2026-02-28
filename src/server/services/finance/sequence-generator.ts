@@ -26,14 +26,25 @@ export async function generateSequenceNumber(
   }
 
   if (sequence.formatType === "company_serial") {
-    // Company serial format: {abbreviation}-{nextNumber}
+    // Company serial format: {initials}-{paddedNumber}
     const company = await db.company.findUnique({
       where: { id: companyId },
-      select: { abbreviation: true },
+      select: { abbreviation: true, name: true },
     });
 
-    const abbr = company?.abbreviation ?? "BK";
+    // Use abbreviation, or derive initials from company name
+    const abbr =
+      company?.abbreviation ??
+      (company?.name
+        ? company.name
+            .split(/\s+/)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
+        : sequence.prefix);
     const nextNumber = Math.max(sequence.nextNumber, sequence.startNumber);
+    const paddedNumber = String(nextNumber).padStart(sequence.padding, "0");
 
     // Increment
     await db.sequence.update({
@@ -44,7 +55,7 @@ export async function generateSequenceNumber(
       },
     });
 
-    return `${abbr}-${nextNumber}`;
+    return `${abbr}${sequence.separator}${paddedNumber}`;
   }
 
   // Standard format: prefix/year/paddedNumber
