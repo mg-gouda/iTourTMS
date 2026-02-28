@@ -276,10 +276,10 @@ export const bookingRouter = createTRPCRouter({
           children: input.children ?? 0,
           infants: input.infants ?? 0,
 
-          // Guest names
+          // Guest names (structured JSON: [{ title, name, dob, roomIndex, type }])
           guestNames: input.guestNames?.length ? input.guestNames : undefined,
 
-          // Child DOBs
+          // Child DOBs (legacy)
           childDob1: input.childDob1 ? new Date(input.childDob1) : null,
           childDob2: input.childDob2 ? new Date(input.childDob2) : null,
 
@@ -419,16 +419,22 @@ export const bookingRouter = createTRPCRouter({
       if (d.children !== undefined) data.children = d.children;
       if (d.infants !== undefined) data.infants = d.infants;
 
-      // Guest names
+      // Guest names — handle both structured and legacy formats
       if (d.guestNames !== undefined) {
         data.guestNames = d.guestNames.length ? d.guestNames : undefined;
-        // Also update leadGuestName from first name
+        // Update leadGuestName from first guest
         if (d.guestNames.length && d.guestNames[0]) {
-          data.leadGuestName = d.guestNames[0];
+          const firstGuest = d.guestNames[0];
+          if (typeof firstGuest === "string") {
+            data.leadGuestName = firstGuest;
+          } else if (firstGuest && typeof firstGuest === "object") {
+            const g = firstGuest as { title?: string; name: string };
+            data.leadGuestName = g.title ? `${g.title} ${g.name}` : g.name;
+          }
         }
       }
 
-      // Child DOBs
+      // Child DOBs (legacy)
       if (d.childDob1 !== undefined) data.childDob1 = d.childDob1 ? new Date(d.childDob1) : null;
       if (d.childDob2 !== undefined) data.childDob2 = d.childDob2 ? new Date(d.childDob2) : null;
 
@@ -446,75 +452,192 @@ export const bookingRouter = createTRPCRouter({
       // Recalculate rates if hotel/dates/room changed and contract exists
       const effectiveHotelId = (d.hotelId as string) ?? booking.hotelId;
       const effectiveContractId = (d.contractId as string) ?? booking.contractId;
-      const roomChanged = d.roomTypeId || d.mealBasisId || d.adults !== undefined || d.children !== undefined;
-      const datesChanged = d.checkIn || d.checkOut;
+      const totalPaidNum = booking.totalPaid?.toNumber?.() ?? Number(booking.totalPaid) ?? 0;
 
-      if (effectiveContractId && (roomChanged || datesChanged)) {
-        try {
-          const existingRoom = booking.rooms[0];
-          const rateResult = await calculateBookingRates(ctx.db, ctx.companyId, {
-            contractId: effectiveContractId,
-            hotelId: effectiveHotelId,
-            tourOperatorId: (d.tourOperatorId as string) ?? booking.tourOperatorId ?? null,
-            checkIn,
-            checkOut,
-            bookingDate: new Date().toISOString().slice(0, 10),
-            rooms: [{
-              roomTypeId: d.roomTypeId ?? existingRoom?.roomTypeId ?? "",
-              mealBasisId: d.mealBasisId ?? existingRoom?.mealBasisId ?? "",
-              adults: d.adults ?? existingRoom?.adults ?? 2,
-              children: [],
-              extraBed: existingRoom?.extraBed ?? false,
-            }],
-          });
+      // ── Multi-room amendment (new rooms array) ──
+      if (d.rooms && d.rooms.length > 0) {
+        // Delete existing BookingRoom records
+        await ctx.db.bookingRoom.deleteMany({ where: { bookingId: input.id } });
 
-          data.buyingTotal = rateResult.buyingTotal;
-          data.sellingTotal = rateResult.sellingTotal;
-          data.balanceDue = rateResult.sellingTotal - (booking.totalPaid?.toNumber?.() ?? Number(booking.totalPaid) ?? 0);
-          data.seasonId = rateResult.seasonId;
-          data.markupRuleId = rateResult.markupRuleId;
-          data.markupType = rateResult.markupType;
-          data.markupValue = rateResult.markupValue;
-          data.markupAmount = rateResult.markupAmount;
+        // Update room summary
+        data.noOfRooms = d.rooms.length;
+        data.adults = d.rooms.reduce((s, r) => s + r.adults, 0);
+        data.children = d.rooms.reduce((s, r) => s + r.children, 0);
+        data.infants = d.rooms.reduce((s, r) => s + (r.infants ?? 0), 0);
 
-          // Update the first room's rates
-          if (existingRoom) {
-            const roomRate = rateResult.rooms[0];
-            if (roomRate) {
-              await ctx.db.bookingRoom.update({
-                where: { id: existingRoom.id },
+        const amendNights = computeNights(checkIn, checkOut);
+
+        if (effectiveContractId) {
+          try {
+            const rateResult = await calculateBookingRates(ctx.db, ctx.companyId, {
+              contractId: effectiveContractId,
+              hotelId: effectiveHotelId,
+              tourOperatorId: (d.tourOperatorId as string) ?? booking.tourOperatorId ?? null,
+              checkIn,
+              checkOut,
+              bookingDate: new Date().toISOString().slice(0, 10),
+              rooms: d.rooms.map((r) => ({
+                roomTypeId: r.roomTypeId,
+                mealBasisId: r.mealBasisId,
+                adults: r.adults,
+                children: [],
+                extraBed: r.extraBed,
+              })),
+            });
+
+            data.buyingTotal = rateResult.buyingTotal;
+            data.sellingTotal = rateResult.sellingTotal;
+            data.balanceDue = rateResult.sellingTotal - totalPaidNum;
+            data.seasonId = rateResult.seasonId;
+            data.markupRuleId = rateResult.markupRuleId;
+            data.markupType = rateResult.markupType;
+            data.markupValue = rateResult.markupValue;
+            data.markupAmount = rateResult.markupAmount;
+
+            for (const rr of rateResult.rooms) {
+              await ctx.db.bookingRoom.create({
                 data: {
-                  roomTypeId: d.roomTypeId ?? existingRoom.roomTypeId,
-                  mealBasisId: d.mealBasisId ?? existingRoom.mealBasisId,
-                  adults: d.adults ?? existingRoom.adults,
-                  children: d.children ?? existingRoom.children,
-                  infants: d.infants ?? existingRoom.infants,
-                  buyingRatePerNight: roomRate.buyingRatePerNight,
-                  buyingTotal: roomRate.buyingTotal,
-                  sellingRatePerNight: roomRate.sellingRatePerNight,
-                  sellingTotal: roomRate.sellingTotal,
-                  rateBreakdown: roomRate.breakdown as never,
+                  bookingId: input.id,
+                  roomTypeId: rr.roomTypeId,
+                  mealBasisId: rr.mealBasisId,
+                  roomIndex: rr.roomIndex,
+                  adults: rr.adults,
+                  children: rr.children.length,
+                  extraBed: rr.extraBed,
+                  buyingRatePerNight: rr.buyingRatePerNight,
+                  buyingTotal: rr.buyingTotal,
+                  sellingRatePerNight: rr.sellingRatePerNight,
+                  sellingTotal: rr.sellingTotal,
+                  rateBreakdown: rr.breakdown as never,
+                  specialRequests: d.rooms[rr.roomIndex - 1]?.specialRequests ?? null,
+                },
+              });
+            }
+          } catch {
+            // Rate calc failed — create rooms without rates
+            for (let i = 0; i < d.rooms.length; i++) {
+              const r = d.rooms[i]!;
+              await ctx.db.bookingRoom.create({
+                data: {
+                  bookingId: input.id,
+                  roomTypeId: r.roomTypeId,
+                  mealBasisId: r.mealBasisId,
+                  roomIndex: i + 1,
+                  adults: r.adults,
+                  children: r.children,
+                  infants: r.infants,
+                  extraBed: r.extraBed,
+                  specialRequests: r.specialRequests ?? null,
                 },
               });
             }
           }
-        } catch {
-          // Rate calc failed — still save the other amendments
+        } else {
+          // Manual rate / no contract — create rooms with manual rates
+          let buyingTotal = 0;
+          let sellingTotal = 0;
+          for (let i = 0; i < d.rooms.length; i++) {
+            const r = d.rooms[i]!;
+            const buyPerNight = r.buyingRatePerNight ?? 0;
+            const sellPerNight = r.sellingRatePerNight ?? 0;
+            const buyTotal = buyPerNight * amendNights;
+            const sellTotal = sellPerNight * amendNights;
+            buyingTotal += buyTotal;
+            sellingTotal += sellTotal;
+            await ctx.db.bookingRoom.create({
+              data: {
+                bookingId: input.id,
+                roomTypeId: r.roomTypeId,
+                mealBasisId: r.mealBasisId,
+                roomIndex: i + 1,
+                adults: r.adults,
+                children: r.children,
+                infants: r.infants,
+                extraBed: r.extraBed,
+                buyingRatePerNight: buyPerNight,
+                buyingTotal: buyTotal,
+                sellingRatePerNight: sellPerNight,
+                sellingTotal: sellTotal,
+                specialRequests: r.specialRequests ?? null,
+              },
+            });
+          }
+          if (buyingTotal > 0 || sellingTotal > 0) {
+            data.buyingTotal = buyingTotal;
+            data.sellingTotal = sellingTotal;
+            data.balanceDue = sellingTotal - totalPaidNum;
+          }
         }
-      } else if (d.roomTypeId || d.mealBasisId) {
-        // Update room type/meal basis without rate recalc
-        const existingRoom = booking.rooms[0];
-        if (existingRoom) {
-          await ctx.db.bookingRoom.update({
-            where: { id: existingRoom.id },
-            data: {
-              ...(d.roomTypeId ? { roomTypeId: d.roomTypeId } : {}),
-              ...(d.mealBasisId ? { mealBasisId: d.mealBasisId } : {}),
-              ...(d.adults !== undefined ? { adults: d.adults } : {}),
-              ...(d.children !== undefined ? { children: d.children } : {}),
-              ...(d.infants !== undefined ? { infants: d.infants } : {}),
-            },
-          });
+      } else {
+        // ── Legacy single-room amendment (flat fields) ──
+        const roomChanged = d.roomTypeId || d.mealBasisId || d.adults !== undefined || d.children !== undefined;
+        const datesChanged = d.checkIn || d.checkOut;
+
+        if (effectiveContractId && (roomChanged || datesChanged)) {
+          try {
+            const existingRoom = booking.rooms[0];
+            const rateResult = await calculateBookingRates(ctx.db, ctx.companyId, {
+              contractId: effectiveContractId,
+              hotelId: effectiveHotelId,
+              tourOperatorId: (d.tourOperatorId as string) ?? booking.tourOperatorId ?? null,
+              checkIn,
+              checkOut,
+              bookingDate: new Date().toISOString().slice(0, 10),
+              rooms: [{
+                roomTypeId: d.roomTypeId ?? existingRoom?.roomTypeId ?? "",
+                mealBasisId: d.mealBasisId ?? existingRoom?.mealBasisId ?? "",
+                adults: d.adults ?? existingRoom?.adults ?? 2,
+                children: [],
+                extraBed: existingRoom?.extraBed ?? false,
+              }],
+            });
+
+            data.buyingTotal = rateResult.buyingTotal;
+            data.sellingTotal = rateResult.sellingTotal;
+            data.balanceDue = rateResult.sellingTotal - totalPaidNum;
+            data.seasonId = rateResult.seasonId;
+            data.markupRuleId = rateResult.markupRuleId;
+            data.markupType = rateResult.markupType;
+            data.markupValue = rateResult.markupValue;
+            data.markupAmount = rateResult.markupAmount;
+
+            if (existingRoom) {
+              const roomRate = rateResult.rooms[0];
+              if (roomRate) {
+                await ctx.db.bookingRoom.update({
+                  where: { id: existingRoom.id },
+                  data: {
+                    roomTypeId: d.roomTypeId ?? existingRoom.roomTypeId,
+                    mealBasisId: d.mealBasisId ?? existingRoom.mealBasisId,
+                    adults: d.adults ?? existingRoom.adults,
+                    children: d.children ?? existingRoom.children,
+                    infants: d.infants ?? existingRoom.infants,
+                    buyingRatePerNight: roomRate.buyingRatePerNight,
+                    buyingTotal: roomRate.buyingTotal,
+                    sellingRatePerNight: roomRate.sellingRatePerNight,
+                    sellingTotal: roomRate.sellingTotal,
+                    rateBreakdown: roomRate.breakdown as never,
+                  },
+                });
+              }
+            }
+          } catch {
+            // Rate calc failed — still save the other amendments
+          }
+        } else if (d.roomTypeId || d.mealBasisId) {
+          const existingRoom = booking.rooms[0];
+          if (existingRoom) {
+            await ctx.db.bookingRoom.update({
+              where: { id: existingRoom.id },
+              data: {
+                ...(d.roomTypeId ? { roomTypeId: d.roomTypeId } : {}),
+                ...(d.mealBasisId ? { mealBasisId: d.mealBasisId } : {}),
+                ...(d.adults !== undefined ? { adults: d.adults } : {}),
+                ...(d.children !== undefined ? { children: d.children } : {}),
+                ...(d.infants !== undefined ? { infants: d.infants } : {}),
+              },
+            });
+          }
         }
       }
 

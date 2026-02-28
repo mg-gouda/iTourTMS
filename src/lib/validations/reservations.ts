@@ -24,6 +24,12 @@ export const guestUpdateSchema = guestCreateSchema.partial();
 
 // ── Booking Room Schema ──
 
+export const roomGuestSchema = z.object({
+  title: z.string().optional(),
+  name: z.string().default(""),
+  dob: z.string().optional(),
+});
+
 export const bookingRoomSchema = z.object({
   roomTypeId: z.string().min(1, "Room type is required"),
   mealBasisId: z.string().min(1, "Meal basis is required"),
@@ -34,6 +40,7 @@ export const bookingRoomSchema = z.object({
   buyingRatePerNight: z.number().min(0).optional(),
   sellingRatePerNight: z.number().min(0).optional(),
   specialRequests: z.string().nullish(),
+  roomGuests: z.array(roomGuestSchema).optional(),
   guests: z
     .array(
       z.object({
@@ -90,10 +97,11 @@ export const bookingCreateSchema = z
     children: z.number().int().min(0).default(0),
     infants: z.number().int().min(0).default(0),
 
-    // Guest names (array of strings)
-    guestNames: z.array(z.string()).default([]),
+    // Guest names — supports structured format [{ title, name, dob, roomIndex, type }]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    guestNames: z.array(z.any()).default([]),
 
-    // Child DOBs
+    // Child DOBs (legacy — now per-child in roomGuests)
     childDob1: z.string().nullish(),
     childDob2: z.string().nullish(),
 
@@ -142,7 +150,10 @@ export const bookingAmendSchema = z.object({
   hotelId: z.string().optional(),
   contractId: z.string().nullish(),
 
-  // Room
+  // Multi-room support
+  rooms: z.array(bookingRoomSchema).optional(),
+
+  // Legacy flat room fields (kept for backward compat)
   roomTypeId: z.string().optional(),
   mealBasisId: z.string().optional(),
   roomOccupancy: z.enum(["SINGLE", "DOUBLE", "TRIPLE", "FAMILY"]).nullish(),
@@ -167,8 +178,9 @@ export const bookingAmendSchema = z.object({
   departDestApt: z.string().nullish(),
   departTerminal: z.string().nullish(),
 
-  // Guest names
-  guestNames: z.array(z.string()).optional(),
+  // Guest names — supports structured format
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  guestNames: z.array(z.any()).optional(),
   childDob1: z.string().nullish(),
   childDob2: z.string().nullish(),
 

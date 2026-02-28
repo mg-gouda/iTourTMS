@@ -95,6 +95,16 @@ export const HOTEL_PAYMENT_METHOD_LABELS: Record<string, string> = {
   VOUCHER: "Voucher",
 };
 
+export const GUEST_TITLE_OPTIONS = [
+  { value: "Mr", label: "Mr" },
+  { value: "Mrs", label: "Mrs" },
+  { value: "Ms", label: "Ms" },
+  { value: "Miss", label: "Miss" },
+  { value: "Dr", label: "Dr" },
+  { value: "Prof", label: "Prof" },
+  { value: "Master", label: "Master" },
+] as const;
+
 export const TIMELINE_ACTION_LABELS: Record<string, string> = {
   CREATED: "Booking Created",
   CONFIRMED: "Booking Confirmed",

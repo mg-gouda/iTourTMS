@@ -2,10 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react";
+import { Loader2, PlaneLanding, PlaneTakeoff, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { GUEST_TITLE_OPTIONS } from "@/lib/constants/reservations";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
@@ -41,13 +42,6 @@ const PARTNER_STATUS_OPTIONS = [
   { value: "REGRET", label: "Regret" },
   { value: "STOP_SALE", label: "Stop Sale" },
   { value: "CANCELLED", label: "Cancelled" },
-] as const;
-
-const ROOM_OCCUPANCY_OPTIONS = [
-  { value: "SINGLE", label: "Single" },
-  { value: "DOUBLE", label: "Double" },
-  { value: "TRIPLE", label: "Triple" },
-  { value: "FAMILY", label: "Family" },
 ] as const;
 
 const PAYMENT_METHOD_OPTIONS = [
@@ -108,9 +102,18 @@ export default function NewBookingPage() {
           children: 0,
           infants: 0,
           extraBed: false,
+          roomGuests: [
+            { title: "", name: "" },
+            { title: "", name: "" },
+          ],
         },
       ],
     },
+  });
+
+  const { fields: roomFields, append: appendRoom, remove: removeRoom } = useFieldArray({
+    control: form.control,
+    name: "rooms",
   });
 
   // Watched fields
@@ -118,30 +121,38 @@ export default function NewBookingPage() {
   const tourOperatorId = form.watch("tourOperatorId");
   const checkIn = form.watch("checkIn");
   const checkOut = form.watch("checkOut");
-  const adultsCount = form.watch("adults") ?? 2;
-  const childrenCount = form.watch("children") ?? 0;
   const hotelPaymentMethod = form.watch("hotelPaymentMethod");
   const rooms = form.watch("rooms");
 
-  // Auto-set guest name rows count
-  const guestRowCount = adultsCount + childrenCount;
-
-  // Manage guest names array size
+  // Auto-resize roomGuests when adults/children change per room
   useEffect(() => {
-    const current = form.getValues("guestNames") ?? [];
-    if (guestRowCount > current.length) {
-      const extended = [...current, ...Array(guestRowCount - current.length).fill("")];
-      form.setValue("guestNames", extended);
-    } else if (guestRowCount < current.length) {
-      form.setValue("guestNames", current.slice(0, guestRowCount));
-    }
-  }, [guestRowCount, form]);
+    const subscription = form.watch((value, { name }) => {
+      if (!name) return;
+      const match = name.match(/^rooms\.(\d+)\.(adults|children)$/);
+      if (!match) return;
+      const ri = parseInt(match[1]!);
+      const room = value.rooms?.[ri];
+      if (!room) return;
+      const expected = (room.adults ?? 0) + (room.children ?? 0);
+      const current = room.roomGuests?.length ?? 0;
+      if (expected === current) return;
+      const existing = (room.roomGuests ?? []) as { title?: string; name?: string; dob?: string }[];
+      if (expected > current) {
+        form.setValue(`rooms.${ri}.roomGuests`, [
+          ...existing,
+          ...Array(expected - current).fill(null).map(() => ({ title: "", name: "", dob: "" })),
+        ]);
+      } else {
+        form.setValue(`rooms.${ri}.roomGuests`, existing.slice(0, expected));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // ── Data fetches ──
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
 
-  // Load room types & meal bases directly from hotel (available as soon as hotel is selected)
   const { data: hotelRoomTypes } = trpc.contracting.roomType.list.useQuery(
     { hotelId: hotelId! },
     { enabled: !!hotelId },
@@ -182,7 +193,6 @@ export default function NewBookingPage() {
     { enabled: !!contractId },
   );
 
-  // Room types: use contract room types if contract matched, else hotel room types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const availableRoomTypes: any[] = useMemo(() => {
     if (contractDetail?.roomTypes?.length) return contractDetail.roomTypes;
@@ -190,7 +200,6 @@ export default function NewBookingPage() {
     return [];
   }, [contractDetail, hotelRoomTypes]);
 
-  // Meal bases: use contract meal bases if contract matched, else hotel meal bases
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const availableMealBases: any[] = useMemo(() => {
     if (contractDetail?.mealBases?.length) return contractDetail.mealBases;
@@ -267,12 +276,6 @@ export default function NewBookingPage() {
     : "—";
   const currencyCode = selectedContract?.baseCurrency?.code ?? "";
 
-  // Selected objects
-  const selectedHotel = useMemo(
-    () => (hotels ?? []).find((h) => h.id === hotelId),
-    [hotels, hotelId],
-  );
-
   // Mutation
   const createMutation = trpc.reservations.booking.create.useMutation({
     onSuccess: (data) => {
@@ -315,16 +318,41 @@ export default function NewBookingPage() {
       clean.source = "DIRECT";
     }
 
-    // Set lead guest from first guest name
-    if (clean.guestNames?.length && clean.guestNames[0]) {
-      clean.leadGuestName = clean.guestNames[0];
-    }
+    // Sync shared mealBasisId to all rooms
+    const sharedMealBasisId = clean.rooms[0]?.mealBasisId ?? "";
+    clean.rooms.forEach((r) => {
+      r.mealBasisId = sharedMealBasisId;
+    });
 
-    // Sync room adults/children/infants from form-level values
-    if (clean.rooms?.[0]) {
-      clean.rooms[0].adults = clean.adults;
-      clean.rooms[0].children = clean.children;
-      clean.rooms[0].infants = clean.infants;
+    // Derive booking-level fields from rooms
+    clean.noOfRooms = clean.rooms.length;
+    clean.adults = clean.rooms.reduce((s, r) => s + (r.adults ?? 2), 0);
+    clean.children = clean.rooms.reduce((s, r) => s + (r.children ?? 0), 0);
+    clean.infants = clean.rooms.reduce((s, r) => s + (r.infants ?? 0), 0);
+
+    // Build structured guestNames from roomGuests
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allGuests: any[] = [];
+    clean.rooms.forEach((r, ri) => {
+      const ad = r.adults ?? 2;
+      (r.roomGuests ?? []).forEach((g, gi) => {
+        if (g.name) {
+          allGuests.push({
+            title: g.title || undefined,
+            name: g.name,
+            dob: g.dob || undefined,
+            roomIndex: ri + 1,
+            type: gi < ad ? "ADULT" : "CHILD",
+          });
+        }
+      });
+    });
+    clean.guestNames = allGuests;
+
+    // Set lead guest from first guest
+    if (allGuests.length > 0) {
+      const lead = allGuests[0];
+      clean.leadGuestName = lead.title ? `${lead.title} ${lead.name}` : lead.name;
     }
 
     createMutation.mutate(clean);
@@ -483,39 +511,6 @@ export default function NewBookingPage() {
                           emptyMessage="No hotels found."
                         />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Room Type */}
-                <FormField
-                  control={form.control}
-                  name="rooms.0.roomTypeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Room Type *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={!hotelId}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={hotelId ? "Select room type" : "Select hotel first"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availableRoomTypes.map((rt) => (
-                            <SelectItem
-                              key={rt.roomTypeId ?? rt.id}
-                              value={rt.roomTypeId ?? rt.id}
-                            >
-                              {rt.roomType?.name ?? rt.name ?? "Room"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -724,234 +719,279 @@ export default function NewBookingPage() {
             </CardContent>
           </Card>
 
-          {/* ── Section 4: Room & Occupancy ── */}
+          {/* ── Section 4: Rooms ── */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Room & Occupancy</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
-                {/* Room Occupancy */}
-                <FormField
-                  control={form.control}
-                  name="roomOccupancy"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Room Occupancy</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {ROOM_OCCUPANCY_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-
-                {/* No of Rooms */}
-                <FormField
-                  control={form.control}
-                  name="noOfRooms"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>No of Rooms</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* AD */}
-                <FormField
-                  control={form.control}
-                  name="adults"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>AD</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={10}
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* CH */}
-                <FormField
-                  control={form.control}
-                  name="children"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CH</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={6}
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* INF */}
-                <FormField
-                  control={form.control}
-                  name="infants"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>INF</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={4}
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* Meal Basis */}
-                <FormField
-                  control={form.control}
-                  name="rooms.0.mealBasisId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Meal Basis *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={!hotelId}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={hotelId ? "Select meal" : "—"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availableMealBases.map((mb) => (
-                            <SelectItem
-                              key={mb.mealBasisId ?? mb.id}
-                              value={mb.mealBasisId ?? mb.id}
-                            >
-                              {mb.mealBasis?.name ?? mb.name ?? "Meal"} (
-                              {mb.mealBasis?.mealCode ?? mb.mealCode ?? ""})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Rooms</CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    appendRoom({
+                      roomTypeId: rooms[0]?.roomTypeId ?? "",
+                      mealBasisId: rooms[0]?.mealBasisId ?? "",
+                      adults: 2,
+                      children: 0,
+                      infants: 0,
+                      extraBed: false,
+                      roomGuests: [
+                        { title: "", name: "" },
+                        { title: "", name: "" },
+                      ],
+                    })
+                  }
+                >
+                  <Plus className="mr-1 size-3.5" />
+                  Add Room
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Section 5: Guest Names ── */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">
-                Guest Names
-                {guestRowCount > 0 && (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    ({adultsCount} Adult{adultsCount !== 1 ? "s" : ""}{childrenCount > 0 ? ` + ${childrenCount} Child${childrenCount !== 1 ? "ren" : ""}` : ""})
-                  </span>
-                )}
-              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {Array.from({ length: guestRowCount }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="w-8 text-xs text-muted-foreground font-mono">
-                    {i < adultsCount ? `AD${i + 1}` : `CH${i - adultsCount + 1}`}
-                  </span>
-                  <FormField
-                    control={form.control}
-                    name={`guestNames.${i}`}
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input
-                            placeholder={i < adultsCount ? `Adult ${i + 1} full name` : `Child ${i - adultsCount + 1} full name`}
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              ))}
+            <CardContent className="space-y-6">
+              {/* Shared Meal Basis */}
+              <FormField
+                control={form.control}
+                name="rooms.0.mealBasisId"
+                render={({ field }) => (
+                  <FormItem className="max-w-xs">
+                    <FormLabel>Meal Basis *</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={!hotelId}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={hotelId ? "Select meal basis" : "Select hotel first"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableMealBases.map((mb) => (
+                          <SelectItem
+                            key={mb.mealBasisId ?? mb.id}
+                            value={mb.mealBasisId ?? mb.id}
+                          >
+                            {mb.mealBasis?.name ?? mb.name ?? "Meal"} (
+                            {mb.mealBasis?.mealCode ?? mb.mealCode ?? ""})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              {guestRowCount === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Set the number of Adults and Children above to add guest rows.
-                </p>
-              )}
+              {/* Room Cards */}
+              {roomFields.map((field, roomIndex) => {
+                const roomAdults = form.watch(`rooms.${roomIndex}.adults`) ?? 2;
+                const roomChildren = form.watch(`rooms.${roomIndex}.children`) ?? 0;
+                const guestCount = roomAdults + roomChildren;
 
-              {/* Child DOBs */}
-              {childrenCount > 0 && (
-                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <FormField
-                    control={form.control}
-                    name="childDob1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>1st CHD DOB</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} value={field.value ?? ""} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  {childrenCount >= 2 && (
-                    <FormField
-                      control={form.control}
-                      name="childDob2"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>2nd CHD DOB</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} value={field.value ?? ""} />
-                          </FormControl>
-                        </FormItem>
+                return (
+                  <Card key={field.id} className="border-dashed">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          Room {roomIndex + 1}
+                        </CardTitle>
+                        {roomFields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeRoom(roomIndex)}
+                          >
+                            <Trash2 className="size-3.5 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                        {/* Room Type */}
+                        <FormField
+                          control={form.control}
+                          name={`rooms.${roomIndex}.roomTypeId`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormLabel>Room Type *</FormLabel>
+                              <Select
+                                onValueChange={f.onChange}
+                                value={f.value}
+                                disabled={!hotelId}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {availableRoomTypes.map((rt) => (
+                                    <SelectItem
+                                      key={rt.roomTypeId ?? rt.id}
+                                      value={rt.roomTypeId ?? rt.id}
+                                    >
+                                      {rt.roomType?.name ?? rt.name ?? "Room"}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        {/* AD */}
+                        <FormField
+                          control={form.control}
+                          name={`rooms.${roomIndex}.adults`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormLabel>AD</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={6}
+                                  {...f}
+                                  onChange={(e) => f.onChange(parseInt(e.target.value) || 1)}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        {/* CH */}
+                        <FormField
+                          control={form.control}
+                          name={`rooms.${roomIndex}.children`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormLabel>CH</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={4}
+                                  {...f}
+                                  onChange={(e) => f.onChange(parseInt(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        {/* INF */}
+                        <FormField
+                          control={form.control}
+                          name={`rooms.${roomIndex}.infants`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormLabel>INF</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={2}
+                                  {...f}
+                                  onChange={(e) => f.onChange(parseInt(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Guest rows */}
+                      {guestCount > 0 && (
+                        <div className="space-y-2 pt-2 border-t">
+                          {Array.from({ length: guestCount }).map((_, gi) => {
+                            const isChild = gi >= roomAdults;
+                            const label = isChild
+                              ? `CH${gi - roomAdults + 1}`
+                              : `AD${gi + 1}`;
+
+                            return (
+                              <div key={gi} className="flex items-center gap-2">
+                                <span className="w-8 text-xs text-muted-foreground font-mono shrink-0">
+                                  {label}
+                                </span>
+                                <FormField
+                                  control={form.control}
+                                  name={`rooms.${roomIndex}.roomGuests.${gi}.title`}
+                                  render={({ field: f }) => (
+                                    <FormItem className="w-24 shrink-0">
+                                      <Select
+                                        onValueChange={f.onChange}
+                                        value={f.value ?? ""}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger className="w-full h-9 text-xs">
+                                            <SelectValue placeholder="Title" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {GUEST_TITLE_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                              {opt.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`rooms.${roomIndex}.roomGuests.${gi}.name`}
+                                  render={({ field: f }) => (
+                                    <FormItem className="flex-1">
+                                      <FormControl>
+                                        <Input
+                                          className="h-9"
+                                          placeholder={
+                                            isChild
+                                              ? `Child ${gi - roomAdults + 1} name`
+                                              : `Adult ${gi + 1} name`
+                                          }
+                                          {...f}
+                                          value={f.value ?? ""}
+                                        />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                                {isChild && (
+                                  <FormField
+                                    control={form.control}
+                                    name={`rooms.${roomIndex}.roomGuests.${gi}.dob`}
+                                    render={({ field: f }) => (
+                                      <FormItem className="w-36 shrink-0">
+                                        <FormControl>
+                                          <Input
+                                            type="date"
+                                            className="h-9"
+                                            placeholder="DOB"
+                                            {...f}
+                                            value={f.value ?? ""}
+                                          />
+                                        </FormControl>
+                                      </FormItem>
+                                    )}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
-                    />
-                  )}
-                </div>
-              )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </CardContent>
           </Card>
 
-          {/* ── Section 6: Rates & Payment ── */}
+          {/* ── Section 5: Rates & Payment ── */}
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base">Rates & Payment</CardTitle>
@@ -1079,7 +1119,7 @@ export default function NewBookingPage() {
             </CardContent>
           </Card>
 
-          {/* ── Section 7: Remarks & Notes ── */}
+          {/* ── Section 6: Remarks & Notes ── */}
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base">Remarks & Notes</CardTitle>

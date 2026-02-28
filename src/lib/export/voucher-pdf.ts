@@ -32,8 +32,9 @@ export interface VoucherPdfData {
       guestType: string;
       guest: { firstName: string; lastName: string; email?: string | null; phone?: string | null };
     }>;
-    // Fallback guest names from booking-level JSON field
-    guestNames?: string[] | null;
+    // Guest names — supports both old string[] and new structured format
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    guestNames?: any[] | null;
     leadGuestName?: string | null;
     // Flight details
     arrivalFlightNo?: string | null;
@@ -298,7 +299,8 @@ export function generateVoucherPdf(data: VoucherPdfData): jsPDF {
   y += 6;
 
   const hasLinkedGuests = data.booking.guests.length > 0;
-  const guestNames = (data.booking.guestNames ?? []).filter(Boolean);
+  const rawGuestNames = (data.booking.guestNames ?? []).filter(Boolean);
+  const isStructuredGuests = rawGuestNames.length > 0 && typeof rawGuestNames[0] === "object" && rawGuestNames[0] !== null;
 
   if (hasLinkedGuests) {
     // Render from BookingGuest records (linked Guest model)
@@ -333,8 +335,49 @@ export function generateVoucherPdf(data: VoucherPdfData): jsPDF {
         y += 5;
       }
     }
-  } else if (guestNames.length > 0) {
-    // Fallback: render from booking-level guestNames JSON array
+  } else if (isStructuredGuests) {
+    // Structured format: [{ title, name, dob, roomIndex, type }]
+    const structured = rawGuestNames as Array<{ title?: string; name: string; dob?: string; roomIndex?: number; type?: string }>;
+
+    // Lead guest
+    const leadGuest = structured[0];
+    if (leadGuest) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLORS.text);
+      const leadName = leadGuest.title ? `${leadGuest.title} ${leadGuest.name}` : leadGuest.name;
+      doc.text(`Lead Guest: ${leadName}`, marginL + 4, y);
+      y += 7;
+    }
+
+    // Group by roomIndex
+    const byRoom = new Map<number, typeof structured>();
+    for (const g of structured) {
+      const ri = g.roomIndex ?? 1;
+      if (!byRoom.has(ri)) byRoom.set(ri, []);
+      byRoom.get(ri)!.push(g);
+    }
+
+    for (const [roomIdx, guests] of byRoom) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLORS.muted);
+      doc.text(`Room ${roomIdx}:`, marginL + 4, y);
+      y += 5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...COLORS.text);
+      for (const g of guests) {
+        const name = g.title ? `${g.title} ${g.name}` : g.name;
+        const suffix = g.type === "CHILD" && g.dob ? ` (DOB: ${fmtDate(g.dob)})` : "";
+        doc.text(`• ${name}${suffix}`, marginL + 8, y);
+        y += 5;
+      }
+      y += 2;
+    }
+  } else if (rawGuestNames.length > 0) {
+    // Old format: string array
+    const guestNames = rawGuestNames as string[];
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...COLORS.text);

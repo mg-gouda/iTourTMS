@@ -446,9 +446,43 @@ export default function BookingDetailPage() {
                   </div>
                 </div>
 
+                {/* Structured guest names (per room) */}
+                {(() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const rawGuestNames = (booking.guestNames ?? []) as any[];
+                  const isStructured = rawGuestNames.length > 0 && typeof rawGuestNames[0] === "object" && rawGuestNames[0] !== null;
+                  if (!isStructured) return null;
+                  const roomGuests = (rawGuestNames as Array<{ title?: string; name: string; dob?: string; roomIndex?: number; type?: string }>)
+                    .filter((g) => g.roomIndex === room.roomIndex);
+                  if (roomGuests.length === 0) return null;
+                  return (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Guests:</span>
+                      <ul className="mt-1 space-y-0.5 pl-4">
+                        {roomGuests.map((g, i) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <span>{g.title ? `${g.title} ` : ""}{g.name}</span>
+                            {g.type && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                {g.type === "ADULT" ? "Adult" : "Child"}
+                              </Badge>
+                            )}
+                            {g.dob && (
+                              <span className="text-xs text-muted-foreground">
+                                DOB: {format(new Date(g.dob), "dd MMM yyyy")}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
+
+                {/* Linked guest records (BookingGuest model) */}
                 {room.guests.length > 0 && (
                   <div className="text-sm">
-                    <span className="text-muted-foreground">Guests:</span>
+                    <span className="text-muted-foreground">Linked Guests:</span>
                     <ul className="mt-1 space-y-0.5 pl-4">
                       {room.guests.map((bg) => (
                         <li key={bg.id} className="flex items-center gap-2">
