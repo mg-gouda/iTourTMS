@@ -919,9 +919,7 @@ export default function ReportsPage() {
                                 className="text-right font-mono"
                               >
                                 {r.currencyCode === code
-                                  ? r.cost.toLocaleString("en", {
-                                      minimumFractionDigits: 2,
-                                    })
+                                  ? `${r.currencySymbol} ${r.cost.toLocaleString("en", { minimumFractionDigits: 2 })}`
                                   : ""}
                               </TableCell>
                             ))}
@@ -954,9 +952,9 @@ export default function ReportsPage() {
                                 key={code}
                                 className="text-right font-mono"
                               >
-                                {(ct?.total ?? 0).toLocaleString("en", {
-                                  minimumFractionDigits: 2,
-                                })}
+                                {ct
+                                  ? `${ct.symbol} ${ct.total.toLocaleString("en", { minimumFractionDigits: 2 })}`
+                                  : "0.00"}
                               </TableCell>
                             );
                           })}
