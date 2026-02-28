@@ -112,6 +112,10 @@ export default function ReportsPage() {
       { enabled: podFiltersReady },
     );
   const [podSort, setPodSort] = useState<"asc" | "desc" | null>(null);
+  const podCurrencies = useMemo(() => {
+    if (!podData?.currencyTotals) return [];
+    return podData.currencyTotals.map((ct) => ct.code);
+  }, [podData?.currencyTotals]);
   const podRows = useMemo(() => {
     if (!podData?.rows) return [];
     if (!podSort) return podData.rows;
@@ -856,10 +860,14 @@ export default function ReportsPage() {
                             Dep Date
                           </TableHead>
                           <TableHead>Hotel Name</TableHead>
-                          <TableHead className="text-right">Cost</TableHead>
-                          <TableHead className="text-center">
-                            Currency
-                          </TableHead>
+                          {podCurrencies.map((code) => (
+                            <TableHead
+                              key={code}
+                              className="text-right"
+                            >
+                              Cost {code}
+                            </TableHead>
+                          ))}
                           <TableHead
                             className="cursor-pointer select-none text-center"
                             onClick={() =>
@@ -905,15 +913,18 @@ export default function ReportsPage() {
                             <TableCell className="font-medium">
                               {r.hotelName}
                             </TableCell>
-                            <TableCell className="text-right font-mono">
-                              {r.currencySymbol}{" "}
-                              {r.cost.toLocaleString("en", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {r.currencyCode}
-                            </TableCell>
+                            {podCurrencies.map((code) => (
+                              <TableCell
+                                key={code}
+                                className="text-right font-mono"
+                              >
+                                {r.currencyCode === code
+                                  ? r.cost.toLocaleString("en", {
+                                      minimumFractionDigits: 2,
+                                    })
+                                  : ""}
+                              </TableCell>
+                            ))}
                             <TableCell className="text-center">
                               {r.paymentOptionDate
                                 ? format(
@@ -925,6 +936,33 @@ export default function ReportsPage() {
                           </TableRow>
                         ))}
                       </TableBody>
+                      {/* Totals row */}
+                      <tfoot>
+                        <TableRow className="border-t-2 font-semibold">
+                          <TableCell
+                            colSpan={5}
+                            className="text-right"
+                          >
+                            Total
+                          </TableCell>
+                          {podCurrencies.map((code) => {
+                            const ct = podData?.currencyTotals.find(
+                              (c) => c.code === code,
+                            );
+                            return (
+                              <TableCell
+                                key={code}
+                                className="text-right font-mono"
+                              >
+                                {(ct?.total ?? 0).toLocaleString("en", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell />
+                        </TableRow>
+                      </tfoot>
                     </Table>
                   </div>
                 ) : (
