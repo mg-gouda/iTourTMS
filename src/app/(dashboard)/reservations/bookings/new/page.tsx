@@ -37,6 +37,7 @@ import { bookingCreateSchema } from "@/lib/validations/reservations";
 type FormValues = z.input<typeof bookingCreateSchema>;
 
 const PARTNER_STATUS_OPTIONS = [
+  { value: "NEW_BOOKING", label: "New Booking" },
   { value: "SENT", label: "Sent" },
   { value: "CONFIRMED", label: "Confirmed" },
   { value: "REGRET", label: "Regret" },
@@ -65,8 +66,8 @@ export default function NewBookingPage() {
       currencyId: "",
       source: "TOUR_OPERATOR",
       manualRate: false,
-      htlBookingStatus: "SENT",
-      toBookingStatus: "SENT",
+      htlBookingStatus: "NEW_BOOKING",
+      toBookingStatus: "NEW_BOOKING",
       arrivalFlightNo: "",
       arrivalTime: "",
       arrivalOriginApt: "",
@@ -578,7 +579,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Time</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} value={field.value ?? ""} />
+                        <Input type="time" lang="en-GB" {...field} value={field.value ?? ""} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -665,7 +666,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Time</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} value={field.value ?? ""} />
+                        <Input type="time" lang="en-GB" {...field} value={field.value ?? ""} />
                       </FormControl>
                     </FormItem>
                   )}

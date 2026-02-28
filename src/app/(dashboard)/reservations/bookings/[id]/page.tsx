@@ -936,7 +936,7 @@ function handleSendToHotel(booking: any, company: any) {
       bookingNotes: booking.bookingNotes,
       source: booking.source,
       hotel: booking.hotel,
-      tourOperator: booking.tourOperator,
+      market: booking.contractMarketName ? { name: booking.contractMarketName } : null,
       currency: booking.currency,
       rooms: booking.rooms.map((r: Record<string, unknown>) => ({
         roomIndex: r.roomIndex,

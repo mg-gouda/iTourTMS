@@ -22,7 +22,7 @@ export interface BookingPdfData {
     phone?: string | null;
     email?: string | null;
   };
-  tourOperator?: { name: string } | null;
+  market?: { name: string } | null;
   currency: { code: string; symbol: string };
   rooms: Array<{
     roomIndex: number;
@@ -128,8 +128,8 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...COLORS.muted);
   doc.text(`Source: ${data.source}`, marginL + contentW - 4, y + 8, { align: "right" });
-  if (data.tourOperator) {
-    doc.text(`T/O: ${data.tourOperator.name}`, marginL + contentW - 4, y + 16, { align: "right" });
+  if (data.market) {
+    doc.text(`Market: ${data.market.name}`, marginL + contentW - 4, y + 16, { align: "right" });
   }
 
   y += 32;

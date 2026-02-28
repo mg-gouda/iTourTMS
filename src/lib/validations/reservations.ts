@@ -70,10 +70,10 @@ export const bookingCreateSchema = z
 
     // Partner booking statuses
     htlBookingStatus: z
-      .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+      .enum(["NEW_BOOKING", "SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
       .default("SENT"),
     toBookingStatus: z
-      .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+      .enum(["NEW_BOOKING", "SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
       .default("SENT"),
 
     // Flight — Arrival
@@ -140,10 +140,10 @@ export const bookingUpdateSchema = z.object({
 export const bookingAmendSchema = z.object({
   // Booking info
   htlBookingStatus: z
-    .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+    .enum(["NEW_BOOKING", "SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
     .nullish(),
   toBookingStatus: z
-    .enum(["SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
+    .enum(["NEW_BOOKING", "SENT", "CONFIRMED", "REGRET", "STOP_SALE", "CANCELLED"])
     .nullish(),
   tourOperatorId: z.string().nullish(),
   externalRef: z.string().nullish(),

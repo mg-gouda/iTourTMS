@@ -2370,6 +2370,7 @@ enum GuestType {
 }
 
 enum PartnerBookingStatus {
+  NEW_BOOKING
   SENT
   CONFIRMED
   REGRET

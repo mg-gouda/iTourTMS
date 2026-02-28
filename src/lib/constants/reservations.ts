@@ -70,6 +70,7 @@ export const GUEST_TYPE_LABELS: Record<string, string> = {
 };
 
 export const PARTNER_BOOKING_STATUS_LABELS: Record<string, string> = {
+  NEW_BOOKING: "New Booking",
   SENT: "Sent",
   CONFIRMED: "Confirmed",
   REGRET: "Regret",
@@ -78,6 +79,7 @@ export const PARTNER_BOOKING_STATUS_LABELS: Record<string, string> = {
 };
 
 export const PARTNER_BOOKING_STATUS_VARIANTS: Record<string, string> = {
+  NEW_BOOKING: "default",
   SENT: "secondary",
   CONFIRMED: "success",
   REGRET: "warning",

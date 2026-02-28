@@ -44,6 +44,7 @@ import { bookingAmendSchema } from "@/lib/validations/reservations";
 type FormValues = z.input<typeof bookingAmendSchema>;
 
 const PARTNER_STATUS_OPTIONS = [
+  { value: "NEW_BOOKING", label: "New Booking" },
   { value: "SENT", label: "Sent" },
   { value: "CONFIRMED", label: "Confirmed" },
   { value: "REGRET", label: "Regret" },
@@ -542,7 +543,7 @@ export default function AmendBookingPage() {
                     <FormItem><FormLabel>Flight No</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalTime" render={({ field }) => (
-                    <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" lang="en-GB" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalOriginApt" render={({ field }) => (
                     <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
@@ -574,7 +575,7 @@ export default function AmendBookingPage() {
                     <FormItem><FormLabel>Flight No</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departTime" render={({ field }) => (
-                    <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" lang="en-GB" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departOriginApt" render={({ field }) => (
                     <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>

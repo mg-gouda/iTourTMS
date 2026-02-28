@@ -72,7 +72,7 @@ export const bookingRouter = createTRPCRouter({
   getById: proc
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.booking.findFirstOrThrow({
+      const booking = await ctx.db.booking.findFirstOrThrow({
         where: { id: input.id, companyId: ctx.companyId },
         include: {
           hotel: { select: { id: true, name: true, code: true, address: true, phone: true, email: true, checkInTime: true, checkOutTime: true } },
@@ -117,6 +117,18 @@ export const bookingRouter = createTRPCRouter({
           },
         },
       });
+
+      // Resolve contract market name separately to avoid type inference issues
+      let contractMarketName: string | null = null;
+      if (booking.contractId) {
+        const contractMarket = await ctx.db.contractMarket.findFirst({
+          where: { contractId: booking.contractId },
+          select: { market: { select: { name: true } } },
+        });
+        contractMarketName = contractMarket?.market?.name ?? null;
+      }
+
+      return Object.assign(booking, { contractMarketName });
     }),
 
   // ── Create booking ──
