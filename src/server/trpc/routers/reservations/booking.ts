@@ -124,6 +124,43 @@ export const bookingRouter = createTRPCRouter({
       return booking;
     }),
 
+  // ── Check stop sales for a hotel + date range ──
+  checkStopSales: proc
+    .input(
+      z.object({
+        hotelId: z.string().min(1),
+        checkIn: z.string().min(1),
+        checkOut: z.string().min(1),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const contracts = await ctx.db.contract.findMany({
+        where: { companyId: ctx.companyId, hotelId: input.hotelId },
+        select: { id: true },
+      });
+      if (contracts.length === 0) return [];
+
+      const stopSales = await ctx.db.contractStopSale.findMany({
+        where: {
+          contractId: { in: contracts.map((c) => c.id) },
+          dateFrom: { lt: new Date(input.checkOut) },
+          dateTo: { gte: new Date(input.checkIn) },
+        },
+        include: {
+          roomType: { select: { id: true, name: true } },
+        },
+        orderBy: { dateFrom: "asc" },
+      });
+
+      return stopSales.map((ss) => ({
+        id: ss.id,
+        dateFrom: ss.dateFrom,
+        dateTo: ss.dateTo,
+        roomTypeName: ss.roomType?.name ?? "All Room Types",
+        reason: ss.reason,
+      }));
+    }),
+
   // ── Create booking ──
   create: proc
     .input(bookingCreateSchema)

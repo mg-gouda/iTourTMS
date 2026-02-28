@@ -83,6 +83,10 @@ export default function BookingDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [contractModalOpen, setContractModalOpen] = useState(false);
+  const [spoModalOpen, setSpoModalOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedSpoBreakdown, setSelectedSpoBreakdown] = useState<any[]>([]);
 
   const transitionMutation = trpc.reservations.booking.transition.useMutation({
     onSuccess: () => {
@@ -105,6 +109,13 @@ export default function BookingDetailPage() {
       router.push("/reservations/bookings");
     },
   });
+
+  // Fetch contract details when modal opens
+  const { data: contractDetail, isLoading: contractDetailLoading } =
+    trpc.contracting.contract.getById.useQuery(
+      { id: booking?.contract?.id ?? "" },
+      { enabled: contractModalOpen && !!booking?.contract?.id },
+    );
 
   if (isLoading) {
     return <div className="py-10 text-center text-muted-foreground">Loading...</div>;
@@ -316,7 +327,16 @@ export default function BookingDetailPage() {
                   <InfoRow label="Market" value={booking.market.name} />
                 )}
                 {booking.contract && (
-                  <InfoRow label="Contract" value={`${booking.contract.name} (${booking.contract.code})`} />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Contract</span>
+                    <button
+                      type="button"
+                      className="font-medium text-right text-primary underline underline-offset-2 hover:text-primary/80 cursor-pointer"
+                      onClick={() => setContractModalOpen(true)}
+                    >
+                      {booking.contract.name} ({booking.contract.code})
+                    </button>
+                  </div>
                 )}
                 {booking.rateBasis && (
                   <InfoRow label="Rate Basis" value={booking.rateBasis} />
@@ -471,6 +491,32 @@ export default function BookingDetailPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* SPO / Offer discounts from rateBreakdown */}
+                {(() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const bd = room.rateBreakdown as any;
+                  const offers = bd?.offerDiscounts as
+                    | { offerName: string; discount: number; description: string }[]
+                    | undefined;
+                  if (!offers || offers.length === 0) return null;
+                  const applied = offers.filter((o) => o.discount > 0);
+                  if (applied.length === 0) return null;
+                  return (
+                    <div className="text-sm">
+                      <button
+                        type="button"
+                        className="text-primary underline underline-offset-2 hover:text-primary/80 cursor-pointer text-xs font-medium"
+                        onClick={() => {
+                          setSelectedSpoBreakdown(offers);
+                          setSpoModalOpen(true);
+                        }}
+                      >
+                        {applied.length} Special Offer{applied.length !== 1 ? "s" : ""} Applied
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Structured guest names (per room) */}
                 {(() => {
@@ -777,6 +823,177 @@ export default function BookingDetailPage() {
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contract Detail Modal */}
+      <Dialog open={contractModalOpen} onOpenChange={setContractModalOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Contract Details</DialogTitle>
+            <DialogDescription>
+              {booking.contract
+                ? `${booking.contract.name} (${booking.contract.code})`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {contractDetailLoading ? (
+            <div className="py-8 text-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : contractDetail ? (
+            <div className="space-y-3 text-sm">
+              <InfoRow label="Name" value={contractDetail.name} />
+              <InfoRow label="Code" value={contractDetail.code} />
+              <InfoRow label="Status" value={contractDetail.status} />
+              <InfoRow
+                label="Hotel"
+                value={contractDetail.hotel.name}
+              />
+              <InfoRow
+                label="Valid From"
+                value={format(
+                  new Date(contractDetail.validFrom),
+                  "dd MMM yyyy",
+                )}
+              />
+              <InfoRow
+                label="Valid To"
+                value={format(
+                  new Date(contractDetail.validTo),
+                  "dd MMM yyyy",
+                )}
+              />
+              <InfoRow
+                label="Currency"
+                value={contractDetail.baseCurrency.name}
+              />
+              <InfoRow
+                label="Rate Basis"
+                value={contractDetail.rateBasis}
+              />
+              <InfoRow
+                label="Min Stay"
+                value={String(contractDetail.minimumStay)}
+              />
+              {contractDetail.maximumStay && (
+                <InfoRow
+                  label="Max Stay"
+                  value={String(contractDetail.maximumStay)}
+                />
+              )}
+              {contractDetail.roomTypes.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Room Types:</span>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {contractDetail.roomTypes.map((rt) => (
+                      <Badge key={rt.roomType.id} variant="outline">
+                        {rt.roomType.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {contractDetail.mealBases.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Meal Bases:</span>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {contractDetail.mealBases.map((mb) => (
+                      <Badge key={mb.mealBasis.id} variant="outline">
+                        {mb.mealBasis.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {contractDetail.markets.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Markets:</span>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {contractDetail.markets.map((m) => (
+                      <Badge key={m.market.id} variant="secondary">
+                        {m.market.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {contractDetail.seasons.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Seasons:</span>
+                  <div className="mt-1 space-y-1">
+                    {contractDetail.seasons.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between rounded border px-2 py-1 text-xs"
+                      >
+                        <span className="font-medium">
+                          Season {s.sortOrder + 1}
+                        </span>
+                        <span>
+                          {format(new Date(s.dateFrom), "dd MMM yyyy")} &mdash;{" "}
+                          {format(new Date(s.dateTo), "dd MMM yyyy")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              Contract not found.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* SPO Detail Modal */}
+      <Dialog open={spoModalOpen} onOpenChange={setSpoModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Special Offers</DialogTitle>
+            <DialogDescription>
+              Offer discounts applied to this room
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {selectedSpoBreakdown.map(
+              (
+                od: {
+                  offerName: string;
+                  discount: number;
+                  description: string;
+                },
+                i: number,
+              ) => (
+                <div
+                  key={i}
+                  className={`rounded-md border p-3 text-sm ${
+                    od.discount > 0
+                      ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
+                      : "border-muted"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{od.offerName}</span>
+                    {od.discount > 0 ? (
+                      <Badge variant="secondary" className="text-green-700 dark:text-green-400">
+                        -{od.discount.toFixed(2)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Not eligible
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {od.description}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

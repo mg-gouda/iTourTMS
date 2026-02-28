@@ -2,9 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Loader2, PlaneLanding, PlaneTakeoff, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, PlaneLanding, PlaneTakeoff, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -281,6 +289,17 @@ export default function NewBookingPage() {
     : "—";
   const currencyCode = selectedContract?.baseCurrency?.code ?? "";
 
+  // Stop-sale check
+  const canCheckStopSales = !!(hotelId && checkIn && checkOut && checkOut > checkIn);
+  const { data: stopSales } = trpc.reservations.booking.checkStopSales.useQuery(
+    { hotelId: hotelId!, checkIn, checkOut },
+    { enabled: canCheckStopSales },
+  );
+
+  // Stop-sale warning dialog state
+  const [stopSaleOpen, setStopSaleOpen] = useState(false);
+  const pendingSubmitRef = useRef<FormValues | null>(null);
+
   // Mutation
   const createMutation = trpc.reservations.booking.create.useMutation({
     onSuccess: (data) => {
@@ -289,79 +308,103 @@ export default function NewBookingPage() {
     },
   });
 
-  function onSubmit(values: FormValues) {
-    const clean = { ...values };
-    if (!clean.contractId) clean.contractId = null;
-    if (!clean.marketId) clean.marketId = null;
-    if (!clean.tourOperatorId) clean.tourOperatorId = null;
-    if (!clean.specialRequests) clean.specialRequests = null;
-    if (!clean.internalNotes) clean.internalNotes = null;
-    if (!clean.bookingNotes) clean.bookingNotes = null;
-    if (!clean.leadGuestName) clean.leadGuestName = null;
-    if (!clean.leadGuestEmail) clean.leadGuestEmail = null;
-    if (!clean.leadGuestPhone) clean.leadGuestPhone = null;
-    if (!clean.arrivalFlightNo) clean.arrivalFlightNo = null;
-    if (!clean.arrivalTime) clean.arrivalTime = null;
-    if (!clean.arrivalOriginApt) clean.arrivalOriginApt = null;
-    if (!clean.arrivalDestApt) clean.arrivalDestApt = null;
-    if (!clean.arrivalTerminal) clean.arrivalTerminal = null;
-    if (!clean.departFlightNo) clean.departFlightNo = null;
-    if (!clean.departTime) clean.departTime = null;
-    if (!clean.departOriginApt) clean.departOriginApt = null;
-    if (!clean.departDestApt) clean.departDestApt = null;
-    if (!clean.departTerminal) clean.departTerminal = null;
-    if (!clean.childDob1) clean.childDob1 = null;
-    if (!clean.childDob2) clean.childDob2 = null;
-    if (!clean.paymentOptionDate) clean.paymentOptionDate = null;
-    if (!clean.currencyId && selectedContract?.baseCurrency?.id) {
-      clean.currencyId = selectedContract.baseCurrency.id;
-    }
+  const preparePayload = useCallback(
+    (values: FormValues) => {
+      const clean = { ...values };
+      if (!clean.contractId) clean.contractId = null;
+      if (!clean.marketId) clean.marketId = null;
+      if (!clean.tourOperatorId) clean.tourOperatorId = null;
+      if (!clean.specialRequests) clean.specialRequests = null;
+      if (!clean.internalNotes) clean.internalNotes = null;
+      if (!clean.bookingNotes) clean.bookingNotes = null;
+      if (!clean.leadGuestName) clean.leadGuestName = null;
+      if (!clean.leadGuestEmail) clean.leadGuestEmail = null;
+      if (!clean.leadGuestPhone) clean.leadGuestPhone = null;
+      if (!clean.arrivalFlightNo) clean.arrivalFlightNo = null;
+      if (!clean.arrivalTime) clean.arrivalTime = null;
+      if (!clean.arrivalOriginApt) clean.arrivalOriginApt = null;
+      if (!clean.arrivalDestApt) clean.arrivalDestApt = null;
+      if (!clean.arrivalTerminal) clean.arrivalTerminal = null;
+      if (!clean.departFlightNo) clean.departFlightNo = null;
+      if (!clean.departTime) clean.departTime = null;
+      if (!clean.departOriginApt) clean.departOriginApt = null;
+      if (!clean.departDestApt) clean.departDestApt = null;
+      if (!clean.departTerminal) clean.departTerminal = null;
+      if (!clean.childDob1) clean.childDob1 = null;
+      if (!clean.childDob2) clean.childDob2 = null;
+      if (!clean.paymentOptionDate) clean.paymentOptionDate = null;
+      if (!clean.currencyId && selectedContract?.baseCurrency?.id) {
+        clean.currencyId = selectedContract.baseCurrency.id;
+      }
 
-    // Auto-set source based on T/O
-    if (clean.tourOperatorId) {
-      clean.source = "TOUR_OPERATOR";
-    } else {
-      clean.source = "DIRECT";
-    }
+      // Auto-set source based on T/O
+      if (clean.tourOperatorId) {
+        clean.source = "TOUR_OPERATOR";
+      } else {
+        clean.source = "DIRECT";
+      }
 
-    // Sync shared mealBasisId to all rooms
-    const sharedMealBasisId = clean.rooms[0]?.mealBasisId ?? "";
-    clean.rooms.forEach((r) => {
-      r.mealBasisId = sharedMealBasisId;
-    });
-
-    // Derive booking-level fields from rooms
-    clean.noOfRooms = clean.rooms.length;
-    clean.adults = clean.rooms.reduce((s, r) => s + (r.adults ?? 2), 0);
-    clean.children = clean.rooms.reduce((s, r) => s + (r.children ?? 0), 0);
-    clean.infants = clean.rooms.reduce((s, r) => s + (r.infants ?? 0), 0);
-
-    // Build structured guestNames from roomGuests
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allGuests: any[] = [];
-    clean.rooms.forEach((r, ri) => {
-      const ad = r.adults ?? 2;
-      (r.roomGuests ?? []).forEach((g, gi) => {
-        if (g.name) {
-          allGuests.push({
-            title: g.title || undefined,
-            name: g.name,
-            dob: g.dob || undefined,
-            roomIndex: ri + 1,
-            type: gi < ad ? "ADULT" : "CHILD",
-          });
-        }
+      // Sync shared mealBasisId to all rooms
+      const sharedMealBasisId = clean.rooms[0]?.mealBasisId ?? "";
+      clean.rooms.forEach((r) => {
+        r.mealBasisId = sharedMealBasisId;
       });
-    });
-    clean.guestNames = allGuests;
 
-    // Set lead guest from first guest
-    if (allGuests.length > 0) {
-      const lead = allGuests[0];
-      clean.leadGuestName = lead.title ? `${lead.title} ${lead.name}` : lead.name;
+      // Derive booking-level fields from rooms
+      clean.noOfRooms = clean.rooms.length;
+      clean.adults = clean.rooms.reduce((s, r) => s + (r.adults ?? 2), 0);
+      clean.children = clean.rooms.reduce((s, r) => s + (r.children ?? 0), 0);
+      clean.infants = clean.rooms.reduce((s, r) => s + (r.infants ?? 0), 0);
+
+      // Build structured guestNames from roomGuests
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allGuests: any[] = [];
+      clean.rooms.forEach((r, ri) => {
+        const ad = r.adults ?? 2;
+        (r.roomGuests ?? []).forEach((g, gi) => {
+          if (g.name) {
+            allGuests.push({
+              title: g.title || undefined,
+              name: g.name,
+              dob: g.dob || undefined,
+              roomIndex: ri + 1,
+              type: gi < ad ? "ADULT" : "CHILD",
+            });
+          }
+        });
+      });
+      clean.guestNames = allGuests;
+
+      // Set lead guest from first guest
+      if (allGuests.length > 0) {
+        const lead = allGuests[0];
+        clean.leadGuestName = lead.title ? `${lead.title} ${lead.name}` : lead.name;
+      }
+
+      return clean;
+    },
+    [selectedContract],
+  );
+
+  function onSubmit(values: FormValues) {
+    const clean = preparePayload(values);
+
+    // If stop sales exist, show warning first
+    if (stopSales && stopSales.length > 0) {
+      pendingSubmitRef.current = clean;
+      setStopSaleOpen(true);
+      return;
     }
 
     createMutation.mutate(clean);
+  }
+
+  function handleStopSaleConfirm() {
+    setStopSaleOpen(false);
+    if (pendingSubmitRef.current) {
+      createMutation.mutate(pendingSubmitRef.current);
+      pendingSubmitRef.current = null;
+    }
   }
 
   return (
@@ -1267,6 +1310,62 @@ export default function NewBookingPage() {
           )}
         </form>
       </Form>
+
+      {/* Stop-Sale Warning Dialog */}
+      <Dialog open={stopSaleOpen} onOpenChange={setStopSaleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="size-5" />
+              Stop Sale Warning
+            </DialogTitle>
+            <DialogDescription>
+              The selected dates overlap with one or more stop sale periods for
+              this hotel. You may still proceed with the booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[240px] overflow-y-auto space-y-2">
+            {(stopSales ?? []).map((ss) => (
+              <div
+                key={ss.id}
+                className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-sm"
+              >
+                <p className="font-medium">{ss.roomTypeName}</p>
+                <p className="text-muted-foreground">
+                  {format(new Date(ss.dateFrom), "dd MMM yyyy")} &mdash;{" "}
+                  {format(new Date(ss.dateTo), "dd MMM yyyy")}
+                </p>
+                {ss.reason && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {ss.reason}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStopSaleOpen(false);
+                pendingSubmitRef.current = null;
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleStopSaleConfirm}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : null}
+              Book Anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
