@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowDown, ArrowUp, ArrowUpDown, FileDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, FileDown, FileSpreadsheet } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Bar,
@@ -45,6 +45,8 @@ import {
   BOOKING_STATUS_VARIANTS,
 } from "@/lib/constants/reservations";
 import { exportArrivalListPdf } from "@/lib/export/arrival-list-pdf";
+import { exportReportToExcel } from "@/lib/export/report-excel";
+import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 
 export default function ReportsPage() {
@@ -818,6 +820,135 @@ export default function ReportsPage() {
                   >
                     Clear Filters
                   </Button>
+                )}
+                {podFiltersReady && podData && podRows.length > 0 && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const headers = [
+                          "Booking Ref",
+                          "T/O BKG Ref",
+                          "Arr Date",
+                          "Dep Date",
+                          "Hotel Name",
+                          ...podCurrencies.map((c) => `Cost ${c}`),
+                          "P. Option Date",
+                        ];
+                        const rows = podRows.map((r) => [
+                          r.bookingCode,
+                          r.externalRef,
+                          format(new Date(r.checkIn), "dd-MMM-yy"),
+                          format(new Date(r.checkOut), "dd-MMM-yy"),
+                          r.hotelName,
+                          ...podCurrencies.map((c) =>
+                            r.currencyCode === c ? r.cost : "",
+                          ),
+                          r.paymentOptionDate
+                            ? format(new Date(r.paymentOptionDate), "dd-MMM-yy")
+                            : "",
+                        ]);
+                        // Totals row
+                        const totalsRow: (string | number)[] = [
+                          "",
+                          "",
+                          "",
+                          "",
+                          "Total",
+                          ...podCurrencies.map((c) => {
+                            const ct = podData.currencyTotals.find(
+                              (t) => t.code === c,
+                            );
+                            return ct?.total ?? 0;
+                          }),
+                          "",
+                        ];
+                        exportReportToExcel({
+                          title: "Payment_Option_Date",
+                          sheetName: "Payment Option Date",
+                          headers,
+                          rows: [
+                            ...rows.map((r) =>
+                              r.map((v) =>
+                                typeof v === "number" ? v : String(v),
+                              ),
+                            ),
+                            totalsRow,
+                          ],
+                        });
+                      }}
+                    >
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Export Excel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const headers = [
+                          "Booking Ref",
+                          "T/O BKG Ref",
+                          "Arr Date",
+                          "Dep Date",
+                          "Hotel Name",
+                          ...podCurrencies.map((c) => `Cost ${c}`),
+                          "P. Option Date",
+                        ];
+                        const fmtAmt = (v: number) =>
+                          v.toLocaleString("en", { minimumFractionDigits: 2 });
+                        const rows = podRows.map((r) => [
+                          r.bookingCode,
+                          r.externalRef,
+                          format(new Date(r.checkIn), "dd-MMM-yy"),
+                          format(new Date(r.checkOut), "dd-MMM-yy"),
+                          r.hotelName,
+                          ...podCurrencies.map((c) =>
+                            r.currencyCode === c
+                              ? `${r.currencySymbol} ${fmtAmt(r.cost)}`
+                              : "",
+                          ),
+                          r.paymentOptionDate
+                            ? format(new Date(r.paymentOptionDate), "dd-MMM-yy")
+                            : "",
+                        ]);
+                        // Totals row
+                        rows.push([
+                          "",
+                          "",
+                          "",
+                          "",
+                          "Total",
+                          ...podCurrencies.map((c) => {
+                            const ct = podData.currencyTotals.find(
+                              (t) => t.code === c,
+                            );
+                            return ct
+                              ? `${ct.symbol} ${fmtAmt(ct.total)}`
+                              : "";
+                          }),
+                          "",
+                        ]);
+                        const costStartIdx = 5;
+                        const colStyles: Record<
+                          number,
+                          { halign?: "left" | "center" | "right" }
+                        > = {};
+                        podCurrencies.forEach((_, i) => {
+                          colStyles[costStartIdx + i] = { halign: "right" };
+                        });
+                        exportReportToPdf({
+                          title: "PAYMENT OPTION DATE",
+                          subtitle: `${format(new Date(podDateFrom), "dd MMM yyyy")}  —  ${format(new Date(podDateTo), "dd MMM yyyy")}`,
+                          headers,
+                          rows,
+                          columnStyles: colStyles,
+                        });
+                      }}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      Export PDF
+                    </Button>
+                  </div>
                 )}
               </div>
             </CardContent>
