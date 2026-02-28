@@ -121,4 +121,7 @@ export const TIMELINE_ACTION_LABELS: Record<string, string> = {
   ROOM_REMOVED: "Room Removed",
   VOUCHER_ISSUED: "Voucher Issued",
   STATUS_CHANGED: "Status Changed",
+  LOCKED: "Booking Locked",
+  UNLOCKED: "Booking Unlocked",
+  PAYMENT_REMOVED: "Payment Removed",
 };
