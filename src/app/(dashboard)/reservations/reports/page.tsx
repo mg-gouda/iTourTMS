@@ -82,12 +82,15 @@ export default function ReportsPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1.5">
               <Label>Hotel</Label>
-              <Select value={hotelId} onValueChange={setHotelId}>
+              <Select
+                value={hotelId || "__all__"}
+                onValueChange={(v) => setHotelId(v === "__all__" ? "" : v)}
+              >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="All hotels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Hotels</SelectItem>
+                  <SelectItem value="__all__">All Hotels</SelectItem>
                   {(hotels ?? []).map((h) => (
                     <SelectItem key={h.id} value={h.id}>
                       {h.name}
