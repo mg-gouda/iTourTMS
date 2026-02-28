@@ -78,58 +78,128 @@ export const reportsRouter = createTRPCRouter({
           hotelId: true,
           tourOperatorId: true,
           source: true,
+          currencyId: true,
           buyingTotal: true,
           sellingTotal: true,
           totalPaid: true,
           hotel: { select: { name: true } },
           tourOperator: { select: { name: true } },
+          currency: { select: { code: true, symbol: true } },
         },
       });
 
-      let totalBuying = 0;
-      let totalSelling = 0;
-      let totalPaid = 0;
+      // Group totals by currency
+      type CurrencyTotals = {
+        currencyCode: string;
+        currencySymbol: string;
+        totalBuying: number;
+        totalSelling: number;
+        totalMargin: number;
+        totalPaid: number;
+        totalOutstanding: number;
+        bookingCount: number;
+      };
+      const byCurrency = new Map<string, CurrencyTotals>();
 
-      const byHotel = new Map<string, { name: string; buying: number; selling: number; count: number }>();
-      const bySource = new Map<string, { buying: number; selling: number; count: number }>();
+      const byHotel = new Map<string, { name: string; currencyCode: string; buying: number; selling: number; count: number }>();
+      const bySource = new Map<string, { count: number }>();
+      const byTourOperator = new Map<string, { name: string; currencyCode: string; buying: number; selling: number; count: number }>();
 
       for (const b of bookings) {
         const buying = Number(b.buyingTotal);
         const selling = Number(b.sellingTotal);
-        totalBuying += buying;
-        totalSelling += selling;
-        totalPaid += Number(b.totalPaid);
+        const paid = Number(b.totalPaid);
 
-        // By hotel
-        const h = byHotel.get(b.hotelId);
+        // By currency
+        const ct = byCurrency.get(b.currencyId);
+        if (ct) {
+          ct.totalBuying += buying;
+          ct.totalSelling += selling;
+          ct.totalPaid += paid;
+          ct.bookingCount++;
+        } else {
+          byCurrency.set(b.currencyId, {
+            currencyCode: b.currency.code,
+            currencySymbol: b.currency.symbol,
+            totalBuying: buying,
+            totalSelling: selling,
+            totalMargin: 0,
+            totalPaid: paid,
+            totalOutstanding: 0,
+            bookingCount: 1,
+          });
+        }
+
+        // By hotel (keyed by hotelId + currency to avoid mixing)
+        const hotelKey = `${b.hotelId}::${b.currencyId}`;
+        const h = byHotel.get(hotelKey);
         if (h) {
           h.buying += buying;
           h.selling += selling;
           h.count++;
         } else {
-          byHotel.set(b.hotelId, { name: b.hotel.name, buying, selling, count: 1 });
+          byHotel.set(hotelKey, {
+            name: b.hotel.name,
+            currencyCode: b.currency.code,
+            buying,
+            selling,
+            count: 1,
+          });
         }
 
         // By source
         const s = bySource.get(b.source);
         if (s) {
-          s.buying += buying;
-          s.selling += selling;
           s.count++;
         } else {
-          bySource.set(b.source, { buying, selling, count: 1 });
+          bySource.set(b.source, { count: 1 });
+        }
+
+        // By tour operator (keyed by toId + currency)
+        if (b.tourOperatorId && b.tourOperator) {
+          const toKey = `${b.tourOperatorId}::${b.currencyId}`;
+          const t = byTourOperator.get(toKey);
+          if (t) {
+            t.buying += buying;
+            t.selling += selling;
+            t.count++;
+          } else {
+            byTourOperator.set(toKey, {
+              name: b.tourOperator.name,
+              currencyCode: b.currency.code,
+              buying,
+              selling,
+              count: 1,
+            });
+          }
         }
       }
 
+      // Finalize currency totals
+      const currencies = Array.from(byCurrency.values()).map((ct) => {
+        const r = (v: number) => Math.round(v * 100) / 100;
+        return {
+          ...ct,
+          totalBuying: r(ct.totalBuying),
+          totalSelling: r(ct.totalSelling),
+          totalMargin: r(ct.totalSelling - ct.totalBuying),
+          totalPaid: r(ct.totalPaid),
+          totalOutstanding: r(ct.totalSelling - ct.totalPaid),
+        };
+      });
+
       return {
-        totalBuying: Math.round(totalBuying * 100) / 100,
-        totalSelling: Math.round(totalSelling * 100) / 100,
-        totalMargin: Math.round((totalSelling - totalBuying) * 100) / 100,
-        totalPaid: Math.round(totalPaid * 100) / 100,
-        totalOutstanding: Math.round((totalSelling - totalPaid) * 100) / 100,
+        currencies,
         bookingCount: bookings.length,
-        byHotel: Array.from(byHotel.entries()).map(([id, v]) => ({ hotelId: id, ...v })),
+        byHotel: Array.from(byHotel.entries()).map(([key, v]) => ({
+          hotelId: key.split("::")[0],
+          ...v,
+        })),
         bySource: Array.from(bySource.entries()).map(([source, v]) => ({ source, ...v })),
+        byTourOperator: Array.from(byTourOperator.entries()).map(([key, v]) => ({
+          tourOperatorId: key.split("::")[0],
+          ...v,
+        })),
       };
     }),
 

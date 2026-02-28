@@ -179,39 +179,57 @@ export default function ReportsPage() {
 
         {/* Revenue Tab */}
         <TabsContent value="revenue" className="space-y-4">
-          {/* KPI Summary */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            <SummaryCard
-              label="Selling Total"
-              value={revenue?.totalSelling}
-              isLoading={revenueLoading}
-              isCurrency
-            />
-            <SummaryCard
-              label="Buying Total"
-              value={revenue?.totalBuying}
-              isLoading={revenueLoading}
-              isCurrency
-            />
-            <SummaryCard
-              label="Margin"
-              value={revenue?.totalMargin}
-              isLoading={revenueLoading}
-              isCurrency
-            />
-            <SummaryCard
-              label="Total Paid"
-              value={revenue?.totalPaid}
-              isLoading={revenueLoading}
-              isCurrency
-            />
-            <SummaryCard
-              label="Outstanding"
-              value={revenue?.totalOutstanding}
-              isLoading={revenueLoading}
-              isCurrency
-            />
-          </div>
+          {/* KPI Summary — grouped by currency */}
+          {revenueLoading ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              <SummaryCard label="Selling Total" isLoading />
+              <SummaryCard label="Buying Total" isLoading />
+              <SummaryCard label="Margin" isLoading />
+              <SummaryCard label="Total Paid" isLoading />
+              <SummaryCard label="Outstanding" isLoading />
+            </div>
+          ) : (
+            (revenue?.currencies ?? []).map((ct) => (
+              <div key={ct.currencyCode}>
+                <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
+                  {ct.currencyCode} ({ct.bookingCount}{" "}
+                  {ct.bookingCount === 1 ? "booking" : "bookings"})
+                </h3>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                  <SummaryCard
+                    label={`Selling (${ct.currencySymbol})`}
+                    value={ct.totalSelling}
+                    isLoading={false}
+                    isCurrency
+                  />
+                  <SummaryCard
+                    label={`Buying (${ct.currencySymbol})`}
+                    value={ct.totalBuying}
+                    isLoading={false}
+                    isCurrency
+                  />
+                  <SummaryCard
+                    label={`Margin (${ct.currencySymbol})`}
+                    value={ct.totalMargin}
+                    isLoading={false}
+                    isCurrency
+                  />
+                  <SummaryCard
+                    label={`Paid (${ct.currencySymbol})`}
+                    value={ct.totalPaid}
+                    isLoading={false}
+                    isCurrency
+                  />
+                  <SummaryCard
+                    label={`Outstanding (${ct.currencySymbol})`}
+                    value={ct.totalOutstanding}
+                    isLoading={false}
+                    isCurrency
+                  />
+                </div>
+              </div>
+            ))
+          )}
 
           {/* By Hotel Chart */}
           <Card>
@@ -234,7 +252,9 @@ export default function ReportsPage() {
                     <Tooltip
                       labelFormatter={(_, payload) => {
                         const item = payload?.[0]?.payload;
-                        return item?.name ?? "";
+                        return item?.name
+                          ? `${item.name} (${item.currencyCode})`
+                          : "";
                       }}
                     />
                     <Bar
@@ -255,46 +275,95 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          {/* By Source Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue by Source</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {revenueLoading ? (
-                <Skeleton className="h-[120px] w-full" />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source</TableHead>
-                      <TableHead className="text-right">Bookings</TableHead>
-                      <TableHead className="text-right">Selling</TableHead>
-                      <TableHead className="text-right">Buying</TableHead>
-                      <TableHead className="text-right">Margin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(revenue?.bySource ?? []).map((s) => (
-                      <TableRow key={s.source}>
-                        <TableCell className="font-medium">{s.source}</TableCell>
-                        <TableCell className="text-right">{s.count}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {s.selling.toLocaleString("en", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {s.buying.toLocaleString("en", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {(s.selling - s.buying).toLocaleString("en", { minimumFractionDigits: 2 })}
-                        </TableCell>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* By Source Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue by Source</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {revenueLoading ? (
+                  <Skeleton className="h-[120px] w-full" />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead className="text-right">Bookings</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {(revenue?.bySource ?? []).map((s) => (
+                        <TableRow key={s.source}>
+                          <TableCell className="font-medium">
+                            {s.source}
+                          </TableCell>
+                          <TableCell className="text-right">{s.count}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* By Tour Operator Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue by Tour Operator</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {revenueLoading ? (
+                  <Skeleton className="h-[120px] w-full" />
+                ) : (revenue?.byTourOperator ?? []).length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tour Operator</TableHead>
+                        <TableHead className="text-center">Currency</TableHead>
+                        <TableHead className="text-right">Bookings</TableHead>
+                        <TableHead className="text-right">Selling</TableHead>
+                        <TableHead className="text-right">Buying</TableHead>
+                        <TableHead className="text-right">Margin</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(revenue?.byTourOperator ?? []).map((t) => (
+                        <TableRow key={`${t.tourOperatorId}-${t.currencyCode}`}>
+                          <TableCell className="font-medium">
+                            {t.name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {t.currencyCode}
+                          </TableCell>
+                          <TableCell className="text-right">{t.count}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {t.selling.toLocaleString("en", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {t.buying.toLocaleString("en", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {(t.selling - t.buying).toLocaleString("en", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No tour operator bookings found.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Occupancy Tab */}
