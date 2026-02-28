@@ -1,8 +1,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { FileDown } from "lucide-react";
-import { useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, FileDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -111,6 +111,20 @@ export default function ReportsPage() {
       { dateFrom: podDateFrom, dateTo: podDateTo },
       { enabled: podFiltersReady },
     );
+  const [podSort, setPodSort] = useState<"asc" | "desc" | null>(null);
+  const podRows = useMemo(() => {
+    if (!podData?.rows) return [];
+    if (!podSort) return podData.rows;
+    return [...podData.rows].sort((a, b) => {
+      const aTime = a.paymentOptionDate
+        ? new Date(a.paymentOptionDate).getTime()
+        : 0;
+      const bTime = b.paymentOptionDate
+        ? new Date(b.paymentOptionDate).getTime()
+        : 0;
+      return podSort === "asc" ? aTime - bTime : bTime - aTime;
+    });
+  }, [podData?.rows, podSort]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -828,11 +842,12 @@ export default function ReportsPage() {
               <CardContent>
                 {podLoading ? (
                   <Skeleton className="h-[300px] w-full" />
-                ) : podData?.rows.length ? (
+                ) : podRows.length ? (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Booking Ref</TableHead>
                           <TableHead>T/O BKG Ref</TableHead>
                           <TableHead className="text-center">
                             Arr Date
@@ -845,15 +860,40 @@ export default function ReportsPage() {
                           <TableHead className="text-center">
                             Currency
                           </TableHead>
-                          <TableHead className="text-center">
-                            P. Option Date
+                          <TableHead
+                            className="cursor-pointer select-none text-center"
+                            onClick={() =>
+                              setPodSort((prev) =>
+                                prev === null
+                                  ? "asc"
+                                  : prev === "asc"
+                                    ? "desc"
+                                    : null,
+                              )
+                            }
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              P. Option Date
+                              {podSort === null && (
+                                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                              {podSort === "asc" && (
+                                <ArrowUp className="h-3.5 w-3.5" />
+                              )}
+                              {podSort === "desc" && (
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              )}
+                            </span>
                           </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {podData.rows.map((r) => (
+                        {podRows.map((r) => (
                           <TableRow key={r.bookingId}>
                             <TableCell className="font-mono font-medium">
+                              {r.bookingCode}
+                            </TableCell>
+                            <TableCell className="font-mono">
                               {r.externalRef}
                             </TableCell>
                             <TableCell className="text-center">

@@ -380,6 +380,7 @@ export const reportsRouter = createTRPCRouter({
         },
         select: {
           id: true,
+          code: true,
           externalRef: true,
           checkIn: true,
           checkOut: true,
@@ -413,6 +414,7 @@ export const reportsRouter = createTRPCRouter({
 
         return {
           bookingId: b.id,
+          bookingCode: b.code,
           externalRef: b.externalRef ?? "",
           checkIn: b.checkIn,
           checkOut: b.checkOut,
