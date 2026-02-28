@@ -950,6 +950,7 @@ function handleSendToHotel(booking: any, company: any) {
         infants: r.infants ?? 0,
         buyingRatePerNight: r.buyingRatePerNight,
         buyingTotal: r.buyingTotal,
+        rateBreakdown: r.rateBreakdown ?? null,
       })),
       guestNames: booking.guestNames,
       leadGuestName: booking.leadGuestName,

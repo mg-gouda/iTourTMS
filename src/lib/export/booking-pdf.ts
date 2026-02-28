@@ -33,6 +33,24 @@ export interface BookingPdfData {
     infants: number;
     buyingRatePerNight?: number | string | null;
     buyingTotal?: number | string | null;
+    rateBreakdown?: {
+      baseRate: number;
+      baseRateLabel: string;
+      roomTypeSupplement?: { label: string; amount: number } | null;
+      mealSupplement?: { label: string; amount: number } | null;
+      occupancySupplement?: { label: string; amount: number } | null;
+      extraBedSupplement?: { label: string; amount: number } | null;
+      childCharges?: Array<{ label: string; amount: number; isFree: boolean }>;
+      adultTotalPerNight: number;
+      childTotalPerNight: number;
+      totalPerNight: number;
+      totalStay: number;
+      offerDiscounts?: Array<{ offerName: string; discount: number; description: string }>;
+      totalStayBeforeOffers: number;
+      totalStayAfterOffers: number;
+      nights: number;
+      rateBasis: string;
+    } | null;
   }>;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -258,7 +276,7 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
     y += 2;
   }
 
-  // ── Room Details (with buying rates) ──
+  // ── Room Details (with full rate breakdown) ──
   doc.setTextColor(...COLORS.primary);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
@@ -268,9 +286,18 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
   doc.line(marginL, y, marginL + contentW, y);
   y += 6;
 
+  const sym = data.currency.symbol;
+
   for (const room of data.rooms) {
-    doc.setFillColor(...COLORS.lightGray);
-    doc.roundedRect(marginL, y - 3, contentW, 22, 1, 1, "F");
+    // Check if we need a new page (estimate: header + breakdown could be ~80mm)
+    if (y > doc.internal.pageSize.getHeight() - 90) {
+      doc.addPage();
+      y = 15;
+    }
+
+    // Room header background
+    doc.setFillColor(...COLORS.headerBg);
+    doc.roundedRect(marginL, y - 3, contentW, 14, 1, 1, "F");
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
@@ -286,18 +313,109 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
       room.infants > 0 ? `${room.infants} Infant${room.infants !== 1 ? "s" : ""}` : "",
     ].filter(Boolean).join(", ");
     doc.text(`${room.mealBasis.name} (${room.mealBasis.mealCode})  •  ${occupancy}`, marginL + 4, y + 9);
+    y += 16;
 
-    // Buying rate
-    if (room.buyingRatePerNight != null) {
+    const bd = room.rateBreakdown;
+
+    if (bd) {
+      // Rate breakdown table
+      const labelX = marginL + 8;
+      const amountX = marginL + contentW - 8;
+
+      const drawLine = (label: string, amount: string, bold = false) => {
+        if (y > doc.internal.pageSize.getHeight() - 25) {
+          doc.addPage();
+          y = 15;
+        }
+        doc.setFont("helvetica", bold ? "bold" : "normal");
+        doc.setTextColor(...COLORS.text);
+        doc.setFontSize(9);
+        doc.text(label, labelX, y);
+        doc.text(amount, amountX, y, { align: "right" });
+        y += 5;
+      };
+
+      // Base rate
+      drawLine(bd.baseRateLabel || "Base Rate", `${sym}${bd.baseRate.toFixed(2)}`);
+
+      // Supplements
+      if (bd.roomTypeSupplement && bd.roomTypeSupplement.amount !== 0) {
+        drawLine(`+ ${bd.roomTypeSupplement.label}`, `${sym}${bd.roomTypeSupplement.amount.toFixed(2)}`);
+      }
+      if (bd.mealSupplement && bd.mealSupplement.amount !== 0) {
+        drawLine(`+ ${bd.mealSupplement.label}`, `${sym}${bd.mealSupplement.amount.toFixed(2)}`);
+      }
+      if (bd.occupancySupplement && bd.occupancySupplement.amount !== 0) {
+        drawLine(`+ ${bd.occupancySupplement.label}`, `${sym}${bd.occupancySupplement.amount.toFixed(2)}`);
+      }
+      if (bd.extraBedSupplement && bd.extraBedSupplement.amount !== 0) {
+        drawLine(`+ ${bd.extraBedSupplement.label}`, `${sym}${bd.extraBedSupplement.amount.toFixed(2)}`);
+      }
+
+      // Child charges
+      if (bd.childCharges?.length) {
+        for (const ch of bd.childCharges) {
+          drawLine(
+            `+ ${ch.label}`,
+            ch.isFree ? "FREE" : `${sym}${ch.amount.toFixed(2)}`,
+          );
+        }
+      }
+
+      // Divider
+      doc.setDrawColor(...COLORS.border);
+      doc.setLineWidth(0.3);
+      doc.line(labelX, y - 2, amountX, y - 2);
+
+      // Per-night total
+      drawLine(
+        `Total / Night (${bd.rateBasis === "PER_PERSON" ? "per person" : "per room"})`,
+        `${sym}${bd.totalPerNight.toFixed(2)}`,
+        true,
+      );
+
+      // Stay total before offers
+      drawLine(`${bd.nights} Night${bd.nights !== 1 ? "s" : ""} Total`, `${sym}${bd.totalStayBeforeOffers.toFixed(2)}`, true);
+
+      // Offer discounts
+      if (bd.offerDiscounts?.length) {
+        for (const od of bd.offerDiscounts) {
+          doc.setTextColor(34, 139, 34); // green
+          drawLine(`− ${od.offerName}`, `−${sym}${od.discount.toFixed(2)}`);
+          if (od.description) {
+            doc.setFontSize(7);
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(...COLORS.muted);
+            const descLines = doc.splitTextToSize(od.description, contentW - 20);
+            doc.text(descLines, labelX + 4, y);
+            y += descLines.length * 3.5 + 1;
+          }
+        }
+        doc.setTextColor(...COLORS.text);
+      }
+
+      // Final total after offers
+      if (bd.totalStayAfterOffers !== bd.totalStayBeforeOffers) {
+        doc.setDrawColor(...COLORS.border);
+        doc.line(labelX, y - 2, amountX, y - 2);
+        drawLine("Net Total (after offers)", `${sym}${bd.totalStayAfterOffers.toFixed(2)}`, true);
+      }
+
+      y += 4;
+    } else if (room.buyingRatePerNight != null) {
+      // Fallback: simple rate display when no breakdown available
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
       doc.setTextColor(...COLORS.text);
       doc.text(
-        `Rate: ${data.currency.symbol}${Number(room.buyingRatePerNight).toFixed(2)}/night  •  Total: ${data.currency.symbol}${Number(room.buyingTotal ?? 0).toFixed(2)}`,
-        marginL + 4,
-        y + 16,
+        `Rate: ${sym}${Number(room.buyingRatePerNight).toFixed(2)}/night  •  Total: ${sym}${Number(room.buyingTotal ?? 0).toFixed(2)}`,
+        marginL + 8,
+        y,
       );
+      y += 8;
     }
 
-    y += 26;
+    y += 2;
   }
 
   y += 2;
