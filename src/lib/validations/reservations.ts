@@ -278,3 +278,10 @@ export const reportFilterSchema = z.object({
     .nullish(),
   source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).nullish(),
 });
+
+export const arrivalListFilterSchema = z.object({
+  dateFrom: z.string().min(1),
+  dateTo: z.string().min(1),
+  destinationId: z.string().nullish(),
+  zoneId: z.string().nullish(),
+});

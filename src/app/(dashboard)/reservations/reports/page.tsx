@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { FileDown } from "lucide-react";
 import { useState } from "react";
 import {
   Bar,
@@ -43,6 +44,7 @@ import {
   BOOKING_STATUS_LABELS,
   BOOKING_STATUS_VARIANTS,
 } from "@/lib/constants/reservations";
+import { exportArrivalListPdf } from "@/lib/export/arrival-list-pdf";
 import { trpc } from "@/lib/trpc";
 
 export default function ReportsPage() {
@@ -50,7 +52,14 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] = useState("");
   const [hotelId, setHotelId] = useState("");
 
+  // Arrival List filters
+  const [alDateFrom, setAlDateFrom] = useState("");
+  const [alDateTo, setAlDateTo] = useState("");
+  const [alDestinationId, setAlDestinationId] = useState("");
+  const [alZoneId, setAlZoneId] = useState("");
+
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
+  const { data: destinations } = trpc.contracting.destination.list.useQuery();
 
   const filterInput = {
     hotelId: hotelId || undefined,
@@ -66,6 +75,32 @@ export default function ReportsPage() {
     trpc.reservations.reports.upcomingArrivals.useQuery();
   const { data: departures, isLoading: departuresLoading } =
     trpc.reservations.reports.upcomingDepartures.useQuery();
+
+  // Arrival List data — get cities for the destination, then zones for the first city
+  const { data: destCities } =
+    trpc.contracting.destination.listCities.useQuery(
+      { destinationId: alDestinationId },
+      { enabled: !!alDestinationId },
+    );
+  const firstCityId = destCities?.[0]?.id;
+  const { data: cityZones } =
+    trpc.contracting.destination.listZones.useQuery(
+      { cityId: firstCityId! },
+      { enabled: !!firstCityId },
+    );
+  const destinationZones = cityZones ?? [];
+
+  const alFiltersReady = !!alDateFrom && !!alDateTo;
+  const { data: arrivalList, isLoading: arrivalListLoading } =
+    trpc.reservations.reports.arrivalList.useQuery(
+      {
+        dateFrom: alDateFrom,
+        dateTo: alDateTo,
+        destinationId: alDestinationId || undefined,
+        zoneId: alZoneId || undefined,
+      },
+      { enabled: alFiltersReady },
+    );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -139,6 +174,7 @@ export default function ReportsPage() {
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="occupancy">Occupancy</TabsTrigger>
           <TabsTrigger value="arrivals">Arrivals & Departures</TabsTrigger>
+          <TabsTrigger value="arrival-list">Arrival List</TabsTrigger>
         </TabsList>
 
         {/* Revenue Tab */}
@@ -383,6 +419,252 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Arrival List Tab */}
+        <TabsContent value="arrival-list" className="space-y-4">
+          {/* Arrival List Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5">
+                  <Label>Date From *</Label>
+                  <Input
+                    type="date"
+                    className="w-[160px]"
+                    value={alDateFrom}
+                    onChange={(e) => setAlDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Date To *</Label>
+                  <Input
+                    type="date"
+                    className="w-[160px]"
+                    value={alDateTo}
+                    onChange={(e) => setAlDateTo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Destination</Label>
+                  <Select
+                    value={alDestinationId || "__all__"}
+                    onValueChange={(v) => {
+                      setAlDestinationId(v === "__all__" ? "" : v);
+                      setAlZoneId("");
+                    }}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="All Destinations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Destinations</SelectItem>
+                      {(destinations ?? []).map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {alDestinationId && destinationZones.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Zone</Label>
+                    <Select
+                      value={alZoneId || "__all__"}
+                      onValueChange={(v) =>
+                        setAlZoneId(v === "__all__" ? "" : v)
+                      }
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="All Zones" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All Zones</SelectItem>
+                        {destinationZones.map(
+                          (z: { id: string; name: string }) => (
+                            <SelectItem key={z.id} value={z.id}>
+                              {z.name}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {(alDateFrom || alDateTo || alDestinationId) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAlDateFrom("");
+                      setAlDateTo("");
+                      setAlDestinationId("");
+                      setAlZoneId("");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+                {alFiltersReady && arrivalList && (
+                  <Button
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() =>
+                      exportArrivalListPdf({
+                        dateFrom: alDateFrom,
+                        dateTo: alDateTo,
+                        rows: arrivalList.rows,
+                        summary: arrivalList.summary,
+                      })
+                    }
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export PDF
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {!alFiltersReady ? (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-sm text-muted-foreground">
+                  Select a date range to view the arrival list.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                <SummaryCard
+                  label="Total Room/Nights"
+                  value={arrivalList?.summary.totalRoomNights}
+                  isLoading={arrivalListLoading}
+                />
+                <SummaryCard
+                  label="TTL No Rooms"
+                  value={arrivalList?.summary.totalRooms}
+                  isLoading={arrivalListLoading}
+                />
+                <SummaryCard
+                  label="TTL Adult"
+                  value={arrivalList?.summary.totalAdults}
+                  isLoading={arrivalListLoading}
+                />
+                <SummaryCard
+                  label="TTL CHD"
+                  value={arrivalList?.summary.totalChildren}
+                  isLoading={arrivalListLoading}
+                />
+                <SummaryCard
+                  label="TTL INF"
+                  value={arrivalList?.summary.totalInfants}
+                  isLoading={arrivalListLoading}
+                />
+              </div>
+
+              {/* Data table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Arrival List
+                    {arrivalList && (
+                      <Badge variant="secondary" className="ml-2">
+                        {arrivalList.rows.length} rows
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {arrivalListLoading ? (
+                    <Skeleton className="h-[300px] w-full" />
+                  ) : arrivalList?.rows.length ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Market</TableHead>
+                            <TableHead className="text-center">
+                              No RMS
+                            </TableHead>
+                            <TableHead>Hotel Name</TableHead>
+                            <TableHead>Room Type</TableHead>
+                            <TableHead>Guest Name</TableHead>
+                            <TableHead className="text-center">
+                              Arr Date
+                            </TableHead>
+                            <TableHead className="text-center">
+                              Dep Date
+                            </TableHead>
+                            <TableHead className="text-center">NTS</TableHead>
+                            <TableHead className="text-center">MB</TableHead>
+                            <TableHead className="text-center">AD</TableHead>
+                            <TableHead className="text-center">CH</TableHead>
+                            <TableHead className="text-center">INF</TableHead>
+                            <TableHead className="text-center">
+                              1st CHD Age
+                            </TableHead>
+                            <TableHead className="text-center">
+                              2nd CHD Age
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {arrivalList.rows.map((r, idx) => (
+                            <TableRow key={`${r.bookingId}-${idx}`}>
+                              <TableCell>{r.market}</TableCell>
+                              <TableCell className="text-center">
+                                {r.noOfRooms}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {r.hotelName}
+                              </TableCell>
+                              <TableCell>{r.roomType}</TableCell>
+                              <TableCell>{r.guestName}</TableCell>
+                              <TableCell className="text-center">
+                                {format(new Date(r.checkIn), "dd/MM/yyyy")}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {format(new Date(r.checkOut), "dd/MM/yyyy")}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.nights}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.mealBasis}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.adults}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.children}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.infants}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.child1Age ?? ""}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {r.child2Age ?? ""}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      No arrivals found for the selected date range.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

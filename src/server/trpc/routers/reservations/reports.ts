@@ -1,6 +1,10 @@
+import { differenceInYears } from "date-fns";
 import { z } from "zod";
 
-import { reportFilterSchema } from "@/lib/validations/reservations";
+import {
+  arrivalListFilterSchema,
+  reportFilterSchema,
+} from "@/lib/validations/reservations";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 
 const proc = moduleProcedure("reservations");
@@ -168,5 +172,126 @@ export const reportsRouter = createTRPCRouter({
         },
         orderBy: { checkOut: "asc" },
       });
+    }),
+
+  arrivalList: proc
+    .input(arrivalListFilterSchema)
+    .query(async ({ ctx, input }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hotelWhere: Record<string, any> = {};
+      if (input.destinationId) hotelWhere.destinationId = input.destinationId;
+      if (input.zoneId) hotelWhere.zoneId = input.zoneId;
+
+      const bookings = await ctx.db.booking.findMany({
+        where: {
+          companyId: ctx.companyId,
+          status: { in: ["CONFIRMED", "CHECKED_IN"] },
+          checkIn: {
+            gte: new Date(input.dateFrom),
+            lte: new Date(input.dateTo),
+          },
+          ...(Object.keys(hotelWhere).length > 0
+            ? { hotel: hotelWhere }
+            : {}),
+        },
+        include: {
+          hotel: {
+            select: {
+              id: true,
+              name: true,
+              destination: { select: { id: true, name: true } },
+              zone: { select: { id: true, name: true } },
+            },
+          },
+          market: { select: { id: true, name: true } },
+          rooms: {
+            include: {
+              roomType: { select: { name: true, code: true } },
+              mealBasis: { select: { name: true, mealCode: true } },
+            },
+          },
+        },
+        orderBy: [
+          { hotel: { name: "asc" } },
+          { checkIn: "asc" },
+        ],
+      });
+
+      // Flatten: one row per booking-room
+      const rows = bookings.flatMap((b) => {
+        const checkInDate = new Date(b.checkIn);
+        // Compute child ages at check-in
+        const child1Age = b.childDob1
+          ? differenceInYears(checkInDate, new Date(b.childDob1))
+          : null;
+        const child2Age = b.childDob2
+          ? differenceInYears(checkInDate, new Date(b.childDob2))
+          : null;
+
+        if (b.rooms.length === 0) {
+          return [
+            {
+              bookingId: b.id,
+              bookingCode: b.code,
+              hotelId: b.hotel.id,
+              hotelName: b.hotel.name,
+              market: b.market?.name ?? "",
+              roomType: "",
+              mealBasis: "",
+              guestName: b.leadGuestName ?? "",
+              checkIn: b.checkIn,
+              checkOut: b.checkOut,
+              nights: b.nights,
+              noOfRooms: b.noOfRooms,
+              adults: b.adults,
+              children: b.children,
+              infants: b.infants,
+              child1Age,
+              child2Age,
+            },
+          ];
+        }
+
+        return b.rooms.map((r) => ({
+          bookingId: b.id,
+          bookingCode: b.code,
+          hotelId: b.hotel.id,
+          hotelName: b.hotel.name,
+          market: b.market?.name ?? "",
+          roomType: r.roomType.name,
+          mealBasis: r.mealBasis.mealCode,
+          guestName: b.leadGuestName ?? "",
+          checkIn: b.checkIn,
+          checkOut: b.checkOut,
+          nights: b.nights,
+          noOfRooms: 1,
+          adults: r.adults,
+          children: r.children,
+          infants: r.infants,
+          child1Age,
+          child2Age,
+        }));
+      });
+
+      // Compute summary totals
+      const totalRoomNights = rows.reduce(
+        (sum, r) => sum + r.noOfRooms * r.nights,
+        0,
+      );
+      const totalRooms = rows.reduce((sum, r) => sum + r.noOfRooms, 0);
+      const totalAdults = rows.reduce((sum, r) => sum + r.adults, 0);
+      const totalChildren = rows.reduce((sum, r) => sum + r.children, 0);
+      const totalInfants = rows.reduce((sum, r) => sum + r.infants, 0);
+
+      return {
+        rows,
+        summary: {
+          totalRoomNights,
+          totalRooms,
+          totalAdults,
+          totalChildren,
+          totalInfants,
+        },
+      };
     }),
 });
