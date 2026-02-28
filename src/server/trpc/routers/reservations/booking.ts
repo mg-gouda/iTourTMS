@@ -27,7 +27,7 @@ export const bookingRouter = createTRPCRouter({
     .input(
       z
         .object({
-          status: z.enum(["DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"]).optional(),
+          status: z.enum(["NEW_BOOKING", "DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"]).optional(),
           hotelId: z.string().optional(),
           tourOperatorId: z.string().optional(),
           source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).optional(),
@@ -229,7 +229,7 @@ export const bookingRouter = createTRPCRouter({
         data: {
           companyId: ctx.companyId,
           code,
-          status: "DRAFT",
+          status: "NEW_BOOKING",
           source,
           hotelId: input.hotelId,
           contractId: input.contractId ?? null,
@@ -343,7 +343,7 @@ export const bookingRouter = createTRPCRouter({
         select: { id: true, status: true },
       });
 
-      if (booking.status !== "DRAFT") {
+      if (!["DRAFT", "NEW_BOOKING"].includes(booking.status)) {
         throw new Error("Only draft bookings can be edited");
       }
 
@@ -672,7 +672,7 @@ export const bookingRouter = createTRPCRouter({
         select: { id: true, status: true },
       });
 
-      if (booking.status !== "DRAFT") {
+      if (!["DRAFT", "NEW_BOOKING"].includes(booking.status)) {
         throw new Error("Only draft bookings can be deleted");
       }
 
@@ -693,7 +693,7 @@ export const bookingRouter = createTRPCRouter({
 
       switch (input.action) {
         case "confirm": {
-          if (booking.status !== "DRAFT") throw new Error("Only draft bookings can be confirmed");
+          if (!["DRAFT", "NEW_BOOKING"].includes(booking.status)) throw new Error("Only draft bookings can be confirmed");
 
           // Check availability and deduct allotment
           if (booking.contractId) {

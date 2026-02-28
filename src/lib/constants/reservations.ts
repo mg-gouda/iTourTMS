@@ -1,4 +1,5 @@
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
+  NEW_BOOKING: "New Booking",
   DRAFT: "Draft",
   CONFIRMED: "Confirmed",
   CHECKED_IN: "Checked In",
@@ -8,6 +9,7 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
 };
 
 export const BOOKING_STATUS_VARIANTS: Record<string, string> = {
+  NEW_BOOKING: "default",
   DRAFT: "secondary",
   CONFIRMED: "info",
   CHECKED_IN: "success",

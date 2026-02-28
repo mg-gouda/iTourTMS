@@ -4,7 +4,9 @@ import type { PrismaClient } from "@prisma/client";
  * Generate the next sequence number for a given code.
  * Handles year-based reset and padding.
  *
- * @returns e.g. "INV/2026/00001"
+ * Supports two format types:
+ * - "standard" (default): e.g. "INV/2026/00001"
+ * - "company_serial": e.g. "IT-100001" (company abbreviation + serial, no year reset)
  */
 export async function generateSequenceNumber(
   db: PrismaClient,
@@ -23,7 +25,29 @@ export async function generateSequenceNumber(
     throw new Error(`Sequence not found for code: ${code}`);
   }
 
-  // Check if we need to reset (yearly/monthly)
+  if (sequence.formatType === "company_serial") {
+    // Company serial format: {abbreviation}-{nextNumber}
+    const company = await db.company.findUnique({
+      where: { id: companyId },
+      select: { abbreviation: true },
+    });
+
+    const abbr = company?.abbreviation ?? "BK";
+    const nextNumber = Math.max(sequence.nextNumber, sequence.startNumber);
+
+    // Increment
+    await db.sequence.update({
+      where: { companyId_code: { companyId, code } },
+      data: {
+        nextNumber: nextNumber + 1,
+        lastReset: now,
+      },
+    });
+
+    return `${abbr}-${nextNumber}`;
+  }
+
+  // Standard format: prefix/year/paddedNumber
   let nextNumber = sequence.nextNumber;
   const lastResetYear = sequence.lastReset.getFullYear();
   const lastResetMonth = sequence.lastReset.getMonth();
@@ -33,7 +57,7 @@ export async function generateSequenceNumber(
     (sequence.resetPolicy === "monthly" &&
       (lastResetYear < year || lastResetMonth < now.getMonth()))
   ) {
-    nextNumber = 1;
+    nextNumber = sequence.startNumber;
   }
 
   // Format the number

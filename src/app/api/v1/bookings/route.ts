@@ -236,7 +236,7 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
     data: {
       companyId: auth.companyId,
       code,
-      status: "DRAFT",
+      status: "NEW_BOOKING",
       source: "API",
       hotelId,
       contractId: contractId ?? null,

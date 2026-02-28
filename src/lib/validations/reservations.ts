@@ -265,7 +265,7 @@ export const reportFilterSchema = z.object({
   dateFrom: z.string().nullish(),
   dateTo: z.string().nullish(),
   status: z
-    .enum(["DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"])
+    .enum(["NEW_BOOKING", "DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"])
     .nullish(),
   source: z.enum(["DIRECT", "TOUR_OPERATOR", "API"]).nullish(),
 });

@@ -57,6 +57,7 @@ model VerificationToken {
 model Company {
   id              String   @id @default(cuid())
   name            String
+  abbreviation    String?
   legalName       String?
   taxId           String?
   phone           String?
@@ -427,6 +428,8 @@ model Sequence {
   separator   String   @default("-") // e.g. "-", "/"
   padding     Int      @default(5)   // number padding e.g. 00001
   nextNumber  Int      @default(1)
+  formatType  String   @default("standard") // "standard" or "company_serial"
+  startNumber Int      @default(1)
   resetPolicy String   @default("yearly") // "yearly", "monthly", "never"
   lastReset   DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -2332,6 +2335,7 @@ model WebhookDelivery {
 // ============================================================================
 
 enum BookingStatus {
+  NEW_BOOKING
   DRAFT
   CONFIRMED
   CHECKED_IN
@@ -2428,7 +2432,7 @@ model Booking {
   id                 String              @id @default(cuid())
   companyId          String
   code               String
-  status             BookingStatus       @default(DRAFT)
+  status             BookingStatus       @default(NEW_BOOKING)
   source             BookingSource       @default(DIRECT)
 
   // Hotel & Contract

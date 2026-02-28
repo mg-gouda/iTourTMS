@@ -8,6 +8,7 @@ import {
   Download,
   LogIn,
   LogOut,
+  Mail,
   Pencil,
   Plus,
   Trash2,
@@ -65,6 +66,8 @@ import {
   VOUCHER_STATUS_LABELS,
   VOUCHER_STATUS_VARIANTS,
 } from "@/lib/constants/reservations";
+import { generateBookingPdf } from "@/lib/export/booking-pdf";
+import { generateBookingEml } from "@/lib/export/booking-eml";
 import { generateVoucherPdf } from "@/lib/export/voucher-pdf";
 import { trpc } from "@/lib/trpc";
 
@@ -74,6 +77,7 @@ export default function BookingDetailPage() {
   const utils = trpc.useUtils();
 
   const { data: booking, isLoading } = trpc.reservations.booking.getById.useQuery({ id });
+  const { data: company } = trpc.settings.getCompanySettings.useQuery();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -105,12 +109,12 @@ export default function BookingDetailPage() {
   }
 
   const canAmend = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
-  const canConfirm = booking.status === "DRAFT";
+  const canConfirm = booking.status === "DRAFT" || booking.status === "NEW_BOOKING";
   const canCancel = !["CHECKED_OUT", "CANCELLED"].includes(booking.status);
   const canCheckIn = booking.status === "CONFIRMED";
   const canCheckOut = booking.status === "CHECKED_IN";
   const canNoShow = booking.status === "CONFIRMED";
-  const canDelete = booking.status === "DRAFT";
+  const canDelete = booking.status === "DRAFT" || booking.status === "NEW_BOOKING";
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -232,6 +236,16 @@ export default function BookingDetailPage() {
               Cancel
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!booking.hotel.email}
+            title={!booking.hotel.email ? "Hotel has no email address" : "Send booking to hotel via email"}
+            onClick={() => handleSendToHotel(booking, company)}
+          >
+            <Mail className="mr-1 size-3.5" />
+            Send to Hotel
+          </Button>
           {canDelete && (
             <Button
               size="sm"
@@ -903,6 +917,105 @@ function PaymentDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function handleSendToHotel(booking: any, company: any) {
+  try {
+    const statusLabel = BOOKING_STATUS_LABELS[booking.status as string] ?? booking.status;
+
+    // 1. Generate PDF
+    const doc = generateBookingPdf({
+      code: booking.code,
+      status: statusLabel,
+      checkIn: booking.checkIn,
+      checkOut: booking.checkOut,
+      nights: booking.nights,
+      specialRequests: booking.specialRequests,
+      internalNotes: booking.internalNotes,
+      bookingNotes: booking.bookingNotes,
+      source: booking.source,
+      hotel: booking.hotel,
+      tourOperator: booking.tourOperator,
+      currency: booking.currency,
+      rooms: booking.rooms.map((r: Record<string, unknown>) => ({
+        roomIndex: r.roomIndex,
+        roomType: r.roomType,
+        mealBasis: r.mealBasis,
+        adults: r.adults,
+        children: r.children,
+        infants: r.infants ?? 0,
+        buyingRatePerNight: r.buyingRatePerNight,
+        buyingTotal: r.buyingTotal,
+      })),
+      guestNames: booking.guestNames,
+      leadGuestName: booking.leadGuestName,
+      arrivalFlightNo: booking.arrivalFlightNo,
+      arrivalTime: booking.arrivalTime,
+      arrivalOriginApt: booking.arrivalOriginApt,
+      arrivalDestApt: booking.arrivalDestApt,
+      arrivalTerminal: booking.arrivalTerminal,
+      departFlightNo: booking.departFlightNo,
+      departTime: booking.departTime,
+      departOriginApt: booking.departOriginApt,
+      departDestApt: booking.departDestApt,
+      departTerminal: booking.departTerminal,
+      company: company ? { name: company.name, phone: company.phone, email: company.email, website: company.website } : undefined,
+    });
+
+    // 2. Get PDF as base64
+    const pdfBase64 = doc.output("datauristring").split(",")[1] ?? "";
+    const pdfFilename = `booking-${booking.code}.pdf`;
+
+    // 3. Generate EML
+    const emlContent = generateBookingEml(
+      {
+        code: booking.code,
+        status: booking.status,
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        nights: booking.nights,
+        specialRequests: booking.specialRequests,
+        hotel: booking.hotel,
+        tourOperator: booking.tourOperator,
+        currency: booking.currency,
+        rooms: booking.rooms.map((r: Record<string, unknown>) => ({
+          roomIndex: r.roomIndex,
+          roomType: r.roomType,
+          mealBasis: r.mealBasis,
+          adults: r.adults,
+          children: r.children,
+          infants: r.infants ?? 0,
+        })),
+        guestNames: booking.guestNames,
+        leadGuestName: booking.leadGuestName,
+        arrivalFlightNo: booking.arrivalFlightNo,
+        arrivalTime: booking.arrivalTime,
+        arrivalOriginApt: booking.arrivalOriginApt,
+        arrivalDestApt: booking.arrivalDestApt,
+        departFlightNo: booking.departFlightNo,
+        departTime: booking.departTime,
+        departOriginApt: booking.departOriginApt,
+        departDestApt: booking.departDestApt,
+        company: company ? { name: company.name } : undefined,
+      },
+      pdfBase64,
+      pdfFilename,
+    );
+
+    // 4. Download .eml file
+    const blob = new Blob([emlContent], { type: "message/rfc822" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `booking-${booking.code}.eml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch {
+    // Silently fail
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

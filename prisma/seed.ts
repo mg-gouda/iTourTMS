@@ -305,6 +305,13 @@ async function main() {
 export async function seedFinance(companyId: string) {
   console.log("  Seeding finance data...");
 
+  // ── Company abbreviation ──
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { abbreviation: "IT" },
+  });
+  console.log("    ✓ Company abbreviation set");
+
   // ── Permissions ──
   const financePermissions = [
     { code: "finance:account:read", module: "finance", resource: "account", action: "read", displayName: "View Accounts" },
@@ -647,7 +654,7 @@ export async function seedFinance(companyId: string) {
 
   // ── Booking & Voucher Sequences ──
   const reservationSequences = [
-    { code: "booking", prefix: "BK", separator: "/", padding: 5, resetPolicy: "yearly" },
+    { code: "booking", prefix: "BK", separator: "/", padding: 5, resetPolicy: "never", formatType: "company_serial", startNumber: 100000, nextNumber: 100000 },
     { code: "voucher", prefix: "VCR", separator: "/", padding: 5, resetPolicy: "yearly" },
   ];
 
