@@ -19,6 +19,7 @@ export const contractRouter = createTRPCRouter({
       include: {
         hotel: { select: { id: true, name: true } },
         baseCurrency: { select: { id: true, code: true, name: true } },
+        markets: { select: { marketId: true } },
         _count: { select: { seasons: true, roomTypes: true, mealBases: true } },
       },
       orderBy: { createdAt: "desc" },

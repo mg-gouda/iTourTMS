@@ -82,6 +82,7 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
   const {
     hotelId,
     contractId,
+    marketId,
     checkIn,
     checkOut,
     rooms,
@@ -95,6 +96,7 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
   } = body as {
     hotelId: string;
     contractId?: string;
+    marketId?: string;
     checkIn: string;
     checkOut: string;
     rooms: Array<{
@@ -240,6 +242,7 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
       source: "API",
       hotelId,
       contractId: contractId ?? null,
+      marketId: marketId ?? null,
       tourOperatorId: auth.tourOperatorId,
       seasonId,
       checkIn: new Date(checkIn),

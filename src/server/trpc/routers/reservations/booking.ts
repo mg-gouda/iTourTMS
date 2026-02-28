@@ -77,6 +77,7 @@ export const bookingRouter = createTRPCRouter({
         include: {
           hotel: { select: { id: true, name: true, code: true, address: true, phone: true, email: true, checkInTime: true, checkOutTime: true } },
           contract: { select: { id: true, name: true, code: true, validFrom: true, validTo: true } },
+          market: { select: { id: true, name: true } },
           tourOperator: { select: { id: true, name: true, code: true } },
           season: { select: { id: true, dateFrom: true, dateTo: true } },
           currency: { select: { id: true, code: true, symbol: true } },
@@ -118,17 +119,7 @@ export const bookingRouter = createTRPCRouter({
         },
       });
 
-      // Resolve contract market name separately to avoid type inference issues
-      let contractMarketName: string | null = null;
-      if (booking.contractId) {
-        const contractMarket = await ctx.db.contractMarket.findFirst({
-          where: { contractId: booking.contractId },
-          select: { market: { select: { name: true } } },
-        });
-        contractMarketName = contractMarket?.market?.name ?? null;
-      }
-
-      return Object.assign(booking, { contractMarketName });
+      return booking;
     }),
 
   // ── Create booking ──
@@ -245,6 +236,7 @@ export const bookingRouter = createTRPCRouter({
           source,
           hotelId: input.hotelId,
           contractId: input.contractId ?? null,
+          marketId: input.marketId ?? null,
           tourOperatorId: input.tourOperatorId ?? null,
           seasonId,
           checkIn: new Date(input.checkIn),
@@ -400,6 +392,7 @@ export const bookingRouter = createTRPCRouter({
       if (d.tourOperatorId !== undefined) data.tourOperatorId = d.tourOperatorId || null;
       if (d.externalRef !== undefined) data.externalRef = d.externalRef || null;
       if (d.contractId !== undefined) data.contractId = d.contractId || null;
+      if (d.marketId !== undefined) data.marketId = d.marketId || null;
 
       // Dates
       const checkIn = d.checkIn ?? booking.checkIn.toISOString().slice(0, 10);

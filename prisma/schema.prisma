@@ -1979,6 +1979,7 @@ model Market {
 
   company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contracts               ContractMarket[]
+  bookings                Booking[]
   tourOperators           TourOperator[]
   markupRules             MarkupRule[]
   marketingContributions  ContractMarketingContribution[]
@@ -2441,6 +2442,7 @@ model Booking {
   contractId         String?
   tourOperatorId     String?
   seasonId           String?
+  marketId           String?
 
   // Dates
   checkIn            DateTime            @db.Date
@@ -2536,6 +2538,7 @@ model Booking {
   contract       Contract?        @relation(fields: [contractId], references: [id])
   tourOperator   TourOperator?    @relation(fields: [tourOperatorId], references: [id])
   season         ContractSeason?  @relation(fields: [seasonId], references: [id])
+  market         Market?          @relation(fields: [marketId], references: [id])
   currency       Currency         @relation("BookingCurrency", fields: [currencyId], references: [id])
   markupRule     MarkupRule?      @relation(fields: [markupRuleId], references: [id])
   createdBy      User?            @relation("BookingCreator", fields: [createdById], references: [id])

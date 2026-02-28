@@ -59,6 +59,7 @@ export default function NewBookingPage() {
     defaultValues: {
       hotelId: "",
       contractId: "",
+      marketId: "",
       tourOperatorId: "",
       externalRef: "",
       checkIn: "",
@@ -118,6 +119,7 @@ export default function NewBookingPage() {
   });
 
   // Watched fields
+  const marketId = form.watch("marketId");
   const hotelId = form.watch("hotelId");
   const tourOperatorId = form.watch("tourOperatorId");
   const checkIn = form.watch("checkIn");
@@ -153,6 +155,7 @@ export default function NewBookingPage() {
   // ── Data fetches ──
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
+  const { data: markets } = trpc.contracting.market.list.useQuery();
 
   const { data: hotelRoomTypes } = trpc.contracting.roomType.list.useQuery(
     { hotelId: hotelId! },
@@ -178,10 +181,11 @@ export default function NewBookingPage() {
           c.hotelId === hotelId &&
           c.status === "PUBLISHED" &&
           new Date(c.validFrom) <= ciDate &&
-          new Date(c.validTo) >= ciDate,
+          new Date(c.validTo) >= ciDate &&
+          (!marketId || c.markets.some((m) => m.marketId === marketId)),
       ) ?? null
     );
-  }, [contracts, hotelId, checkIn]);
+  }, [contracts, hotelId, checkIn, marketId]);
 
   const contractId = matchedContract?.id ?? null;
 
@@ -288,6 +292,7 @@ export default function NewBookingPage() {
   function onSubmit(values: FormValues) {
     const clean = { ...values };
     if (!clean.contractId) clean.contractId = null;
+    if (!clean.marketId) clean.marketId = null;
     if (!clean.tourOperatorId) clean.tourOperatorId = null;
     if (!clean.specialRequests) clean.specialRequests = null;
     if (!clean.internalNotes) clean.internalNotes = null;
@@ -462,7 +467,34 @@ export default function NewBookingPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {/* Market */}
+                <FormField
+                  control={form.control}
+                  name="marketId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Market</FormLabel>
+                      <FormControl>
+                        <Combobox
+                          options={(markets ?? [])
+                            .filter((m) => m.active)
+                            .map((m) => ({
+                              value: m.id,
+                              label: `${m.name} (${m.code})`,
+                            }))}
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                          placeholder="Select market"
+                          searchPlaceholder="Search markets..."
+                          emptyMessage="No markets found."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 {/* Tour Operator */}
                 <FormField
                   control={form.control}

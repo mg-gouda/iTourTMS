@@ -60,6 +60,7 @@ export const bookingCreateSchema = z
   .object({
     hotelId: z.string().min(1, "Hotel is required"),
     contractId: z.string().nullish(),
+    marketId: z.string().nullish(),
     tourOperatorId: z.string().nullish(),
     externalRef: z.string().min(1, "T/O Booking Ref is required"),
     checkIn: z.string().min(1, "Arrival date is required"),
@@ -149,6 +150,7 @@ export const bookingAmendSchema = z.object({
   externalRef: z.string().nullish(),
   hotelId: z.string().optional(),
   contractId: z.string().nullish(),
+  marketId: z.string().nullish(),
 
   // Multi-room support
   rooms: z.array(bookingRoomSchema).optional(),

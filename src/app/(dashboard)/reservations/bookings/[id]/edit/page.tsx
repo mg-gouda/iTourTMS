@@ -106,6 +106,7 @@ export default function AmendBookingPage() {
       externalRef: "",
       hotelId: "",
       contractId: "",
+      marketId: "",
       rooms: [
         {
           roomTypeId: "",
@@ -175,6 +176,7 @@ export default function AmendBookingPage() {
       externalRef: booking.externalRef ?? "",
       hotelId: booking.hotelId,
       contractId: booking.contractId ?? "",
+      marketId: booking.marketId ?? "",
       rooms,
       checkIn: new Date(booking.checkIn).toISOString().slice(0, 10),
       checkOut: new Date(booking.checkOut).toISOString().slice(0, 10),
@@ -204,6 +206,7 @@ export default function AmendBookingPage() {
   }, [booking, form]);
 
   // Watched fields
+  const marketId = form.watch("marketId") ?? booking?.marketId ?? "";
   const hotelId = form.watch("hotelId") ?? booking?.hotelId ?? "";
   const checkIn = form.watch("checkIn") ?? "";
   const checkOut = form.watch("checkOut") ?? "";
@@ -238,6 +241,7 @@ export default function AmendBookingPage() {
   // Data fetches
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
+  const { data: markets } = trpc.contracting.market.list.useQuery();
   const { data: hotelRoomTypes } = trpc.contracting.roomType.list.useQuery(
     { hotelId: hotelId! },
     { enabled: !!hotelId },
@@ -259,10 +263,11 @@ export default function AmendBookingPage() {
           c.hotelId === hotelId &&
           c.status === "PUBLISHED" &&
           new Date(c.validFrom) <= ciDate &&
-          new Date(c.validTo) >= ciDate,
+          new Date(c.validTo) >= ciDate &&
+          (!marketId || c.markets.some((m) => m.marketId === marketId)),
       ) ?? null
     );
-  }, [contracts, hotelId, checkIn]);
+  }, [contracts, hotelId, checkIn, marketId]);
 
   const contractId = matchedContract?.id ?? booking?.contractId ?? null;
 
@@ -310,6 +315,7 @@ export default function AmendBookingPage() {
 
   function onSubmit(values: FormValues) {
     const clean = { ...values };
+    if (!clean.marketId) clean.marketId = null;
     // Clean empty strings to null for optional fields
     for (const key of [
       "arrivalFlightNo", "arrivalTime", "arrivalOriginApt", "arrivalDestApt", "arrivalTerminal",
@@ -478,7 +484,30 @@ export default function AmendBookingPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {/* Market */}
+                  <FormField
+                    control={form.control}
+                    name="marketId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Market</FormLabel>
+                        <FormControl>
+                          <Combobox
+                            options={(markets ?? [])
+                              .filter((m) => m.active)
+                              .map((m) => ({ value: m.id, label: `${m.name} (${m.code})` }))}
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                            placeholder="Select market"
+                            searchPlaceholder="Search markets..."
+                            emptyMessage="No markets found."
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="tourOperatorId"

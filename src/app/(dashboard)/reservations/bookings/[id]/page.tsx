@@ -303,6 +303,9 @@ export default function BookingDetailPage() {
                   label="Rooms"
                   value={String(booking.rooms.length)}
                 />
+                {booking.market && (
+                  <InfoRow label="Market" value={booking.market.name} />
+                )}
                 {booking.contract && (
                   <InfoRow label="Contract" value={`${booking.contract.name} (${booking.contract.code})`} />
                 )}
@@ -936,7 +939,7 @@ function handleSendToHotel(booking: any, company: any) {
       bookingNotes: booking.bookingNotes,
       source: booking.source,
       hotel: booking.hotel,
-      market: booking.contractMarketName ? { name: booking.contractMarketName } : null,
+      market: booking.market ?? null,
       currency: booking.currency,
       rooms: booking.rooms.map((r: Record<string, unknown>) => ({
         roomIndex: r.roomIndex,
