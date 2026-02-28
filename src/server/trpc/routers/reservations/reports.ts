@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   arrivalListFilterSchema,
+  paymentOptionDateFilterSchema,
   reportFilterSchema,
 } from "@/lib/validations/reservations";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
@@ -363,5 +364,71 @@ export const reportsRouter = createTRPCRouter({
           totalInfants,
         },
       };
+    }),
+
+  paymentOptionDate: proc
+    .input(paymentOptionDateFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const bookings = await ctx.db.booking.findMany({
+        where: {
+          companyId: ctx.companyId,
+          status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+          checkIn: {
+            gte: new Date(input.dateFrom),
+            lte: new Date(input.dateTo),
+          },
+        },
+        select: {
+          id: true,
+          externalRef: true,
+          checkIn: true,
+          checkOut: true,
+          buyingTotal: true,
+          currencyId: true,
+          paymentOptionDate: true,
+          hotel: { select: { name: true } },
+          currency: { select: { code: true, symbol: true } },
+        },
+        orderBy: [{ hotel: { name: "asc" } }, { checkIn: "asc" }],
+      });
+
+      // Build rows and group totals by currency
+      const totalsByCurrency = new Map<
+        string,
+        { code: string; symbol: string; total: number }
+      >();
+
+      const rows = bookings.map((b) => {
+        const cost = Number(b.buyingTotal);
+        const ct = totalsByCurrency.get(b.currencyId);
+        if (ct) {
+          ct.total += cost;
+        } else {
+          totalsByCurrency.set(b.currencyId, {
+            code: b.currency.code,
+            symbol: b.currency.symbol,
+            total: cost,
+          });
+        }
+
+        return {
+          bookingId: b.id,
+          externalRef: b.externalRef ?? "",
+          checkIn: b.checkIn,
+          checkOut: b.checkOut,
+          hotelName: b.hotel.name,
+          cost,
+          currencyCode: b.currency.code,
+          currencySymbol: b.currency.symbol,
+          paymentOptionDate: b.paymentOptionDate,
+        };
+      });
+
+      const r = (v: number) => Math.round(v * 100) / 100;
+      const currencyTotals = Array.from(totalsByCurrency.values()).map(
+        (ct) => ({ ...ct, total: r(ct.total) }),
+      );
+
+      return { rows, currencyTotals };
     }),
 });

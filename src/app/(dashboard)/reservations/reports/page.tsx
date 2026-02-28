@@ -102,6 +102,16 @@ export default function ReportsPage() {
       { enabled: alFiltersReady },
     );
 
+  // Payment Option Date filters
+  const [podDateFrom, setPodDateFrom] = useState("");
+  const [podDateTo, setPodDateTo] = useState("");
+  const podFiltersReady = !!podDateFrom && !!podDateTo;
+  const { data: podData, isLoading: podLoading } =
+    trpc.reservations.reports.paymentOptionDate.useQuery(
+      { dateFrom: podDateFrom, dateTo: podDateTo },
+      { enabled: podFiltersReady },
+    );
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
@@ -175,6 +185,7 @@ export default function ReportsPage() {
           <TabsTrigger value="occupancy">Occupancy</TabsTrigger>
           <TabsTrigger value="arrivals">Arrivals & Departures</TabsTrigger>
           <TabsTrigger value="arrival-list">Arrival List</TabsTrigger>
+          <TabsTrigger value="payment-option">Payment Option Date</TabsTrigger>
         </TabsList>
 
         {/* Revenue Tab */}
@@ -733,6 +744,156 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
             </>
+          )}
+        </TabsContent>
+
+        {/* Payment Option Date Tab */}
+        <TabsContent value="payment-option" className="space-y-4">
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5">
+                  <Label>Date From *</Label>
+                  <Input
+                    type="date"
+                    className="w-[160px]"
+                    value={podDateFrom}
+                    onChange={(e) => setPodDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Date To *</Label>
+                  <Input
+                    type="date"
+                    className="w-[160px]"
+                    value={podDateTo}
+                    onChange={(e) => setPodDateTo(e.target.value)}
+                  />
+                </div>
+                {/* Currency totals inline */}
+                {podData &&
+                  podData.currencyTotals.map((ct) => (
+                    <div
+                      key={ct.code}
+                      className="ml-auto flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold"
+                    >
+                      <span className="text-muted-foreground">
+                        TTL Hotel Payment in {ct.symbol}:
+                      </span>
+                      <span className="font-mono">
+                        {ct.symbol}{" "}
+                        {ct.total.toLocaleString("en", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                  ))}
+                {(podDateFrom || podDateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setPodDateFrom("");
+                      setPodDateTo("");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {!podFiltersReady ? (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-sm text-muted-foreground">
+                  Select a date range to view the payment option date report.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Payment Option Date
+                  {podData && (
+                    <Badge variant="secondary" className="ml-2">
+                      {podData.rows.length} bookings
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {podLoading ? (
+                  <Skeleton className="h-[300px] w-full" />
+                ) : podData?.rows.length ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>T/O BKG Ref</TableHead>
+                          <TableHead className="text-center">
+                            Arr Date
+                          </TableHead>
+                          <TableHead className="text-center">
+                            Dep Date
+                          </TableHead>
+                          <TableHead>Hotel Name</TableHead>
+                          <TableHead className="text-right">Cost</TableHead>
+                          <TableHead className="text-center">
+                            Currency
+                          </TableHead>
+                          <TableHead className="text-center">
+                            P. Option Date
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {podData.rows.map((r) => (
+                          <TableRow key={r.bookingId}>
+                            <TableCell className="font-mono font-medium">
+                              {r.externalRef}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {format(new Date(r.checkIn), "dd-MMM-yy")}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {format(new Date(r.checkOut), "dd-MMM-yy")}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {r.hotelName}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {r.currencySymbol}{" "}
+                              {r.cost.toLocaleString("en", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {r.currencyCode}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {r.paymentOptionDate
+                                ? format(
+                                    new Date(r.paymentOptionDate),
+                                    "dd-MMM-yy",
+                                  )
+                                : "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No bookings found for the selected date range.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

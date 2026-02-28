@@ -285,3 +285,8 @@ export const arrivalListFilterSchema = z.object({
   destinationId: z.string().nullish(),
   zoneId: z.string().nullish(),
 });
+
+export const paymentOptionDateFilterSchema = z.object({
+  dateFrom: z.string().min(1),
+  dateTo: z.string().min(1),
+});
