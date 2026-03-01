@@ -50,9 +50,9 @@ export const childPolicyRouter = createTRPCRouter({
         where: { id: input.hotelId, companyId: ctx.companyId },
       });
 
-      const { id, hotelId, ...data } = input;
+      const { id, hotelId: _hotelId, ...data } = input;
       return ctx.db.childPolicy.update({
-        where: { id, hotelId },
+        where: { id },
         data,
       });
     }),
@@ -64,7 +64,7 @@ export const childPolicyRouter = createTRPCRouter({
         where: { id: input.hotelId, companyId: ctx.companyId },
       });
       return ctx.db.childPolicy.delete({
-        where: { id: input.id, hotelId: input.hotelId },
+        where: { id: input.id },
       });
     }),
 });

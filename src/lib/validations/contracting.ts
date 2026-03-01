@@ -138,7 +138,7 @@ export const childPolicyCreateSchema = z.object({
 
 export const mealBasisCreateSchema = z.object({
   hotelId: z.string().min(1, "Hotel is required"),
-  mealCode: z.enum(["RO", "BB", "HB", "FB", "AI", "UAI", "SC"]),
+  mealCode: z.enum(["RO", "BB", "HB", "FB", "AI", "UAI", "PRAI", "SC"]),
   name: z.string().min(1, "Name is required"),
   description: z.string().nullish(),
   isDefault: z.boolean().default(false),

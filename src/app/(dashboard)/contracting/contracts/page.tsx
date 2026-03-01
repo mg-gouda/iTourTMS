@@ -32,12 +32,13 @@ type ContractRow = {
   id: string;
   name: string;
   code: string;
+  season: string | null;
   status: string;
   hotelId: string;
   validFrom: string | Date;
   validTo: string | Date;
   rateBasis: string;
-  hotel: { id: string; name: string } | null;
+  hotel: { id: string; name: string; city: string | null } | null;
   baseCurrency: { id: string; code: string; name: string } | null;
   _count: { seasons: number; roomTypes: number; mealBases: number };
 };
@@ -115,20 +116,28 @@ export default function ContractsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [hotelFilter, setHotelFilter] = useState("ALL");
   const [currencyFilter, setCurrencyFilter] = useState("ALL");
+  const [cityFilter, setCityFilter] = useState("ALL");
+  const [seasonFilter, setSeasonFilter] = useState("ALL");
 
-  // Derive unique hotels and currencies from data
-  const { hotels, currencies } = useMemo(() => {
+  // Derive unique hotels, currencies, cities, and seasons from data
+  const { hotels, currencies, cities, seasons } = useMemo(() => {
     const hotelMap = new Map<string, string>();
     const currencyMap = new Map<string, string>();
+    const citySet = new Set<string>();
+    const seasonSet = new Set<string>();
     for (const c of (data ?? []) as ContractRow[]) {
       if (c.hotel) hotelMap.set(c.hotel.id, c.hotel.name);
       if (c.baseCurrency) currencyMap.set(c.baseCurrency.code, c.baseCurrency.code);
+      if (c.hotel?.city) citySet.add(c.hotel.city);
+      if (c.season) seasonSet.add(c.season);
     }
     return {
       hotels: Array.from(hotelMap.entries()).sort((a, b) =>
         a[1].localeCompare(b[1]),
       ),
       currencies: Array.from(currencyMap.keys()).sort(),
+      cities: Array.from(citySet).sort(),
+      seasons: Array.from(seasonSet).sort(),
     };
   }, [data]);
 
@@ -144,16 +153,25 @@ export default function ContractsPage() {
     if (currencyFilter !== "ALL") {
       result = result.filter((c) => c.baseCurrency?.code === currencyFilter);
     }
+    if (cityFilter !== "ALL") {
+      result = result.filter((c) => c.hotel?.city === cityFilter);
+    }
+    if (seasonFilter !== "ALL") {
+      result = result.filter((c) => c.season === seasonFilter);
+    }
     return result;
-  }, [data, statusFilter, hotelFilter, currencyFilter]);
+  }, [data, statusFilter, hotelFilter, currencyFilter, cityFilter, seasonFilter]);
 
   const hasFilters =
-    statusFilter !== "ALL" || hotelFilter !== "ALL" || currencyFilter !== "ALL";
+    statusFilter !== "ALL" || hotelFilter !== "ALL" || currencyFilter !== "ALL" ||
+    cityFilter !== "ALL" || seasonFilter !== "ALL";
 
   function clearFilters() {
     setStatusFilter("ALL");
     setHotelFilter("ALL");
     setCurrencyFilter("ALL");
+    setCityFilter("ALL");
+    setSeasonFilter("ALL");
   }
 
   const filterToolbar = (
@@ -181,6 +199,34 @@ export default function ContractsPage() {
           {hotels.map(([id, name]) => (
             <SelectItem key={id} value={id}>
               {name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={cityFilter} onValueChange={setCityFilter}>
+        <SelectTrigger className="h-9 w-[140px]">
+          <SelectValue placeholder="City" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Cities</SelectItem>
+          {cities.map((city) => (
+            <SelectItem key={city} value={city}>
+              {city}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={seasonFilter} onValueChange={setSeasonFilter}>
+        <SelectTrigger className="h-9 w-[120px]">
+          <SelectValue placeholder="Season" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All Seasons</SelectItem>
+          {seasons.map((s) => (
+            <SelectItem key={s} value={s}>
+              {s}
             </SelectItem>
           ))}
         </SelectContent>

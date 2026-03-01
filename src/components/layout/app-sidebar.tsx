@@ -2,6 +2,7 @@
 
 import * as Collapsible from "@radix-ui/react-collapsible";
 import {
+  Bus,
   CalendarCheck,
   ChevronRight,
   FileText,
@@ -32,6 +33,7 @@ const iconMap: Record<string, React.ElementType> = {
   FileText,
   Users,
   CalendarCheck,
+  Bus,
 };
 
 interface InstalledModule {
@@ -147,6 +149,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Stop Sales", href: "/contracting/stop-sales" },
           { label: "Expiring", href: "/contracting/expiring" },
           { label: "Import", href: "/contracting/import" },
+          { label: "Import Sejour", href: "/contracting/import-sejour" },
         ],
       },
       {
@@ -197,6 +200,54 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         label: "Analysis",
         routes: [
           { label: "Reports", href: "/reservations/reports" },
+        ],
+      },
+    ],
+  },
+  traffic: {
+    topLevel: [{ label: "Dashboard", href: "/traffic" }],
+    groups: [
+      {
+        label: "Operations",
+        routes: [
+          { label: "Traffic Jobs", href: "/traffic/jobs" },
+          { label: "Dispatch Console", href: "/traffic/dispatch" },
+          { label: "Flights", href: "/traffic/flights" },
+        ],
+      },
+      {
+        label: "Fleet",
+        routes: [
+          { label: "Vehicles", href: "/traffic/vehicles" },
+          { label: "Vehicle Types", href: "/traffic/vehicle-types" },
+          { label: "Drivers", href: "/traffic/drivers" },
+        ],
+      },
+      {
+        label: "Service",
+        routes: [
+          { label: "Reps", href: "/traffic/reps" },
+          { label: "Guest Bookings", href: "/traffic/guest-bookings" },
+        ],
+      },
+      {
+        label: "Configuration",
+        routes: [
+          { label: "Zones", href: "/traffic/zones" },
+          { label: "Airports", href: "/traffic/airports" },
+          { label: "Price Items", href: "/traffic/pricing" },
+          { label: "Supplier Prices", href: "/traffic/supplier-prices" },
+          { label: "Partner Overrides", href: "/traffic/partner-overrides" },
+          { label: "Settings", href: "/traffic/settings" },
+        ],
+      },
+      {
+        label: "Reports",
+        routes: [
+          { label: "Daily Dispatch", href: "/traffic/reports/daily-dispatch" },
+          { label: "Job Statistics", href: "/traffic/reports/job-stats" },
+          { label: "Driver Performance", href: "/traffic/reports/driver-performance" },
+          { label: "Revenue by Service", href: "/traffic/reports/revenue-by-service" },
         ],
       },
     ],

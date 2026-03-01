@@ -289,7 +289,35 @@ export async function importSejourContract(
     select: { id: true },
   });
 
+  // ---- Infer board plans from rates if parser returned empty ----
+  if (codeDefinitions.boardPlans.length === 0 && rates.length > 0) {
+    const boardCodesInRates = new Set(rates.map((r) => r.board));
+    const BOARD_NAMES: Record<string, string> = {
+      AI: "ALL INCLUSIVE", UAI: "ULTRA ALL INCLUSIVE", PRAI: "PREMIUM ALL INCLUSIVE",
+      BB: "BED & BREAKFAST", HB: "HALF BOARD", FB: "FULL BOARD",
+      RO: "ROOM ONLY", SC: "SELF CATERING", HAL: "HALF ALL INCLUSIVE",
+      SAL: "SOFT ALL INCLUSIVE", ULT: "ULTRA ALL INCLUSIVE",
+    };
+    for (const code of boardCodesInRates) {
+      if (code) {
+        codeDefinitions.boardPlans.push({
+          code,
+          name: BOARD_NAMES[code] || code,
+        });
+      }
+    }
+  }
+
   // ---- Upsert hotel room types (from code definitions) ----
+  // Filter out any board codes that accidentally got classified as room types
+  const boardCodeSet = new Set([
+    ...Object.keys(BOARD_CODE_MAP),
+    ...codeDefinitions.boardPlans.map((b) => b.code),
+  ]);
+  codeDefinitions.roomTypes = codeDefinitions.roomTypes.filter(
+    (t) => !boardCodeSet.has(t.code),
+  );
+
   const roomTypeIdByCode = new Map<string, string>();
   let roomTypesCreated = 0;
 
@@ -321,26 +349,52 @@ export async function importSejourContract(
     roomTypesCreated++;
   }
 
+  // ---- Auto-create room types referenced in rates but missing from code definitions ----
+  const rateTypeCodes = new Set(rates.map((r) => r.typeCode));
+  for (const typeCode of rateTypeCodes) {
+    if (roomTypeIdByCode.has(typeCode) || boardCodeSet.has(typeCode)) continue;
+    // Derive name from rates (typeName)
+    const sampleRate = rates.find((r) => r.typeCode === typeCode);
+    const typeName = sampleRate?.typeName || typeCode;
+    const accomData = accommodations.find((a) => a.typeCode === typeCode);
+
+    const rt = await db.hotelRoomType.upsert({
+      where: { hotelId_code: { hotelId: hotel.id, code: typeCode } },
+      update: { name: typeName },
+      create: {
+        hotelId: hotel.id,
+        name: typeName,
+        code: typeCode,
+        maxAdults: accomData?.maxAdults ?? 2,
+        maxChildren: accomData?.maxChildren ?? 2,
+        maxOccupancy: accomData?.maxPax ?? 3,
+      },
+      select: { id: true },
+    });
+    roomTypeIdByCode.set(typeCode, rt.id);
+    roomTypesCreated++;
+  }
+
   // ---- Upsert hotel meal bases ----
   const mealBasisIdByCode = new Map<string, string>();
   let mealBasesCreated = 0;
 
   for (const boardDef of codeDefinitions.boardPlans) {
     const mealCode = BOARD_CODE_MAP[boardDef.code] || boardDef.code;
-    const validMealCodes = ["RO", "BB", "HB", "FB", "AI", "UAI", "SC"];
+    const validMealCodes = ["RO", "BB", "HB", "FB", "AI", "UAI", "PRAI", "SC"];
     if (!validMealCodes.includes(mealCode)) continue;
 
     const mb = await db.hotelMealBasis.upsert({
       where: {
         hotelId_mealCode: {
           hotelId: hotel.id,
-          mealCode: mealCode as "RO" | "BB" | "HB" | "FB" | "AI" | "UAI" | "SC",
+          mealCode: mealCode as "RO" | "BB" | "HB" | "FB" | "AI" | "UAI" | "PRAI" | "SC",
         },
       },
       update: { name: boardDef.name },
       create: {
         hotelId: hotel.id,
-        mealCode: mealCode as "RO" | "BB" | "HB" | "FB" | "AI" | "UAI" | "SC",
+        mealCode: mealCode as "RO" | "BB" | "HB" | "FB" | "AI" | "UAI" | "PRAI" | "SC",
         name: boardDef.name,
       },
       select: { id: true, mealCode: true },
@@ -410,7 +464,10 @@ export async function importSejourContract(
   }
 
   // ---- Determine base room type (lowest DBL rate) ----
-  const dblRates = rates.filter((r) => r.roomCode === "DBL");
+  // Only consider type codes that were actually created as room types
+  const dblRates = rates.filter(
+    (r) => r.roomCode === "DBL" && roomTypeIdByCode.has(r.typeCode),
+  );
   const typeAvgRates = new Map<string, number>();
 
   for (const r of dblRates) {
@@ -430,6 +487,11 @@ export async function importSejourContract(
       lowestAvg = avg;
       baseTypeCode = code;
     }
+  }
+
+  // If base type code still not in roomTypeIdByCode, fall back to first available
+  if (!roomTypeIdByCode.has(baseTypeCode) && roomTypeIdByCode.size > 0) {
+    baseTypeCode = roomTypeIdByCode.keys().next().value!;
   }
 
   const baseRoomTypeId = roomTypeIdByCode.get(baseTypeCode);
@@ -827,8 +889,18 @@ export async function importSejourContract(
     for (const [letter, count] of Object.entries(allot.allocations)) {
       const periodSeasonIds = seasonIds.get(letter) || [];
       for (const seasonId of periodSeasonIds) {
-        await db.contractAllotment.create({
-          data: {
+        await db.contractAllotment.upsert({
+          where: {
+            contractId_seasonId_roomTypeId: {
+              contractId: contract.id,
+              seasonId,
+              roomTypeId: typeId,
+            },
+          },
+          update: {
+            totalRooms: { increment: count },
+          },
+          create: {
             contractId: contract.id,
             seasonId,
             roomTypeId: typeId,

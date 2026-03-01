@@ -14,6 +14,7 @@ export const MEAL_CODE_LABELS: Record<string, string> = {
   FB: "Full Board",
   AI: "All Inclusive",
   UAI: "Ultra All Inclusive",
+  PRAI: "Premium All Inclusive",
   SC: "Self Catering",
 };
 

@@ -36,10 +36,10 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
   {
     name: "traffic",
     displayName: "Traffic & Transport",
-    description: "Vehicle management, routes, driver scheduling, transfers",
+    description: "Transport jobs, fleet, drivers, reps, dispatch, guest bookings",
     icon: "Bus",
     dependencies: [],
-    isAvailable: false,
+    isAvailable: true,
   },
 ];
 

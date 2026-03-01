@@ -64,7 +64,7 @@ const STAR_RATING_MAP: Record<string, string> = {
   FIVE_DELUXE: "FIVE_DELUXE",
 };
 
-const VALID_MEAL_CODES = ["RO", "BB", "HB", "FB", "AI", "UAI", "SC"];
+const VALID_MEAL_CODES = ["RO", "BB", "HB", "FB", "AI", "UAI", "PRAI", "SC"];
 
 function str(val: unknown): string {
   if (val === null || val === undefined) return "";

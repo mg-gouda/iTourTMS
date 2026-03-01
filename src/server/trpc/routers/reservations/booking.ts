@@ -19,6 +19,7 @@ import {
 } from "@/server/services/reservations/booking-engine";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
+import { syncTrafficJobsForBooking } from "@/server/services/traffic/booking-sync";
 
 const proc = moduleProcedure("reservations");
 
@@ -376,6 +377,9 @@ export const bookingRouter = createTRPCRouter({
 
       // Log creation
       await logBookingAction(ctx.db, booking.id, "CREATED", `Booking ${code} created`, ctx.session.user.id);
+
+      // Auto-create traffic jobs from flight data
+      await syncTrafficJobsForBooking(ctx.db, ctx.companyId, booking.id, ctx.session.user.id);
 
       // Send notification to managers if stop-sale override
       if (input.stopSaleOverride) {
@@ -811,6 +815,9 @@ export const bookingRouter = createTRPCRouter({
           : "Booking amended",
         ctx.session.user.id,
       );
+
+      // Sync traffic jobs with updated flight data
+      await syncTrafficJobsForBooking(ctx.db, ctx.companyId, input.id, ctx.session.user.id);
 
       return updated;
     }),

@@ -10,6 +10,8 @@ import {
   Lock,
   Mail,
   Pencil,
+  PlaneLanding,
+  PlaneTakeoff,
   Plus,
   ShieldCheck,
   ShieldX,
@@ -463,6 +465,47 @@ export default function BookingDetailPage() {
                 <InfoRow label="Phone" value={booking.leadGuestPhone} />
               </CardContent>
             </Card>
+
+            {/* Flight Details */}
+            {(booking.arrivalFlightNo || booking.departFlightNo) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Flight Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  {booking.arrivalFlightNo && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <PlaneLanding className="size-4 text-green-600" />
+                        <span className="font-semibold">Arrival</span>
+                      </div>
+                      <div className="space-y-1">
+                        <InfoRow label="Flight No" value={booking.arrivalFlightNo} />
+                        <InfoRow label="Time" value={booking.arrivalTime} />
+                        <InfoRow label="From" value={booking.arrivalOriginApt} />
+                        <InfoRow label="To" value={booking.arrivalDestApt} />
+                        <InfoRow label="Terminal" value={booking.arrivalTerminal} />
+                      </div>
+                    </div>
+                  )}
+                  {booking.departFlightNo && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <PlaneTakeoff className="size-4 text-blue-600" />
+                        <span className="font-semibold">Departure</span>
+                      </div>
+                      <div className="space-y-1">
+                        <InfoRow label="Flight No" value={booking.departFlightNo} />
+                        <InfoRow label="Time" value={booking.departTime} />
+                        <InfoRow label="From" value={booking.departOriginApt} />
+                        <InfoRow label="To" value={booking.departDestApt} />
+                        <InfoRow label="Terminal" value={booking.departTerminal} />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Booking Metadata */}
             <Card>

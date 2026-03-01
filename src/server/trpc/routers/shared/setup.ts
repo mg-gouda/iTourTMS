@@ -32,6 +32,15 @@ export const setupRouter = createTRPCRouter({
     });
   }),
 
+  // Get airports (public — used by booking forms across modules)
+  getAirports: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db.airport.findMany({
+      where: { isActive: true },
+      select: { id: true, code: true, name: true, country: { select: { code: true, name: true } } },
+      orderBy: { code: "asc" },
+    });
+  }),
+
   // Complete setup wizard — provisions everything
   completeSetup: publicProcedure
     .input(

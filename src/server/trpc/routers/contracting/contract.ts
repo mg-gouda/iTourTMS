@@ -17,7 +17,7 @@ export const contractRouter = createTRPCRouter({
     return ctx.db.contract.findMany({
       where: { companyId: ctx.companyId, isTemplate: false },
       include: {
-        hotel: { select: { id: true, name: true } },
+        hotel: { select: { id: true, name: true, city: true } },
         baseCurrency: { select: { id: true, code: true, name: true } },
         markets: { select: { marketId: true } },
         _count: { select: { seasons: true, roomTypes: true, mealBases: true } },

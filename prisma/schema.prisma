@@ -668,6 +668,7 @@ enum MealCode {
   FB
   AI
   UAI
+  PRAI
   SC
 }
 

@@ -242,6 +242,7 @@ export default function AmendBookingPage() {
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
   const { data: markets } = trpc.contracting.market.list.useQuery();
+  const { data: airports } = trpc.setup.getAirports.useQuery();
   const { data: hotelRoomTypes } = trpc.contracting.roomType.list.useQuery(
     { hotelId: hotelId! },
     { enabled: !!hotelId },
@@ -253,6 +254,11 @@ export default function AmendBookingPage() {
 
   // Contract match
   const { data: contracts } = trpc.contracting.contract.list.useQuery(undefined, { enabled: !!hotelId });
+
+  const airportOptions = useMemo(
+    () => (airports ?? []).map((a) => ({ value: a.code, label: `${a.code} — ${a.name}`, group: a.country.name })),
+    [airports],
+  );
 
   const matchedContract = useMemo(() => {
     if (!hotelId || !checkIn) return null;
@@ -575,10 +581,10 @@ export default function AmendBookingPage() {
                     <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" lang="en-GB" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalOriginApt" render={({ field }) => (
-                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalDestApt" render={({ field }) => (
-                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalTerminal" render={({ field }) => (
                     <FormItem><FormLabel>Terminal</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
@@ -607,10 +613,10 @@ export default function AmendBookingPage() {
                     <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" lang="en-GB" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departOriginApt" render={({ field }) => (
-                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departDestApt" render={({ field }) => (
-                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departTerminal" render={({ field }) => (
                     <FormItem><FormLabel>Terminal</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>

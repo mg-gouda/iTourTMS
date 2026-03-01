@@ -164,6 +164,7 @@ export default function NewBookingPage() {
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
   const { data: markets } = trpc.contracting.market.list.useQuery();
+  const { data: airports } = trpc.setup.getAirports.useQuery();
 
   const { data: hotelRoomTypes } = trpc.contracting.roomType.list.useQuery(
     { hotelId: hotelId! },
@@ -177,6 +178,11 @@ export default function NewBookingPage() {
   const { data: contracts } = trpc.contracting.contract.list.useQuery(
     undefined,
     { enabled: !!hotelId },
+  );
+
+  const airportOptions = useMemo(
+    () => (airports ?? []).map((a) => ({ value: a.code, label: `${a.code} — ${a.name}`, group: a.country.name })),
+    [airports],
   );
 
   // Auto-resolve contract
@@ -674,7 +680,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Origin Airport</FormLabel>
                       <FormControl>
-                        <Input placeholder="LHR" {...field} value={field.value ?? ""} />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -686,7 +692,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Dest. Airport</FormLabel>
                       <FormControl>
-                        <Input placeholder="HRG" {...field} value={field.value ?? ""} />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -761,7 +767,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Origin Airport</FormLabel>
                       <FormControl>
-                        <Input placeholder="HRG" {...field} value={field.value ?? ""} />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -773,7 +779,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>Dest. Airport</FormLabel>
                       <FormControl>
-                        <Input placeholder="LHR" {...field} value={field.value ?? ""} />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
