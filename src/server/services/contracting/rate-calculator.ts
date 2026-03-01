@@ -93,7 +93,7 @@ export interface BookingScenario {
   roomTypeId: string;
   mealBasisId: string;
   adults: number;
-  children: { category: string }[];
+  children: { category: string; age?: number }[];
   extraBed: boolean;
   nights: number;
   bookingDate: string | null;
@@ -576,9 +576,16 @@ export function calculateRate(
   }
 
   // 7. Child charges (from child policy chargePercentage)
+  //
+  // Matching logic:
+  //   - Find ALL policies whose age range covers the child's age
+  //   - Sort by specificity: narrowest range first (the "charge" policy)
+  //   - Check broader policies for free slots: freeInSharing or chargePercentage=0
+  //     on a broader range grants 1 free child (or maxFreePerRoom if set)
+  //   - If a free slot is available on any broader policy, the child is free
+  //   - Otherwise, apply the narrowest (most specific) policy's chargePercentage
+  //
   const childCharges: ChildChargeLine[] = [];
-
-  // Track free-in-sharing counts per category
   const freeCounts: Record<string, number> = {};
 
   for (let i = 0; i < children.length; i++) {
@@ -587,45 +594,66 @@ export function calculateRate(
     const catLabel = CATEGORY_LABELS[child.category] ?? child.category;
     const posLabel = `${ordinal(position)} Child (${catLabel})`;
 
-    // Find matching child policy by category
-    const policy = contract.childPolicies.find((cp) => cp.category === child.category);
-
-    if (policy) {
-      // Check free-in-sharing eligibility
-      if (policy.freeInSharing) {
-        const usedFree = freeCounts[child.category] ?? 0;
-        if (usedFree < policy.maxFreePerRoom) {
-          freeCounts[child.category] = usedFree + 1;
-          childCharges.push({
-            category: child.category, position, amount: 0,
-            isFree: true, label: `${posLabel} — Free`,
-          });
-          continue;
-        }
-      }
-
-      // Charge based on chargePercentage
-      const charge = baseRate.times(policy.chargePercentage).div(100);
-      childCharges.push({
-        category: child.category, position,
-        amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
-        isFree: false, label: policy.chargePercentage === 0 ? `${posLabel} — Free` : `${posLabel} (${policy.chargePercentage}%)`,
-      });
+    // Find all matching policies by age, sorted narrowest first
+    let matching: RateContractData["childPolicies"][number][];
+    if (child.age != null) {
+      matching = contract.childPolicies
+        .filter((cp) => child.age! >= cp.ageFrom && child.age! <= cp.ageTo)
+        .sort((a, b) => (a.ageTo - a.ageFrom) - (b.ageTo - b.ageFrom));
     } else {
-      // No policy: defaults — INFANT free, TEEN full adult rate, others full rate
+      // No age: fall back to category match
+      const byCategory = contract.childPolicies.find((cp) => cp.category === child.category);
+      matching = byCategory ? [byCategory] : [];
+    }
+
+    if (matching.length === 0) {
+      // No policy: defaults — INFANT free, others full rate
       if (child.category === "INFANT") {
-        childCharges.push({
-          category: child.category, position, amount: 0,
-          isFree: true, label: `${posLabel} — Free`,
-        });
+        childCharges.push({ category: child.category, position, amount: 0, isFree: true, label: `${posLabel} — Free` });
       } else {
-        childCharges.push({
-          category: child.category, position,
-          amount: baseRate.toDecimalPlaces(4).toNumber(),
-          isFree: false, label: `${posLabel} (100%)`,
-        });
+        childCharges.push({ category: child.category, position, amount: baseRate.toDecimalPlaces(4).toNumber(), isFree: false, label: `${posLabel} (100%)` });
+      }
+      continue;
+    }
+
+    // The narrowest (most specific) policy determines the charge
+    const chargePolicy = matching[0];
+
+    // Check all matching policies for free eligibility (broadest checked first)
+    let grantedFree = false;
+    for (let p = matching.length - 1; p >= 0; p--) {
+      const pol = matching[p];
+      const freeKey = `${pol.ageFrom}-${pol.ageTo}`;
+      const used = freeCounts[freeKey] ?? 0;
+
+      if (pol.freeInSharing && used < pol.maxFreePerRoom) {
+        freeCounts[freeKey] = used + 1;
+        grantedFree = true;
+        break;
+      }
+      // A broader policy with chargePercentage=0 acts as an implicit 1-free-per-room rule
+      // (only if it's broader than the charge policy, i.e., not the narrowest match itself)
+      if (p > 0 && pol.chargePercentage === 0 && used < 1) {
+        freeCounts[freeKey] = used + 1;
+        grantedFree = true;
+        break;
       }
     }
+
+    if (grantedFree) {
+      childCharges.push({ category: child.category, position, amount: 0, isFree: true, label: `${posLabel} — Free` });
+      continue;
+    }
+
+    // Apply the narrowest policy's chargePercentage
+    const charge = baseRate.times(chargePolicy.chargePercentage).div(100);
+    const isFreeCharge = chargePolicy.chargePercentage === 0;
+    childCharges.push({
+      category: child.category, position,
+      amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
+      isFree: isFreeCharge,
+      label: isFreeCharge ? `${posLabel} — Free` : `${posLabel} (${chargePolicy.chargePercentage}%)`,
+    });
   }
 
   // 8. Aggregate
@@ -820,9 +848,10 @@ export function calculateMultiRoomRate(
 
     if (!matchingOccupancy) continue;
 
-    // Build children array for the existing calculateRate
-    const childrenForCalc: { category: string }[] = resolvedChildren.map((c) => ({
+    // Build children array for the existing calculateRate (include age for age-based matching)
+    const childrenForCalc = resolvedChildren.map((c) => ({
       category: c.category,
+      age: c.ageAtCheckIn,
     }));
 
     const breakdown = calculateRate(contract, {
@@ -887,7 +916,7 @@ export function calculateMultiRoomRate(
 export interface OccupancyVariant {
   label: string;       // "SGL", "DBL", "TPL", "2+1C", "2+2C"
   adults: number;
-  children: { category: string }[];
+  children: { category: string; age?: number }[];
   extraBed: boolean;
 }
 
@@ -940,12 +969,15 @@ export function computeFullRateGrid(contract: RateContractData): FullRateGridDat
     { label: "TPL", adults: 3, children: [], extraBed: false },
   ];
 
-  // Add child combos from childPolicies
-  const childCategory = contract.childPolicies.find((cp) => cp.category === "CHILD");
-  if (childCategory) {
+  // Add child combos from childPolicies (use midpoint age for age-based matching)
+  const childPolicies = contract.childPolicies.filter((cp) => cp.category === "CHILD" || cp.category === "TEEN");
+  if (childPolicies.length > 0) {
+    // Pick the highest-age CHILD policy for representative child
+    const rep = childPolicies.find((cp) => cp.category === "CHILD") ?? childPolicies[0];
+    const repAge = Math.floor((rep.ageFrom + rep.ageTo) / 2);
     variants.push(
-      { label: "2+1C", adults: 2, children: [{ category: "CHILD" }], extraBed: false },
-      { label: "2+2C", adults: 2, children: [{ category: "CHILD" }, { category: "CHILD" }], extraBed: false },
+      { label: "2+1C", adults: 2, children: [{ category: rep.category, age: repAge }], extraBed: false },
+      { label: "2+2C", adults: 2, children: [{ category: rep.category, age: repAge }, { category: rep.category, age: repAge }], extraBed: false },
     );
   }
 
@@ -1036,12 +1068,13 @@ export function computeFullRateGrid(contract: RateContractData): FullRateGridDat
       for (const mb of contract.mealBases) {
         for (const season of contract.seasons) {
           // Calculate with 2 adults + 1 child to extract child charge
+          const repAge = Math.floor((policy.ageFrom + policy.ageTo) / 2);
           const breakdown = calculateRate(contract, {
             seasonId: season.id,
             roomTypeId: contract.baseRoomTypeId,
             mealBasisId: mb.mealBasisId,
             adults: 2,
-            children: [{ category: policy.category }],
+            children: [{ category: policy.category, age: repAge }],
             extraBed,
             nights: 1,
             bookingDate: null,

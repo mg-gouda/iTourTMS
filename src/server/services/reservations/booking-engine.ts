@@ -105,15 +105,17 @@ export async function fetchContractForRates(
   if (!contract) return null;
 
   // Merge child policies (contract overrides hotel defaults)
+  // Key by age range to support multiple policies per category
+  const ageKey = (p: { ageFrom: number; ageTo: number }) => `${p.ageFrom}-${p.ageTo}`;
   const contractOverrides = new Map(
-    contract.childPolicies.map((cp) => [cp.category, cp]),
+    contract.childPolicies.map((cp) => [ageKey(cp), cp]),
   );
-  const categories = new Set([
-    ...contract.hotel.childrenPolicies.map((p) => p.category),
-    ...contract.childPolicies.map((p) => p.category),
+  const allKeys = new Set([
+    ...contract.hotel.childrenPolicies.map(ageKey),
+    ...contract.childPolicies.map(ageKey),
   ]);
-  const childPolicies = Array.from(categories).map((category) => {
-    const override = contractOverrides.get(category);
+  const childPolicies = Array.from(allKeys).map((key) => {
+    const override = contractOverrides.get(key);
     if (override) {
       return {
         category: override.category,
@@ -125,7 +127,7 @@ export async function fetchContractForRates(
         chargePercentage: override.chargePercentage,
       };
     }
-    const hotel = contract.hotel.childrenPolicies.find((p) => p.category === category)!;
+    const hotel = contract.hotel.childrenPolicies.find((p) => ageKey(p) === key)!;
     return {
       category: hotel.category,
       ageFrom: hotel.ageFrom,

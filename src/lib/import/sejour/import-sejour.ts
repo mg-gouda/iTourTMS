@@ -161,77 +161,69 @@ async function resolveDestination(
   return dest.id;
 }
 
-/** Generate contract code using Sequence model */
+/**
+ * Generate contract code in the format: {HotelAbbr}/{Market}/{Season}/{4-digit serial}
+ * e.g. AMCRHS/FREN/S26/0001
+ */
 async function generateContractCode(
   db: PrismaClient,
   companyId: string,
+  hotelCode: string,
+  marketCode: string,
+  seasonCode: string,
 ): Promise<string> {
-  const now = new Date();
-  const year = now.getFullYear();
-
-  // Try to use existing contract sequence
-  const sequence = await db.sequence.findUnique({
-    where: { companyId_code: { companyId, code: "contract" } },
+  // Count existing contracts with the same prefix to determine serial
+  const prefix = `${hotelCode}/${marketCode}/${seasonCode}/`;
+  const existing = await db.contract.findMany({
+    where: { companyId, code: { startsWith: prefix } },
+    select: { code: true },
+    orderBy: { code: "desc" },
+    take: 1,
   });
 
-  if (sequence) {
-    let nextNumber = sequence.nextNumber;
-    const lastResetYear = sequence.lastReset.getFullYear();
-
-    if (sequence.resetPolicy === "yearly" && lastResetYear < year) {
-      nextNumber = sequence.startNumber;
-    }
-
-    const padded = String(nextNumber).padStart(sequence.padding, "0");
-
-    if (sequence.formatType === "company_serial") {
-      const company = await db.company.findUnique({
-        where: { id: companyId },
-        select: { abbreviation: true, name: true },
-      });
-      const abbr =
-        company?.abbreviation ??
-        (company?.name
-          ? company.name
-              .split(/\s+/)
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)
-          : sequence.prefix);
-
-      await db.sequence.update({
-        where: { companyId_code: { companyId, code: "contract" } },
-        data: { nextNumber: nextNumber + 1, lastReset: now },
-      });
-      return `${abbr}${sequence.separator}${padded}`;
-    }
-
-    const formatted = `${sequence.prefix}${sequence.separator}${year}${sequence.separator}${padded}`;
-    await db.sequence.update({
-      where: { companyId_code: { companyId, code: "contract" } },
-      data: { nextNumber: nextNumber + 1, lastReset: now },
-    });
-    return formatted;
+  let serial = 1;
+  if (existing.length > 0) {
+    const lastCode = existing[0].code;
+    const lastSerial = parseInt(lastCode.split("/").pop() ?? "0", 10);
+    if (!isNaN(lastSerial)) serial = lastSerial + 1;
   }
 
-  // No sequence found — auto-create one and use it
-  const newSeq = await db.sequence.create({
-    data: {
+  return `${prefix}${String(serial).padStart(4, "0")}`;
+}
+
+/** Resolve or create a Market for the company and return its ID and code */
+async function resolveMarket(
+  db: PrismaClient,
+  companyId: string,
+  marketName: string,
+): Promise<{ id: string; code: string } | null> {
+  const name = marketName.trim();
+  if (!name) return null;
+
+  const code = name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 5);
+
+  const existing = await db.market.findFirst({
+    where: {
       companyId,
-      code: "contract",
-      prefix: "CTR",
-      separator: "-",
-      padding: 5,
-      nextNumber: 2, // We'll use 1 for this first contract
-      formatType: "standard",
-      startNumber: 1,
-      resetPolicy: "yearly",
-      lastReset: now,
+      OR: [
+        { name: { equals: name, mode: "insensitive" } },
+        { code: { equals: code, mode: "insensitive" } },
+      ],
     },
+    select: { id: true, code: true },
   });
-  const padded = String(1).padStart(newSeq.padding, "0");
-  return `${newSeq.prefix}${newSeq.separator}${year}${newSeq.separator}${padded}`;
+  if (existing) return existing;
+
+  const created = await db.market.create({
+    data: { companyId, name, code },
+    select: { id: true, code: true },
+  });
+  return created;
 }
 
 // ---------------------------------------------------------------------------
@@ -260,6 +252,11 @@ export async function importSejourContract(
     header.city,
     countryId,
   );
+
+  // ---- Resolve/create market ----
+  const market = await resolveMarket(db, companyId, header.market);
+  const marketId = market?.id ?? null;
+  const marketCode = market?.code ?? "GEN";
 
   // ---- Upsert hotel ----
   const hotelCode = generateHotelCode(header.hotelName);
@@ -461,7 +458,7 @@ export async function importSejourContract(
   );
 
   // ---- Generate contract code ----
-  const contractCode = await generateContractCode(db, companyId);
+  const contractCode = await generateContractCode(db, companyId, hotelCode, marketCode, header.seasonCode);
 
   // ---- Determine minimum stay ----
   const minStayDays = minimumStay.length > 0
@@ -494,6 +491,78 @@ export async function importSejourContract(
     },
     select: { id: true },
   });
+
+  // ---- Assign market to contract ----
+  if (marketId) {
+    await db.contractMarket.create({
+      data: { contractId: contract.id, marketId },
+    });
+  }
+
+  // ---- Create default occupancy tables for room types ----
+  for (const [, rtId] of roomTypeIdByCode) {
+    const existingOcc = await db.roomTypeOccupancy.findFirst({
+      where: { roomTypeId: rtId },
+      select: { id: true },
+    });
+    if (existingOcc) continue;
+
+    // Find the accommodation data for capacity info
+    const typeDef = codeDefinitions.roomTypes.find(
+      (t) => roomTypeIdByCode.get(t.code) === rtId,
+    );
+    const accom = typeDef
+      ? accommodations.find((a) => a.typeCode === typeDef.code)
+      : null;
+
+    const maxAdults = accom?.maxAdults ?? 2;
+    const maxChildren = accom?.maxChildren ?? 2;
+
+    // Generate standard occupancy combos based on capacity
+    const combos: { adults: number; children: number; infants: number; extraBeds: number; description: string; isDefault: boolean }[] = [];
+
+    // Base adult combos (1, 2, 3 adults — up to maxAdults)
+    for (let a = 1; a <= Math.min(maxAdults, 3); a++) {
+      combos.push({ adults: a, children: 0, infants: 0, extraBeds: 0, description: `${a} Adult${a > 1 ? "s" : ""}`, isDefault: a === 2 });
+    }
+
+    // Adult + child combos
+    for (let a = 1; a <= Math.min(maxAdults, 2); a++) {
+      for (let c = 1; c <= maxChildren; c++) {
+        if (a + c > (accom?.maxPax ?? 4)) break;
+        combos.push({ adults: a, children: c, infants: 0, extraBeds: 0, description: `${a}A + ${c}C`, isDefault: false });
+      }
+    }
+
+    // Adult + infant combos (2 adults + 1 infant)
+    combos.push({ adults: 2, children: 0, infants: 1, extraBeds: 0, description: "2A + 1 Infant", isDefault: false });
+
+    for (let i = 0; i < combos.length; i++) {
+      const c = combos[i];
+      await db.roomTypeOccupancy.upsert({
+        where: {
+          roomTypeId_adults_children_infants_extraBeds: {
+            roomTypeId: rtId,
+            adults: c.adults,
+            children: c.children,
+            infants: c.infants,
+            extraBeds: c.extraBeds,
+          },
+        },
+        update: {},
+        create: {
+          roomTypeId: rtId,
+          adults: c.adults,
+          children: c.children,
+          infants: c.infants,
+          extraBeds: c.extraBeds,
+          isDefault: c.isDefault,
+          description: c.description,
+          sortOrder: i,
+        },
+      });
+    }
+  }
 
   // ---- Create contract seasons ----
   // Deduplicate periods by letter (each letter = one season)

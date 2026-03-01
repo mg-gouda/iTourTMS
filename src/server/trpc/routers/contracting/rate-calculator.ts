@@ -90,16 +90,18 @@ async function fetchContractData(
     })),
     childPolicies: (() => {
       // Contract-level overrides take precedence over hotel defaults
+      // Key by age range (not category) to support multiple policies per category
+      const ageKey = (p: { ageFrom: number; ageTo: number }) => `${p.ageFrom}-${p.ageTo}`;
       const contractOverrides = new Map(
-        contract.childPolicies.map((cp) => [cp.category, cp]),
+        contract.childPolicies.map((cp) => [ageKey(cp), cp]),
       );
       const hotelDefaults = contract.hotel.childrenPolicies;
-      const categories = new Set([
-        ...hotelDefaults.map((p) => p.category),
-        ...contract.childPolicies.map((p) => p.category),
+      const allKeys = new Set([
+        ...hotelDefaults.map(ageKey),
+        ...contract.childPolicies.map(ageKey),
       ]);
-      return Array.from(categories).map((category) => {
-        const override = contractOverrides.get(category);
+      return Array.from(allKeys).map((key) => {
+        const override = contractOverrides.get(key);
         if (override) {
           return {
             category: override.category,
@@ -111,7 +113,7 @@ async function fetchContractData(
             chargePercentage: override.chargePercentage,
           };
         }
-        const hotel = hotelDefaults.find((p) => p.category === category)!;
+        const hotel = hotelDefaults.find((p) => ageKey(p) === key)!;
         return {
           category: hotel.category,
           ageFrom: hotel.ageFrom,
@@ -170,7 +172,8 @@ async function fetchOccupancyTables(
   const rows = await db.roomTypeOccupancy.findMany({
     where: { roomTypeId: { in: roomTypeIds } },
   });
-  return rows.map((r) => ({
+
+  const result: OccupancyRow[] = rows.map((r) => ({
     id: r.id,
     roomTypeId: r.roomTypeId,
     adults: r.adults,
@@ -180,6 +183,49 @@ async function fetchOccupancyTables(
     isDefault: r.isDefault,
     description: r.description,
   }));
+
+  // For room types missing occupancy entries, generate defaults from capacity
+  const coveredIds = new Set(rows.map((r) => r.roomTypeId));
+  const missingIds = roomTypeIds.filter((id) => !coveredIds.has(id));
+
+  if (missingIds.length === 0) return result;
+
+  const defaults: OccupancyRow[] = [];
+  const roomTypes = await db.hotelRoomType.findMany({
+    where: { id: { in: missingIds } },
+    select: { id: true, maxAdults: true, maxChildren: true, maxOccupancy: true },
+  });
+
+  for (const rt of roomTypes) {
+    const maxA = rt.maxAdults ?? 3;
+    const maxC = rt.maxChildren ?? 2;
+    const maxPax = rt.maxOccupancy ?? 4;
+
+    // Standard adult combos
+    for (let a = 1; a <= Math.min(maxA, 3); a++) {
+      defaults.push({ id: `default-${rt.id}-${a}-0-0-0`, roomTypeId: rt.id, adults: a, children: 0, infants: 0, extraBeds: 0, isDefault: a === 2, description: null });
+    }
+
+    // Adult + child combos
+    for (let a = 1; a <= Math.min(maxA, 2); a++) {
+      for (let c = 1; c <= maxC; c++) {
+        if (a + c > maxPax) break;
+        defaults.push({ id: `default-${rt.id}-${a}-${c}-0-0`, roomTypeId: rt.id, adults: a, children: c, infants: 0, extraBeds: 0, isDefault: false, description: null });
+      }
+    }
+
+    // Adult + infant combos
+    defaults.push({ id: `default-${rt.id}-2-0-1-0`, roomTypeId: rt.id, adults: 2, children: 0, infants: 1, extraBeds: 0, isDefault: false, description: null });
+    defaults.push({ id: `default-${rt.id}-1-0-1-0`, roomTypeId: rt.id, adults: 1, children: 0, infants: 1, extraBeds: 0, isDefault: false, description: null });
+
+    // Mixed combos with infants
+    for (let c = 1; c <= maxC; c++) {
+      if (2 + c + 1 > maxPax) break;
+      defaults.push({ id: `default-${rt.id}-2-${c}-1-0`, roomTypeId: rt.id, adults: 2, children: c, infants: 1, extraBeds: 0, isDefault: false, description: null });
+    }
+  }
+
+  return [...result, ...defaults];
 }
 
 export const rateCalculatorRouter = createTRPCRouter({

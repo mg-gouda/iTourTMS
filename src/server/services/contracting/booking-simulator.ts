@@ -202,11 +202,11 @@ export function simulateStay(
   warnings.push(...checkStopSales(stopSales, params.checkIn, params.checkOut));
 
   // Resolve child categories from ages
-  const children: { category: string }[] = params.childAges.map((age) => {
+  const children = params.childAges.map((age) => {
     const policy = contract.childPolicies.find(
       (cp) => age >= cp.ageFrom && age <= cp.ageTo,
     );
-    return { category: policy?.category ?? (age <= 2 ? "INFANT" : "CHILD") };
+    return { category: policy?.category ?? (age <= 2 ? "INFANT" : "CHILD"), age };
   });
 
   // Build rate matrix: room type × meal basis, with per-night rates
