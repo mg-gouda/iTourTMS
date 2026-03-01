@@ -122,6 +122,7 @@ export async function fetchContractForRates(
         freeInSharing: override.freeInSharing,
         maxFreePerRoom: override.maxFreePerRoom,
         extraBedAllowed: override.extraBedAllowed,
+        chargePercentage: override.chargePercentage,
       };
     }
     const hotel = contract.hotel.childrenPolicies.find((p) => p.category === category)!;
@@ -132,6 +133,7 @@ export async function fetchContractForRates(
       freeInSharing: hotel.freeInSharing,
       maxFreePerRoom: hotel.maxFreePerRoom,
       extraBedAllowed: hotel.extraBedAllowed,
+      chargePercentage: hotel.chargePercentage,
     };
   });
 

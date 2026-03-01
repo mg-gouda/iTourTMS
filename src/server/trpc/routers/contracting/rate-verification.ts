@@ -114,6 +114,7 @@ export const rateVerificationRouter = createTRPCRouter({
           freeInSharing: cp.freeInSharing,
           maxFreePerRoom: cp.maxFreePerRoom,
           extraBedAllowed: cp.extraBedAllowed,
+          chargePercentage: cp.chargePercentage,
         })),
         specialOffers: contract.specialOffers.map((o) => ({
           id: o.id,

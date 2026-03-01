@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import {
-  supplementChildBulkSaveSchema,
   supplementExtraBedBulkSaveSchema,
   supplementMealBulkSaveSchema,
   supplementOccupancyBulkSaveSchema,
@@ -138,45 +137,6 @@ export const contractSupplementRouter = createTRPCRouter({
               value: item.value,
               valueType: item.valueType,
               isReduction: item.isReduction,
-              perNight: item.perNight,
-            })),
-          });
-        }
-      });
-
-      await logContractAction(ctx.db, {
-        contractId: input.contractId,
-        action: "UPDATE",
-        entity: "SUPPLEMENT",
-        summary: `Updated supplements`,
-        userId: ctx.session.user.id,
-        userName: ctx.session.user.name ?? "",
-      });
-
-      maybeDispatchContractWebhook(ctx.db, ctx.companyId, input.contractId, "rates.updated");
-
-      return { success: true };
-    }),
-
-  bulkSaveChild: proc
-    .input(supplementChildBulkSaveSchema)
-    .mutation(async ({ ctx, input }) => {
-      await verifyContract(ctx.db, input.contractId, ctx.companyId);
-
-      await ctx.db.$transaction(async (tx) => {
-        await tx.contractSupplement.deleteMany({
-          where: { contractId: input.contractId, supplementType: "CHILD" },
-        });
-
-        if (input.items.length > 0) {
-          await tx.contractSupplement.createMany({
-            data: input.items.map((item) => ({
-              contractId: input.contractId,
-              supplementType: "CHILD" as const,
-              childPosition: item.childPosition,
-              forChildCategory: item.forChildCategory,
-              value: item.value,
-              valueType: item.valueType,
               perNight: item.perNight,
             })),
           });

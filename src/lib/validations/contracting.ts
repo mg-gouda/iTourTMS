@@ -127,6 +127,7 @@ export const childPolicyCreateSchema = z.object({
   maxFreePerRoom: z.number().int().min(0).default(0),
   extraBedAllowed: z.boolean().default(true),
   mealsIncluded: z.boolean().default(false),
+  chargePercentage: z.number().int().min(0).max(100).default(100),
   notes: z.string().nullish(),
 }).refine((d) => d.ageTo >= d.ageFrom, {
   message: "Age To must be greater than or equal to Age From",
@@ -292,16 +293,6 @@ export const supplementOccupancyBulkSaveSchema = z.object({
   })),
 });
 
-export const supplementChildBulkSaveSchema = z.object({
-  contractId: z.string().min(1, "Contract is required"),
-  items: z.array(z.object({
-    childPosition: z.number().int().min(1),
-    forChildCategory: z.enum(["INFANT", "CHILD", "TEEN"]).nullable(),
-    value: z.number(),
-    valueType: z.enum(["FIXED", "PERCENTAGE"]).default("PERCENTAGE"),
-    perNight: z.boolean().default(true),
-  })),
-});
 
 export const supplementExtraBedBulkSaveSchema = z.object({
   contractId: z.string().min(1, "Contract is required"),
@@ -684,6 +675,7 @@ export const contractChildPolicyCreateSchema = z.object({
   maxFreePerRoom: z.number().int().min(0).default(0),
   extraBedAllowed: z.boolean().default(true),
   mealsIncluded: z.boolean().default(false),
+  chargePercentage: z.number().int().min(0).max(100).default(100),
   notes: z.string().nullish(),
 }).refine((d) => d.ageTo >= d.ageFrom, {
   message: "Age To must be >= Age From",
@@ -700,6 +692,7 @@ export const contractChildPolicyUpdateSchema = z.object({
   maxFreePerRoom: z.number().int().min(0).optional(),
   extraBedAllowed: z.boolean().optional(),
   mealsIncluded: z.boolean().optional(),
+  chargePercentage: z.number().int().min(0).max(100).optional(),
   notes: z.string().nullish(),
 });
 

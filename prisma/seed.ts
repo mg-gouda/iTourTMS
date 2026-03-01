@@ -2,6 +2,8 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+import { AIRPORTS } from "./data/airports";
+
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
 });
@@ -296,6 +298,23 @@ async function main() {
     });
   }
   console.log(`  ✓ ${countries.length} countries seeded`);
+
+  // ── Airports ──
+  const allCountries = await prisma.country.findMany({ select: { id: true, code: true } });
+  const countryMap = new Map(allCountries.map((c) => [c.code, c.id]));
+
+  const airportData = AIRPORTS
+    .filter((a) => countryMap.has(a.countryCode))
+    .map((a) => ({
+      code: a.code,
+      name: a.name,
+      countryId: countryMap.get(a.countryCode)!,
+      latitude: a.latitude,
+      longitude: a.longitude,
+    }));
+
+  await prisma.airport.createMany({ data: airportData, skipDuplicates: true });
+  console.log(`  ✓ ${airportData.length} airports seeded`);
 
   console.log("\nSeed completed successfully!");
 }
@@ -1144,9 +1163,9 @@ export async function seedContracting(companyId: string) {
     // Child Policies
     await prisma.childPolicy.createMany({
       data: [
-        { hotelId: hotel.id, category: "INFANT", ageFrom: 0, ageTo: 2, label: "Infant (0-2 years)", freeInSharing: true, maxFreePerRoom: 1, extraBedAllowed: false, mealsIncluded: false },
-        { hotelId: hotel.id, category: "CHILD", ageFrom: 3, ageTo: 11, label: "Child (3-11 years)", freeInSharing: true, maxFreePerRoom: 1, extraBedAllowed: true, mealsIncluded: true },
-        { hotelId: hotel.id, category: "TEEN", ageFrom: 12, ageTo: 17, label: "Teen (12-17 years)", freeInSharing: false, maxFreePerRoom: 0, extraBedAllowed: true, mealsIncluded: true },
+        { hotelId: hotel.id, category: "INFANT", ageFrom: 0, ageTo: 2, label: "Infant (0-2 years)", freeInSharing: true, maxFreePerRoom: 1, extraBedAllowed: false, mealsIncluded: false, chargePercentage: 0 },
+        { hotelId: hotel.id, category: "CHILD", ageFrom: 3, ageTo: 11, label: "Child (3-11 years)", freeInSharing: true, maxFreePerRoom: 1, extraBedAllowed: true, mealsIncluded: true, chargePercentage: 50 },
+        { hotelId: hotel.id, category: "TEEN", ageFrom: 12, ageTo: 17, label: "Teen (12-17 years)", freeInSharing: false, maxFreePerRoom: 0, extraBedAllowed: true, mealsIncluded: true, chargePercentage: 100 },
       ],
     });
 
@@ -1302,7 +1321,7 @@ export async function seedContracting(companyId: string) {
         const supplementData: {
           contractId: string;
           seasonId: string;
-          supplementType: "ROOM_TYPE" | "MEAL" | "OCCUPANCY" | "CHILD" | "EXTRA_BED";
+          supplementType: "ROOM_TYPE" | "MEAL" | "OCCUPANCY" | "EXTRA_BED";
           roomTypeId?: string;
           mealBasisId?: string;
           forAdults?: number;
@@ -1350,14 +1369,6 @@ export async function seedContracting(companyId: string) {
           { contractId: contract.id, seasonId: highSeason.id, supplementType: "OCCUPANCY", forAdults: 1, value: 30, valueType: "PERCENTAGE" },
           { contractId: contract.id, seasonId: lowSeason.id, supplementType: "OCCUPANCY", forAdults: 3, value: 10, valueType: "PERCENTAGE", isReduction: true },
           { contractId: contract.id, seasonId: highSeason.id, supplementType: "OCCUPANCY", forAdults: 3, value: 15, valueType: "PERCENTAGE", isReduction: true },
-        );
-
-        // Child supplements: CHILD sharing
-        supplementData.push(
-          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "SHARING_WITH_PARENTS", value: 0 },
-          { contractId: contract.id, seasonId: highSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "SHARING_WITH_PARENTS", value: 0 },
-          { contractId: contract.id, seasonId: lowSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "EXTRA_BED", value: 30 },
-          { contractId: contract.id, seasonId: highSeason.id, supplementType: "CHILD", forChildCategory: "CHILD", forChildBedding: "EXTRA_BED", value: 40 },
         );
 
         // Extra Bed supplements
@@ -1503,6 +1514,7 @@ export async function seedContracting(companyId: string) {
               maxFreePerRoom: 2,
               extraBedAllowed: true,
               mealsIncluded: true,
+              chargePercentage: 50,
               notes: "Contract-specific: increased free children to 2 per room with meals included",
             },
           ],
@@ -1564,11 +1576,15 @@ export async function seedContracting(companyId: string) {
   console.log("  ✓ Contracting seed completed");
 }
 
-main()
-  .catch((e) => {
-    console.error("Seed error:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Only run main() when executed directly (not when imported)
+const isDirectRun = process.argv[1]?.includes("seed.ts") && !process.argv[1]?.includes("seed-setup");
+if (isDirectRun) {
+  main()
+    .catch((e) => {
+      console.error("Seed error:", e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

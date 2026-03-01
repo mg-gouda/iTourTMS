@@ -47,6 +47,7 @@ export interface RateContractData {
     freeInSharing: boolean;
     maxFreePerRoom: number;
     extraBedAllowed: boolean;
+    chargePercentage: number;
   }[];
   specialOffers: {
     id: string;
@@ -574,69 +575,54 @@ export function calculateRate(
     }
   }
 
-  // 7. Child charges (position-based discounts)
+  // 7. Child charges (from child policy chargePercentage)
   const childCharges: ChildChargeLine[] = [];
+
+  // Track free-in-sharing counts per category
+  const freeCounts: Record<string, number> = {};
 
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
     const position = i + 1;
+    const catLabel = CATEGORY_LABELS[child.category] ?? child.category;
+    const posLabel = `${ordinal(position)} Child (${catLabel})`;
 
-    if (position === 1) {
-      // Position 1: Infants free, Teens as adults, CHILD category uses discount
+    // Find matching child policy by category
+    const policy = contract.childPolicies.find((cp) => cp.category === child.category);
+
+    if (policy) {
+      // Check free-in-sharing eligibility
+      if (policy.freeInSharing) {
+        const usedFree = freeCounts[child.category] ?? 0;
+        if (usedFree < policy.maxFreePerRoom) {
+          freeCounts[child.category] = usedFree + 1;
+          childCharges.push({
+            category: child.category, position, amount: 0,
+            isFree: true, label: `${posLabel} — Free`,
+          });
+          continue;
+        }
+      }
+
+      // Charge based on chargePercentage
+      const charge = baseRate.times(policy.chargePercentage).div(100);
+      childCharges.push({
+        category: child.category, position,
+        amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
+        isFree: false, label: policy.chargePercentage === 0 ? `${posLabel} — Free` : `${posLabel} (${policy.chargePercentage}%)`,
+      });
+    } else {
+      // No policy: defaults — INFANT free, TEEN full adult rate, others full rate
       if (child.category === "INFANT") {
         childCharges.push({
           category: child.category, position, amount: 0,
-          isFree: true, label: "1st Child (Infant — Free)",
-        });
-      } else if (child.category === "TEEN") {
-        childCharges.push({
-          category: child.category, position, amount: 0,
-          isFree: false, label: "1st Child (Teen — Adult Rate)",
+          isFree: true, label: `${posLabel} — Free`,
         });
       } else {
-        // CHILD category — find position-1 supplement (forChildCategory is null)
-        const sup = contract.supplements.find(
-          (s) => s.supplementType === "CHILD" && s.childPosition === 1,
-        );
-        if (sup) {
-          // Value is a discount: charge = baseRate × (100 - discount%) / 100
-          const charge = sup.valueType === "PERCENTAGE"
-            ? baseRate.times(new Decimal(100).minus(new Decimal(sup.value))).div(100)
-            : baseRate.minus(new Decimal(sup.value));
-          childCharges.push({
-            category: child.category, position,
-            amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
-            isFree: false, label: "1st Child",
-          });
-        } else {
-          childCharges.push({
-            category: child.category, position, amount: 0,
-            isFree: false, label: "1st Child",
-          });
-        }
-      }
-    } else {
-      // Position 2+: find supplement matching position and age category
-      const sup = contract.supplements.find(
-        (s) =>
-          s.supplementType === "CHILD" &&
-          s.childPosition === position &&
-          s.forChildCategory === child.category,
-      );
-      const posLabel = `${ordinal(position)} Child (${CATEGORY_LABELS[child.category] ?? child.category})`;
-      if (sup) {
-        const charge = sup.valueType === "PERCENTAGE"
-          ? baseRate.times(new Decimal(100).minus(new Decimal(sup.value))).div(100)
-          : baseRate.minus(new Decimal(sup.value));
         childCharges.push({
           category: child.category, position,
-          amount: Decimal.max(charge, 0).toDecimalPlaces(4).toNumber(),
-          isFree: false, label: posLabel,
-        });
-      } else {
-        childCharges.push({
-          category: child.category, position, amount: 0,
-          isFree: false, label: posLabel,
+          amount: baseRate.toDecimalPlaces(4).toNumber(),
+          isFree: false, label: `${posLabel} (100%)`,
         });
       }
     }

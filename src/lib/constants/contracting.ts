@@ -50,7 +50,6 @@ export const SUPPLEMENT_TYPE_LABELS: Record<string, string> = {
   ROOM_TYPE: "Room Type",
   MEAL: "Meal Plan",
   OCCUPANCY: "Occupancy",
-  CHILD: "Child",
   EXTRA_BED: "Extra Bed",
 };
 

@@ -108,6 +108,7 @@ async function fetchContractData(
             freeInSharing: override.freeInSharing,
             maxFreePerRoom: override.maxFreePerRoom,
             extraBedAllowed: override.extraBedAllowed,
+            chargePercentage: override.chargePercentage,
           };
         }
         const hotel = hotelDefaults.find((p) => p.category === category)!;
@@ -118,6 +119,7 @@ async function fetchContractData(
           freeInSharing: hotel.freeInSharing,
           maxFreePerRoom: hotel.maxFreePerRoom,
           extraBedAllowed: hotel.extraBedAllowed,
+          chargePercentage: hotel.chargePercentage,
         };
       });
     })(),

@@ -1745,19 +1745,6 @@ function BaseRatesTab({
 type CellValue = { value: string; valueType: string };
 type GridState = Record<string, CellValue>; // key = rowId
 
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-type ChildSupColumn = {
-  position: number;
-  category: "INFANT" | "CHILD" | "TEEN" | null;
-  label: string;
-  key: string;
-};
-
 function SupplementsTab({
   contractId,
   contract,
@@ -1770,29 +1757,6 @@ function SupplementsTab({
   // Non-base room types & meal bases
   const nonBaseRoomTypes = contract.roomTypes.filter((rt) => !rt.isBase);
   const nonBaseMealBases = contract.mealBases.filter((mb) => !mb.isBase);
-
-  // Compute max children across all contracted room types
-  const maxChildren = Math.max(
-    0,
-    ...contract.roomTypes.map((rt) => rt.roomType.maxChildren ?? 1),
-  );
-
-  // Build position-based child supplement columns
-  const childColumns: ChildSupColumn[] = [];
-  if (maxChildren >= 1) {
-    childColumns.push({ position: 1, category: null, label: "1st Child", key: "pos:1:cat:null" });
-  }
-  for (let pos = 2; pos <= maxChildren; pos++) {
-    for (const cat of ["INFANT", "CHILD", "TEEN"] as const) {
-      const catLabel = CHILD_AGE_CATEGORY_LABELS[cat] ?? cat;
-      childColumns.push({
-        position: pos,
-        category: cat,
-        label: `${ordinal(pos)} Chd (${catLabel})`,
-        key: `pos:${pos}:cat:${cat}`,
-      });
-    }
-  }
 
   // Group existing supplements by type
   const byType: Record<string, SupplementData[]> = {};
@@ -1823,14 +1787,6 @@ function SupplementsTab({
       <OccupancySupplementGrid
         contractId={contractId}
         existing={byType["OCCUPANCY"] ?? []}
-        utils={utils}
-      />
-
-      {/* Child Supplements */}
-      <ChildSupplementGrid
-        contractId={contractId}
-        childColumns={childColumns}
-        existing={byType["CHILD"] ?? []}
         utils={utils}
       />
 
@@ -2236,147 +2192,6 @@ function OccupancySupplementGrid({
             })}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Child Supplement Grid ────────────────────────────────
-
-function ChildSupplementGrid({
-  contractId,
-  childColumns,
-  existing,
-  utils,
-}: {
-  contractId: string;
-  childColumns: ChildSupColumn[];
-  existing: SupplementData[];
-  utils: ReturnType<typeof trpc.useUtils>;
-}) {
-  const [grid, setGrid] = useState<GridState>(() => {
-    const init: GridState = {};
-    for (const s of existing) {
-      if (s.childPosition != null) {
-        const catKey = s.forChildCategory ?? "null";
-        init[`pos:${s.childPosition}:cat:${catKey}`] = {
-          value: String(Number(s.value)),
-          valueType: s.valueType,
-        };
-      }
-    }
-    return init;
-  });
-
-  const saveMutation = trpc.contracting.contractSupplement.bulkSaveChild.useMutation({
-    onSuccess: () => utils.contracting.contract.getById.invalidate({ id: contractId }),
-  });
-
-  function handleSave() {
-    const items: { childPosition: number; forChildCategory: "INFANT" | "CHILD" | "TEEN" | null; value: number; valueType: "FIXED" | "PERCENTAGE"; perNight: boolean }[] = [];
-    for (const col of childColumns) {
-      const cell = grid[col.key];
-      if (cell && cell.value && Number(cell.value) !== 0) {
-        items.push({
-          childPosition: col.position,
-          forChildCategory: col.category,
-          value: Number(cell.value),
-          valueType: (cell.valueType as "FIXED" | "PERCENTAGE") || "PERCENTAGE",
-          perNight: true,
-        });
-      }
-    }
-    saveMutation.mutate({ contractId, items });
-  }
-
-  if (childColumns.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Child Discount Supplements</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            No room types configured or max children is 0.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Child Discount Supplements</CardTitle>
-        <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Saving..." : "Save"}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {saveMutation.error && (
-          <p className="mb-2 text-sm text-destructive">{saveMutation.error.message}</p>
-        )}
-        <div className="overflow-x-auto">
-          <Table className="w-auto">
-            <TableHeader>
-              <TableRow>
-                {childColumns.map((col) => (
-                  <TableHead key={col.key} className="text-center min-w-[120px]">
-                    {col.label}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                {childColumns.map((col) => (
-                  <TableCell key={col.key}>
-                    <div className="flex flex-col gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-24"
-                        value={grid[col.key]?.value ?? ""}
-                        onChange={(e) =>
-                          setGrid((prev) => ({
-                            ...prev,
-                            [col.key]: {
-                              value: e.target.value,
-                              valueType: prev[col.key]?.valueType ?? "PERCENTAGE",
-                            },
-                          }))
-                        }
-                      />
-                      <Select
-                        value={grid[col.key]?.valueType ?? "PERCENTAGE"}
-                        onValueChange={(vt) =>
-                          setGrid((prev) => ({
-                            ...prev,
-                            [col.key]: {
-                              value: prev[col.key]?.value ?? "",
-                              valueType: vt,
-                            },
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PERCENTAGE">%</SelectItem>
-                          <SelectItem value="FIXED">Fixed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Values are discounts off base rate. 1st Child applies to Child age category only (Infants are free, Teens charged as adults).
-        </p>
       </CardContent>
     </Card>
   );
@@ -4188,6 +4003,7 @@ type ContractChildPolicyData = {
   maxFreePerRoom: number;
   extraBedAllowed: boolean;
   mealsIncluded: boolean;
+  chargePercentage: number;
   notes: string | null;
 };
 
@@ -4201,6 +4017,7 @@ type HotelChildPolicyData = {
   maxFreePerRoom: number;
   extraBedAllowed: boolean;
   mealsIncluded: boolean;
+  chargePercentage: number;
   notes: string | null;
 };
 
@@ -4241,6 +4058,7 @@ function ChildPoliciesTab({
     maxFreePerRoom: 0,
     extraBedAllowed: true,
     mealsIncluded: false,
+    chargePercentage: 100,
     notes: "",
   });
 
@@ -4255,6 +4073,7 @@ function ChildPoliciesTab({
       maxFreePerRoom: 0,
       extraBedAllowed: true,
       mealsIncluded: false,
+      chargePercentage: 100,
       notes: "",
     });
     setShowDialog(true);
@@ -4271,6 +4090,7 @@ function ChildPoliciesTab({
       maxFreePerRoom: cp.maxFreePerRoom,
       extraBedAllowed: cp.extraBedAllowed,
       mealsIncluded: cp.mealsIncluded,
+      chargePercentage: cp.chargePercentage ?? 100,
       notes: cp.notes ?? "",
     });
     setShowDialog(true);
@@ -4289,6 +4109,7 @@ function ChildPoliciesTab({
           maxFreePerRoom: formData.maxFreePerRoom,
           extraBedAllowed: formData.extraBedAllowed,
           mealsIncluded: formData.mealsIncluded,
+          chargePercentage: formData.chargePercentage,
           notes: formData.notes || null,
         },
         { onSuccess: () => setShowDialog(false) },
@@ -4305,6 +4126,7 @@ function ChildPoliciesTab({
           maxFreePerRoom: formData.maxFreePerRoom,
           extraBedAllowed: formData.extraBedAllowed,
           mealsIncluded: formData.mealsIncluded,
+          chargePercentage: formData.chargePercentage,
           notes: formData.notes || null,
         },
         { onSuccess: () => setShowDialog(false) },
@@ -4335,6 +4157,7 @@ function ChildPoliciesTab({
                 <CardContent className="space-y-1 text-xs text-muted-foreground">
                   <div>Label: {hp.label}</div>
                   <div>Age: {hp.ageFrom}–{hp.ageTo}</div>
+                  <div>Charge: {hp.chargePercentage ?? 100}%</div>
                   <div>Free in Sharing: {hp.freeInSharing ? "Yes" : "No"}{hp.freeInSharing ? ` (max ${hp.maxFreePerRoom}/room)` : ""}</div>
                   <div>Extra Bed: {hp.extraBedAllowed ? "Allowed" : "Not Allowed"}</div>
                   <div>Meals: {hp.mealsIncluded ? "Included" : "Not Included"}</div>
@@ -4375,6 +4198,7 @@ function ChildPoliciesTab({
                 <TableHead>Category</TableHead>
                 <TableHead>Label</TableHead>
                 <TableHead>Age Range</TableHead>
+                <TableHead>Charge %</TableHead>
                 <TableHead>Free in Sharing</TableHead>
                 <TableHead>Extra Bed</TableHead>
                 <TableHead>Meals</TableHead>
@@ -4389,6 +4213,7 @@ function ChildPoliciesTab({
                   </TableCell>
                   <TableCell>{cp.label}</TableCell>
                   <TableCell>{cp.ageFrom}–{cp.ageTo}</TableCell>
+                  <TableCell>{cp.chargePercentage}%</TableCell>
                   <TableCell>
                     {cp.freeInSharing ? (
                       <span>Yes (max {cp.maxFreePerRoom})</span>
@@ -4491,6 +4316,21 @@ function ChildPoliciesTab({
             {formData.ageTo < formData.ageFrom && (
               <p className="text-sm text-destructive">Age To must be &gt;= Age From</p>
             )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Charge % of Adult Rate</label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={formData.chargePercentage}
+                onChange={(e) =>
+                  setFormData({ ...formData, chargePercentage: parseInt(e.target.value) || 0 })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                0 = free, 50 = half price, 100 = full adult rate
+              </p>
+            </div>
             <div className="flex items-center gap-3">
               <Checkbox
                 checked={formData.freeInSharing}

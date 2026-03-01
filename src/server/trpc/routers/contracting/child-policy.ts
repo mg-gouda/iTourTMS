@@ -41,6 +41,7 @@ export const childPolicyRouter = createTRPCRouter({
         maxFreePerRoom: z.number().int().min(0).optional(),
         extraBedAllowed: z.boolean().optional(),
         mealsIncluded: z.boolean().optional(),
+        chargePercentage: z.number().int().min(0).max(100).optional(),
         notes: z.string().nullish(),
       }),
     )

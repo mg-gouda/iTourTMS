@@ -1089,28 +1089,42 @@ function ChildrenPolicyTab({
   policies: any[];
 }) {
   const utils = trpc.useUtils();
-  const [addOpen, setAddOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editPolicy, setEditPolicy] = useState<any | null>(null);
+
+  const defaultValues = {
+    hotelId,
+    category: "CHILD" as const,
+    ageFrom: 0,
+    ageTo: 11,
+    label: "",
+    freeInSharing: false,
+    maxFreePerRoom: 0,
+    extraBedAllowed: true,
+    mealsIncluded: false,
+    chargePercentage: 100,
+  };
 
   const form = useForm<z.input<typeof childPolicyCreateSchema>>({
     resolver: zodResolver(childPolicyCreateSchema),
-    defaultValues: {
-      hotelId,
-      category: "CHILD",
-      ageFrom: 0,
-      ageTo: 11,
-      label: "",
-      freeInSharing: false,
-      maxFreePerRoom: 0,
-      extraBedAllowed: true,
-      mealsIncluded: false,
-    },
+    defaultValues,
   });
 
   const createPolicyMutation = trpc.contracting.childPolicy.create.useMutation({
     onSuccess: () => {
       utils.contracting.hotel.getById.invalidate({ id: hotelId });
-      setAddOpen(false);
-      form.reset();
+      setDialogOpen(false);
+      setEditPolicy(null);
+      form.reset(defaultValues);
+    },
+  });
+
+  const updatePolicyMutation = trpc.contracting.childPolicy.update.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.getById.invalidate({ id: hotelId });
+      setDialogOpen(false);
+      setEditPolicy(null);
+      form.reset(defaultValues);
     },
   });
 
@@ -1118,12 +1132,61 @@ function ChildrenPolicyTab({
     onSuccess: () => utils.contracting.hotel.getById.invalidate({ id: hotelId }),
   });
 
+  function openAdd() {
+    setEditPolicy(null);
+    form.reset(defaultValues);
+    setDialogOpen(true);
+  }
+
+  function openEdit(p: any) {
+    setEditPolicy(p);
+    form.reset({
+      hotelId,
+      category: p.category,
+      ageFrom: p.ageFrom,
+      ageTo: p.ageTo,
+      label: p.label,
+      freeInSharing: p.freeInSharing,
+      maxFreePerRoom: p.maxFreePerRoom,
+      extraBedAllowed: p.extraBedAllowed,
+      mealsIncluded: p.mealsIncluded,
+      chargePercentage: p.chargePercentage ?? 100,
+      notes: p.notes ?? "",
+    });
+    setDialogOpen(true);
+  }
+
+  function handleSubmit(v: z.input<typeof childPolicyCreateSchema>) {
+    if (editPolicy) {
+      updatePolicyMutation.mutate({
+        id: editPolicy.id,
+        hotelId,
+        category: v.category,
+        ageFrom: v.ageFrom,
+        ageTo: v.ageTo,
+        label: v.label,
+        freeInSharing: v.freeInSharing,
+        maxFreePerRoom: v.maxFreePerRoom,
+        extraBedAllowed: v.extraBedAllowed,
+        mealsIncluded: v.mealsIncluded,
+        chargePercentage: v.chargePercentage,
+        notes: v.notes,
+      });
+    } else {
+      createPolicyMutation.mutate(v);
+    }
+  }
+
+  const isEditing = !!editPolicy;
+  const isPending = isEditing ? updatePolicyMutation.isPending : createPolicyMutation.isPending;
+  const mutationError = isEditing ? updatePolicyMutation.error : createPolicyMutation.error;
+
   const categories = ["INFANT", "CHILD", "TEEN"] as const;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setAddOpen(true)}>Add Policy</Button>
+        <Button onClick={openAdd}>Add Policy</Button>
       </div>
 
       {policies.length === 0 ? (
@@ -1139,21 +1202,31 @@ function ChildrenPolicyTab({
                   <CardTitle className="text-base">
                     {CHILD_AGE_CATEGORY_LABELS[p.category] ?? p.category}
                   </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      deleteMutation.mutate({ id: p.id, hotelId })
-                    }
-                  >
-                    Remove
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEdit(p)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        deleteMutation.mutate({ id: p.id, hotelId })
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <dl className="space-y-2 text-sm">
                   <Row label="Label" value={p.label} />
                   <Row label="Age Range" value={`${p.ageFrom} – ${p.ageTo}`} />
+                  <Row label="Charge %" value={`${p.chargePercentage ?? 100}%`} />
                   <Row label="Free in Sharing" value={p.freeInSharing ? "Yes" : "No"} />
                   <Row label="Max Free/Room" value={p.maxFreePerRoom} />
                   <Row label="Extra Bed" value={p.extraBedAllowed ? "Allowed" : "Not Allowed"} />
@@ -1167,10 +1240,13 @@ function ChildrenPolicyTab({
       )}
 
       {/* Add/Edit Policy Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) { setEditPolicy(null); form.reset(defaultValues); }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Child Policy</DialogTitle>
+            <DialogTitle>{isEditing ? "Edit Child Policy" : "Add Child Policy"}</DialogTitle>
             <DialogDescription>
               Define age ranges and rules for a child age category. Multiple
               policies per category are allowed.
@@ -1178,7 +1254,7 @@ function ChildrenPolicyTab({
           </DialogHeader>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit((v) => createPolicyMutation.mutate(v))}
+              onSubmit={form.handleSubmit(handleSubmit)}
               className="space-y-4"
             >
               <FormField
@@ -1254,6 +1330,28 @@ function ChildrenPolicyTab({
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="chargePercentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Charge % of Adult Rate</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      0 = free, 50 = half price, 100 = full adult rate
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -1335,14 +1433,14 @@ function ChildrenPolicyTab({
                   </FormItem>
                 )}
               />
-              {createPolicyMutation.error && (
+              {mutationError && (
                 <p className="text-sm text-destructive">
-                  {createPolicyMutation.error.message}
+                  {mutationError.message}
                 </p>
               )}
               <DialogFooter>
-                <Button type="submit" disabled={createPolicyMutation.isPending}>
-                  {createPolicyMutation.isPending ? "Saving..." : "Save Policy"}
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? "Saving..." : isEditing ? "Update Policy" : "Save Policy"}
                 </Button>
               </DialogFooter>
             </form>
