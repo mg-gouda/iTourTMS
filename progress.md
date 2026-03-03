@@ -271,7 +271,45 @@
 
 ---
 
+## B2C Sidebar Module + Collapsible Module Sections (Completed)
+- **Date:** 2026-03-03
+
+### Part 1: B2C Website as a Sidebar Module
+- Added `"b2c-site"` to `ModuleName` union type in `src/types/index.ts`
+- Registered `b2c-site` in `MODULE_REGISTRY` with Globe icon in `src/lib/constants/modules.ts`
+- Added Globe icon + b2c-site routes to sidebar (Content: Branding, Hero Slides, Pages, Blog; Engagement: FAQ, Testimonials, Inquiries, Newsletter)
+- Moved pages from `src/app/(dashboard)/settings/b2c-site/` → `src/app/(dashboard)/b2c-site/`
+- Branding page moved to `/b2c-site/branding`
+- Created module dashboard at `/b2c-site/page.tsx` with overview cards
+- Updated all internal links from `/settings/b2c-site/...` → `/b2c-site/...`
+- Removed B2C Website tab from settings page
+- Added b2c-site icon, accent color, and href to main dashboard page
+- Inserted `b2c-site` InstalledModule record for existing company
+
+### Part 2: Fully Collapsible Module Sections
+- Created `CollapsibleModule` component wrapping entire module content in `Collapsible.Root`
+- Clicking module name (icon + label + chevron) toggles all top-level routes + sub-groups
+- Auto-expands when any route in the module matches current pathname
+- Persists collapse state to localStorage key `sidebar-mod-{moduleName}`
+
+### Bug Fixes
+- Fixed branding page stuck on "Loading..." when no branding record exists — falls back to defaults when query returns null
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/types/index.ts` | Added `"b2c-site"` to ModuleName |
+| `src/lib/constants/modules.ts` | Added b2c-site to MODULE_REGISTRY |
+| `src/components/layout/app-sidebar.tsx` | Globe icon, b2c-site routes, CollapsibleModule |
+| `src/app/(dashboard)/settings/page.tsx` | Removed B2C Website tab |
+| `src/app/(dashboard)/b2c-site/` | New module directory (moved from settings) |
+| `src/app/(dashboard)/b2c-site/branding/page.tsx` | Fixed null data loading state |
+| `src/app/(dashboard)/dashboard/page.tsx` | Added Globe/Bus icons, b2c-site accent/href |
+
+---
+
 ## Pending / Next Steps
 - Finance Phases 2–8: Already completed (see above)
 - Contracting: All 13 phases + market/zone/settings enhancements complete
+- B2C: Phases 6–8 pending (booking flow, B2B portal, packages/polish)
 - **Next:** CRM module, Reservations module, Traffic module

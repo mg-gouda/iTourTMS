@@ -3,6 +3,7 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type RowSelectionState,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -90,7 +91,9 @@ export function DataTablePagination<TData>({
   return (
     <div className="flex items-center justify-between px-2 py-4">
       <div className="text-muted-foreground text-sm">
-        {table.getFilteredRowModel().rows.length} row(s)
+        {table.getFilteredSelectedRowModel().rows.length > 0
+          ? `${table.getFilteredSelectedRowModel().rows.length} of ${table.getFilteredRowModel().rows.length} selected`
+          : `${table.getFilteredRowModel().rows.length} row(s)`}
       </div>
       <div className="flex items-center gap-6 lg:gap-8">
         <div className="flex items-center gap-2">
@@ -163,6 +166,9 @@ interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   toolbar?: React.ReactNode;
   onRowClick?: (row: TData) => void;
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: React.Dispatch<React.SetStateAction<RowSelectionState>>;
 }
 
 export function DataTable<TData, TValue>({
@@ -172,12 +178,20 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search...",
   toolbar,
   onRowClick,
+  enableRowSelection = false,
+  rowSelection: controlledRowSelection,
+  onRowSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] =
     React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
+  const [internalRowSelection, setInternalRowSelection] =
+    React.useState<RowSelectionState>({});
+
+  const rowSelection = controlledRowSelection ?? internalRowSelection;
+  const setRowSelection = onRowSelectionChange ?? setInternalRowSelection;
 
   const table = useReactTable({
     data,
@@ -189,7 +203,9 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    state: { sorting, columnFilters, columnVisibility },
+    enableRowSelection,
+    onRowSelectionChange: setRowSelection,
+    state: { sorting, columnFilters, columnVisibility, rowSelection },
   });
 
   return (

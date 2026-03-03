@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   ChevronRight,
   FileText,
+  Globe,
   Home,
   Landmark,
   Settings,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +35,7 @@ const iconMap: Record<string, React.ElementType> = {
   Users,
   CalendarCheck,
   Bus,
+  Globe,
 };
 
 interface InstalledModule {
@@ -252,6 +254,29 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
       },
     ],
   },
+  "b2c-site": {
+    topLevel: [{ label: "Dashboard", href: "/b2c-site" }],
+    groups: [
+      {
+        label: "Content",
+        routes: [
+          { label: "Branding", href: "/b2c-site/branding" },
+          { label: "Hero Slides", href: "/b2c-site/hero-slides" },
+          { label: "Pages", href: "/b2c-site/pages" },
+          { label: "Blog", href: "/b2c-site/blog" },
+        ],
+      },
+      {
+        label: "Engagement",
+        routes: [
+          { label: "FAQ", href: "/b2c-site/faq" },
+          { label: "Testimonials", href: "/b2c-site/testimonials" },
+          { label: "Inquiries", href: "/b2c-site/inquiries" },
+          { label: "Newsletter", href: "/b2c-site/newsletter" },
+        ],
+      },
+    ],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -332,6 +357,105 @@ function CollapsibleSubGroup({
 }
 
 // ---------------------------------------------------------------------------
+// Collapsible module wrapper — entire module collapses when name is clicked
+// ---------------------------------------------------------------------------
+
+function CollapsibleModule({
+  mod,
+  config,
+  pathname,
+}: {
+  mod: InstalledModule;
+  config: ModuleRouteConfig;
+  pathname: string;
+}) {
+  const Icon = iconMap[mod.icon] || FileText;
+  const storageKey = `sidebar-mod-${mod.name}`;
+
+  // Check if any route in this module is active
+  const allHrefs = [
+    ...config.topLevel.map((r) => r.href),
+    ...config.groups.flatMap((g) => g.routes.map((r) => r.href)),
+  ];
+  const hasActiveRoute = allHrefs.some(
+    (href) => pathname === href || pathname.startsWith(href + "/"),
+  );
+
+  const [open, setOpen] = useState(hasActiveRoute);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated) {
+      const stored = localStorage.getItem(storageKey);
+      if (stored !== null) {
+        setOpen(stored === "true");
+      }
+      setHydrated(true);
+      return;
+    }
+    localStorage.setItem(storageKey, String(open));
+  }, [open, storageKey, hydrated]);
+
+  // Auto-expand when a route becomes active
+  useEffect(() => {
+    if (hasActiveRoute && !open) setOpen(true);
+  }, [hasActiveRoute]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <SidebarGroup>
+      <Collapsible.Root open={open} onOpenChange={setOpen}>
+        <Collapsible.Trigger asChild>
+          <button
+            className={cn(
+              "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              hasActiveRoute && "text-sidebar-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span className="flex-1 text-left">{mod.displayName}</span>
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 shrink-0 transition-transform duration-200",
+                open && "rotate-90",
+              )}
+            />
+          </button>
+        </Collapsible.Trigger>
+        <Collapsible.Content className="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
+          <SidebarGroupContent className="space-y-1">
+            {/* Top-level routes (e.g. Dashboard) */}
+            <SidebarMenu>
+              {config.topLevel.map((route) => (
+                <SidebarMenuItem key={route.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === route.href}
+                  >
+                    <Link href={route.href}>
+                      <span>{route.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+
+            {/* Collapsible sub-groups */}
+            {config.groups.map((group) => (
+              <CollapsibleSubGroup
+                key={group.label}
+                group={group}
+                moduleKey={mod.name}
+                pathname={pathname}
+              />
+            ))}
+          </SidebarGroupContent>
+        </Collapsible.Content>
+      </Collapsible.Root>
+    </SidebarGroup>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main sidebar
 // ---------------------------------------------------------------------------
 
@@ -341,7 +465,7 @@ export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-3">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           {sidebarLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -383,46 +507,18 @@ export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Module navigation — collapsible sub-groups */}
+        {/* Module navigation — fully collapsible modules */}
         {installedModules.map((mod) => {
-          const Icon = iconMap[mod.icon] || FileText;
           const config = moduleRoutes[mod.name];
           if (!config) return null;
 
           return (
-            <SidebarGroup key={mod.name}>
-              <SidebarGroupLabel className="flex items-center gap-1.5">
-                <Icon className="h-3.5 w-3.5" />
-                {mod.displayName}
-              </SidebarGroupLabel>
-              <SidebarGroupContent className="space-y-1">
-                {/* Top-level routes (e.g. Dashboard) */}
-                <SidebarMenu>
-                  {config.topLevel.map((route) => (
-                    <SidebarMenuItem key={route.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === route.href}
-                      >
-                        <Link href={route.href}>
-                          <span>{route.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-
-                {/* Collapsible sub-groups */}
-                {config.groups.map((group) => (
-                  <CollapsibleSubGroup
-                    key={group.label}
-                    group={group}
-                    moduleKey={mod.name}
-                    pathname={pathname}
-                  />
-                ))}
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <CollapsibleModule
+              key={mod.name}
+              mod={mod}
+              config={config}
+              pathname={pathname}
+            />
           );
         })}
       </SidebarContent>

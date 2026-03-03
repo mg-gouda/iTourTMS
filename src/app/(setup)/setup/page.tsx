@@ -7,7 +7,7 @@ export default async function SetupPage() {
   // If already set up, redirect to dashboard
   const companyCount = await db.company.count();
   if (companyCount > 0) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   // Fetch countries and currencies for the wizard

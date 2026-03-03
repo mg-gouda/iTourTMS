@@ -152,6 +152,166 @@ export async function dispatchWebhooks(
 }
 
 // ---------------------------------------------------------------------------
+// Dispatch tariff.generated webhook with full contract details + selling rates
+// ---------------------------------------------------------------------------
+
+export async function dispatchTariffWebhook(
+  db: PrismaClient,
+  companyId: string,
+  tariffId: string,
+  tariffName: string,
+  contract: {
+    id: string;
+    name: string;
+    code: string;
+    hotelId: string;
+    rateBasis: string;
+    validFrom: Date;
+    validTo: Date;
+    hotel: { name: string; code?: string; starRating?: string | null };
+    baseCurrency?: { code: string } | null;
+    seasons: Array<{ dateFrom: Date; dateTo: Date; sortOrder?: number }>;
+    roomTypes: Array<{
+      roomType: { name: string; code: string };
+    }>;
+    mealBases: Array<{
+      mealBasis: { name: string; mealCode: string };
+    }>;
+    allotments?: Array<{
+      totalRooms: number;
+      freeSale: boolean;
+      basis: string;
+      roomType: { name: string; code: string } | null;
+      season: { dateFrom: Date; dateTo: Date } | null;
+    }>;
+    cancellationPolicies?: Array<{
+      daysBefore: number;
+      chargeType: string;
+      chargeValue: { toString(): string } | number;
+    }>;
+    childPolicies?: Array<{
+      category: string;
+      ageFrom: number;
+      ageTo: number;
+      chargePercentage: number;
+    }>;
+    specialOffers?: Array<{
+      name: string;
+      offerType: string;
+      discountType: string;
+      discountValue: { toString(): string } | number;
+      validFrom: Date | null;
+      validTo: Date | null;
+      minimumNights: number | null;
+      active: boolean;
+    }>;
+    stopSales?: Array<{
+      dateFrom: Date;
+      dateTo: Date;
+      reason: string | null;
+      roomType: { name: string; code: string } | null;
+    }>;
+    markets?: Array<{
+      market?: { name: string; code: string } | null;
+      marketId: string;
+    }>;
+  },
+  tariffData: {
+    rates?: Array<{
+      seasonLabel: string;
+      roomTypeName: string;
+      roomTypeCode: string;
+      mealBasisName: string;
+      mealCode: string;
+      baseRate: number;
+      markup: number;
+      sellingRate: number;
+    }>;
+    rateBasis?: string;
+  },
+): Promise<void> {
+  const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+
+  // Build selling rates — strip baseRate, markup, markupType, markupValue
+  const sellingRates = (tariffData.rates ?? []).map((r) => ({
+    seasonLabel: r.seasonLabel,
+    roomTypeName: r.roomTypeName,
+    roomTypeCode: r.roomTypeCode,
+    mealBasisName: r.mealBasisName,
+    mealCode: r.mealCode,
+    sellingRate: r.sellingRate,
+    perNight: (tariffData.rateBasis ?? contract.rateBasis) === "PER_PERSON" ? false : true,
+  }));
+
+  const payload: Record<string, unknown> = {
+    tariffId,
+    tariffName,
+    contract: {
+      id: contract.id,
+      name: contract.name,
+      code: contract.code,
+      validFrom: formatDate(contract.validFrom),
+      validTo: formatDate(contract.validTo),
+      rateBasis: contract.rateBasis,
+      currency: contract.baseCurrency?.code ?? "USD",
+      hotel: {
+        name: contract.hotel.name,
+        code: contract.hotel.code ?? null,
+        starRating: contract.hotel.starRating ?? null,
+      },
+      seasons: contract.seasons.map((s) => ({
+        dateFrom: formatDate(s.dateFrom),
+        dateTo: formatDate(s.dateTo),
+      })),
+      roomTypes: contract.roomTypes.map((rt) => ({
+        name: rt.roomType.name,
+        code: rt.roomType.code,
+      })),
+      mealBases: contract.mealBases.map((mb) => ({
+        name: mb.mealBasis.name,
+        mealCode: mb.mealBasis.mealCode,
+      })),
+      allotments: (contract.allotments ?? []).map((a) => ({
+        roomType: a.roomType?.name ?? null,
+        totalRooms: a.totalRooms,
+        basis: a.basis,
+      })),
+      cancellationPolicies: (contract.cancellationPolicies ?? []).map((cp) => ({
+        daysBefore: cp.daysBefore,
+        chargeType: cp.chargeType,
+        chargeValue: Number(cp.chargeValue),
+      })),
+      childPolicies: (contract.childPolicies ?? []).map((cp) => ({
+        category: cp.category,
+        ageFrom: cp.ageFrom,
+        ageTo: cp.ageTo,
+        chargePercentage: Number(cp.chargePercentage),
+      })),
+      specialOffers: (contract.specialOffers ?? []).map((so) => ({
+        name: so.name,
+        offerType: so.offerType,
+        discountType: so.discountType,
+        discountValue: so.discountValue != null ? Number(so.discountValue) : null,
+        validFrom: so.validFrom ? formatDate(so.validFrom) : null,
+        validTo: so.validTo ? formatDate(so.validTo) : null,
+        minimumNights: so.minimumNights,
+        active: so.active,
+      })),
+      stopSales: (contract.stopSales ?? []).map((ss) => ({
+        roomType: ss.roomType?.name ?? null,
+        dateFrom: formatDate(ss.dateFrom),
+        dateTo: formatDate(ss.dateTo),
+        reason: ss.reason,
+      })),
+    },
+    sellingRates,
+    generatedAt: new Date().toISOString(),
+  };
+
+  dispatchWebhooks(companyId, contract.hotelId, "tariff.generated", payload, db);
+}
+
+// ---------------------------------------------------------------------------
 // Helper: dispatch webhook only if the contract is PUBLISHED
 // ---------------------------------------------------------------------------
 

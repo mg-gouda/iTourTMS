@@ -41,6 +41,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     dependencies: [],
     isAvailable: true,
   },
+  {
+    name: "b2c-site",
+    displayName: "B2C Website",
+    description: "Public website CMS, branding, blog, FAQ, testimonials, newsletter",
+    icon: "Globe",
+    dependencies: [],
+    isAvailable: true,
+  },
 ];
 
 export function getModule(name: string): ModuleDefinition | undefined {

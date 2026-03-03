@@ -1,6 +1,8 @@
 import {
+  Bus,
   CalendarCheck,
   FileText,
+  Globe,
   Landmark,
   type LucideIcon,
   Users,
@@ -16,6 +18,8 @@ const iconMap: Record<string, LucideIcon> = {
   FileText,
   Users,
   CalendarCheck,
+  Bus,
+  Globe,
 };
 
 const accentMap: Record<string, string> = {
@@ -23,6 +27,8 @@ const accentMap: Record<string, string> = {
   contracting: "from-blue-500/15 to-blue-500/5 text-blue-600 dark:text-blue-400 border-blue-500/20",
   crm: "from-violet-500/15 to-violet-500/5 text-violet-600 dark:text-violet-400 border-violet-500/20",
   reservations: "from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  traffic: "from-orange-500/15 to-orange-500/5 text-orange-600 dark:text-orange-400 border-orange-500/20",
+  "b2c-site": "from-cyan-500/15 to-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
 };
 
 const hrefMap: Record<string, string> = {
@@ -30,6 +36,8 @@ const hrefMap: Record<string, string> = {
   contracting: "/contracting",
   crm: "/crm",
   reservations: "/reservations",
+  traffic: "/traffic",
+  "b2c-site": "/b2c-site",
 };
 
 export default async function DashboardPage() {

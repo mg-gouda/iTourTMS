@@ -63,7 +63,7 @@ export default function TourOperatorDetailPage() {
   const [showAssignContract, setShowAssignContract] = useState(false);
   const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null);
   const [cascadeToContracts, setCascadeToContracts] = useState(true);
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [selectedContractIds, setSelectedContractIds] = useState<Set<string>>(new Set());
   const [hotelSearch, setHotelSearch] = useState("");
   const [contractSearch, setContractSearch] = useState("");
 
@@ -143,9 +143,6 @@ export default function TourOperatorDetailPage() {
     trpc.contracting.tourOperator.assignToContract.useMutation({
       onSuccess: () => {
         utils.contracting.tourOperator.getById.invalidate({ id: params.id });
-        setShowAssignContract(false);
-        setSelectedContractId(null);
-        setContractSearch("");
       },
     });
 
@@ -154,7 +151,7 @@ export default function TourOperatorDetailPage() {
     () => new Set((to?.hotelAssignments ?? []).map((a) => a.hotel.id)),
     [to?.hotelAssignments],
   );
-  const assignedContractIds = useMemo(
+  const assignedContractIdSet = useMemo(
     () => new Set((to?.contractAssignments ?? []).map((a) => a.contract.id)),
     [to?.contractAssignments],
   );
@@ -172,16 +169,25 @@ export default function TourOperatorDetailPage() {
   }, [allHotels, assignedHotelIds, hotelSearch]);
 
   const availableContracts = useMemo(() => {
-    const list = (allContracts ?? []).filter((c) => !assignedContractIds.has(c.id));
+    const list = (allContracts ?? []).filter((c) => !assignedContractIdSet.has(c.id));
     const q = contractSearch.toLowerCase().trim();
     if (!q) return list;
+    const marketMap = new Map((markets ?? []).map((m) => [m.id, m]));
     return list.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.code.toLowerCase().includes(q) ||
-        (c.hotel?.name ?? "").toLowerCase().includes(q),
+        (c.hotel?.name ?? "").toLowerCase().includes(q) ||
+        c.markets?.some((m) => {
+          const market = marketMap.get(m.marketId);
+          return (
+            market &&
+            (market.code.toLowerCase().includes(q) ||
+              market.name.toLowerCase().includes(q))
+          );
+        }),
     );
-  }, [allContracts, assignedContractIds, contractSearch]);
+  }, [allContracts, assignedContractIdSet, contractSearch, markets]);
 
   function onSubmit(values: FormValues) {
     updateMutation.mutate({ id: params.id, data: values });
@@ -732,16 +738,16 @@ export default function TourOperatorDetailPage() {
         onOpenChange={(open) => {
           setShowAssignContract(open);
           if (!open) {
-            setSelectedContractId(null);
+            setSelectedContractIds(new Set());
             setContractSearch("");
           }
         }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign Contract</DialogTitle>
+            <DialogTitle>Assign Contracts</DialogTitle>
             <DialogDescription>
-              Select a contract to assign to this tour operator.
+              Select contracts to assign to this tour operator. Hotels will be auto-assigned.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -756,17 +762,21 @@ export default function TourOperatorDetailPage() {
                 <label
                   key={c.id}
                   className={`flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 ${
-                    selectedContractId === c.id
+                    selectedContractIds.has(c.id)
                       ? "bg-primary/10 font-medium"
                       : "hover:bg-muted/50"
                   }`}
                 >
-                  <input
-                    type="radio"
-                    name="assignContract"
-                    className="accent-primary"
-                    checked={selectedContractId === c.id}
-                    onChange={() => setSelectedContractId(c.id)}
+                  <Checkbox
+                    checked={selectedContractIds.has(c.id)}
+                    onCheckedChange={() => {
+                      setSelectedContractIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(c.id)) next.delete(c.id);
+                        else next.add(c.id);
+                        return next;
+                      });
+                    }}
                   />
                   <span>
                     {c.name}{" "}
@@ -796,16 +806,21 @@ export default function TourOperatorDetailPage() {
               Cancel
             </Button>
             <Button
-              disabled={!selectedContractId || assignContractMutation.isPending}
-              onClick={() => {
-                if (!selectedContractId) return;
-                assignContractMutation.mutate({
-                  contractId: selectedContractId,
-                  tourOperatorIds: [to.id],
-                });
+              disabled={selectedContractIds.size === 0 || assignContractMutation.isPending}
+              onClick={async () => {
+                if (selectedContractIds.size === 0) return;
+                for (const contractId of selectedContractIds) {
+                  await assignContractMutation.mutateAsync({
+                    contractId,
+                    tourOperatorIds: [to.id],
+                  });
+                }
+                setShowAssignContract(false);
+                setSelectedContractIds(new Set());
+                setContractSearch("");
               }}
             >
-              {assignContractMutation.isPending ? "Assigning..." : "Assign"}
+              {assignContractMutation.isPending ? "Assigning..." : `Assign (${selectedContractIds.size})`}
             </Button>
           </DialogFooter>
         </DialogContent>

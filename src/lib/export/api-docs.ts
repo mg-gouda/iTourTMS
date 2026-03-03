@@ -308,6 +308,66 @@ export async function generateApiDocs(baseUrl: string): Promise<Buffer> {
           codePara("GET /api/v1/hotels/:hotelId/contracts/:contractId/pdf"),
           para("Downloads the contract as a PDF document. Returns Content-Type: application/pdf."),
 
+          // 5.9 List Tariffs
+          para(""),
+          heading("5.9 List Tariffs", HeadingLevel.HEADING_2),
+          codePara("GET /api/v1/tariffs"),
+          para("Returns a paginated list of tariffs generated for your tour operator. Only tariffs for hotels you have access to with PUBLISHED contracts are returned."),
+          para("Query parameters:", { bold: true }),
+          simpleTable(
+            ["Parameter", "Type", "Default", "Description"],
+            [
+              ["page", "integer", "1", "Page number"],
+              ["pageSize", "integer", "20", "Items per page (max 100)"],
+              ["hotelId", "string", "", "Filter by hotel ID"],
+              ["contractId", "string", "", "Filter by contract ID"],
+            ],
+          ),
+          para(""),
+          para("Response fields:", { bold: true }),
+          simpleTable(
+            ["Field", "Type", "Description"],
+            [
+              ["id", "string", "Tariff unique identifier"],
+              ["name", "string", "Tariff name"],
+              ["contractCode", "string", "Contract code"],
+              ["contractName", "string", "Contract name"],
+              ["hotelName", "string", "Hotel name"],
+              ["hotelCode", "string", "Hotel code"],
+              ["currencyCode", "string", "Currency code (e.g. EUR)"],
+              ["generatedAt", "datetime", "When the tariff was generated"],
+            ],
+          ),
+
+          // 5.10 Tariff Detail
+          para(""),
+          heading("5.10 Tariff Detail", HeadingLevel.HEADING_2),
+          codePara("GET /api/v1/tariffs/:tariffId"),
+          para("Returns full tariff detail including contract structure and selling rates. No cost data (base rates, markup amounts, markup type) is exposed — only the final selling rate per combination."),
+          para(""),
+          para("Response includes:", { bold: true }),
+          para("Tariff metadata (id, name, currencyCode, generatedAt), contract info (seasons, room types, meal bases, allotments, cancellation policies, child policies, special offers, stop sales), and a sellingRates array."),
+          para(""),
+          para("Example sellingRates entry:", { bold: true }),
+          ...codeBlock([
+            "{",
+            '  "seasonLabel": "01 Jun – 30 Sep 2026",',
+            '  "roomTypeName": "Standard Double",',
+            '  "roomTypeCode": "STD",',
+            '  "mealBasisName": "Half Board",',
+            '  "mealCode": "HB",',
+            '  "sellingRate": 185.50,',
+            '  "perNight": true',
+            "}",
+          ]),
+
+          // 5.11 Tariff PDF
+          para(""),
+          heading("5.11 Tariff PDF", HeadingLevel.HEADING_2),
+          codePara("GET /api/v1/tariffs/:tariffId/pdf"),
+          para("Downloads the tariff as a branded PDF document with selling rates, contract details, and all policies. Returns Content-Type: application/pdf."),
+          para("The PDF includes the company logo, room types, selling rates matrix, seasons, child policies, cancellation policies, allotments, special offers, stop sales, and terms."),
+
           new Paragraph({ children: [new PageBreak()] }),
 
           // ── 6. Webhooks ──
@@ -324,6 +384,7 @@ export async function generateApiDocs(baseUrl: string): Promise<Buffer> {
               ["rates.updated", "Base rates or supplements are modified"],
               ["spo.updated", "Season SPOs or special offers are changed"],
               ["availability.updated", "Allotments or stop-sales are modified"],
+              ["tariff.generated", "A tariff is generated (includes full contract details + selling rates)"],
               ["test.ping", "Manual test from the admin panel"],
             ],
           ),
@@ -428,6 +489,35 @@ export async function generateApiDocs(baseUrl: string): Promise<Buffer> {
             ],
           ),
 
+          heading("8.4 Tariff", HeadingLevel.HEADING_2),
+          para("Tariffs are pre-generated selling rate sheets for a specific tour operator and contract. They contain the final selling rates with markup already applied."),
+          simpleTable(
+            ["Field", "Type", "Description"],
+            [
+              ["id", "string", "Unique identifier"],
+              ["name", "string", "Tariff name (e.g. 'Summer 2026 - Hotel ABC')"],
+              ["currencyCode", "string", "Currency code (e.g. EUR, USD)"],
+              ["generatedAt", "datetime", "Timestamp when the tariff was generated"],
+              ["contract", "object", "Contract details (seasons, room types, meal bases, policies)"],
+              ["sellingRates", "array", "Array of Tariff Selling Rate Entry objects"],
+            ],
+          ),
+
+          heading("8.5 Tariff Selling Rate Entry", HeadingLevel.HEADING_2),
+          para("Tariff selling rate entries contain only the final selling rate. No cost data (base rate, markup amount, markup type) is included."),
+          simpleTable(
+            ["Field", "Type", "Description"],
+            [
+              ["seasonLabel", "string", "Human-readable season date range"],
+              ["roomTypeName", "string", "Room type name"],
+              ["roomTypeCode", "string", "Room type code"],
+              ["mealBasisName", "string", "Meal basis name"],
+              ["mealCode", "string", "Meal basis code (e.g. HB, FB, AI)"],
+              ["sellingRate", "number", "Final selling rate with markup applied"],
+              ["perNight", "boolean", "Whether the rate is per night"],
+            ],
+          ),
+
           // ── 9. Integration Flow ──
           new Paragraph({ children: [new PageBreak()] }),
           heading("9. Integration Flow Example", HeadingLevel.HEADING_1),
@@ -455,7 +545,25 @@ export async function generateApiDocs(baseUrl: string): Promise<Buffer> {
             `  ${baseUrl}/api/v1/hotels/HOTEL_ID/contracts/CONTRACT_ID/calculate`,
           ]),
           para(""),
-          para("Step 6: (Optional) Configure webhooks in iTourTMS to receive real-time notifications when rates or availability change."),
+          para("Step 6: List your pre-generated tariffs:"),
+          ...codeBlock([
+            `curl -H "Authorization: Bearer YOUR_KEY" \\`,
+            `  ${baseUrl}/api/v1/tariffs`,
+          ]),
+          para(""),
+          para("Step 7: Get full tariff detail with selling rates:"),
+          ...codeBlock([
+            `curl -H "Authorization: Bearer YOUR_KEY" \\`,
+            `  ${baseUrl}/api/v1/tariffs/TARIFF_ID`,
+          ]),
+          para(""),
+          para("Step 8: Download tariff as a PDF:"),
+          ...codeBlock([
+            `curl -H "Authorization: Bearer YOUR_KEY" -o tariff.pdf \\`,
+            `  ${baseUrl}/api/v1/tariffs/TARIFF_ID/pdf`,
+          ]),
+          para(""),
+          para("Step 9: (Optional) Configure webhooks in iTourTMS to receive real-time notifications when rates, availability, or tariffs change."),
         ],
       },
     ],

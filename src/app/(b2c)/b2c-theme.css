@@ -1,0 +1,164 @@
+/*
+ * B2C Site Theme — Isolated from Dashboard
+ * All B2C components reference --pub-* variables only.
+ * Values are injected dynamically from DB via ThemeInjector.
+ */
+
+:root {
+  /* Colors — defaults match MODERN_BOLD preset */
+  --pub-primary: #2563eb;
+  --pub-primary-foreground: #ffffff;
+  --pub-secondary: #f97316;
+  --pub-secondary-foreground: #ffffff;
+  --pub-accent: #06b6d4;
+  --pub-accent-foreground: #ffffff;
+  --pub-background: #ffffff;
+  --pub-foreground: #0f172a;
+  --pub-card: #ffffff;
+  --pub-card-foreground: #0f172a;
+  --pub-muted: #f1f5f9;
+  --pub-muted-foreground: #64748b;
+  --pub-border: #e2e8f0;
+  --pub-ring: #2563eb;
+
+  /* Typography */
+  --pub-heading-font: "Poppins", sans-serif;
+  --pub-body-font: "Inter", sans-serif;
+
+  /* Border radius */
+  --pub-radius: 0.5rem;
+  --pub-radius-sm: 0.25rem;
+  --pub-radius-lg: 0.75rem;
+  --pub-radius-full: 9999px;
+}
+
+/* ─── B2C Layout Base ────────────────────────────── */
+
+.pub-body {
+  font-family: var(--pub-body-font);
+  color: var(--pub-foreground);
+  background-color: var(--pub-background);
+}
+
+.pub-body h1,
+.pub-body h2,
+.pub-body h3,
+.pub-body h4,
+.pub-body h5,
+.pub-body h6 {
+  font-family: var(--pub-heading-font);
+}
+
+/* ─── Button Styles ──────────────────────────────── */
+
+.pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.pub-btn-primary {
+  background-color: var(--pub-primary);
+  color: var(--pub-primary-foreground);
+}
+
+.pub-btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--pub-primary) 30%, transparent);
+}
+
+.pub-btn-secondary {
+  background-color: var(--pub-secondary);
+  color: var(--pub-secondary-foreground);
+}
+
+.pub-btn-secondary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.pub-btn-outline {
+  background-color: transparent;
+  color: var(--pub-primary);
+  border: 2px solid var(--pub-primary);
+}
+
+.pub-btn-outline:hover {
+  background-color: var(--pub-primary);
+  color: var(--pub-primary-foreground);
+}
+
+/* Button shape variants (set by ThemeInjector data attr) */
+[data-pub-button="pill"] .pub-btn { border-radius: var(--pub-radius-full); }
+[data-pub-button="rounded"] .pub-btn { border-radius: var(--pub-radius); }
+[data-pub-button="square"] .pub-btn { border-radius: var(--pub-radius-sm); }
+
+/* ─── Card ───────────────────────────────────────── */
+
+.pub-card {
+  background-color: var(--pub-card);
+  color: var(--pub-card-foreground);
+  border-radius: var(--pub-radius-lg);
+  border: 1px solid var(--pub-border);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.pub-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ─── Section ────────────────────────────────────── */
+
+.pub-section {
+  padding: 4rem 0;
+}
+
+.pub-section-alt {
+  background-color: var(--pub-muted);
+}
+
+.pub-container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ─── Star Rating ────────────────────────────────── */
+
+.pub-stars {
+  display: inline-flex;
+  gap: 2px;
+  color: #f59e0b;
+}
+
+/* ─── Animations ─────────────────────────────────── */
+
+@keyframes pub-fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pub-slide-in {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.pub-animate-in {
+  animation: pub-fade-in-up 0.6s ease-out both;
+}
+
+.pub-animate-delay-1 { animation-delay: 0.1s; }
+.pub-animate-delay-2 { animation-delay: 0.2s; }
+.pub-animate-delay-3 { animation-delay: 0.3s; }
+.pub-animate-delay-4 { animation-delay: 0.4s; }

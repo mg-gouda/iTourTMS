@@ -629,6 +629,15 @@ export const tariffGenerateSchema = z.object({
   currencyCode: z.string().min(1, "Currency is required"),
 });
 
+export const tariffBulkGenerateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  tourOperatorId: z.string().min(1, "Tour Operator is required"),
+  marketId: z.string().optional(),
+  seasonDateFrom: z.string().optional(),
+  seasonDateTo: z.string().optional(),
+  markupRuleId: z.string().optional(),
+});
+
 // ── Special Meals ──
 
 export const specialMealCreateSchema = z.object({

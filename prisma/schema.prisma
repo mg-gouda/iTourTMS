@@ -149,6 +149,16 @@ model Company {
   ttOperationalCosts   TtOperationalCost[]
   ttSettings           TtSettings?
 
+  // Public site relations
+  publicBranding       PublicSiteBranding?
+  heroSlides           HeroSlide[]
+  publicPages          PublicPage[]
+  blogPosts            BlogPost[]
+  faqs                 Faq[]
+  testimonials         Testimonial[]
+  newsletterSubs       NewsletterSubscriber[]
+  contactInquiries     ContactInquiry[]
+
   @@index([countryId])
   @@index([baseCurrencyId])
 }
@@ -1376,14 +1386,17 @@ model BudgetLine {
 // ============================================================================
 
 model Destination {
-  id        String   @id @default(cuid())
-  companyId String
-  name      String
-  code      String
-  countryId String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  code        String
+  countryId   String
+  description String?  @db.Text
+  imageUrl    String?
+  featured    Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   country     Country      @relation(fields: [countryId], references: [id])
@@ -1490,6 +1503,8 @@ model Hotel {
   yearRenovated    Int?
   giataId          String?
   active           Boolean    @default(true)
+  featured         Boolean    @default(false)
+  publicVisible    Boolean    @default(true)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -2404,6 +2419,7 @@ enum BookingSource {
   DIRECT
   TOUR_OPERATOR
   API
+  WEBSITE
 }
 
 enum VoucherStatus {
@@ -3428,4 +3444,248 @@ model TtPushToken {
   @@unique([userId, token])
   @@index([userId])
   @@map("tt_push_token")
+}
+
+// ============================================================================
+// PUBLIC SITE MODULE
+// ============================================================================
+
+enum ThemePreset {
+  MODERN_BOLD
+  CLEAN_TRUSTWORTHY
+  WARM_INVITING
+  LUXURY_ELEGANT
+}
+
+enum HeaderStyle {
+  TRANSPARENT
+  SOLID
+  MEGA_MENU
+}
+
+enum ButtonStyle {
+  PILL
+  ROUNDED
+  SQUARE
+}
+
+enum HeroStyle {
+  SLIDER
+  VIDEO
+  STATIC
+}
+
+enum PublicPageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum InquiryStatus {
+  NEW
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+model PublicSiteBranding {
+  id              String       @id @default(cuid())
+  companyId       String       @unique
+  // Theme preset
+  themePreset     ThemePreset  @default(MODERN_BOLD)
+  // Colors
+  primaryColor    String       @default("#2563eb") // blue-600
+  secondaryColor  String       @default("#f97316") // orange-500
+  accentColor     String       @default("#06b6d4") // cyan-500
+  backgroundColor String       @default("#ffffff")
+  foregroundColor String       @default("#0f172a")
+  cardColor       String       @default("#ffffff")
+  mutedColor      String       @default("#f1f5f9")
+  // Typography (Google Fonts names)
+  headingFont     String       @default("Poppins")
+  bodyFont        String       @default("Inter")
+  // Layout
+  headerStyle     HeaderStyle  @default(MEGA_MENU)
+  buttonStyle     ButtonStyle  @default(ROUNDED)
+  heroStyle       HeroStyle    @default(SLIDER)
+  footerColumns   Int          @default(4)
+  // Logos & images
+  logoUrl         String?
+  logoWhiteUrl    String?
+  faviconUrl      String?
+  ogImageUrl      String?
+  // SEO
+  siteTitle       String?
+  siteDescription String?      @db.Text
+  metaKeywords    String?
+  // Social links
+  facebook        String?
+  instagram       String?
+  twitter         String?
+  youtube         String?
+  linkedin        String?
+  tiktok          String?
+  whatsapp        String?
+  // Contact info
+  contactEmail    String?
+  contactPhone    String?
+  contactAddress  String?      @db.Text
+  // Feature flags
+  enableBlog      Boolean      @default(false)
+  enableFaq       Boolean      @default(true)
+  enableReviews   Boolean      @default(true)
+  enableNewsletter Boolean     @default(true)
+  enableB2bPortal Boolean      @default(false)
+  enableOnlinePayment Boolean  @default(false)
+  enableInquiryMode   Boolean  @default(true)
+  showPrices      Boolean      @default(true)
+  // Trust badges
+  yearsInBusiness Int?
+  happyGuests     Int?
+  // Custom CSS
+  customCss       String?      @db.Text
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("pub_branding")
+}
+
+model HeroSlide {
+  id          String   @id @default(cuid())
+  companyId   String
+  imageUrl    String
+  title       String?
+  subtitle    String?
+  ctaText     String?
+  ctaLink     String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, sortOrder])
+  @@map("pub_hero_slide")
+}
+
+model PublicPage {
+  id          String           @id @default(cuid())
+  companyId   String
+  title       String
+  slug        String
+  content     String           @db.Text
+  excerpt     String?          @db.Text
+  coverImage  String?
+  status      PublicPageStatus @default(DRAFT)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, slug])
+  @@index([companyId])
+  @@map("pub_page")
+}
+
+model BlogPost {
+  id          String         @id @default(cuid())
+  companyId   String
+  title       String
+  slug        String
+  content     String         @db.Text
+  excerpt     String?        @db.Text
+  coverImage  String?
+  tags        String[]
+  status      BlogPostStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, slug])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("pub_blog_post")
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  companyId String
+  question  String
+  answer    String   @db.Text
+  category  String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, sortOrder])
+  @@map("pub_faq")
+}
+
+model Testimonial {
+  id         String   @id @default(cuid())
+  companyId  String
+  guestName  String
+  avatar     String?
+  rating     Int      @default(5) // 1-5
+  quote      String   @db.Text
+  hotelId    String?
+  featured   Boolean  @default(false)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, featured])
+  @@map("pub_testimonial")
+}
+
+model NewsletterSubscriber {
+  id           String    @id @default(cuid())
+  companyId    String
+  email        String
+  subscribedAt DateTime  @default(now())
+  unsubscribedAt DateTime?
+  active       Boolean   @default(true)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@map("pub_newsletter_subscriber")
+}
+
+model ContactInquiry {
+  id        String        @id @default(cuid())
+  companyId String
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String        @db.Text
+  status    InquiryStatus @default(NEW)
+  reply     String?       @db.Text
+  repliedAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("pub_contact_inquiry")
 }

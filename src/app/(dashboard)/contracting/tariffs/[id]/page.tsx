@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { exportTariffToExcel, type TariffExportData } from "@/lib/export/tariff-excel";
-import { exportTariffToPdf } from "@/lib/export/tariff-pdf";
 import { trpc } from "@/lib/trpc";
 
 interface TariffRateEntry {
@@ -160,8 +159,7 @@ export default function TariffDetailPage() {
             variant="outline"
             size="sm"
             onClick={() => {
-              exportTariffToPdf(buildExportData(), "iTour TMS");
-              toast.success("PDF downloaded");
+              window.open(`/api/export/tariff-pdf/${id}`, "_blank");
             }}
             disabled={rates.length === 0}
           >

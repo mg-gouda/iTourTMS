@@ -9,14 +9,49 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public routes
-  const publicPaths = ["/login", "/api/auth", "/api/health", "/api/trpc", "/api/upload", "/api/v1"];
+  // Allow public API & auth routes
+  const publicPaths = [
+    "/login",
+    "/api/auth",
+    "/api/health",
+    "/api/trpc",
+    "/api/upload",
+    "/api/v1",
+    "/api/b2c",
+  ];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
   // Allow setup route (no auth needed for first-run)
   if (pathname.startsWith("/setup")) {
+    return NextResponse.next();
+  }
+
+  // Allow B2C website routes (served by (b2c) route group)
+  const b2cSiteRoutes = [
+    "/hotels",
+    "/hotel",
+    "/search",
+    "/booking",
+    "/b2b",
+    "/my-bookings",
+    "/about",
+    "/contact",
+    "/faq",
+    "/blog",
+    "/reviews",
+    "/destinations",
+    "/destination",
+    "/packages",
+    "/activities",
+    "/transfers",
+    "/page",
+  ];
+  if (
+    pathname === "/" ||
+    b2cSiteRoutes.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  ) {
     return NextResponse.next();
   }
 

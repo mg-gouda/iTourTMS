@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -28,53 +28,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { formatSeasonLabel } from "@/lib/utils";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { tariffGenerateSchema } from "@/lib/validations/contracting";
+import { tariffBulkGenerateSchema } from "@/lib/validations/contracting";
 
-type FormValues = z.infer<typeof tariffGenerateSchema>;
+type FormValues = z.infer<typeof tariffBulkGenerateSchema>;
 
 export default function GenerateTariffPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const [previewInput, setPreviewInput] = useState<FormValues | null>(null);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(tariffGenerateSchema),
+    resolver: zodResolver(tariffBulkGenerateSchema),
     defaultValues: {
       name: "",
-      contractId: "",
       tourOperatorId: "",
-      currencyCode: "",
+      marketId: undefined,
+      seasonDateFrom: undefined,
+      seasonDateTo: undefined,
     },
   });
 
-  const { data: contracts } = trpc.contracting.contract.list.useQuery();
   const { data: tourOperators } = trpc.contracting.tourOperator.list.useQuery();
+  const { data: markets } = trpc.contracting.market.list.useQuery();
   const { data: markupRules } = trpc.contracting.markupRule.list.useQuery();
 
-  const selectedContractId = form.watch("contractId");
-  const selectedContract = contracts?.find((c) => c.id === selectedContractId);
+  const selectedTOId = form.watch("tourOperatorId");
+  const selectedMarketId = form.watch("marketId");
+  const selectedSeasonFrom = form.watch("seasonDateFrom");
+  const selectedSeasonTo = form.watch("seasonDateTo");
 
-  // Preview query — only runs when preview is requested
-  const { data: previewData, isLoading: previewLoading } =
-    trpc.contracting.tariff.preview.useQuery(previewInput!, {
-      enabled: !!previewInput,
-    });
+  // Fetch contracts assigned to the selected TO, filtered by market
+  const { data: matchedContracts } =
+    trpc.contracting.tariff.contractsForTariff.useQuery(
+      {
+        tourOperatorId: selectedTOId,
+        marketId: selectedMarketId || undefined,
+      },
+      { enabled: !!selectedTOId },
+    );
 
-  const generateMutation = trpc.contracting.tariff.generate.useMutation({
+  // Deduplicate seasons by date range across all matched contracts
+  const seasonOptions = useMemo(() => {
+    if (!matchedContracts) return [];
+    const seen = new Map<string, { dateFrom: string; dateTo: string; label: string }>();
+    for (const c of matchedContracts) {
+      for (const s of c.seasons) {
+        const from = s.dateFrom.toString().slice(0, 10);
+        const to = s.dateTo.toString().slice(0, 10);
+        const key = `${from}|${to}`;
+        if (!seen.has(key)) {
+          seen.set(key, {
+            dateFrom: from,
+            dateTo: to,
+            label: formatSeasonLabel(from, to),
+          });
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }, [matchedContracts]);
+
+  // Contracts that will be affected (filtered by season if selected)
+  const affectedContracts = useMemo(() => {
+    if (!matchedContracts) return [];
+    if (!selectedSeasonFrom || !selectedSeasonTo) return matchedContracts;
+    return matchedContracts.filter((c) =>
+      c.seasons.some(
+        (s) =>
+          s.dateFrom.toString().slice(0, 10) === selectedSeasonFrom &&
+          s.dateTo.toString().slice(0, 10) === selectedSeasonTo,
+      ),
+    );
+  }, [matchedContracts, selectedSeasonFrom, selectedSeasonTo]);
+
+  const generateMutation = trpc.contracting.tariff.generateBulk.useMutation({
     onSuccess: (result) => {
       utils.contracting.tariff.list.invalidate();
-      toast.success("Tariff generated successfully");
-      router.push(`/contracting/tariffs/${result.id}`);
+      toast.success(
+        `Generated ${result.count} tariff${result.count !== 1 ? "s" : ""} successfully`,
+      );
+      router.push("/contracting/tariffs");
     },
     onError: (err) => {
       toast.error(err.message);
@@ -84,20 +119,6 @@ export default function GenerateTariffPage() {
   const onSubmit = (values: FormValues) => {
     generateMutation.mutate(values);
   };
-
-  const handlePreview = async () => {
-    const valid = await form.trigger();
-    if (valid) {
-      setPreviewInput(form.getValues());
-    }
-  };
-
-  // Auto-resolve markup rule preview
-  const selectedTOId = form.watch("tourOperatorId");
-  const { data: resolvedRule } = trpc.contracting.markupRule.resolve.useQuery(
-    { contractId: selectedContractId, tourOperatorId: selectedTOId },
-    { enabled: !!selectedContractId && !!selectedTOId },
-  );
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -110,7 +131,7 @@ export default function GenerateTariffPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Generate Tariff</h1>
           <p className="text-muted-foreground">
-            Create a tariff sheet for a contract and tour operator
+            Generate tariff sheets for all contracts assigned to a tour operator
           </p>
         </div>
       </div>
@@ -135,34 +156,9 @@ export default function GenerateTariffPage() {
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="contractId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contract *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select contract" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {contracts?.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name} ({c.code})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormDescription>
+                        Each contract&apos;s tariff will be suffixed with the contract name
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -175,7 +171,12 @@ export default function GenerateTariffPage() {
                     <FormItem>
                       <FormLabel>Tour Operator *</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(v) => {
+                          field.onChange(v);
+                          // Reset dependent fields
+                          form.setValue("seasonDateFrom", undefined);
+                          form.setValue("seasonDateTo", undefined);
+                        }}
                         value={field.value}
                       >
                         <FormControl>
@@ -198,26 +199,91 @@ export default function GenerateTariffPage() {
 
                 <FormField
                   control={form.control}
-                  name="currencyCode"
+                  name="marketId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Currency *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g. USD, EUR, GBP"
-                          {...field}
-                          value={
-                            field.value ||
-                            selectedContract?.baseCurrency?.code ||
-                            ""
-                          }
-                        />
-                      </FormControl>
+                      <FormLabel>Market</FormLabel>
+                      <Select
+                        onValueChange={(v) => {
+                          field.onChange(v === "__all__" ? undefined : v);
+                          form.setValue("seasonDateFrom", undefined);
+                          form.setValue("seasonDateTo", undefined);
+                        }}
+                        value={field.value ?? "__all__"}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All markets" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__all__">All Markets</SelectItem>
+                          {markets?.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} ({m.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        {selectedContract?.baseCurrency &&
-                          `Contract base currency: ${selectedContract.baseCurrency.code}`}
+                        Filter contracts by market
                       </FormDescription>
-                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="seasonDateFrom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Season</FormLabel>
+                      <Select
+                        onValueChange={(v) => {
+                          if (v === "__all__") {
+                            form.setValue("seasonDateFrom", undefined);
+                            form.setValue("seasonDateTo", undefined);
+                          } else {
+                            const opt = seasonOptions.find(
+                              (s) => `${s.dateFrom}|${s.dateTo}` === v,
+                            );
+                            if (opt) {
+                              form.setValue("seasonDateFrom", opt.dateFrom);
+                              form.setValue("seasonDateTo", opt.dateTo);
+                            }
+                          }
+                        }}
+                        value={
+                          field.value && selectedSeasonTo
+                            ? `${field.value}|${selectedSeasonTo}`
+                            : "__all__"
+                        }
+                        disabled={!selectedTOId || seasonOptions.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All seasons" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__all__">All Seasons</SelectItem>
+                          {seasonOptions.map((s) => (
+                            <SelectItem
+                              key={`${s.dateFrom}|${s.dateTo}`}
+                              value={`${s.dateFrom}|${s.dateTo}`}
+                            >
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {selectedTOId
+                          ? seasonOptions.length > 0
+                            ? "Filter by season period"
+                            : "No seasons found in matched contracts"
+                          : "Select a tour operator first"}
+                      </FormDescription>
                     </FormItem>
                   )}
                 />
@@ -248,7 +314,7 @@ export default function GenerateTariffPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="__auto__">
-                            Auto-resolve (recommended)
+                            Auto-resolve per contract (recommended)
                           </SelectItem>
                           {markupRules
                             ?.filter((r) => r.active)
@@ -262,129 +328,65 @@ export default function GenerateTariffPage() {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Leave on auto-resolve to use the best-matching rule based
-                        on scope hierarchy
+                        Auto-resolve picks the best rule per contract based on
+                        scope hierarchy
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* Show auto-resolved preview */}
-                {!form.watch("markupRuleId") && resolvedRule && (
-                  <div className="rounded-lg border bg-muted/50 p-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">
-                      Auto-resolved rule:
+                {/* Matched contracts summary */}
+                {selectedTOId && (
+                  <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Contracts to generate ({affectedContracts.length}):
                     </p>
-                    <p className="text-sm font-medium">{resolvedRule.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {resolvedRule.markupType === "PERCENTAGE"
-                        ? `${parseFloat(resolvedRule.value)}% markup`
-                        : `${parseFloat(resolvedRule.value).toFixed(2)} ${resolvedRule.markupType.replace(/_/g, " ").toLowerCase()}`}
-                    </p>
+                    {affectedContracts.length === 0 ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        No contracts match the selected filters
+                      </p>
+                    ) : (
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {affectedContracts.map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span>
+                              {c.hotel.name}{" "}
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {c.code}
+                              </span>
+                            </span>
+                            <Badge variant="outline" className="text-[10px]">
+                              {c.baseCurrency?.code ?? "—"}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
-
-                {!form.watch("markupRuleId") &&
-                  !resolvedRule &&
-                  selectedContractId &&
-                  selectedTOId && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3">
-                      <p className="text-xs text-amber-700 dark:text-amber-400">
-                        No matching markup rule found. Tariff will be generated
-                        with zero markup (cost rates).
-                      </p>
-                    </div>
-                  )}
               </CardContent>
             </Card>
           </div>
 
           <div className="flex gap-3">
             <Button
-              type="button"
-              variant="outline"
-              onClick={handlePreview}
-              disabled={previewLoading}
-            >
-              {previewLoading ? "Loading preview..." : "Preview Rates"}
-            </Button>
-            <Button
               type="submit"
-              disabled={generateMutation.isPending}
+              disabled={
+                generateMutation.isPending || affectedContracts.length === 0
+              }
             >
               {generateMutation.isPending
                 ? "Generating..."
-                : "Generate Tariff"}
+                : `Generate ${affectedContracts.length} Tariff${affectedContracts.length !== 1 ? "s" : ""}`}
             </Button>
             <Button type="button" variant="outline" asChild>
               <Link href="/contracting/tariffs">Cancel</Link>
             </Button>
           </div>
-
-          {/* Preview Section */}
-          {previewData && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Rate Preview</CardTitle>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Badge variant="outline">{previewData.currencyCode}</Badge>
-                    <Badge variant="outline">{previewData.rateBasis.replace(/_/g, " ")}</Badge>
-                    {previewData.markupRuleName && (
-                      <Badge variant="secondary">
-                        Markup: {previewData.markupRuleName} (
-                        {previewData.markupType === "PERCENTAGE"
-                          ? `${previewData.markupValue}%`
-                          : previewData.markupValue.toFixed(2)}
-                        )
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {previewData.rates.length} rate entries across{" "}
-                  {new Set(previewData.rates.map((r) => r.seasonId)).size} season(s),{" "}
-                  {new Set(previewData.rates.map((r) => r.roomTypeId)).size} room type(s),{" "}
-                  {new Set(previewData.rates.map((r) => r.mealBasisId)).size} meal basis(es)
-                </p>
-                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="sticky top-0 bg-background">Season</TableHead>
-                        <TableHead className="sticky top-0 bg-background">Room Type</TableHead>
-                        <TableHead className="sticky top-0 bg-background">Meal</TableHead>
-                        <TableHead className="sticky top-0 bg-background text-right">Base Rate</TableHead>
-                        <TableHead className="sticky top-0 bg-background text-right">Markup</TableHead>
-                        <TableHead className="sticky top-0 bg-background text-right">Selling Rate</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {previewData.rates.map((rate, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-medium">{rate.seasonLabel ?? "Unknown"}</TableCell>
-                          <TableCell>{rate.roomTypeName}</TableCell>
-                          <TableCell>{rate.mealBasisName}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {rate.baseRate.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-muted-foreground">
-                            +{rate.markup.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-medium">
-                            {rate.sellingRate.toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </form>
       </Form>
     </div>

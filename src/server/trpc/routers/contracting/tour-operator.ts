@@ -140,8 +140,9 @@ export const tourOperatorRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.contract.findFirstOrThrow({
+      const contract = await ctx.db.contract.findFirstOrThrow({
         where: { id: input.contractId, companyId: ctx.companyId },
+        select: { id: true, hotelId: true },
       });
 
       const existing = await ctx.db.contractTourOperator.findMany({
@@ -163,7 +164,29 @@ export const tourOperatorRouter = createTRPCRouter({
         });
       }
 
-      return { assigned: newIds.length };
+      // Auto-assign the contract's hotel to each tour operator (skip if already assigned)
+      const existingHotel = await ctx.db.hotelTourOperator.findMany({
+        where: {
+          hotelId: contract.hotelId,
+          tourOperatorId: { in: input.tourOperatorIds },
+        },
+        select: { tourOperatorId: true },
+      });
+      const existingHotelIds = new Set(existingHotel.map((e) => e.tourOperatorId));
+      const newHotelIds = input.tourOperatorIds.filter(
+        (id) => !existingHotelIds.has(id),
+      );
+
+      if (newHotelIds.length > 0) {
+        await ctx.db.hotelTourOperator.createMany({
+          data: newHotelIds.map((tourOperatorId) => ({
+            hotelId: contract.hotelId,
+            tourOperatorId,
+          })),
+        });
+      }
+
+      return { assigned: newIds.length, hotelsAssigned: newHotelIds.length };
     }),
 
   unassignFromContract: proc
