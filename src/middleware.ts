@@ -52,7 +52,17 @@ export function middleware(request: NextRequest) {
     pathname === "/" ||
     b2cSiteRoutes.some((p) => pathname === p || pathname.startsWith(p + "/"))
   ) {
-    return NextResponse.next();
+    // Detect visitor country from platform headers and forward downstream
+    const country =
+      request.headers.get("cf-ipcountry") || // Cloudflare
+      (request as any).geo?.country || // Vercel
+      null;
+
+    const response = NextResponse.next();
+    if (country) {
+      response.headers.set("x-geo-country", country);
+    }
+    return response;
   }
 
   // Check for session token (next-auth v5 JWT cookie)

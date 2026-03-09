@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { B2cHeader } from "@/components/b2c/header";
 import { B2cFooter } from "@/components/b2c/footer";
 import { ThemeInjector } from "@/components/b2c/theme-injector";
+import { GeoMarketGuard } from "@/components/b2c/geo-market-guard";
 import { getBranding, getCompanyInfo } from "@/lib/b2c/get-branding";
 import { buildGoogleFontsUrl } from "@/lib/b2c/fonts";
 
@@ -60,6 +61,9 @@ export default async function B2cLayout({
 
       {/* Dynamic theme variables */}
       <ThemeInjector branding={branding} />
+
+      {/* Geo-IP market guard — blocks search/booking for unsupported countries */}
+      <GeoMarketGuard />
 
       <B2cHeader
         branding={branding}

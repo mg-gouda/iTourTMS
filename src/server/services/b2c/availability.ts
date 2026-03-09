@@ -11,6 +11,7 @@ import {
   calculateSpecialMeals,
   applyBestOffer,
 } from "./rate-calculator";
+import { resolveB2cMarkup, applyB2cMarkup } from "./b2c-markup-calculator";
 
 // ── Public Types ─────────────────────────────────────────
 
@@ -18,6 +19,7 @@ export interface SearchParams {
   companyId: string;
   destinationId?: string;
   hotelId?: string;
+  marketId?: string;
   checkIn: Date;
   checkOut: Date;
   adults: number;
@@ -44,6 +46,8 @@ export interface RoomResult {
   specialMealCharge: number;
   totalBeforeOffer: number;
   total: number;
+  markupAmount: number;
+  displayTotal: number;
   pricePerNight: number;
   appliedOffer: { id: string; name: string; type: OfferType; saving: number } | null;
 }
@@ -83,6 +87,7 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
     companyId,
     destinationId,
     hotelId,
+    marketId,
     checkIn,
     checkOut,
     adults,
@@ -110,6 +115,7 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
       ...(hotelId ? { hotelId } : {}),
       ...(destinationId ? { hotel: { destinationId } } : {}),
       ...(starRating ? { hotel: { starRating: starRating as any } } : {}),
+      ...(marketId ? { markets: { some: { marketId } } } : {}),
       hotel: {
         active: true,
         publicVisible: true,
@@ -162,16 +168,33 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
   });
 
   // 2. Process each contract → hotel results
+  console.log(`[availability] Found ${contracts.length} PUBLISHED contracts matching query`);
   const hotelResults: HotelResult[] = [];
 
   for (const contract of contracts) {
     // Check minimum/maximum stay
-    if (nights < contract.minimumStay) continue;
-    if (contract.maximumStay && nights > contract.maximumStay) continue;
+    if (nights < contract.minimumStay) {
+      console.log(`[availability] Contract ${contract.name}: skipped — min stay ${contract.minimumStay} > ${nights} nights`);
+      continue;
+    }
+    if (contract.maximumStay && nights > contract.maximumStay) {
+      console.log(`[availability] Contract ${contract.name}: skipped — max stay ${contract.maximumStay} < ${nights} nights`);
+      continue;
+    }
 
     // Map nights to seasons
     const seasonNights = mapNightsToSeasons(checkIn, checkOut, contract.seasons);
-    if (seasonNights.length !== nights) continue; // Not all nights covered by seasons
+    if (seasonNights.length !== nights) {
+      console.log(`[availability] Contract ${contract.name}: skipped — only ${seasonNights.length}/${nights} nights covered by seasons. Seasons:`, contract.seasons.map(s => `${s.dateFrom.toISOString().split('T')[0]} → ${s.dateTo.toISOString().split('T')[0]}`));
+      continue;
+    }
+
+    // Resolve B2C markup rule for this hotel/destination
+    const markupRule = await resolveB2cMarkup(
+      companyId,
+      contract.hotel.id,
+      contract.hotel.destination?.id ?? null,
+    );
 
     const rooms: RoomResult[] = [];
 
@@ -250,6 +273,15 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
 
         const total = Math.round(discountedTotal * 100) / 100;
 
+        // Apply B2C markup
+        let markupAmount = 0;
+        let displayTotal = total;
+        if (markupRule) {
+          const markup = applyB2cMarkup(total, markupRule, checkIn, nights);
+          markupAmount = markup.markupAmount;
+          displayTotal = markup.displayTotal;
+        }
+
         rooms.push({
           roomTypeId: rt.id,
           roomTypeName: rt.name,
@@ -270,16 +302,21 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
           specialMealCharge: Math.round(specialMealCharge * 100) / 100,
           totalBeforeOffer: Math.round(totalBeforeOffer * 100) / 100,
           total,
-          pricePerNight: Math.round((total / nights) * 100) / 100,
+          markupAmount,
+          displayTotal,
+          pricePerNight: Math.round((displayTotal / nights) * 100) / 100,
           appliedOffer,
         });
       }
     }
 
-    if (rooms.length === 0) continue;
+    if (rooms.length === 0) {
+      console.log(`[availability] Contract ${contract.name}: no valid room/meal combos. Room types: ${contract.roomTypes.length}, Meal bases: ${contract.mealBases.length}`);
+      continue;
+    }
 
-    // Sort rooms by total price
-    rooms.sort((a, b) => a.total - b.total);
+    // Sort rooms by display (customer-facing) price
+    rooms.sort((a, b) => a.displayTotal - b.displayTotal);
 
     hotelResults.push({
       hotelId: contract.hotel.id,
@@ -297,7 +334,7 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
       rateBasis: contract.rateBasis,
       nights,
       rooms,
-      cheapestTotal: rooms[0].total,
+      cheapestTotal: rooms[0].displayTotal,
       cheapestPerNight: rooms[0].pricePerNight,
     });
   }

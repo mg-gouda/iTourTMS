@@ -49,6 +49,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     dependencies: [],
     isAvailable: true,
   },
+  {
+    name: "b2b-portal",
+    displayName: "B2B Portal",
+    description: "Partner portal for tour operators, travel agents, rate sheets, and bookings",
+    icon: "Briefcase",
+    dependencies: [],
+    isAvailable: true,
+  },
 ];
 
 export function getModule(name: string): ModuleDefinition | undefined {

@@ -4,6 +4,8 @@ import { financeRouter } from "@/server/trpc/routers/finance";
 import { reservationsRouter } from "@/server/trpc/routers/reservations";
 import { trafficRouter } from "@/server/trpc/routers/traffic";
 import { b2cSiteRouter } from "@/server/trpc/routers/b2c-site";
+import { b2bPortalRouter } from "@/server/trpc/routers/b2b-portal";
+import { crmRouter } from "@/server/trpc/routers/crm";
 import { apiIntegrationRouter } from "@/server/trpc/routers/shared/api-integration";
 import { settingsRouter } from "@/server/trpc/routers/shared/settings";
 import { setupRouter } from "@/server/trpc/routers/shared/setup";
@@ -20,7 +22,9 @@ export const appRouter = createTRPCRouter({
   traffic: trafficRouter,
   apiIntegration: apiIntegrationRouter,
   notification: notificationRouter,
+  crm: crmRouter,
   b2cSite: b2cSiteRouter,
+  b2bPortal: b2bPortalRouter,
 });
 
 export type AppRouter = typeof appRouter;

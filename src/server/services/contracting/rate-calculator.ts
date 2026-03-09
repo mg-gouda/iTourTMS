@@ -798,9 +798,9 @@ export function calculateMultiRoomRate(
     bookingDate?: string | null;
   },
 ): MultiRoomResponse {
-  // 1. Detect season
-  const season = detectSeason(input.arrivalDate, contract.seasons);
-  if (!season) {
+  // 1. Calculate nights
+  const nights = differenceInDays(input.arrivalDate, input.departureDate);
+  if (nights <= 0) {
     return {
       seasonId: "",
       seasonLabel: "No matching season",
@@ -810,17 +810,40 @@ export function calculateMultiRoomRate(
     };
   }
 
-  // 2. Calculate nights
-  const nights = differenceInDays(input.arrivalDate, input.departureDate);
-  if (nights <= 0) {
+  // 2. Map each night to its season (handles multi-season stays)
+  const nightSeasons: { date: string; seasonId: string | null; seasonLabel: string }[] = [];
+  for (let i = 0; i < nights; i++) {
+    const d = new Date(input.arrivalDate);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const season = detectSeason(dateStr, contract.seasons);
+    nightSeasons.push({
+      date: dateStr,
+      seasonId: season?.id ?? null,
+      seasonLabel: season?.label ?? "No Season",
+    });
+  }
+
+  // Primary season (arrival date) for display purposes
+  const primarySeason = detectSeason(input.arrivalDate, contract.seasons);
+  if (!primarySeason) {
     return {
-      seasonId: season.id,
-      seasonLabel: season.label,
-      nights: 0,
+      seasonId: "",
+      seasonLabel: "No matching season",
+      nights,
       resolvedChildren: [],
       results: [],
     };
   }
+
+  // Build season label (show all seasons if multi-season stay)
+  const uniqueSeasonIds = [...new Set(nightSeasons.map((n) => n.seasonId).filter(Boolean))] as string[];
+  const seasonLabel = uniqueSeasonIds.length > 1
+    ? uniqueSeasonIds.map((id) => {
+        const s = contract.seasons.find((cs) => cs.id === id);
+        return s ? formatSeasonLabel(s.dateFrom, s.dateTo) : "";
+      }).filter(Boolean).join(" + ")
+    : primarySeason.label;
 
   // 3. Resolve child categories
   const resolvedChildren = input.childDobs.map((dob) => {
@@ -832,6 +855,12 @@ export function calculateMultiRoomRate(
   const childCount = resolvedChildren.filter((c) => c.category === "CHILD" || c.category === "TEEN").length;
   const infantCount = resolvedChildren.filter((c) => c.category === "INFANT").length;
   const extraBeds = input.extraBed ? 1 : 0;
+
+  // Build children array for calculateRate (include age for age-based matching)
+  const childrenForCalc = resolvedChildren.map((c) => ({
+    category: c.category,
+    age: c.ageAtCheckIn,
+  }));
 
   // 4. For each contract room type, find matching occupancy rows
   const results: MultiRoomResult[] = [];
@@ -848,14 +877,38 @@ export function calculateMultiRoomRate(
 
     if (!matchingOccupancy) continue;
 
-    // Build children array for the existing calculateRate (include age for age-based matching)
-    const childrenForCalc = resolvedChildren.map((c) => ({
-      category: c.category,
-      age: c.ageAtCheckIn,
-    }));
+    // Calculate per-night rates across all seasons and accumulate room total
+    let roomTotalAccum = new Decimal(0);
+    for (const nightInfo of nightSeasons) {
+      if (!nightInfo.seasonId) continue;
 
+      const nightBd = calculateRate(contract, {
+        seasonId: nightInfo.seasonId,
+        roomTypeId: crt.roomTypeId,
+        mealBasisId: input.mealBasisId,
+        adults: input.adults,
+        children: childrenForCalc,
+        extraBed: input.extraBed,
+        nights: 1,
+        bookingDate: input.bookingDate ?? null,
+        checkInDate: nightInfo.date,
+      });
+
+      // For PER_PERSON: adultTotalPerNight is per-person, multiply by adults
+      // For PER_ROOM: totalPerNight is already the room rate
+      const nightRoomTotal = contract.rateBasis === "PER_PERSON"
+        ? new Decimal(nightBd.adultTotalPerNight).times(input.adults).plus(nightBd.childTotalPerNight)
+        : new Decimal(nightBd.totalPerNight);
+
+      roomTotalAccum = roomTotalAccum.plus(nightRoomTotal);
+    }
+
+    const totalPerRoom = roomTotalAccum.toDecimalPlaces(4).toNumber();
+    const roomTotalPerNight = new Decimal(totalPerRoom).div(nights).toDecimalPlaces(4).toNumber();
+
+    // Use arrival season breakdown for display (supplements, base rate label, etc.)
     const breakdown = calculateRate(contract, {
-      seasonId: season.id,
+      seasonId: primarySeason.id,
       roomTypeId: crt.roomTypeId,
       mealBasisId: input.mealBasisId,
       adults: input.adults,
@@ -866,16 +919,7 @@ export function calculateMultiRoomRate(
       checkInDate: input.arrivalDate,
     });
 
-    // For PER_PERSON: adultTotalPerNight is for ONE adult, must multiply by pax
-    // For PER_ROOM: adultTotalPerNight is already the room rate
-    const roomTotalPerNight = contract.rateBasis === "PER_PERSON"
-      ? new Decimal(breakdown.adultTotalPerNight).times(input.adults).plus(breakdown.childTotalPerNight).toDecimalPlaces(4).toNumber()
-      : breakdown.totalPerNight;
-
-    const totalPerRoom = new Decimal(roomTotalPerNight).times(nights).toDecimalPlaces(4).toNumber();
-
-    // Scale offer discounts to room level
-    // breakdown.totalStay is per-person level; compute ratio to apply to room total
+    // Apply offer discounts using the full-stay breakdown ratio
     let totalPerRoomAfterOffers = totalPerRoom;
     if (breakdown.totalStay > 0 && breakdown.totalStayAfterOffers !== breakdown.totalStay) {
       const discountRatio = new Decimal(breakdown.totalStayAfterOffers).div(breakdown.totalStay);
@@ -903,8 +947,8 @@ export function calculateMultiRoomRate(
   results.sort((a, b) => a.totalPerRoomAfterOffers - b.totalPerRoomAfterOffers);
 
   return {
-    seasonId: season.id,
-    seasonLabel: season.label,
+    seasonId: primarySeason.id,
+    seasonLabel,
     nights,
     resolvedChildren,
     results,

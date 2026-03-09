@@ -65,6 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: user.id },
           select: {
             companyId: true,
+            tourOperatorId: true,
             locale: true,
             userRoles: {
               select: {
@@ -87,6 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (dbUser) {
           token.companyId = dbUser.companyId;
+          token.tourOperatorId = dbUser.tourOperatorId;
           token.locale = dbUser.locale;
           token.roles = dbUser.userRoles.map((ur) => ur.role.name);
           token.permissions = [
@@ -104,6 +106,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.companyId = token.companyId as string | null;
+        session.user.tourOperatorId = token.tourOperatorId as string | null;
         session.user.locale = token.locale as string;
         session.user.roles = token.roles as string[];
         session.user.permissions = token.permissions as string[];

@@ -5678,15 +5678,22 @@ function SimulatorTab({
                           {/* Section 4: Room total per night */}
                           <Separator className="my-2" />
                           <div className="flex justify-between font-semibold">
-                            <span>Room Total / Night</span>
+                            <span>Room Total / Night {multiResult.seasonLabel.includes("+") ? "(avg)" : ""}</span>
                             <span className="font-mono">{fmt(room.roomTotalPerNight)}</span>
                           </div>
+
+                          {/* Multi-season note */}
+                          {multiResult.seasonLabel.includes("+") && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Stay spans multiple seasons — total reflects per-night rates from each season.
+                            </p>
+                          )}
 
                           {/* Section 5: Multiply by nights */}
                           {multiResult.nights > 1 && (
                             <div className="mt-1 flex justify-between text-sm">
                               <span className="text-muted-foreground">
-                                {fmt(room.roomTotalPerNight)} x {multiResult.nights} nights
+                                {multiResult.seasonLabel.includes("+") ? `${multiResult.nights} nights (multi-season)` : `${fmt(room.roomTotalPerNight)} x ${multiResult.nights} nights`}
                               </span>
                               <span className="font-mono font-semibold">{fmt(room.totalPerRoom)}</span>
                             </div>

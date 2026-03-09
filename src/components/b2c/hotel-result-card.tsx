@@ -14,7 +14,9 @@ interface HotelResultCardProps {
   nights: number;
   cheapestTotal: number;
   cheapestPerNight: number;
+  contractId: string;
   rooms: {
+    roomTypeId: string;
     roomTypeName: string;
     roomTypeCode: string;
     mealName: string;
@@ -22,6 +24,7 @@ interface HotelResultCardProps {
     availability: "available" | "on_request" | "limited" | "sold_out";
     remainingRooms: number;
     total: number;
+    displayTotal: number;
     pricePerNight: number;
     totalBeforeOffer: number;
     appliedOffer: { name: string; saving: number } | null;
@@ -41,6 +44,7 @@ export function HotelResultCard({
   nights,
   cheapestTotal,
   cheapestPerNight,
+  contractId,
   rooms,
   searchParams,
 }: HotelResultCardProps) {
@@ -118,22 +122,39 @@ export function HotelResultCard({
 
           {/* Room rows */}
           <div>
-            {visibleRooms.map((room, i) => (
-              <RoomRow
-                key={`${room.roomTypeCode}-${room.mealCode}-${i}`}
-                roomTypeName={room.roomTypeName}
-                mealName={room.mealName}
-                mealCode={room.mealCode}
-                availability={room.availability}
-                remainingRooms={room.remainingRooms}
-                total={room.total}
-                pricePerNight={room.pricePerNight}
-                currency={currency}
-                nights={nights}
-                appliedOffer={room.appliedOffer}
-                totalBeforeOffer={room.totalBeforeOffer}
-              />
-            ))}
+            {visibleRooms.map((room, i) => {
+              const bookingParams = new URLSearchParams(searchParams);
+              bookingParams.set("hotelId", hotelId);
+              bookingParams.set("hotelName", hotelName);
+              bookingParams.set("contractId", contractId);
+              bookingParams.set("roomTypeId", room.roomTypeId);
+              bookingParams.set("roomType", room.roomTypeName);
+              bookingParams.set("mealCode", room.mealCode);
+              bookingParams.set("mealName", room.mealName);
+              bookingParams.set("total", room.displayTotal.toFixed(2));
+              bookingParams.set("currency", currency);
+              bookingParams.set("nights", String(nights));
+              const bookingUrl = `/booking?${bookingParams.toString()}`;
+
+              return (
+                <RoomRow
+                  key={`${room.roomTypeCode}-${room.mealCode}-${i}`}
+                  roomTypeName={room.roomTypeName}
+                  mealName={room.mealName}
+                  mealCode={room.mealCode}
+                  availability={room.availability}
+                  remainingRooms={room.remainingRooms}
+                  total={room.total}
+                  displayTotal={room.displayTotal}
+                  pricePerNight={room.pricePerNight}
+                  currency={currency}
+                  nights={nights}
+                  appliedOffer={room.appliedOffer}
+                  totalBeforeOffer={room.totalBeforeOffer}
+                  bookingUrl={bookingUrl}
+                />
+              );
+            })}
             {rooms.length > 3 && (
               <Link
                 href={`/hotel/${hotelId}?${searchParams}`}

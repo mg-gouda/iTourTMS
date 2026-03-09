@@ -1,6 +1,7 @@
 import { MapPin, Building2, Star, Users, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
+import { BookingEngine } from "@/components/b2c/booking-engine";
 import { getBranding, getCompanyInfo } from "@/lib/b2c/get-branding";
 import { db } from "@/server/db";
 
@@ -50,6 +51,12 @@ export default async function HomePage() {
       })
     : [];
 
+  // Fetch countries for nationality dropdown
+  const countries = await db.country.findMany({
+    select: { id: true, code: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
   // Stats
   const stats = company
     ? {
@@ -63,7 +70,7 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative flex min-h-[600px] items-center justify-center overflow-hidden bg-[var(--pub-foreground)]">
+      <section className="relative flex min-h-[600px] items-center justify-center bg-[var(--pub-foreground)]">
         {/* Background */}
         {heroSlides.length > 0 ? (
           <img
@@ -76,9 +83,9 @@ export default async function HomePage() {
         )}
         <div className="absolute inset-0 bg-black/40" />
 
-        <div className="pub-container relative z-10 py-20 text-center text-white">
+        <div className="pub-container relative z-10 py-16 text-center text-white">
           <h1
-            className="pub-animate-in mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl"
+            className="pub-animate-in mb-3 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl"
             style={{ fontFamily: "var(--pub-heading-font)" }}
           >
             {heroSlides[0]?.title || `Discover ${companyName}`}
@@ -87,14 +94,8 @@ export default async function HomePage() {
             {heroSlides[0]?.subtitle ||
               "Unforgettable destinations, handpicked hotels, and seamless travel experiences"}
           </p>
-          <div className="pub-animate-in pub-animate-delay-2 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/search" className="pub-btn pub-btn-primary text-base">
-              Search Hotels
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link href="/destinations" className="pub-btn pub-btn-outline border-white text-white hover:bg-white hover:text-[var(--pub-foreground)]">
-              Explore Destinations
-            </Link>
+          <div className="pub-animate-in pub-animate-delay-2">
+            <BookingEngine destinations={destinations.map((d) => ({ id: d.id, name: d.name }))} countries={countries} />
           </div>
         </div>
       </section>

@@ -8,6 +8,7 @@ import {
   bookingStatusTransitionSchema,
   bookingRateCalcSchema,
 } from "@/lib/validations/reservations";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import {
@@ -918,6 +919,10 @@ export const bookingRouter = createTRPCRouter({
           });
 
           await logBookingAction(ctx.db, booking.id, "CONFIRMED", `Booking confirmed. Voucher ${voucherCode} issued.`, userId);
+
+          // Sync traffic jobs (create ARR/DEP jobs if flight data exists)
+          await syncTrafficJobsForBooking(ctx.db, ctx.companyId, booking.id, userId);
+
           dispatchWebhooks(ctx.companyId, booking.hotelId, "booking.confirmed", {
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
           });
@@ -1114,4 +1119,222 @@ export const bookingRouter = createTRPCRouter({
       })),
     };
   }),
+
+  // ── Cancellation penalty preview ──
+  getCancellationPenalty: proc
+    .input(z.object({ bookingId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Verify booking belongs to company
+      await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+      });
+      const { calculateCancellationPenalty } = await import("@/server/services/reservations/cancellation-engine");
+      return calculateCancellationPenalty(input.bookingId);
+    }),
+
+  // ── Cancel with penalty ──
+  cancelWithPenalty: proc
+    .input(z.object({
+      bookingId: z.string(),
+      reason: z.string().optional(),
+      waivePenalty: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        include: { rooms: { select: { roomTypeId: true } } },
+      });
+
+      if (booking.status === "CHECKED_OUT" || booking.status === "CANCELLED") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot cancel this booking" });
+      }
+
+      let penaltyAmount = 0;
+      if (!input.waivePenalty && booking.contractId) {
+        const { calculateCancellationPenalty } = await import("@/server/services/reservations/cancellation-engine");
+        const penalty = await calculateCancellationPenalty(input.bookingId);
+        penaltyAmount = penalty.penaltyAmount;
+      }
+
+      // Restore allotment if confirmed
+      if (booking.contractId && ["CONFIRMED", "CHECKED_IN"].includes(booking.status)) {
+        const roomTypeIds = booking.rooms.map((r) => r.roomTypeId);
+        await restoreAllotment(ctx.db, booking.contractId, roomTypeIds);
+      }
+
+      const now = new Date();
+      const userId = ctx.session.user.id;
+
+      const updated = await ctx.db.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: now,
+          cancelledById: userId,
+          cancellationReason: input.reason ?? null,
+          internalNotes: penaltyAmount > 0
+            ? `${booking.internalNotes ?? ""}\nCancellation penalty: ${penaltyAmount.toFixed(2)}${input.waivePenalty ? " (WAIVED)" : ""}`
+            : booking.internalNotes,
+        },
+      });
+
+      await logBookingAction(
+        ctx.db, booking.id, "CANCELLED",
+        `Cancelled. Penalty: ${penaltyAmount.toFixed(2)}${input.waivePenalty ? " (waived)" : ""}. ${input.reason ?? ""}`,
+        userId,
+      );
+
+      return { ...updated, penaltyAmount };
+    }),
+
+  // ── Group booking (10+ rooms) ──
+  createGroup: proc
+    .input(z.object({
+      hotelId: z.string(),
+      contractId: z.string().optional(),
+      tourOperatorId: z.string().optional(),
+      checkIn: z.string(),
+      checkOut: z.string(),
+      groupName: z.string().min(1, "Group name is required"),
+      rooms: z.array(z.object({
+        roomTypeId: z.string(),
+        mealBasisId: z.string(),
+        adults: z.number().int().min(1).default(2),
+        children: z.number().int().min(0).default(0),
+        quantity: z.number().int().min(1).default(1),
+      })).min(1),
+      currencyId: z.string(),
+      source: z.enum(["DIRECT", "TOUR_OPERATOR", "API", "WEBSITE"]).default("DIRECT"),
+      leadGuestName: z.string().optional(),
+      leadGuestEmail: z.string().optional(),
+      specialRequests: z.string().optional(),
+      internalNotes: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.companyId;
+      const code = await generateSequenceNumber(ctx.db, companyId, "booking");
+
+      // Expand rooms by quantity
+      const expandedRooms = input.rooms.flatMap((r, groupIdx) =>
+        Array.from({ length: r.quantity }, (_, i) => ({
+          roomTypeId: r.roomTypeId,
+          mealBasisId: r.mealBasisId,
+          adults: r.adults,
+          children: r.children,
+          roomIndex: groupIdx * 100 + i + 1,
+        }))
+      );
+
+      const totalRooms = expandedRooms.length;
+      const totalAdults = expandedRooms.reduce((sum, r) => sum + r.adults, 0);
+      const totalChildren = expandedRooms.reduce((sum, r) => sum + r.children, 0);
+
+      const checkIn = new Date(input.checkIn);
+      const checkOut = new Date(input.checkOut);
+      const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+
+      const booking = await ctx.db.booking.create({
+        data: {
+          companyId,
+          code,
+          status: "DRAFT",
+          source: input.source,
+          hotelId: input.hotelId,
+          contractId: input.contractId ?? null,
+          tourOperatorId: input.tourOperatorId ?? null,
+          checkIn,
+          checkOut,
+          nights,
+          currencyId: input.currencyId,
+          noOfRooms: totalRooms,
+          adults: totalAdults,
+          children: totalChildren,
+          leadGuestName: input.groupName,
+          leadGuestEmail: input.leadGuestEmail ?? null,
+          specialRequests: input.specialRequests ?? null,
+          internalNotes: `[GROUP BOOKING] ${input.groupName}\n${input.internalNotes ?? ""}`,
+          createdById: ctx.session.user.id,
+          rooms: {
+            create: expandedRooms,
+          },
+        },
+      });
+
+      await logBookingAction(ctx.db, booking.id, "CREATED", `Group booking "${input.groupName}" created with ${totalRooms} rooms`, ctx.session.user.id);
+      return booking;
+    }),
+
+  // ── Series / recurring bookings ──
+  createSeries: proc
+    .input(z.object({
+      templateBookingId: z.string(),
+      frequency: z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY"]),
+      count: z.number().int().min(1).max(52),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const template = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.templateBookingId, companyId: ctx.companyId },
+        include: { rooms: true },
+      });
+
+      const createdBookings: string[] = [];
+      const nights = template.nights ?? 1;
+
+      for (let i = 1; i <= input.count; i++) {
+        let offsetDays: number;
+        switch (input.frequency) {
+          case "WEEKLY": offsetDays = i * 7; break;
+          case "BIWEEKLY": offsetDays = i * 14; break;
+          case "MONTHLY": offsetDays = i * 30; break;
+        }
+
+        const newCheckIn = new Date(template.checkIn);
+        newCheckIn.setDate(newCheckIn.getDate() + offsetDays);
+        const newCheckOut = new Date(newCheckIn);
+        newCheckOut.setDate(newCheckOut.getDate() + nights);
+
+        const code = await generateSequenceNumber(ctx.db, ctx.companyId, "booking");
+
+        const booking = await ctx.db.booking.create({
+          data: {
+            companyId: ctx.companyId,
+            code,
+            status: "DRAFT",
+            source: template.source,
+            hotelId: template.hotelId,
+            contractId: template.contractId,
+            tourOperatorId: template.tourOperatorId,
+            checkIn: newCheckIn,
+            checkOut: newCheckOut,
+            nights,
+            currencyId: template.currencyId,
+            noOfRooms: template.noOfRooms,
+            adults: template.adults,
+            children: template.children,
+            infants: template.infants,
+            leadGuestName: template.leadGuestName,
+            leadGuestEmail: template.leadGuestEmail,
+            leadGuestPhone: template.leadGuestPhone,
+            specialRequests: template.specialRequests,
+            internalNotes: `[SERIES ${i}/${input.count}] from ${template.code}\n${template.internalNotes ?? ""}`,
+            createdById: ctx.session.user.id,
+            rooms: {
+              create: template.rooms.map((r) => ({
+                roomTypeId: r.roomTypeId,
+                mealBasisId: r.mealBasisId,
+                adults: r.adults,
+                children: r.children,
+                infants: r.infants,
+                extraBed: r.extraBed,
+                roomIndex: r.roomIndex,
+              })),
+            },
+          },
+        });
+        createdBookings.push(booking.code);
+      }
+
+      await logBookingAction(ctx.db, template.id, "SERIES_CREATED", `Created ${input.count} recurring bookings: ${createdBookings.join(", ")}`, ctx.session.user.id);
+      return { count: createdBookings.length, codes: createdBookings };
+    }),
 });

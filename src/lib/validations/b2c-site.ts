@@ -157,3 +157,30 @@ export const contactInquiryReplySchema = z.object({
   id: z.string(),
   reply: z.string().min(1).max(5000),
 });
+
+// ── B2C Markup Rules ───────────────────────────────────
+
+export const b2cMarkupTierSchema = z.object({
+  id: z.string().optional(), // present on existing tiers for update
+  dateFrom: z.string().min(1, "Start date is required"),
+  dateTo: z.string().min(1, "End date is required"),
+  markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING"]),
+  value: z.number().min(0, "Value must be >= 0"),
+  sortOrder: z.number().int().default(0),
+});
+
+export const b2cMarkupRuleCreateSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING"]),
+  value: z.number().min(0, "Default value must be >= 0"),
+  destinationId: z.string().nullable().optional(),
+  hotelId: z.string().nullable().optional(),
+  priority: z.number().int().default(0),
+  active: z.boolean().default(true),
+  tiers: z.array(b2cMarkupTierSchema).default([]),
+});
+
+export const b2cMarkupRuleUpdateSchema = b2cMarkupRuleCreateSchema.partial().extend({
+  id: z.string(),
+  tiers: z.array(b2cMarkupTierSchema).optional(),
+});

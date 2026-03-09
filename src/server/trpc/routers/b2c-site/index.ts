@@ -8,6 +8,7 @@ import { faqRouter } from "./faq";
 import { testimonialRouter } from "./testimonial";
 import { newsletterRouter } from "./newsletter";
 import { contactInquiryRouter } from "./contact-inquiry";
+import { b2cMarkupRouter } from "./b2c-markup";
 
 export const b2cSiteRouter = createTRPCRouter({
   branding: b2cSiteBrandingRouter,
@@ -18,4 +19,5 @@ export const b2cSiteRouter = createTRPCRouter({
   testimonial: testimonialRouter,
   newsletter: newsletterRouter,
   contactInquiry: contactInquiryRouter,
+  b2cMarkup: b2cMarkupRouter,
 });

@@ -5,6 +5,14 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
 
 export const userRouter = createTRPCRouter({
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.user.findMany({
+      where: { companyId: ctx.user.companyId, isActive: true },
+      select: { id: true, name: true, email: true, image: true },
+      orderBy: { name: "asc" },
+    });
+  }),
+
   getProfile: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.user.findUniqueOrThrow({
       where: { id: ctx.user.id },

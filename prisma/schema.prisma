@@ -158,6 +158,17 @@ model Company {
   testimonials         Testimonial[]
   newsletterSubs       NewsletterSubscriber[]
   contactInquiries     ContactInquiry[]
+  b2cMarkupRules       B2cMarkupRule[]
+
+  // CRM relations
+  crmLeads             CrmLead[]
+  crmOpportunities     CrmOpportunity[]
+  crmActivities        CrmActivity[]
+  crmCustomers         CrmCustomer[]
+  crmSuppliers         CrmSupplier[]
+  crmExcursions        CrmExcursion[]
+  crmBookings          CrmBooking[]
+  b2bCreditTransactions B2bCreditTransaction[]
 
   @@index([countryId])
   @@index([baseCurrencyId])
@@ -227,8 +238,21 @@ model User {
   ttPushTokens       TtPushToken[]
   ttJobsCreated      TtTrafficJob[]     @relation("TtJobCreator")
 
+  // CRM relations
+  crmLeadsAssigned      CrmLead[]         @relation("CrmLeadAssignee")
+  crmLeadsCreated       CrmLead[]         @relation("CrmLeadCreator")
+  crmOpportunitiesOwned CrmOpportunity[]  @relation("CrmOpportunityOwner")
+  crmActivitiesAssigned CrmActivity[]     @relation("CrmActivityAssignee")
+  crmBookingsCreated    CrmBooking[]      @relation("CrmBookingCreator")
+
+  // B2B relations
+  tourOperatorId        String?
+  tourOperator          TourOperator?  @relation("PartnerUser", fields: [tourOperatorId], references: [id])
+  b2bCreditTxCreated    B2bCreditTransaction[] @relation("CreditTxCreator")
+
   @@index([companyId])
   @@index([email])
+  @@index([tourOperatorId])
 }
 
 model Role {
@@ -463,6 +487,9 @@ model Partner {
   ttPriceOverrides       TtPartnerPriceOverride[]
   ttTrafficJobs          TtTrafficJob[]
   ttSupplierTripPrices   TtSupplierTripPrice[]
+
+  // CRM relations
+  crmCustomers           CrmCustomer[]
 
   @@index([companyId])
   @@index([companyId, type])
@@ -1398,11 +1425,12 @@ model Destination {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  country     Country      @relation(fields: [countryId], references: [id])
-  hotels      Hotel[]
-  cities      City[]
-  markupRules MarkupRule[]
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country         Country          @relation(fields: [countryId], references: [id])
+  hotels          Hotel[]
+  cities          City[]
+  markupRules     MarkupRule[]
+  b2cMarkupRules  B2cMarkupRule[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1526,6 +1554,7 @@ model Hotel {
   markupRules           MarkupRule[]       @relation("MarkupRuleHotel")
   apiIntegrationHotels  ApiIntegrationHotel[]
   bookings              Booking[]
+  b2cMarkupRules        B2cMarkupRule[]
 
   // Traffic relations
   ttJobsPickup   TtTrafficJob[] @relation("TtJobPickupHotel")
@@ -2052,6 +2081,7 @@ model Market {
   tourOperators           TourOperator[]
   markupRules             MarkupRule[]
   marketingContributions  ContractMarketingContribution[]
+  publicBrandings         PublicSiteBranding[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2087,6 +2117,11 @@ model TourOperator {
   countryId     String?
   marketId      String?
   active        Boolean  @default(true)
+  partnerType   String   @default("tour_operator") // tour_operator, travel_agent
+  creditLimit   Decimal  @default(0) @db.Decimal(12, 4)
+  creditUsed    Decimal  @default(0) @db.Decimal(12, 4)
+  paymentTermDays Int    @default(30)
+  commissionPct Decimal  @default(0) @db.Decimal(5, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -2099,9 +2134,12 @@ model TourOperator {
   tariffs             Tariff[]
   apiIntegration      ApiIntegration?
   bookings            Booking[]
+  creditTransactions  B2bCreditTransaction[]
+  partnerUsers        User[]   @relation("PartnerUser")
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([companyId, partnerType])
   @@map("ct_tour_operator")
 }
 
@@ -2641,6 +2679,9 @@ model Booking {
 
   // Traffic relations
   trafficJobs    TtTrafficJob[]
+
+  // B2B relations
+  creditTransactions B2bCreditTransaction[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -3548,10 +3589,12 @@ model PublicSiteBranding {
   happyGuests     Int?
   // Custom CSS
   customCss       String?      @db.Text
+  defaultMarketId String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  defaultMarket Market?  @relation(fields: [defaultMarketId], references: [id])
 
   @@map("pub_branding")
 }
@@ -3688,4 +3731,594 @@ model ContactInquiry {
   @@index([companyId])
   @@index([companyId, status])
   @@map("pub_contact_inquiry")
+}
+
+// ============================================================================
+// B2C MARKUP RULES
+// ============================================================================
+
+model B2cMarkupRule {
+  id            String     @id @default(cuid())
+  companyId     String
+  name          String
+  markupType    MarkupType
+  value         Decimal    @db.Decimal(12, 4)
+  destinationId String?
+  hotelId       String?
+  priority      Int        @default(0)
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destination Destination?  @relation(fields: [destinationId], references: [id])
+  hotel       Hotel?        @relation(fields: [hotelId], references: [id])
+  tiers       B2cMarkupTier[]
+
+  @@index([companyId])
+  @@map("b2c_markup_rule")
+}
+
+model B2cMarkupTier {
+  id         String     @id @default(cuid())
+  ruleId     String
+  dateFrom   DateTime   @db.Date
+  dateTo     DateTime   @db.Date
+  markupType MarkupType
+  value      Decimal    @db.Decimal(12, 4)
+  sortOrder  Int        @default(0)
+  createdAt  DateTime   @default(now())
+
+  rule B2cMarkupRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+  @@map("b2c_markup_tier")
+}
+
+// ============================================================================
+// B2B PORTAL — CREDIT MANAGEMENT
+// ============================================================================
+
+enum B2bCreditTxType {
+  BOOKING_CHARGE
+  PAYMENT_RECEIVED
+  CREDIT_NOTE
+  ADJUSTMENT
+}
+
+model B2bCreditTransaction {
+  id              String   @id @default(cuid())
+  companyId       String
+  tourOperatorId  String
+  type            B2bCreditTxType
+  amount          Decimal  @db.Decimal(12, 4)
+  runningBalance  Decimal  @db.Decimal(12, 4)
+  reference       String?
+  bookingId       String?
+  notes           String?  @db.Text
+  createdById     String?
+  createdAt       DateTime @default(now())
+
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator  TourOperator  @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+  booking       Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  createdBy     User?         @relation("CreditTxCreator", fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([tourOperatorId])
+  @@index([companyId, tourOperatorId])
+  @@map("b2b_credit_transaction")
+}
+
+// ============================================================================
+// CRM & EXCURSION SALES
+// ============================================================================
+
+enum CrmLeadSource {
+  WEBSITE
+  REFERRAL
+  WALK_IN
+  PHONE
+  EMAIL
+  SOCIAL_MEDIA
+  PARTNER
+  EVENT
+  OTHER
+}
+
+enum CrmLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+  DORMANT
+}
+
+enum CrmOpportunityStage {
+  PROSPECTING
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum CrmActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+  FOLLOW_UP
+}
+
+enum CrmProductType {
+  ACTIVITY
+  TOUR_PACKAGE
+}
+
+enum CrmActivityCategory {
+  WATER_SPORTS
+  DESERT_SAFARI
+  CITY_TOUR
+  CULTURAL
+  ADVENTURE
+  DINING
+  ENTERTAINMENT
+  WELLNESS
+  SHOPPING
+  TRANSFER
+  OTHER
+}
+
+enum CrmTripMode {
+  SHARED
+  PRIVATE
+  VIP
+}
+
+enum CrmNationalityTier {
+  DEFAULT
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
+enum CrmAgeGroupLabel {
+  ADULT
+  CHILD
+  INFANT
+}
+
+enum CrmSeasonType {
+  PEAK
+  HIGH
+  SHOULDER
+  LOW
+  BLACKOUT
+}
+
+enum CrmCostCalcBasis {
+  PER_PERSON
+  PER_GROUP
+  FLAT
+}
+
+enum CrmCostComponentType {
+  TRANSPORT
+  TICKETS
+  GUIDE_FEE
+  MEALS
+  EQUIPMENT
+  INSURANCE
+  COMMISSION
+  PERMIT
+  MISCELLANEOUS
+}
+
+// ── CRM Lead ──
+
+model CrmLead {
+  id          String         @id @default(cuid())
+  companyId   String
+  code        String         // auto-generated: LD-00001
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  source      CrmLeadSource  @default(WEBSITE)
+  status      CrmLeadStatus  @default(NEW)
+  assignedToId String?
+  createdById  String?
+  notes       String?        @db.Text
+  convertedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo User?    @relation("CrmLeadAssignee", fields: [assignedToId], references: [id])
+  createdBy  User?    @relation("CrmLeadCreator", fields: [createdById], references: [id])
+
+  activities    CrmActivity[]
+  opportunities CrmOpportunity[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([assignedToId])
+  @@map("crm_lead")
+}
+
+// ── CRM Opportunity ──
+
+model CrmOpportunity {
+  id          String              @id @default(cuid())
+  companyId   String
+  title       String
+  stage       CrmOpportunityStage @default(PROSPECTING)
+  value       Decimal?            @db.Decimal(12, 2)
+  probability Int?                @default(0) // 0-100
+  expectedCloseDate DateTime?     @db.Date
+  ownerId     String?
+  leadId      String?
+  customerId  String?
+  notes       String?             @db.Text
+  closedAt    DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner    User?         @relation("CrmOpportunityOwner", fields: [ownerId], references: [id])
+  lead     CrmLead?      @relation(fields: [leadId], references: [id])
+  customer CrmCustomer?  @relation(fields: [customerId], references: [id])
+
+  activities CrmActivity[]
+  bookings   CrmBooking[]
+
+  @@index([companyId])
+  @@index([companyId, stage])
+  @@index([ownerId])
+  @@map("crm_opportunity")
+}
+
+// ── CRM Activity ──
+
+model CrmActivity {
+  id           String          @id @default(cuid())
+  companyId    String
+  type         CrmActivityType
+  subject      String
+  description  String?         @db.Text
+  dueDate      DateTime?
+  completedAt  DateTime?
+  assignedToId String?
+  leadId       String?
+  opportunityId String?
+  customerId   String?
+  bookingId    String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo  User?           @relation("CrmActivityAssignee", fields: [assignedToId], references: [id])
+  lead        CrmLead?        @relation(fields: [leadId], references: [id])
+  opportunity CrmOpportunity? @relation(fields: [opportunityId], references: [id])
+  customer    CrmCustomer?    @relation(fields: [customerId], references: [id])
+  booking     CrmBooking?     @relation(fields: [bookingId], references: [id])
+
+  @@index([companyId])
+  @@index([leadId])
+  @@index([opportunityId])
+  @@index([customerId])
+  @@index([bookingId])
+  @@map("crm_activity")
+}
+
+// ── CRM Customer (Excursion-sales customer view) ──
+
+model CrmCustomer {
+  id           String   @id @default(cuid())
+  companyId    String
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  nationality  String?
+  dateOfBirth  DateTime? @db.Date
+  loyaltyTier  String?   @default("STANDARD") // STANDARD, SILVER, GOLD, PLATINUM
+  lifetimeValue Decimal? @db.Decimal(12, 2)
+  partnerId    String?
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partner  Partner? @relation(fields: [partnerId], references: [id])
+
+  activities    CrmActivity[]
+  opportunities CrmOpportunity[]
+  bookings      CrmBooking[]
+
+  @@index([companyId])
+  @@index([companyId, email])
+  @@map("crm_customer")
+}
+
+// ── CRM Supplier (Excursion suppliers) ──
+
+model CrmSupplier {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  type        String?  // boat, restaurant, guide, transport, etc.
+  notes       String?  @db.Text
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  costComponents CrmCostComponent[]
+
+  @@index([companyId])
+  @@map("crm_supplier")
+}
+
+// ── CRM Excursion ──
+
+model CrmExcursion {
+  id           String              @id @default(cuid())
+  companyId    String
+  code         String
+  name         String
+  productType  CrmProductType      @default(ACTIVITY)
+  category     CrmActivityCategory @default(OTHER)
+  tripMode     CrmTripMode         @default(SHARED)
+  duration     String?             // e.g. "4 hours", "Full Day", "2 Days"
+  description  String?             @db.Text
+  inclusions   String?             @db.Text
+  exclusions   String?             @db.Text
+  minPax       Int?                @default(1)
+  maxPax       Int?
+  active       Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  programs     CrmExcursionProgram[]
+  ageGroups    CrmExcursionAgeGroup[]
+  addons       CrmExcursionAddon[]
+  costSheets   CrmCostSheet[]
+  bookingItems CrmBookingItem[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("crm_excursion")
+}
+
+// ── CRM Excursion Program (day-by-day itinerary) ──
+
+model CrmExcursionProgram {
+  id           String   @id @default(cuid())
+  excursionId  String
+  dayNumber    Int      @default(1)
+  title        String
+  description  String?  @db.Text
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  excursion CrmExcursion   @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+  items     CrmProgramItem[]
+
+  @@index([excursionId])
+  @@map("crm_excursion_program")
+}
+
+// ── CRM Program Item (timeline items within a day) ──
+
+model CrmProgramItem {
+  id        String   @id @default(cuid())
+  programId String
+  time      String?  // e.g. "09:00"
+  title     String
+  description String? @db.Text
+  location  String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  program CrmExcursionProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId])
+  @@map("crm_program_item")
+}
+
+// ── CRM Excursion Age Group ──
+
+model CrmExcursionAgeGroup {
+  id          String          @id @default(cuid())
+  excursionId String
+  label       CrmAgeGroupLabel
+  minAge      Int
+  maxAge      Int
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+
+  excursion     CrmExcursion    @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+  sellingPrices CrmSellingPrice[]
+
+  @@index([excursionId])
+  @@map("crm_excursion_age_group")
+}
+
+// ── CRM Excursion Addon ──
+
+model CrmExcursionAddon {
+  id          String   @id @default(cuid())
+  excursionId String
+  name        String
+  description String?
+  price       Decimal? @db.Decimal(12, 2)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  excursion CrmExcursion @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+
+  @@index([excursionId])
+  @@map("crm_excursion_addon")
+}
+
+// ── CRM Cost Sheet ──
+
+model CrmCostSheet {
+  id             String            @id @default(cuid())
+  excursionId    String
+  name           String
+  seasonType     CrmSeasonType     @default(LOW)
+  nationalityTier CrmNationalityTier @default(DEFAULT)
+  tripMode       CrmTripMode       @default(SHARED)
+  validFrom      DateTime?         @db.Date
+  validTo        DateTime?         @db.Date
+  calcBasis      CrmCostCalcBasis  @default(PER_PERSON)
+  totalCost      Decimal?          @db.Decimal(12, 2)
+  notes          String?           @db.Text
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  excursion     CrmExcursion      @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+  components    CrmCostComponent[]
+  sellingPrices CrmSellingPrice[]
+  bookingItems  CrmBookingItem[]
+
+  @@index([excursionId])
+  @@map("crm_cost_sheet")
+}
+
+// ── CRM Cost Component ──
+
+model CrmCostComponent {
+  id          String                @id @default(cuid())
+  costSheetId String
+  type        CrmCostComponentType
+  description String
+  supplierId  String?
+  unitCost    Decimal               @db.Decimal(12, 2)
+  quantity    Int                   @default(1)
+  total       Decimal               @db.Decimal(12, 2)
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+
+  costSheet CrmCostSheet @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
+  supplier  CrmSupplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([costSheetId])
+  @@index([supplierId])
+  @@map("crm_cost_component")
+}
+
+// ── CRM Markup Type ──
+
+enum CrmMarkupType {
+  PERCENTAGE
+  FIXED
+}
+
+// ── CRM Selling Price ──
+// Links a cost sheet to selling prices per age group with markup
+
+model CrmSellingPrice {
+  id            String          @id @default(cuid())
+  costSheetId   String
+  ageGroupId    String?
+  label         String          // e.g. "Adult", "Child 3-11", "Infant"
+  markupType    CrmMarkupType   @default(PERCENTAGE)
+  markupValue   Decimal         @db.Decimal(12, 2) // percentage or fixed amount
+  costPerPerson Decimal         @db.Decimal(12, 2) // from cost sheet
+  sellingPrice  Decimal         @db.Decimal(12, 2) // computed: cost + markup
+  currency      String          @default("USD") @db.VarChar(3)
+  active        Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  costSheet CrmCostSheet         @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
+  ageGroup  CrmExcursionAgeGroup? @relation(fields: [ageGroupId], references: [id], onDelete: SetNull)
+
+  @@index([costSheetId])
+  @@map("crm_selling_price")
+}
+
+// ── CRM Booking Status ──
+
+enum CrmBookingStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+// ── CRM Booking ──
+
+model CrmBooking {
+  id            String           @id @default(cuid())
+  companyId     String
+  code          String           // auto-generated BK-00001
+  customerId    String?
+  opportunityId String?
+  status        CrmBookingStatus @default(DRAFT)
+  travelDate    DateTime         @db.Date
+  paxAdults     Int              @default(1)
+  paxChildren   Int              @default(0)
+  paxInfants    Int              @default(0)
+  totalCost     Decimal?         @db.Decimal(12, 2)
+  totalSelling  Decimal?         @db.Decimal(12, 2)
+  currency      String           @default("USD") @db.VarChar(3)
+  notes         String?          @db.Text
+  bookedById    String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    CrmCustomer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  opportunity CrmOpportunity?  @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  bookedBy    User?            @relation("CrmBookingCreator", fields: [bookedById], references: [id])
+  items       CrmBookingItem[]
+  activities  CrmActivity[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([customerId])
+  @@map("crm_booking")
+}
+
+// ── CRM Booking Item ──
+
+model CrmBookingItem {
+  id           String   @id @default(cuid())
+  bookingId    String
+  excursionId  String
+  costSheetId  String?
+  label        String   // e.g. "Desert Safari — Adult x2"
+  quantity     Int      @default(1)
+  unitCost     Decimal  @db.Decimal(12, 2)
+  unitPrice    Decimal  @db.Decimal(12, 2)
+  totalCost    Decimal  @db.Decimal(12, 2)
+  totalPrice   Decimal  @db.Decimal(12, 2)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  booking   CrmBooking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  excursion CrmExcursion  @relation(fields: [excursionId], references: [id])
+  costSheet CrmCostSheet? @relation(fields: [costSheetId], references: [id])
+
+  @@index([bookingId])
+  @@map("crm_booking_item")
 }

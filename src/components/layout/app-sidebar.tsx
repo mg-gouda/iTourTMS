@@ -2,6 +2,7 @@
 
 import * as Collapsible from "@radix-ui/react-collapsible";
 import {
+  Briefcase,
   Bus,
   CalendarCheck,
   ChevronRight,
@@ -36,6 +37,7 @@ const iconMap: Record<string, React.ElementType> = {
   CalendarCheck,
   Bus,
   Globe,
+  Briefcase,
 };
 
 interface InstalledModule {
@@ -183,6 +185,14 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Leads", href: "/crm/leads" },
           { label: "Pipeline", href: "/crm/pipeline" },
           { label: "Contacts", href: "/crm/contacts" },
+          { label: "Bookings", href: "/crm/bookings" },
+        ],
+      },
+      {
+        label: "Catalog",
+        routes: [
+          { label: "Excursions", href: "/crm/excursions" },
+          { label: "Suppliers", href: "/crm/suppliers" },
         ],
       },
     ],
@@ -194,6 +204,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         label: "Management",
         routes: [
           { label: "Bookings", href: "/reservations/bookings" },
+          { label: "Group Bookings", href: "/reservations/bookings/new-group" },
           { label: "Guests", href: "/reservations/guests" },
           { label: "Vouchers", href: "/reservations/vouchers" },
         ],
@@ -273,6 +284,49 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Testimonials", href: "/b2c-site/testimonials" },
           { label: "Inquiries", href: "/b2c-site/inquiries" },
           { label: "Newsletter", href: "/b2c-site/newsletter" },
+        ],
+      },
+      {
+        label: "Pricing",
+        routes: [
+          { label: "Markup Rules", href: "/b2c-site/markup" },
+        ],
+      },
+    ],
+  },
+  "b2b-portal": {
+    topLevel: [{ label: "Dashboard", href: "/b2b-portal" }],
+    groups: [
+      {
+        label: "Partners",
+        routes: [
+          { label: "Tour Operators", href: "/b2b-portal/tour-operators" },
+          { label: "Travel Agents", href: "/b2b-portal/travel-agents" },
+          { label: "Partner Users", href: "/b2b-portal/partner-users" },
+        ],
+      },
+      {
+        label: "Bookings",
+        routes: [
+          { label: "Search & Book", href: "/b2b-portal/search" },
+          { label: "Reservations", href: "/b2b-portal/reservations" },
+          { label: "Vouchers", href: "/b2b-portal/vouchers" },
+        ],
+      },
+      {
+        label: "Commercial",
+        routes: [
+          { label: "Rate Sheets", href: "/b2b-portal/rate-sheets" },
+          { label: "Markup Rules", href: "/b2b-portal/markups" },
+          { label: "Credit Management", href: "/b2b-portal/credit" },
+        ],
+      },
+      {
+        label: "Reports",
+        routes: [
+          { label: "Booking Reports", href: "/b2b-portal/reports/bookings" },
+          { label: "Revenue", href: "/b2b-portal/reports/revenue" },
+          { label: "Statements", href: "/b2b-portal/reports/statements" },
         ],
       },
     ],

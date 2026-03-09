@@ -7,11 +7,13 @@ export const metadata = { title: "Search Hotels & Availability" };
 interface Props {
   searchParams: Promise<{
     destination?: string;
+    nationality?: string;
     checkIn?: string;
     checkOut?: string;
     adults?: string;
     children?: string;
     childAges?: string;
+    rooms?: string;
     star?: string;
     sort?: string;
     page?: string;
@@ -30,11 +32,17 @@ export default async function SearchPage({ searchParams }: Props) {
     orderBy: { name: "asc" },
   });
 
-  // Default dates: tomorrow → day after
+  // Countries for nationality dropdown
+  const countries = await db.country.findMany({
+    select: { id: true, code: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  // Default dates: tomorrow → +3 days
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dayAfter = new Date(tomorrow);
-  dayAfter.setDate(dayAfter.getDate() + 3);
+  dayAfter.setDate(dayAfter.getDate() + 7);
 
   const childAgesStr = sp.childAges ?? "";
   const childAges = childAgesStr
@@ -44,13 +52,16 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <SearchClient
       destinations={destinations}
+      countries={countries}
       initialParams={{
         destination: sp.destination ?? "",
+        nationality: sp.nationality ?? "",
         checkIn: sp.checkIn ?? tomorrow.toISOString().split("T")[0],
         checkOut: sp.checkOut ?? dayAfter.toISOString().split("T")[0],
         adults: parseInt(sp.adults ?? "2") || 2,
         children: parseInt(sp.children ?? "0") || 0,
         childAges,
+        rooms: parseInt(sp.rooms ?? "1") || 1,
         star: sp.star ?? "",
         sort: sp.sort ?? "price_asc",
       }}

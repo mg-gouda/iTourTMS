@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Plus, X } from "lucide-react";
+import { Plus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -241,11 +241,18 @@ export default function BookingsPage() {
             Manage hotel reservations and booking lifecycle
           </p>
         </div>
-        <Button asChild>
-          <Link href="/reservations/bookings/new">
-            <Plus className="mr-2 size-4" /> New Booking
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/reservations/bookings/new-group">
+              <Users className="mr-2 size-4" /> New Group Booking
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/reservations/bookings/new">
+              <Plus className="mr-2 size-4" /> New Booking
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

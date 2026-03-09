@@ -6,6 +6,7 @@ import {
   Ban,
   CheckCircle,
   Clock,
+  Copy,
   Download,
   Lock,
   Mail,
@@ -76,6 +77,7 @@ import { generateBookingPdf } from "@/lib/export/booking-pdf";
 import { generateBookingEml } from "@/lib/export/booking-eml";
 import { generateVoucherPdf } from "@/lib/export/voucher-pdf";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -96,6 +98,11 @@ export default function BookingDetailPage() {
   const [approvalNote, setApprovalNote] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSpoBreakdown, setSelectedSpoBreakdown] = useState<any[]>([]);
+
+  // Series dialog state
+  const [seriesOpen, setSeriesOpen] = useState(false);
+  const [seriesFrequency, setSeriesFrequency] = useState<"WEEKLY" | "BIWEEKLY" | "MONTHLY">("WEEKLY");
+  const [seriesCount, setSeriesCount] = useState(4);
 
   const transitionMutation = trpc.reservations.booking.transition.useMutation({
     onSuccess: () => {
@@ -125,6 +132,27 @@ export default function BookingDetailPage() {
       utils.reservations.booking.list.invalidate();
       setApprovalOpen(false);
       setApprovalNote("");
+    },
+  });
+
+  const seriesMutation = trpc.reservations.booking.createSeries.useMutation({
+    onSuccess: (data) => {
+      utils.reservations.booking.list.invalidate();
+      setSeriesOpen(false);
+      toast.success(`Created ${data.count} bookings: ${data.codes.join(", ")}`);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const voucherCreateMutation = trpc.reservations.voucher.create.useMutation({
+    onSuccess: (data) => {
+      utils.reservations.booking.getById.invalidate({ id });
+      toast.success(`Voucher ${data.code} issued successfully`);
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
 
@@ -182,6 +210,16 @@ export default function BookingDetailPage() {
             >
               {PAYMENT_STATUS_LABELS[booking.paymentStatus] ?? booking.paymentStatus}
             </Badge>
+            {booking.internalNotes?.includes("[GROUP BOOKING]") && (
+              <Badge variant="outline" className="gap-1 border-blue-500 text-blue-600">
+                Group Booking
+              </Badge>
+            )}
+            {booking.internalNotes?.includes("[SERIES") && (
+              <Badge variant="outline" className="gap-1 border-purple-500 text-purple-600">
+                Series Booking
+              </Badge>
+            )}
             {booking.isLocked && (
               <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
                 <Lock className="size-3" />
@@ -279,6 +317,14 @@ export default function BookingDetailPage() {
           >
             <Mail className="mr-1 size-3.5" />
             Send to Hotel
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSeriesOpen(true)}
+          >
+            <Copy className="mr-1 size-3.5" />
+            Create Series
           </Button>
           {canDelete && (
             <Button
@@ -771,9 +817,24 @@ export default function BookingDetailPage() {
 
         {/* Vouchers */}
         <TabsContent value="vouchers" className="space-y-4">
+          {(booking.status === "CONFIRMED" || booking.status === "CHECKED_IN") && (
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={() => voucherCreateMutation.mutate({ bookingId: id })}
+                disabled={voucherCreateMutation.isPending}
+              >
+                <Plus className="mr-1.5 size-3.5" />
+                {voucherCreateMutation.isPending ? "Issuing..." : "Issue Voucher"}
+              </Button>
+            </div>
+          )}
           {booking.vouchers.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No vouchers issued. Vouchers are auto-generated when a booking is confirmed.
+              No vouchers issued yet.{" "}
+              {booking.status === "CONFIRMED" || booking.status === "CHECKED_IN"
+                ? "Click \"Issue Voucher\" to create one."
+                : "Confirm the booking first to issue vouchers."}
             </p>
           ) : (
             <Table>
@@ -933,6 +994,66 @@ export default function BookingDetailPage() {
               onClick={() => deleteMutation.mutate({ id })}
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Series Dialog */}
+      <Dialog open={seriesOpen} onOpenChange={setSeriesOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Series from Booking</DialogTitle>
+            <DialogDescription>
+              Create recurring bookings based on {booking.code} as a template.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Frequency</Label>
+              <Select
+                value={seriesFrequency}
+                onValueChange={(v) => setSeriesFrequency(v as "WEEKLY" | "BIWEEKLY" | "MONTHLY")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WEEKLY">Weekly</SelectItem>
+                  <SelectItem value="BIWEEKLY">Biweekly</SelectItem>
+                  <SelectItem value="MONTHLY">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Number of Bookings</Label>
+              <Input
+                type="number"
+                min={1}
+                max={52}
+                value={seriesCount}
+                onChange={(e) => setSeriesCount(Math.min(52, Math.max(1, parseInt(e.target.value) || 1)))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Between 1 and 52 recurring bookings
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSeriesOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={seriesMutation.isPending}
+              onClick={() =>
+                seriesMutation.mutate({
+                  templateBookingId: id,
+                  frequency: seriesFrequency,
+                  count: seriesCount,
+                })
+              }
+            >
+              {seriesMutation.isPending ? "Creating..." : `Create ${seriesCount} Bookings`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1330,10 +1451,14 @@ function handleSendToHotel(booking: any, company: any) {
       checkIn: booking.checkIn,
       checkOut: booking.checkOut,
       nights: booking.nights,
+      adults: booking.adults,
+      children: booking.children,
+      infants: booking.infants ?? 0,
       specialRequests: booking.specialRequests,
       internalNotes: booking.internalNotes,
       bookingNotes: booking.bookingNotes,
       source: booking.source,
+      createdAt: booking.createdAt,
       hotel: booking.hotel,
       market: booking.market ?? null,
       currency: booking.currency,
