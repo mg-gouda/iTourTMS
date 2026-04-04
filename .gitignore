@@ -71,6 +71,6 @@ public/uploads/
 # Claude
 .claude/
 
-# Project notes (local only)
-TIMELINE.md
-missing_gaps.md
+# Documentation / specs (local only)
+*.md
+!README.md
