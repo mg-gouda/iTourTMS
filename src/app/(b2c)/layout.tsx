@@ -6,6 +6,7 @@ import { ThemeInjector } from "@/components/b2c/theme-injector";
 import { GeoMarketGuard } from "@/components/b2c/geo-market-guard";
 import { getBranding, getCompanyInfo } from "@/lib/b2c/get-branding";
 import { buildGoogleFontsUrl } from "@/lib/b2c/fonts";
+import { sanitizeCss } from "@/lib/sanitize";
 
 import "./b2c-theme.css";
 
@@ -57,7 +58,7 @@ export default async function B2cLayout({
       )}
 
       {/* Custom CSS */}
-      {branding.customCss && <style dangerouslySetInnerHTML={{ __html: branding.customCss }} />}
+      {branding.customCss && <style dangerouslySetInnerHTML={{ __html: sanitizeCss(branding.customCss) }} />}
 
       {/* Dynamic theme variables */}
       <ThemeInjector branding={branding} />

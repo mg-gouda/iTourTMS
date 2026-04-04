@@ -129,11 +129,23 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
           <p className="text-muted-foreground">Manage your sales leads</p>
         </div>
-        <Button asChild>
-          <Link href="/crm/leads/new">
-            <Plus className="mr-2 size-4" /> New Lead
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const { exportLeadsToExcel } = await import("@/lib/export/crm-leads-excel");
+              await exportLeadsToExcel(data ?? []);
+            }}
+            disabled={!data?.length}
+          >
+            Export Excel
+          </Button>
+          <Button asChild>
+            <Link href="/crm/leads/new">
+              <Plus className="mr-2 size-4" /> New Lead
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

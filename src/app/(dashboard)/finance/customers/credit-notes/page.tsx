@@ -102,11 +102,16 @@ export default function CreditNotesPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Credit Notes</h1>
-        <p className="text-muted-foreground">
-          Customer credit notes and refunds.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Credit Notes</h1>
+          <p className="text-muted-foreground">
+            Customer credit notes and refunds.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/finance/customers/credit-notes/new">New Credit Note</Link>
+        </Button>
       </div>
 
       {isLoading ? (

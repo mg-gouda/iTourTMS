@@ -25,21 +25,26 @@ export const testimonialRouter = createTRPCRouter({
   update: protectedProcedure
     .input(testimonialUpdateSchema)
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
       const { id, ...data } = input;
+      await ctx.db.testimonial.findFirstOrThrow({ where: { id, companyId } });
       return ctx.db.testimonial.update({ where: { id }, data });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.testimonial.findFirstOrThrow({ where: { id: input.id, companyId } });
       return ctx.db.testimonial.delete({ where: { id: input.id } });
     }),
 
   toggleFeatured: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const current = await ctx.db.testimonial.findUniqueOrThrow({
-        where: { id: input.id },
+      const companyId = ctx.session.user.companyId!;
+      const current = await ctx.db.testimonial.findFirstOrThrow({
+        where: { id: input.id, companyId },
         select: { featured: true },
       });
       return ctx.db.testimonial.update({

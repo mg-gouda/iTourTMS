@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,29 @@ export default function DriverPerformancePage() {
           <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
           <span className="text-muted-foreground">to</span>
           <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data?.length}
+            onClick={async () => {
+              const { exportDriverReportToExcel } = await import("@/lib/export/traffic-driver-report-excel");
+              await exportDriverReportToExcel(
+                (data ?? []).map((d: Record<string, unknown>) => ({
+                  name: (d.driverName as string) ?? "",
+                  status: (d.status as string) ?? "",
+                  licenseNumber: d.licenseNumber as string | null ?? null,
+                  phone: d.phone as string | null ?? null,
+                  totalJobs: (d.totalJobs as number) ?? 0,
+                  completedJobs: (d.completedJobs as number) ?? 0,
+                  cancelledJobs: (d.cancelledJobs as number) ?? 0,
+                  noShowJobs: (d.noShowJobs as number) ?? 0,
+                })),
+                { from: dateFrom, to: dateTo },
+              );
+            }}
+          >
+            Export Excel
+          </Button>
         </div>
       </div>
       {isLoading ? <Skeleton className="h-[300px] w-full" /> : (

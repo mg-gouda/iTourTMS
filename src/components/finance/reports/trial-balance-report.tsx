@@ -28,11 +28,27 @@ export function TrialBalanceReport() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Trial Balance</h1>
-        <p className="text-muted-foreground">
-          Opening, period, and closing balances for all accounts
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Trial Balance</h1>
+          <p className="text-muted-foreground">
+            Opening, period, and closing balances for all accounts
+          </p>
+        </div>
+        {data && (
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={async () => {
+              const { exportTrialBalanceToExcel } = await import("@/lib/export/finance-report-excel");
+              const rows = (data.accounts ?? data ?? []).map((a: { code: string; name: string; accountType: string; debit: number; credit: number; balance: number }) => ({
+                accountCode: a.code, accountName: a.name, accountType: a.accountType, debit: Number(a.debit ?? 0), credit: Number(a.credit ?? 0), balance: Number(a.balance ?? 0),
+              }));
+              await exportTrialBalanceToExcel(rows, "USD", params);
+            }}
+          >
+            Export Excel
+          </button>
+        )}
       </div>
 
       <DateRangeFilter

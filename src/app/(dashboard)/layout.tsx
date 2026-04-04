@@ -24,8 +24,27 @@ export default async function DashboardLayout({
     redirect("/setup");
   }
 
-  // Fetch installed modules and inner background
+  // Check license validity — complete halt if expired/missing/revoked
   const companyId = session.user.companyId;
+  let licenseExpiryWarning: string | null = null;
+  if (companyId) {
+    const license = await db.license.findFirst({
+      where: { companyId, isActivated: true },
+      select: { expiresAt: true, isRevoked: true },
+    });
+    if (!license || license.isRevoked || !license.expiresAt || license.expiresAt < new Date()) {
+      redirect("/license-expired");
+    }
+    // Show warning banner if license expires within 30 days
+    const daysRemaining = Math.ceil(
+      (license.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysRemaining <= 30) {
+      licenseExpiryWarning = `Your license expires on ${license.expiresAt.toLocaleDateString()} (${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining). Contact your administrator to renew.`;
+    }
+  }
+
+  // Fetch installed modules and inner background
   const [installedModules, companyBranding] = await Promise.all([
     companyId
       ? db.installedModule.findMany({
@@ -62,6 +81,11 @@ export default async function DashboardLayout({
             image: session.user.image,
           }}
         />
+        {licenseExpiryWarning && (
+            <div className="border-b border-yellow-300 bg-yellow-50 px-4 py-2 text-center text-sm font-medium text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
+              {licenseExpiryWarning}
+            </div>
+          )}
         <main className="relative flex-1 overflow-auto p-4 md:p-6">
           {companyBranding?.innerBgUrl && (
             <div

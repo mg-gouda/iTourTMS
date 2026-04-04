@@ -7,6 +7,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +18,7 @@ import {
   TT_JOB_STATUS_VARIANTS,
   TT_JOB_STATUS_TRANSITIONS,
   TT_SERVICE_TYPE_LABELS,
+  TT_COST_TYPE_LABELS,
 } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
 
@@ -233,17 +236,21 @@ export default function TrafficJobDetailPage() {
 
         <TabsContent value="costs">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
+              {/* Add Cost Form */}
+              <CostForm jobId={id} currencyId={job.currencyId ?? job.currency?.id ?? ""} />
+
+              {/* Existing Costs */}
               {job.operationalCosts.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-4">No costs recorded.</p>
               ) : (
                 <div className="space-y-2">
                   {job.operationalCosts.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
-                      <span>{c.costType}</span>
-                      <span>{c.currency.symbol}{Number(c.amount).toFixed(2)}</span>
-                    </div>
+                    <CostRow key={c.id} cost={c} />
                   ))}
+                  <div className="flex justify-end border-t pt-2 text-sm font-bold">
+                    Total: {job.operationalCosts.reduce((sum, c) => sum + Number(c.amount), 0).toFixed(2)}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -271,6 +278,94 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) {
+  const utils = trpc.useUtils();
+  const [costType, setCostType] = useState("DRIVER_FEE");
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const createMutation = trpc.traffic.operationalCost.create.useMutation({
+    onSuccess: () => {
+      toast.success("Cost added");
+      utils.traffic.trafficJob.getById.invalidate({ id: jobId });
+      setAmount("");
+      setNotes("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="rounded-md border p-3 space-y-3">
+      <p className="text-sm font-medium">Add Operational Cost</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <Label className="text-xs">Type</Label>
+          <Select value={costType} onValueChange={setCostType}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(TT_COST_TYPE_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Amount</Label>
+          <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs" placeholder="0.00" />
+        </div>
+        <div>
+          <Label className="text-xs">Notes</Label>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-xs" placeholder="Optional" />
+        </div>
+        <div className="flex items-end">
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={!amount || createMutation.isPending}
+            onClick={() => {
+              createMutation.mutate({
+                jobId,
+                costType,
+                amount: Number(amount),
+                currencyId,
+                notes: notes || null,
+              });
+            }}
+          >
+            {createMutation.isPending ? "Adding..." : "Add"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CostRow({ cost }: { cost: { id: string; costType: string; amount: unknown; notes: string | null; currency: { symbol: string } } }) {
+  const utils = trpc.useUtils();
+  const deleteMutation = trpc.traffic.operationalCost.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Cost deleted");
+      utils.traffic.trafficJob.getById.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="flex items-center justify-between rounded-md border p-3 text-sm">
+      <div className="flex items-center gap-3">
+        <Badge variant="outline">{TT_COST_TYPE_LABELS[cost.costType] ?? cost.costType}</Badge>
+        {cost.notes && <span className="text-muted-foreground">{cost.notes}</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="font-medium">{cost.currency.symbol}{Number(cost.amount).toFixed(2)}</span>
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: cost.id })}>
+          &times;
+        </Button>
+      </div>
     </div>
   );
 }

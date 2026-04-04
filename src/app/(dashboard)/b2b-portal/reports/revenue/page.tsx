@@ -86,11 +86,11 @@ export default function RevenueReportsPage() {
     dateTo: filters.dateTo ? new Date(filters.dateTo) : undefined,
   });
 
-  const rows = data ?? [];
+  const rows = data?.byOperator ?? [];
   const computedTotals = {
-    sellingTotal: rows.reduce((sum, r) => sum + r.sellingTotal, 0),
-    buyingTotal: rows.reduce((sum, r) => sum + r.buyingTotal, 0),
-    markup: rows.reduce((sum, r) => sum + r.markup, 0),
+    sellingTotal: rows.reduce((sum: number, r: { sellingTotal: number }) => sum + r.sellingTotal, 0),
+    buyingTotal: rows.reduce((sum: number, r: { buyingTotal: number }) => sum + r.buyingTotal, 0),
+    markup: rows.reduce((sum: number, r: { markup: number }) => sum + r.markup, 0),
   };
   const totals = {
     ...computedTotals,

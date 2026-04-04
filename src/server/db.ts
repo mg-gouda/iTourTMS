@@ -13,7 +13,7 @@ function createPrismaClient() {
   return new PrismaClient({
     adapter,
     log:
-      process.env.NODE_ENV === "development"
+      process.env.NODE_ENV === "development" && process.env.LOG_QUERIES === "true"
         ? ["query", "error", "warn"]
         : ["error"],
   });

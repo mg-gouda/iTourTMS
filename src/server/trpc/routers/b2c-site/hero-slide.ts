@@ -26,13 +26,17 @@ export const heroSlideRouter = createTRPCRouter({
   update: protectedProcedure
     .input(heroSlideUpdateSchema)
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
       const { id, ...data } = input;
+      await ctx.db.heroSlide.findFirstOrThrow({ where: { id, companyId } });
       return ctx.db.heroSlide.update({ where: { id }, data });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.heroSlide.findFirstOrThrow({ where: { id: input.id, companyId } });
       return ctx.db.heroSlide.delete({ where: { id: input.id } });
     }),
 

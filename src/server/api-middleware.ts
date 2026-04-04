@@ -7,6 +7,7 @@ import {
 } from "@/server/api-auth";
 import { checkRateLimit, setRateLimitHeaders } from "@/server/api-rate-limit";
 import { apiError } from "@/server/api-response";
+import { logger } from "@/lib/logger";
 
 type ApiHandler = (
   req: NextRequest,
@@ -47,7 +48,7 @@ export function withApiAuth(
       setRateLimitHeaders(response.headers, rl);
       return response;
     } catch (err) {
-      console.error("[API] Unhandled error:", err);
+      logger.error({ err }, "API unhandled error");
       return apiError(
         "INTERNAL_ERROR",
         "An unexpected error occurred",

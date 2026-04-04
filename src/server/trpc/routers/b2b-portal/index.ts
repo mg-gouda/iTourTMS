@@ -833,32 +833,72 @@ const reportsRouter = createTRPCRouter({
         };
       }
 
-      // Group by tour operator for breakdown
-      const byTO = await ctx.db.booking.groupBy({
-        by: ["tourOperatorId"],
+      // Fetch confirmed bookings for time-series and operator breakdown
+      const bookings = await ctx.db.booking.findMany({
         where,
-        _count: { id: true },
-        _sum: { sellingTotal: true, buyingTotal: true, markupAmount: true },
+        select: {
+          id: true,
+          checkIn: true,
+          tourOperatorId: true,
+          sellingTotal: true,
+          buyingTotal: true,
+          markupAmount: true,
+        },
       });
 
       // Get TO names
-      const toIds = byTO
-        .map((r) => r.tourOperatorId)
-        .filter((id): id is string => !!id);
+      const toIds = [...new Set(bookings.map((b) => b.tourOperatorId).filter((id): id is string => !!id))];
       const tos = await ctx.db.tourOperator.findMany({
         where: { id: { in: toIds } },
         select: { id: true, name: true, code: true },
       });
       const toMap = new Map(tos.map((t) => [t.id, t]));
 
-      return byTO.map((r) => ({
-        tourOperatorId: r.tourOperatorId,
-        tourOperator: r.tourOperatorId ? toMap.get(r.tourOperatorId) : null,
-        bookingCount: r._count.id,
-        sellingTotal: r._sum.sellingTotal ? Number(r._sum.sellingTotal) : 0,
-        buyingTotal: r._sum.buyingTotal ? Number(r._sum.buyingTotal) : 0,
-        markup: r._sum.markupAmount ? Number(r._sum.markupAmount) : 0,
+      // Time-series grouping
+      function periodKey(date: Date): string {
+        if (input.groupBy === "day") return date.toISOString().slice(0, 10);
+        if (input.groupBy === "week") {
+          const d = new Date(date);
+          d.setDate(d.getDate() - d.getDay());
+          return d.toISOString().slice(0, 10);
+        }
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      }
+
+      const periodMap = new Map<string, { bookingCount: number; sellingTotal: number; buyingTotal: number; markup: number }>();
+      for (const b of bookings) {
+        const key = periodKey(new Date(b.checkIn));
+        const entry = periodMap.get(key) ?? { bookingCount: 0, sellingTotal: 0, buyingTotal: 0, markup: 0 };
+        entry.bookingCount += 1;
+        entry.sellingTotal += Number(b.sellingTotal ?? 0);
+        entry.buyingTotal += Number(b.buyingTotal ?? 0);
+        entry.markup += Number(b.markupAmount ?? 0);
+        periodMap.set(key, entry);
+      }
+
+      const timeSeries = [...periodMap.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([period, vals]) => ({ period, ...vals }));
+
+      // Operator breakdown
+      const operatorMap = new Map<string, { bookingCount: number; sellingTotal: number; buyingTotal: number; markup: number }>();
+      for (const b of bookings) {
+        const key = b.tourOperatorId ?? "_none";
+        const entry = operatorMap.get(key) ?? { bookingCount: 0, sellingTotal: 0, buyingTotal: 0, markup: 0 };
+        entry.bookingCount += 1;
+        entry.sellingTotal += Number(b.sellingTotal ?? 0);
+        entry.buyingTotal += Number(b.buyingTotal ?? 0);
+        entry.markup += Number(b.markupAmount ?? 0);
+        operatorMap.set(key, entry);
+      }
+
+      const byOperator = [...operatorMap.entries()].map(([toId, vals]) => ({
+        tourOperatorId: toId === "_none" ? null : toId,
+        tourOperator: toId !== "_none" ? toMap.get(toId) ?? null : null,
+        ...vals,
       }));
+
+      return { timeSeries, byOperator };
     }),
 
   statement: proc

@@ -39,6 +39,7 @@ export const guestRouter = createTRPCRouter({
           _count: { select: { bookingGuests: true } },
         },
         orderBy: { updatedAt: "desc" },
+        take: 500,
       });
     }),
 

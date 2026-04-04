@@ -81,11 +81,27 @@ export function GeneralLedgerReport() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">General Ledger</h1>
-        <p className="text-muted-foreground">
-          Detailed line items for a specific account
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">General Ledger</h1>
+          <p className="text-muted-foreground">
+            Detailed line items for a specific account
+          </p>
+        </div>
+        {data && (
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={async () => {
+              const { exportGeneralLedgerToExcel } = await import("@/lib/export/finance-report-excel");
+              const rows = (data.lines ?? data ?? []).map((l: { date: string; moveName: string; accountName: string; partnerName: string; label: string; debit: number; credit: number; balance: number }) => ({
+                date: l.date, move: l.moveName ?? "", account: l.accountName ?? "", partner: l.partnerName ?? "", label: l.label ?? "", debit: Number(l.debit ?? 0), credit: Number(l.credit ?? 0), balance: Number(l.balance ?? 0),
+              }));
+              await exportGeneralLedgerToExcel(rows, "USD");
+            }}
+          >
+            Export Excel
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-end gap-3">

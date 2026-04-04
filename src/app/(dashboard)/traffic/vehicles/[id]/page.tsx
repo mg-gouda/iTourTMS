@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -14,10 +19,19 @@ import { trpc } from "@/lib/trpc";
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const utils = trpc.useUtils();
   const { data: vehicle, isLoading } = trpc.traffic.vehicle.getById.useQuery({ id });
 
   const deleteMutation = trpc.traffic.vehicle.delete.useMutation({
     onSuccess: () => { toast.success("Vehicle deleted"); router.push("/traffic/vehicles"); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteComplianceMutation = trpc.traffic.vehicle.deleteCompliance.useMutation({
+    onSuccess: () => {
+      toast.success("Compliance record deleted");
+      utils.traffic.vehicle.getById.invalidate({ id });
+    },
     onError: (err) => toast.error(err.message),
   });
 
@@ -61,7 +75,11 @@ export default function VehicleDetailPage() {
 
         <TabsContent value="compliance">
           <Card>
-            <CardContent className="pt-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Compliance Records</CardTitle>
+              <AddComplianceDialog vehicleId={id} onSuccess={() => utils.traffic.vehicle.getById.invalidate({ id })} />
+            </CardHeader>
+            <CardContent>
               {vehicle.compliances.length === 0 ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">No compliance records.</p>
               ) : (
@@ -74,6 +92,18 @@ export default function VehicleDetailPage() {
                         <Badge variant={new Date(c.expiryDate) < new Date() ? "destructive" : "success"}>
                           {new Date(c.expiryDate).toLocaleDateString()}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm("Delete this compliance record?")) {
+                              deleteComplianceMutation.mutate({ id: c.id });
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -113,4 +143,87 @@ export default function VehicleDetailPage() {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between"><span className="text-muted-foreground">{label}</span><span className="font-medium">{value}</span></div>;
+}
+
+const COMPLIANCE_TYPES = ["INSURANCE", "REGISTRATION", "INSPECTION", "PERMIT", "OTHER"] as const;
+
+function AddComplianceDialog({ vehicleId, onSuccess }: { vehicleId: string; onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState<string>("INSURANCE");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [documentRef, setDocumentRef] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const addMutation = trpc.traffic.vehicle.addCompliance.useMutation({
+    onSuccess: () => {
+      toast.success("Compliance record added");
+      setOpen(false);
+      resetForm();
+      onSuccess();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function resetForm() {
+    setType("INSURANCE");
+    setExpiryDate("");
+    setDocumentRef("");
+    setNotes("");
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!expiryDate) { toast.error("Expiry date is required"); return; }
+    addMutation.mutate({
+      vehicleId,
+      type: type as (typeof COMPLIANCE_TYPES)[number],
+      expiryDate: new Date(expiryDate),
+      documentRef: documentRef || null,
+      notes: notes || null,
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm">Add Compliance</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Compliance Record</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {COMPLIANCE_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{TT_COMPLIANCE_TYPE_LABELS[t]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Expiry Date</Label>
+            <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} required />
+          </div>
+          <div className="space-y-2">
+            <Label>Document Reference</Label>
+            <Input value={documentRef} onChange={(e) => setDocumentRef(e.target.value)} placeholder="Optional" />
+          </div>
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={addMutation.isPending}>
+              {addMutation.isPending ? "Adding..." : "Add"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }

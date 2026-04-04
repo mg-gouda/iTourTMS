@@ -5,7 +5,7 @@
   "description": "iTourTMS — Enterprise Travel Management System",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' next build",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
@@ -14,11 +14,22 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
+    "license:generate": "tsx scripts/generate-license-key.ts",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:finance": "playwright test e2e/finance",
+    "test:e2e:contracting": "playwright test e2e/contracting",
+    "test:e2e:crm": "playwright test e2e/crm",
+    "test:e2e:reservations": "playwright test e2e/reservations",
+    "test:e2e:traffic": "playwright test e2e/traffic",
+    "test:e2e:b2b": "playwright test e2e/b2b",
+    "test:e2e:b2c": "playwright test e2e/b2c"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -47,6 +58,7 @@
     "docx": "^9.6.0",
     "dotenv": "^17.3.1",
     "ioredis": "^5.9.3",
+    "isomorphic-dompurify": "^3.7.1",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
@@ -74,6 +86,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^25.3.0",

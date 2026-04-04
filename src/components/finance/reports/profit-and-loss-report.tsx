@@ -89,11 +89,29 @@ export function ProfitAndLossReport() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Profit & Loss</h1>
-        <p className="text-muted-foreground">
-          Income and expense summary for the selected period
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Profit & Loss</h1>
+          <p className="text-muted-foreground">
+            Income and expense summary for the selected period
+          </p>
+        </div>
+        {data && (
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={async () => {
+              const { exportProfitAndLossToExcel } = await import("@/lib/export/finance-report-excel");
+              const toRow = (r: { code: string; name: string; balance: number }, type: string) => ({ accountCode: r.code, accountName: r.name, accountType: type, debit: 0, credit: 0, balance: r.balance });
+              await exportProfitAndLossToExcel(
+                (data.income ?? []).map((r: { code: string; name: string; balance: number }) => toRow(r, "INCOME")),
+                (data.expenses ?? []).map((r: { code: string; name: string; balance: number }) => toRow(r, "EXPENSE")),
+                "USD",
+              );
+            }}
+          >
+            Export Excel
+          </button>
+        )}
       </div>
 
       <DateRangeFilter

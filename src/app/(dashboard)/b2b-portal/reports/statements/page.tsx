@@ -194,7 +194,27 @@ export default function StatementsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => toast.info("PDF export coming soon")}
+                  onClick={async () => {
+                    try {
+                      const { generateB2bStatementPdf } = await import("@/lib/export/b2b-statement-pdf");
+                      const pdf = generateB2bStatementPdf({
+                        tourOperator: {
+                          name: selectedPartner?.name ?? "Partner",
+                          code: data.tourOperator?.code ?? "",
+                          creditLimit: Number(data.currentCreditLimit ?? 0),
+                          creditUsed: Number(data.currentCreditUsed ?? 0),
+                        },
+                        dateFrom: data.dateFrom,
+                        dateTo: data.dateTo,
+                        openingBalance: data.openingBalance,
+                        closingBalance: data.closingBalance,
+                        transactions: data.transactions,
+                      });
+                      pdf.save(`statement-${data.tourOperator?.code ?? "partner"}-${dateFrom}-to-${dateTo}.pdf`);
+                    } catch {
+                      toast.error("Failed to generate PDF");
+                    }
+                  }}
                 >
                   <FileDown className="mr-1 h-4 w-4" /> Export PDF
                 </Button>

@@ -13,6 +13,7 @@ export const supplierRouter = createTRPCRouter({
         _count: { select: { costComponents: true } },
       },
       orderBy: { name: "asc" },
+      take: 500,
     });
   }),
 

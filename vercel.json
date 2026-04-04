@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/booking-status",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/license-expiry",
+      "schedule": "0 9 * * *"
     }
   ]
 }

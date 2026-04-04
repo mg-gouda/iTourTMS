@@ -9,6 +9,10 @@ import {
   DataTableColumnHeader,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 
 const VOUCHER_STATUS_LABELS: Record<string, string> = {
@@ -94,9 +99,12 @@ export default function VouchersPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Vouchers</h1>
-        <p className="text-muted-foreground">Generate and manage booking vouchers</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Vouchers</h1>
+          <p className="text-muted-foreground">Generate and manage booking vouchers</p>
+        </div>
+        <GenerateVoucherButton />
       </div>
 
       {isLoading ? (
@@ -139,5 +147,65 @@ export default function VouchersPage() {
         />
       )}
     </div>
+  );
+}
+
+function GenerateVoucherButton() {
+  const utils = trpc.useUtils();
+  const [open, setOpen] = useState(false);
+  const [bookingId, setBookingId] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const { data: bookings } = trpc.b2bPortal.reservation.list.useQuery(
+    { page: 1, pageSize: 50 },
+    { enabled: open },
+  );
+
+  const generateMutation = trpc.b2bPortal.voucher.generate.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Voucher ${data.code} generated`);
+      utils.b2bPortal.voucher.list.invalidate();
+      setOpen(false);
+      setBookingId("");
+      setNotes("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>Generate Voucher</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Generate Voucher</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Booking</Label>
+            <Select value={bookingId} onValueChange={setBookingId}>
+              <SelectTrigger><SelectValue placeholder="Select booking..." /></SelectTrigger>
+              <SelectContent>
+                {(bookings?.items ?? []).map((b: { id: string; code: string; leadGuestName: string | null }) => (
+                  <SelectItem key={b.id} value={b.id}>{b.code} — {b.leadGuestName ?? "N/A"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Notes (optional)</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Voucher notes..." />
+          </div>
+          <Button
+            className="w-full"
+            disabled={!bookingId || generateMutation.isPending}
+            onClick={() => generateMutation.mutate({ bookingId, notes: notes || undefined })}
+          >
+            {generateMutation.isPending ? "Generating..." : "Generate"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

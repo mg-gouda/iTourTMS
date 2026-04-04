@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar } from "lucide-react";
 import type { Metadata } from "next";
 
 import { db } from "@/server/db";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -84,7 +85,7 @@ export default async function BlogPostPage({ params }: Props) {
 
         <div
           className="prose max-w-none text-[var(--pub-foreground)]"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
         />
       </div>
     </div>

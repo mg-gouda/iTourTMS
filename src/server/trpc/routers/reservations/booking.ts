@@ -21,6 +21,8 @@ import {
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
 import { syncTrafficJobsForBooking } from "@/server/services/traffic/booking-sync";
+import { createBookingInvoice } from "@/server/services/reservations/auto-invoice";
+import { notifyBookingStatusChange } from "@/server/services/shared/notifications";
 
 const proc = moduleProcedure("reservations");
 
@@ -68,6 +70,7 @@ export const bookingRouter = createTRPCRouter({
           _count: { select: { rooms: true, payments: true } },
         },
         orderBy: { createdAt: "desc" },
+        take: 500,
       });
     }),
 
@@ -923,6 +926,12 @@ export const bookingRouter = createTRPCRouter({
           // Sync traffic jobs (create ARR/DEP jobs if flight data exists)
           await syncTrafficJobsForBooking(ctx.db, ctx.companyId, booking.id, userId);
 
+          // Auto-create pro-forma invoice (fire-and-forget)
+          createBookingInvoice(ctx.db, ctx.companyId, booking.id, userId).catch(() => {});
+
+          // Notify booking creator
+          notifyBookingStatusChange(ctx.db, ctx.companyId, booking.id, booking.code, "CONFIRMED", userId).catch(() => {});
+
           dispatchWebhooks(ctx.companyId, booking.hotelId, "booking.confirmed", {
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
           });
@@ -951,6 +960,7 @@ export const bookingRouter = createTRPCRouter({
           });
 
           await logBookingAction(ctx.db, booking.id, "CANCELLED", input.reason ?? "Booking cancelled", userId);
+          notifyBookingStatusChange(ctx.db, ctx.companyId, booking.id, booking.code, "CANCELLED", userId).catch(() => {});
           dispatchWebhooks(ctx.companyId, booking.hotelId, "booking.cancelled", {
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
             reason: input.reason ?? null,

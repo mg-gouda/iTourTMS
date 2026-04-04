@@ -31,13 +31,40 @@ export default function ViewBankStatementPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {data.name ?? "Draft Statement"}
-        </h1>
-        <p className="text-muted-foreground">
-          {data.journal?.name ?? "Bank Statement"}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {data.name ?? "Draft Statement"}
+          </h1>
+          <p className="text-muted-foreground">
+            {data.journal?.name ?? "Bank Statement"}
+          </p>
+        </div>
+        <button
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          onClick={async () => {
+            const { generateStatementPdf } = await import("@/lib/export/finance-statement-pdf");
+            const pdf = generateStatementPdf({
+              name: data.name ?? "Statement",
+              state: data.state,
+              date: data.date,
+              journal: data.journal ?? { code: "", name: "" },
+              currency: data.journal?.currency ?? data.currency ?? { code: "USD", symbol: "$" },
+              openingBalance: data.balanceStart,
+              closingBalance: data.balanceEnd,
+              lines: (data.lines ?? []).map((l: Record<string, unknown>) => ({
+                date: l.date as string,
+                label: (l.name as string) ?? "",
+                partnerName: (l.partner as { name: string } | null)?.name ?? null,
+                ref: l.ref as string | null,
+                amount: l.amount,
+              })),
+            });
+            pdf.save(`${data.name ?? "statement"}.pdf`);
+          }}
+        >
+          Download PDF
+        </button>
       </div>
       <BankStatementForm
         defaultValues={{

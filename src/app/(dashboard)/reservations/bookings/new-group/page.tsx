@@ -59,6 +59,7 @@ export default function NewGroupBookingPage() {
   const router = useRouter();
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
+  const { data: currencies } = trpc.finance.currency.list.useQuery();
   const { data: contracts } = trpc.contracting.contract.list.useQuery();
   const { data: tourOperators } = trpc.b2bPortal.tourOperator.list.useQuery();
 
@@ -287,9 +288,16 @@ export default function NewGroupBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="USD" {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Select currency..." /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(currencies ?? []).map((c: { id: string; code: string; name: string }) => (
+                            <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -2,10 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Clock, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
+import type { ExcursionPdfData } from "@/lib/export/crm-excursion-pdf";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,6 +126,10 @@ export default function ExcursionDetailPage() {
   const deleteProgram = trpc.crm.program.delete.useMutation({
     onSuccess: () => utils.crm.excursion.getById.invalidate({ id }),
   });
+  const updateProgram = trpc.crm.program.update.useMutation({
+    onSuccess: () => { utils.crm.excursion.getById.invalidate({ id }); toast.success("Program updated"); },
+    onError: (e) => toast.error(e.message),
+  });
 
   // --- Program Items ---
   const [itemDialogProgramId, setItemDialogProgramId] = useState<string | null>(null);
@@ -140,6 +146,10 @@ export default function ExcursionDetailPage() {
   });
   const deleteItem = trpc.crm.program.deleteItem.useMutation({
     onSuccess: () => utils.crm.excursion.getById.invalidate({ id }),
+  });
+  const updateItem = trpc.crm.program.updateItem.useMutation({
+    onSuccess: () => { utils.crm.excursion.getById.invalidate({ id }); toast.success("Item updated"); },
+    onError: (e) => toast.error(e.message),
   });
 
   // --- Age Groups ---
@@ -175,6 +185,10 @@ export default function ExcursionDetailPage() {
   const deleteAddon = trpc.crm.addon.delete.useMutation({
     onSuccess: () => utils.crm.excursion.getById.invalidate({ id }),
   });
+  const updateAddon = trpc.crm.addon.update.useMutation({
+    onSuccess: () => { utils.crm.excursion.getById.invalidate({ id }); toast.success("Addon updated"); },
+    onError: (e) => toast.error(e.message),
+  });
 
   // --- Cost Sheets ---
   const [costSheetDialogOpen, setCostSheetDialogOpen] = useState(false);
@@ -197,6 +211,10 @@ export default function ExcursionDetailPage() {
   });
   const deleteCostSheet = trpc.crm.costSheet.delete.useMutation({
     onSuccess: () => utils.crm.excursion.getById.invalidate({ id }),
+  });
+  const updateCostSheet = trpc.crm.costSheet.update.useMutation({
+    onSuccess: () => { utils.crm.excursion.getById.invalidate({ id }); toast.success("Cost sheet updated"); },
+    onError: (e) => toast.error(e.message),
   });
 
   // --- Component Editor ---
@@ -278,13 +296,64 @@ export default function ExcursionDetailPage() {
           </div>
           <p className="font-mono text-sm text-muted-foreground">{excursion.code}</p>
         </div>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => { if (confirm("Delete this excursion?")) deleteMutation.mutate({ id }); }}
-        >
-          Delete
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const { generateExcursionPdf } = await import("@/lib/export/crm-excursion-pdf");
+              const pdf = generateExcursionPdf({
+                name: excursion.name,
+                code: excursion.code,
+                productType: excursion.productType,
+                category: excursion.category,
+                tripMode: excursion.tripMode,
+                duration: excursion.duration,
+                maxPax: excursion.maxPax,
+                description: excursion.description,
+                inclusions: excursion.inclusions,
+                exclusions: excursion.exclusions,
+                importantNotes: "",
+                programs: (excursion.programs ?? []).map((p) => ({
+                  name: p.title,
+                  sortOrder: p.sortOrder,
+                  items: p.items.map((it) => ({
+                    sortOrder: it.sortOrder,
+                    time: it.time,
+                    title: it.title,
+                    description: it.description,
+                  })),
+                })),
+                ageGroups: (excursion.ageGroups ?? []).map((ag) => ({
+                  label: ag.label,
+                  ageGroup: ag.label,
+                  minAge: ag.minAge,
+                  maxAge: ag.maxAge,
+                })),
+                costSheets: (excursion.costSheets ?? []).map((cs) => ({
+                  ...(cs as Record<string, unknown>),
+                  label: cs.name,
+                  seasonType: cs.seasonType,
+                  validFrom: cs.validFrom ?? new Date(),
+                  validTo: cs.validTo ?? new Date(),
+                  totalCost: cs.totalCost,
+                  currency: "USD",
+                  components: ((cs as Record<string, unknown>).components as Array<Record<string, unknown>>) ?? [],
+                })) as ExcursionPdfData["costSheets"],
+              });
+              pdf.save(`${excursion.code}-detail.pdf`);
+            }}
+          >
+            Export PDF
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => { if (confirm("Delete this excursion?")) deleteMutation.mutate({ id }); }}
+          >
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Performance Stats */}

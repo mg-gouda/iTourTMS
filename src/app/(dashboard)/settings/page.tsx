@@ -86,6 +86,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="general">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="license">License</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="contracting">Contracting</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
@@ -93,6 +94,10 @@ export default function SettingsPage() {
 
         <TabsContent value="general" className="mt-4">
           <GeneralSettings />
+        </TabsContent>
+
+        <TabsContent value="license" className="mt-4">
+          <LicenseSettings />
         </TabsContent>
 
         <TabsContent value="branding" className="mt-4">
@@ -490,6 +495,97 @@ function HotelCodePrefixSection() {
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// Integrations Settings Tab
+// ---------------------------------------------------------------------------
+
+function LicenseSettings() {
+  const { data, isLoading } = trpc.settings.getLicenseStatus.useQuery();
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">
+          Loading...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">
+          No license information available.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const statusColor = {
+    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    expiring_soon: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    expired: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  }[data.status];
+
+  const statusLabel = {
+    active: "Active",
+    expiring_soon: "Expiring Soon",
+    expired: "Expired",
+  }[data.status];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>License Information</CardTitle>
+        <CardDescription>
+          Your current iTourTMS license details
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">License Key</Label>
+            <p className="font-mono text-sm">
+              {data.keyPrefix}-****-****-{data.keySuffix}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Status</Label>
+            <div>
+              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor}`}>
+                {statusLabel}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Activated On</Label>
+            <p className="text-sm">
+              {data.activatedAt
+                ? new Date(data.activatedAt).toLocaleDateString()
+                : "—"}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Expires On</Label>
+            <p className="text-sm">
+              {data.expiresAt
+                ? new Date(data.expiresAt).toLocaleDateString()
+                : "—"}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Days Remaining</Label>
+            <p className="text-sm font-semibold">
+              {data.daysRemaining} day{data.daysRemaining === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Integrations Settings Tab

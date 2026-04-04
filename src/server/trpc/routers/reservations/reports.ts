@@ -619,4 +619,360 @@ export const reportsRouter = createTRPCRouter({
         },
       };
     }),
+
+  dailyOps: proc.query(async ({ ctx }) => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 86_400_000);
+
+    const baseWhere = { companyId: ctx.companyId };
+
+    const [
+      arrivalsToday,
+      departuresToday,
+      inHouseCount,
+      newBookingsToday,
+      cancellationsToday,
+    ] = await Promise.all([
+      ctx.db.booking.count({
+        where: {
+          ...baseWhere,
+          status: "CONFIRMED",
+          checkIn: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+      ctx.db.booking.count({
+        where: {
+          ...baseWhere,
+          status: "CHECKED_IN",
+          checkOut: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+      ctx.db.booking.count({
+        where: {
+          ...baseWhere,
+          status: "CHECKED_IN",
+          checkIn: { lte: todayStart },
+          checkOut: { gt: todayStart },
+        },
+      }),
+      ctx.db.booking.count({
+        where: {
+          ...baseWhere,
+          createdAt: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+      ctx.db.booking.count({
+        where: {
+          ...baseWhere,
+          status: "CANCELLED",
+          cancelledAt: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+    ]);
+
+    return {
+      arrivalsToday,
+      departuresToday,
+      inHouseCount,
+      newBookingsToday,
+      cancellationsToday,
+    };
+  }),
+
+  productionByTO: proc
+    .input(reportFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+        tourOperatorId: { not: null },
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.source) where.source = input.source;
+      if (input.dateFrom) where.checkIn = { gte: new Date(input.dateFrom) };
+      if (input.dateTo) {
+        where.checkOut = { ...(where.checkOut as object ?? {}), lte: new Date(input.dateTo) };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        take: 1000,
+        select: {
+          tourOperatorId: true,
+          nights: true,
+          buyingTotal: true,
+          sellingTotal: true,
+          currencyId: true,
+          tourOperator: { select: { name: true } },
+          currency: { select: { code: true } },
+          _count: { select: { rooms: true } },
+        },
+      });
+
+      const r = (v: number) => Math.round(v * 100) / 100;
+
+      const map = new Map<
+        string,
+        {
+          tourOperatorId: string;
+          name: string;
+          bookingCount: number;
+          roomNights: number;
+          totalBuying: number;
+          totalSelling: number;
+          margin: number;
+          currencyCode: string;
+        }
+      >();
+
+      for (const b of bookings) {
+        const key = `${b.tourOperatorId}::${b.currencyId}`;
+        const buying = Number(b.buyingTotal);
+        const selling = Number(b.sellingTotal);
+        const roomNights = b._count.rooms * b.nights;
+        const existing = map.get(key);
+        if (existing) {
+          existing.bookingCount++;
+          existing.roomNights += roomNights;
+          existing.totalBuying += buying;
+          existing.totalSelling += selling;
+          existing.margin += selling - buying;
+        } else {
+          map.set(key, {
+            tourOperatorId: b.tourOperatorId!,
+            name: b.tourOperator?.name ?? "",
+            bookingCount: 1,
+            roomNights,
+            totalBuying: buying,
+            totalSelling: selling,
+            margin: selling - buying,
+            currencyCode: b.currency.code,
+          });
+        }
+      }
+
+      return Array.from(map.values()).map((v) => ({
+        ...v,
+        totalBuying: r(v.totalBuying),
+        totalSelling: r(v.totalSelling),
+        margin: r(v.margin),
+      }));
+    }),
+
+  cancellationReport: proc
+    .input(reportFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: "CANCELLED",
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.dateFrom) where.checkIn = { gte: new Date(input.dateFrom) };
+      if (input.dateTo) {
+        where.checkOut = { ...(where.checkOut as object ?? {}), lte: new Date(input.dateTo) };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        take: 1000,
+        select: {
+          id: true,
+          code: true,
+          cancelledAt: true,
+          cancellationReason: true,
+          sellingTotal: true,
+          leadGuestName: true,
+          hotel: { select: { name: true } },
+          currency: { select: { code: true } },
+        },
+        orderBy: { cancelledAt: "desc" },
+      });
+
+      const r = (v: number) => Math.round(v * 100) / 100;
+
+      return bookings.map((b) => ({
+        bookingId: b.id,
+        code: b.code,
+        hotelName: b.hotel.name,
+        guestName: b.leadGuestName ?? "",
+        cancelledAt: b.cancelledAt,
+        cancellationReason: b.cancellationReason ?? "",
+        sellingTotal: r(Number(b.sellingTotal)),
+        currencyCode: b.currency.code,
+      }));
+    }),
+
+  noShowReport: proc
+    .input(reportFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: "NO_SHOW",
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.dateFrom) where.checkIn = { gte: new Date(input.dateFrom) };
+      if (input.dateTo) {
+        where.checkOut = { ...(where.checkOut as object ?? {}), lte: new Date(input.dateTo) };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        take: 1000,
+        select: {
+          id: true,
+          code: true,
+          checkIn: true,
+          checkOut: true,
+          sellingTotal: true,
+          leadGuestName: true,
+          hotel: { select: { name: true } },
+          currency: { select: { code: true } },
+        },
+        orderBy: { checkIn: "desc" },
+      });
+
+      const r = (v: number) => Math.round(v * 100) / 100;
+
+      return bookings.map((b) => ({
+        bookingId: b.id,
+        code: b.code,
+        hotelName: b.hotel.name,
+        guestName: b.leadGuestName ?? "",
+        checkIn: b.checkIn,
+        checkOut: b.checkOut,
+        sellingTotal: r(Number(b.sellingTotal)),
+        currencyCode: b.currency.code,
+      }));
+    }),
+
+  bookingLeadTime: proc
+    .input(reportFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.source) where.source = input.source;
+      if (input.dateFrom) where.checkIn = { gte: new Date(input.dateFrom) };
+      if (input.dateTo) {
+        where.checkOut = { ...(where.checkOut as object ?? {}), lte: new Date(input.dateTo) };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        take: 1000,
+        select: {
+          createdAt: true,
+          checkIn: true,
+          hotelId: true,
+          hotel: { select: { name: true } },
+        },
+      });
+
+      const r = (v: number) => Math.round(v * 100) / 100;
+
+      // Global average
+      let totalLeadDays = 0;
+      for (const b of bookings) {
+        const diff = (new Date(b.checkIn).getTime() - new Date(b.createdAt).getTime()) / 86_400_000;
+        totalLeadDays += diff;
+      }
+      const averageLeadDays = bookings.length > 0 ? r(totalLeadDays / bookings.length) : 0;
+
+      // By hotel
+      const hotelMap = new Map<string, { name: string; totalLead: number; count: number }>();
+      for (const b of bookings) {
+        const diff = (new Date(b.checkIn).getTime() - new Date(b.createdAt).getTime()) / 86_400_000;
+        const existing = hotelMap.get(b.hotelId);
+        if (existing) {
+          existing.totalLead += diff;
+          existing.count++;
+        } else {
+          hotelMap.set(b.hotelId, { name: b.hotel.name, totalLead: diff, count: 1 });
+        }
+      }
+
+      const byHotel = Array.from(hotelMap.values()).map((h) => ({
+        hotelName: h.name,
+        avgLeadDays: r(h.totalLead / h.count),
+        bookingCount: h.count,
+      }));
+
+      return { averageLeadDays, byHotel };
+    }),
+
+  marketMix: proc
+    .input(reportFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.source) where.source = input.source;
+      if (input.dateFrom) where.checkIn = { gte: new Date(input.dateFrom) };
+      if (input.dateTo) {
+        where.checkOut = { ...(where.checkOut as object ?? {}), lte: new Date(input.dateTo) };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        take: 1000,
+        select: {
+          source: true,
+          marketId: true,
+          sellingTotal: true,
+          market: { select: { name: true } },
+        },
+      });
+
+      const r = (v: number) => Math.round(v * 100) / 100;
+
+      // By source
+      const sourceMap = new Map<string, { count: number; revenue: number }>();
+      for (const b of bookings) {
+        const revenue = Number(b.sellingTotal);
+        const existing = sourceMap.get(b.source);
+        if (existing) {
+          existing.count++;
+          existing.revenue += revenue;
+        } else {
+          sourceMap.set(b.source, { count: 1, revenue });
+        }
+      }
+
+      // By market
+      const marketMap = new Map<string, { marketName: string; count: number; revenue: number }>();
+      for (const b of bookings) {
+        if (!b.marketId || !b.market) continue;
+        const revenue = Number(b.sellingTotal);
+        const existing = marketMap.get(b.marketId);
+        if (existing) {
+          existing.count++;
+          existing.revenue += revenue;
+        } else {
+          marketMap.set(b.marketId, { marketName: b.market.name, count: 1, revenue });
+        }
+      }
+
+      return {
+        bySource: Array.from(sourceMap.entries()).map(([source, v]) => ({
+          source,
+          count: v.count,
+          revenue: r(v.revenue),
+        })),
+        byMarket: Array.from(marketMap.values()).map((v) => ({
+          marketName: v.marketName,
+          count: v.count,
+          revenue: r(v.revenue),
+        })),
+      };
+    }),
 });

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/server/db";
 import { getCompanyInfo } from "@/lib/b2c/get-branding";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export const metadata = { title: "About Us" };
 
@@ -25,7 +26,7 @@ export default async function AboutPage() {
         {page ? (
           <div
             className="prose max-w-none text-[var(--pub-foreground)]"
-            dangerouslySetInnerHTML={{ __html: page.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }}
           />
         ) : (
           <div className="text-[var(--pub-muted-foreground)]">

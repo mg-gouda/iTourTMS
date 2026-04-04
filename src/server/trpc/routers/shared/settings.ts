@@ -76,4 +76,46 @@ export const settingsRouter = createTRPCRouter({
         data: input,
       });
     }),
+
+  getLicenseStatus: protectedProcedure.query(async ({ ctx }) => {
+    const companyId = ctx.user.companyId;
+    if (!companyId) return null;
+
+    const license = await ctx.db.license.findFirst({
+      where: { companyId, isActivated: true },
+      select: {
+        keyPrefix: true,
+        keySuffix: true,
+        activatedAt: true,
+        expiresAt: true,
+        isRevoked: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!license || !license.expiresAt) return null;
+
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil(
+        (license.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      ),
+    );
+
+    let status: "active" | "expiring_soon" | "expired" = "active";
+    if (license.isRevoked || daysRemaining <= 0) {
+      status = "expired";
+    } else if (daysRemaining <= 30) {
+      status = "expiring_soon";
+    }
+
+    return {
+      keyPrefix: license.keyPrefix,
+      keySuffix: license.keySuffix,
+      activatedAt: license.activatedAt,
+      expiresAt: license.expiresAt,
+      daysRemaining,
+      status,
+    };
+  }),
 });

@@ -16,6 +16,7 @@ export const hotelRouter = createTRPCRouter({
         _count: { select: { roomTypes: true, mealBasis: true, childrenPolicies: true, images: true } },
       },
       orderBy: { name: "asc" },
+      take: 500,
     });
   }),
 

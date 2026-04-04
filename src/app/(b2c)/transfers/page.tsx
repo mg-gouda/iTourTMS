@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { Bus, Plane, MapPin, Users, ArrowRight } from "lucide-react";
+import { Bus, Plane, Users } from "lucide-react";
 
 import { getCompanyInfo } from "@/lib/b2c/get-branding";
 import { db } from "@/server/db";
+import { TransferBookingForm } from "@/components/b2c/transfer-booking-form";
 
 export const metadata = { title: "Airport Transfers" };
 
@@ -37,27 +37,12 @@ export default async function TransfersPage() {
           Reliable airport pickup and drop-off services
         </p>
 
-        {/* Hero CTA */}
-        <div className="mb-10 rounded-xl bg-gradient-to-r from-[var(--pub-primary)] to-[var(--pub-accent)] p-8 text-white md:p-12">
-          <div className="mx-auto max-w-2xl text-center">
-            <Plane className="mx-auto mb-4 h-12 w-12 opacity-80" />
-            <h2
-              className="mb-3 text-2xl font-bold md:text-3xl"
-              style={{ fontFamily: "var(--pub-heading-font)" }}
-            >
-              Book Your Transfer
-            </h2>
-            <p className="mb-6 text-white/80">
-              Comfortable, on-time transfers to and from the airport.
-              Professional drivers, meet &amp; greet service included.
-            </p>
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-[var(--pub-primary)] transition hover:bg-white/90"
-            >
-              Request a Quote <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+        {/* Booking Form */}
+        <div className="mb-10">
+          <TransferBookingForm
+            airports={airports.map((a) => ({ id: a.id, name: a.name, code: a.code }))}
+            vehicleTypes={vehicleTypes.map((v) => ({ id: v.id, name: v.name, capacity: v.capacity }))}
+          />
         </div>
 
         {/* Vehicle Types */}
@@ -121,27 +106,6 @@ export default async function TransfersPage() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {vehicleTypes.length === 0 && airports.length === 0 && (
-          <div className="rounded-xl border border-[var(--pub-border)] bg-[var(--pub-card)] p-12 text-center">
-            <Bus className="mx-auto mb-4 h-12 w-12 text-[var(--pub-muted-foreground)]" />
-            <h2
-              className="mb-2 text-xl font-semibold"
-              style={{ fontFamily: "var(--pub-heading-font)" }}
-            >
-              Transfer Details Coming Soon
-            </h2>
-            <p className="text-[var(--pub-muted-foreground)]">
-              Contact us directly to arrange your airport transfer.
-            </p>
-            <Link
-              href="/contact"
-              className="pub-btn pub-btn-primary mt-6 inline-block"
-            >
-              Contact Us
-            </Link>
           </div>
         )}
       </div>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -16,6 +18,7 @@ import { CurrencyRatePanel } from "@/components/finance/currency-rate-panel";
 import { trpc } from "@/lib/trpc";
 
 export default function CurrenciesPage() {
+  const utils = trpc.useUtils();
   const [selectedCurrencyId, setSelectedCurrencyId] = useState<string | null>(
     null,
   );
@@ -24,6 +27,14 @@ export default function CurrenciesPage() {
     trpc.finance.currency.list.useQuery({ activeOnly: false });
   const { data: baseCurrency } =
     trpc.finance.currency.getBaseCurrency.useQuery();
+
+  const toggleMutation = trpc.finance.currency.toggleActive.useMutation({
+    onSuccess: () => {
+      toast.success("Currency updated");
+      utils.finance.currency.list.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const selectedCurrency = currencies?.find((c) => c.id === selectedCurrencyId);
 
@@ -54,6 +65,7 @@ export default function CurrenciesPage() {
                   <TableHead className="w-20">Symbol</TableHead>
                   <TableHead className="w-24">Decimals</TableHead>
                   <TableHead className="w-24">Status</TableHead>
+                  <TableHead className="w-28"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -79,6 +91,20 @@ export default function CurrenciesPage() {
                       >
                         {c.isActive ? "Active" : "Inactive"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {baseCurrency && c.id !== baseCurrency.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMutation.mutate({ id: c.id, isActive: !c.isActive });
+                          }}
+                        >
+                          {c.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -8,6 +8,7 @@ import {
   Star,
   Mail,
   MessageSquare,
+  DollarSign,
 } from "lucide-react";
 
 const sections = [
@@ -19,6 +20,7 @@ const sections = [
   { href: "/b2c-site/testimonials", label: "Testimonials", desc: "Guest reviews and ratings", icon: Star },
   { href: "/b2c-site/inquiries", label: "Contact Inquiries", desc: "Messages from the contact form", icon: MessageSquare },
   { href: "/b2c-site/newsletter", label: "Newsletter", desc: "Email subscribers", icon: Mail },
+  { href: "/b2c-site/markup", label: "Markup Rules", desc: "B2C pricing markup configuration", icon: DollarSign },
 ];
 
 export default function B2cSiteDashboardPage() {

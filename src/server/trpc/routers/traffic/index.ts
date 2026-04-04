@@ -4,6 +4,7 @@ import { airportRouter } from "./airport";
 import { dispatchRouter } from "./dispatch";
 import { driverRouter } from "./driver";
 import { guestBookingRouter } from "./guest-booking";
+import { operationalCostRouter } from "./operational-cost";
 import { partnerPriceOverrideRouter } from "./partner-price-override";
 import { priceItemRouter } from "./price-item";
 import { repRouter } from "./rep";
@@ -27,6 +28,7 @@ export const trafficRouter = createTRPCRouter({
   priceItem: priceItemRouter,
   partnerPriceOverride: partnerPriceOverrideRouter,
   supplierTripPrice: supplierTripPriceRouter,
+  operationalCost: operationalCostRouter,
   trafficJob: trafficJobRouter,
   trafficFlight: trafficFlightRouter,
   trafficAssignment: trafficAssignmentRouter,

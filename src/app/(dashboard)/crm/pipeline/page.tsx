@@ -74,11 +74,23 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
           <p className="text-muted-foreground">Kanban view of your sales pipeline</p>
         </div>
-        <Button asChild>
-          <Link href="/crm/pipeline/new">
-            <Plus className="mr-2 size-4" /> New Opportunity
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const { exportPipelineToExcel } = await import("@/lib/export/crm-pipeline-excel");
+              await exportPipelineToExcel(opportunities ?? []);
+            }}
+            disabled={!opportunities?.length}
+          >
+            Export Excel
+          </Button>
+          <Button asChild>
+            <Link href="/crm/pipeline/new">
+              <Plus className="mr-2 size-4" /> New Opportunity
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">

@@ -4,9 +4,12 @@ import type { NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { resolveMarketByCountry } from "@/server/services/b2c/market-resolver";
 import { getCountryFromIP } from "@/lib/b2c/geo-ip";
+import { b2cRateLimit } from "@/server/b2c-rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimited = await b2cRateLimit(request, "marketCheck");
+    if (rateLimited) return rateLimited;
     const company = await db.company.findFirst({ select: { id: true } });
     if (!company) {
       return NextResponse.json({ hasMarket: false, country: null });
@@ -38,8 +41,7 @@ export async function GET(request: NextRequest) {
       country: countryCode,
       marketName: market?.name ?? null,
     });
-  } catch (err) {
-    console.error("[market-check] Error:", err);
+  } catch {
     return NextResponse.json({ hasMarket: true, country: null });
   }
 }

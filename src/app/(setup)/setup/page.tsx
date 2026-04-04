@@ -10,6 +10,12 @@ export default async function SetupPage() {
     redirect("/dashboard");
   }
 
+  // Check if a license has already been activated (resume from step 2)
+  const activeLicense = await db.license.findFirst({
+    where: { isActivated: true, isRevoked: false },
+    select: { id: true },
+  });
+
   // Fetch countries and currencies for the wizard
   const [countries, currencies] = await Promise.all([
     db.country.findMany({
@@ -28,6 +34,7 @@ export default async function SetupPage() {
     <SetupWizard
       countries={countries}
       currencies={currencies}
+      existingLicenseId={activeLicense?.id ?? null}
     />
   );
 }

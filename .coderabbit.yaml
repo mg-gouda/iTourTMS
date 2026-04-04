@@ -1,0 +1,21 @@
+language: "en-US"
+early_access: false
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "src/server/trpc/**"
+      instructions: "This is a tRPC backend. Check for proper input validation, authorization via moduleProcedure/protectedProcedure, and Prisma query efficiency."
+    - path: "src/components/**"
+      instructions: "React components using shadcn/ui. Check for proper TypeScript types, accessibility, and consistent patterns."
+    - path: "prisma/**"
+      instructions: "Prisma schema and migrations. Check for proper relations, indexes, and enum usage."
+chat:
+  auto_reply: true

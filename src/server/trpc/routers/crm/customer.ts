@@ -14,6 +14,7 @@ export const customerRouter = createTRPCRouter({
         _count: { select: { activities: true, opportunities: true, bookings: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
   }),
 

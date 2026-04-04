@@ -25,6 +25,7 @@ export const contractRouter = createTRPCRouter({
         _count: { select: { seasons: true, roomTypes: true, mealBases: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
   }),
 
@@ -37,6 +38,7 @@ export const contractRouter = createTRPCRouter({
         _count: { select: { seasons: true, roomTypes: true, mealBases: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 200,
     });
   }),
 

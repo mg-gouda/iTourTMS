@@ -161,6 +161,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         routes: [
           { label: "Markup Rules", href: "/contracting/markups" },
           { label: "Tariffs", href: "/contracting/tariffs" },
+          { label: "Rate Simulator", href: "/contracting/rate-simulator" },
         ],
       },
       {
@@ -207,6 +208,8 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Group Bookings", href: "/reservations/bookings/new-group" },
           { label: "Guests", href: "/reservations/guests" },
           { label: "Vouchers", href: "/reservations/vouchers" },
+          { label: "Daily Operations", href: "/reservations/operations" },
+          { label: "Deadlines", href: "/reservations/deadlines" },
         ],
       },
       {

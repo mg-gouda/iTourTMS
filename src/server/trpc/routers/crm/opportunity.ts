@@ -15,6 +15,7 @@ export const opportunityRouter = createTRPCRouter({
         customer: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
   }),
 

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { ArrowLeftRight, FileDown, FileSpreadsheet, Plus, X } from "lucide-react";
+import { ArrowLeftRight, FileDown, FileSpreadsheet, Pencil, Plus, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -691,56 +692,124 @@ function SaveAsTemplateDialog({
 // ─── Overview Tab ──────────────────────────────────────────
 
 function OverviewTab({ contract }: { contract: ContractData }) {
+  const utils = trpc.useUtils();
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(contract.name);
+  const [editCode, setEditCode] = useState(contract.code);
+  const [editMinStay, setEditMinStay] = useState(contract.minimumStay);
+  const [editMaxStay, setEditMaxStay] = useState(contract.maximumStay ?? "");
+  const [editValidFrom, setEditValidFrom] = useState(new Date(contract.validFrom).toISOString().slice(0, 10));
+  const [editValidTo, setEditValidTo] = useState(new Date(contract.validTo).toISOString().slice(0, 10));
+  const [editTerms, setEditTerms] = useState(contract.terms ?? "");
+  const [editNotes, setEditNotes] = useState(contract.internalNotes ?? "");
+
+  const updateMutation = trpc.contracting.contract.update.useMutation({
+    onSuccess: () => {
+      toast.success("Contract updated");
+      utils.contracting.contract.getById.invalidate({ id: contract.id });
+      setEditing(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const isDraft = contract.status === "DRAFT";
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Contract Details</CardTitle>
+          {isDraft && !editing && (
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
+          )}
+          {editing && (
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                disabled={updateMutation.isPending}
+                onClick={() => updateMutation.mutate({
+                  id: contract.id,
+                  data: {
+                    name: editName,
+                    code: editCode,
+                    minimumStay: Number(editMinStay),
+                    maximumStay: editMaxStay ? Number(editMaxStay) : null,
+                    validFrom: editValidFrom,
+                    validTo: editValidTo,
+                    terms: editTerms || null,
+                    internalNotes: editNotes || null,
+                  },
+                })}
+              >
+                {updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Name</span>
-            <span className="font-medium">{contract.name}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Code</span>
-            <span className="font-mono">{contract.code}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Rate Basis</span>
-            <span>{RATE_BASIS_LABELS[contract.rateBasis] ?? contract.rateBasis}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Min Stay</span>
-            <span>{contract.minimumStay} night(s)</span>
-          </div>
-          {contract.maximumStay && (
+          {editing ? (
+            <div className="space-y-3">
+              <div><Label className="text-xs">Name</Label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+              <div><Label className="text-xs">Code</Label><Input value={editCode} onChange={(e) => setEditCode(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label className="text-xs">Min Stay</Label><Input type="number" min={1} value={editMinStay} onChange={(e) => setEditMinStay(Number(e.target.value))} /></div>
+                <div><Label className="text-xs">Max Stay</Label><Input type="number" min={1} value={editMaxStay} onChange={(e) => setEditMaxStay(e.target.value ? Number(e.target.value) : "")} placeholder="No limit" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label className="text-xs">Booking From</Label><Input type="date" value={editValidFrom} onChange={(e) => setEditValidFrom(e.target.value)} /></div>
+                <div><Label className="text-xs">Booking To</Label><Input type="date" value={editValidTo} onChange={(e) => setEditValidTo(e.target.value)} /></div>
+              </div>
+              <div><Label className="text-xs">Terms</Label><textarea className="w-full rounded-md border p-2 text-sm" rows={3} value={editTerms} onChange={(e) => setEditTerms(e.target.value)} /></div>
+              <div><Label className="text-xs">Internal Notes</Label><textarea className="w-full rounded-md border p-2 text-sm" rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
+            </div>
+          ) : (
             <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Name</span>
+                <span className="font-medium">{contract.name}</span>
+              </div>
               <Separator />
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Max Stay</span>
-                <span>{contract.maximumStay} night(s)</span>
+                <span className="text-muted-foreground">Code</span>
+                <span className="font-mono">{contract.code}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Rate Basis</span>
+                <span>{RATE_BASIS_LABELS[contract.rateBasis] ?? contract.rateBasis}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Min Stay</span>
+                <span>{contract.minimumStay} night(s)</span>
+              </div>
+              {contract.maximumStay && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Max Stay</span>
+                    <span>{contract.maximumStay} night(s)</span>
+                  </div>
+                </>
+              )}
+              <Separator />
+              <div className="flex justify-between items-start">
+                <span className="text-muted-foreground">Market Validity</span>
+                <div className="flex flex-wrap justify-end gap-1">
+                  {contract.markets.length > 0 ? (
+                    contract.markets.map((cm) => (
+                      <Badge key={cm.id} variant="secondary" className="text-xs">
+                        {cm.market.name}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">All Markets</span>
+                  )}
+                </div>
               </div>
             </>
           )}
-          <Separator />
-          <div className="flex justify-between items-start">
-            <span className="text-muted-foreground">Market Validity</span>
-            <div className="flex flex-wrap justify-end gap-1">
-              {contract.markets.length > 0 ? (
-                contract.markets.map((cm) => (
-                  <Badge key={cm.id} variant="secondary" className="text-xs">
-                    {cm.market.name}
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-muted-foreground">All Markets</span>
-              )}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -4894,6 +4963,16 @@ function SpecialMealsTab({ contractId }: { contractId: string }) {
     },
   });
 
+  const updateMutation = trpc.contracting.specialMeal.update.useMutation({
+    onSuccess: () => {
+      utils.contracting.specialMeal.listByContract.invalidate({ contractId });
+      setShowCreate(false);
+      resetForm();
+      toast.success("Special meal updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const deleteMutation = trpc.contracting.specialMeal.delete.useMutation({
     onSuccess: () => {
       utils.contracting.specialMeal.listByContract.invalidate({ contractId });
@@ -4914,20 +4993,53 @@ function SpecialMealsTab({ contractId }: { contractId: string }) {
     setEditId(null);
   }
 
+  function populateForEdit(meal: NonNullable<typeof meals>[number]) {
+    setEditId(meal.id);
+    setOccasion(meal.occasion);
+    setCustomName(meal.customName ?? "");
+    setDateFrom(format(new Date(meal.dateFrom), "yyyy-MM-dd"));
+    setDateTo(format(new Date(meal.dateTo), "yyyy-MM-dd"));
+    setMandatory(meal.mandatory);
+    setAdultPrice(parseFloat(meal.adultPrice.toString()));
+    setChildPrice(meal.childPrice ? parseFloat(meal.childPrice.toString()) : 0);
+    setTeenPrice(meal.teenPrice ? parseFloat(meal.teenPrice.toString()) : 0);
+    setInfantPrice(meal.infantPrice ? parseFloat(meal.infantPrice.toString()) : 0);
+    setNotes(meal.notes ?? "");
+    setShowCreate(true);
+  }
+
   function handleSubmit() {
-    createMutation.mutate({
-      contractId,
-      occasion: occasion as "NYE" | "CHRISTMAS" | "EASTER" | "CUSTOM",
-      customName: occasion === "CUSTOM" ? customName : undefined,
-      dateFrom,
-      dateTo,
-      mandatory,
-      adultPrice,
-      childPrice: childPrice || undefined,
-      teenPrice: teenPrice || undefined,
-      infantPrice: infantPrice || undefined,
-      notes: notes || undefined,
-    });
+    if (editId) {
+      updateMutation.mutate({
+        id: editId,
+        data: {
+          occasion: occasion as "NYE" | "CHRISTMAS" | "EASTER" | "CUSTOM",
+          customName: occasion === "CUSTOM" ? customName : null,
+          dateFrom,
+          dateTo,
+          mandatory,
+          adultPrice,
+          childPrice: childPrice || null,
+          teenPrice: teenPrice || null,
+          infantPrice: infantPrice || null,
+          notes: notes || null,
+        },
+      });
+    } else {
+      createMutation.mutate({
+        contractId,
+        occasion: occasion as "NYE" | "CHRISTMAS" | "EASTER" | "CUSTOM",
+        customName: occasion === "CUSTOM" ? customName : undefined,
+        dateFrom,
+        dateTo,
+        mandatory,
+        adultPrice,
+        childPrice: childPrice || undefined,
+        teenPrice: teenPrice || undefined,
+        infantPrice: infantPrice || undefined,
+        notes: notes || undefined,
+      });
+    }
   }
 
   return (
@@ -4943,7 +5055,7 @@ function SpecialMealsTab({ contractId }: { contractId: string }) {
       <Dialog open={showCreate} onOpenChange={(v) => { setShowCreate(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Special Meal</DialogTitle>
+            <DialogTitle>{editId ? "Edit Special Meal" : "Add Special Meal"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -5007,8 +5119,10 @@ function SpecialMealsTab({ contractId }: { contractId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowCreate(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending || !dateFrom || !dateTo}>
-              {createMutation.isPending ? "Creating..." : "Create"}
+            <Button onClick={handleSubmit} disabled={(createMutation.isPending || updateMutation.isPending) || !dateFrom || !dateTo}>
+              {editId
+                ? (updateMutation.isPending ? "Saving..." : "Save Changes")
+                : (createMutation.isPending ? "Creating..." : "Create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -5067,14 +5181,24 @@ function SpecialMealsTab({ contractId }: { contractId: string }) {
                       {meal.infantPrice ? parseFloat(meal.infantPrice.toString()).toFixed(2) : "—"}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-destructive"
-                        onClick={() => deleteMutation.mutate({ id: meal.id })}
-                      >
-                        <X className="size-3" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={() => populateForEdit(meal)}
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive"
+                          onClick={() => deleteMutation.mutate({ id: meal.id })}
+                        >
+                          <X className="size-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -5109,6 +5233,7 @@ function MarketingContributionTab({
     trpc.contracting.marketingContribution.listByContract.useQuery({ contractId });
 
   const [showDialog, setShowDialog] = useState(false);
+  const [editingMcId, setEditingMcId] = useState<string | null>(null);
   const [marketId, setMarketId] = useState<string | null>(null);
   const [seasonId, setSeasonId] = useState<string | null>(null);
   const [valueType, setValueType] = useState<string>("PERCENTAGE");
@@ -5124,6 +5249,16 @@ function MarketingContributionTab({
     onError: (err) => toast.error(err.message),
   });
 
+  const updateMutation = trpc.contracting.marketingContribution.update.useMutation({
+    onSuccess: () => {
+      void utils.contracting.marketingContribution.listByContract.invalidate({ contractId });
+      setShowDialog(false);
+      resetForm();
+      toast.success("Marketing contribution updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const deleteMutation = trpc.contracting.marketingContribution.delete.useMutation({
     onSuccess: () => utils.contracting.marketingContribution.listByContract.invalidate({ contractId }),
     onError: (err) => toast.error(err.message),
@@ -5135,17 +5270,41 @@ function MarketingContributionTab({
     setValueType("PERCENTAGE");
     setValue(0);
     setNotes("");
+    setEditingMcId(null);
   }
 
-  function handleCreate() {
-    createMutation.mutate({
-      contractId,
-      marketId: marketId || null,
-      seasonId: seasonId || null,
-      valueType: valueType as "FIXED" | "PERCENTAGE",
-      value,
-      notes: notes || null,
-    });
+  function populateForEditMc(mc: NonNullable<typeof contributions>[number]) {
+    setEditingMcId(mc.id);
+    setMarketId(mc.market?.id ?? null);
+    setSeasonId(mc.season?.id ?? null);
+    setValueType(mc.valueType);
+    setValue(parseFloat(mc.value.toString()));
+    setNotes(mc.notes ?? "");
+    setShowDialog(true);
+  }
+
+  function handleSubmitMc() {
+    if (editingMcId) {
+      updateMutation.mutate({
+        id: editingMcId,
+        data: {
+          marketId: marketId || null,
+          seasonId: seasonId || null,
+          valueType: valueType as "FIXED" | "PERCENTAGE",
+          value,
+          notes: notes || null,
+        },
+      });
+    } else {
+      createMutation.mutate({
+        contractId,
+        marketId: marketId || null,
+        seasonId: seasonId || null,
+        valueType: valueType as "FIXED" | "PERCENTAGE",
+        value,
+        notes: notes || null,
+      });
+    }
   }
 
   return (
@@ -5206,14 +5365,24 @@ function MarketingContributionTab({
                     {mc.notes || "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => deleteMutation.mutate({ id: mc.id })}
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => populateForEditMc(mc)}
+                      >
+                        <Pencil className="size-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => deleteMutation.mutate({ id: mc.id })}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -5228,9 +5397,9 @@ function MarketingContributionTab({
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add Marketing Contribution</DialogTitle>
+              <DialogTitle>{editingMcId ? "Edit Marketing Contribution" : "Add Marketing Contribution"}</DialogTitle>
               <DialogDescription>
-                Define a marketing contribution for specific or all markets and seasons.
+                {editingMcId ? "Update this marketing contribution." : "Define a marketing contribution for specific or all markets and seasons."}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -5306,8 +5475,10 @@ function MarketingContributionTab({
               <Button variant="outline" onClick={() => setShowDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreate} disabled={value <= 0 || createMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create"}
+              <Button onClick={handleSubmitMc} disabled={value <= 0 || createMutation.isPending || updateMutation.isPending}>
+                {editingMcId
+                  ? (updateMutation.isPending ? "Saving..." : "Save Changes")
+                  : (createMutation.isPending ? "Creating..." : "Create")}
               </Button>
             </DialogFooter>
           </DialogContent>

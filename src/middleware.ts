@@ -28,6 +28,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow license pages (expired / activate)
+  if (pathname.startsWith("/license-expired") || pathname.startsWith("/license-activate")) {
+    return NextResponse.next();
+  }
+
   // Allow B2C website routes (served by (b2c) route group)
   const b2cSiteRoutes = [
     "/hotels",

@@ -154,4 +154,15 @@ export const currencyRouter = createTRPCRouter({
       if (!rate) throw new TRPCError({ code: "NOT_FOUND", message: "Rate not found" });
       return ctx.db.currencyRate.delete({ where: { id: input.id } });
     }),
+
+  // ── Toggle currency active/inactive ──
+
+  toggleActive: financeProcedure
+    .input(z.object({ id: z.string(), isActive: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.currency.update({
+        where: { id: input.id },
+        data: { isActive: input.isActive },
+      });
+    }),
 });

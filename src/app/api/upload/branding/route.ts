@@ -69,9 +69,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine extension from original filename
-    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const filename = `${companyId}-${field}.${ext}`;
+    // Derive extension from validated MIME type (not user-supplied filename)
+    const mimeToExt: Record<string, string> = {
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "image/webp": "webp",
+      "image/gif": "gif",
+      "image/svg+xml": "svg",
+    };
+    const ext = mimeToExt[file.type] || "png";
+    const filename = `${companyId}-${field}-${Date.now()}.${ext}`;
     const filePath = path.join(UPLOAD_DIR, filename);
 
     // Ensure directory exists, then write file
@@ -131,11 +138,15 @@ export async function DELETE(req: NextRequest) {
 
     const currentUrl = company?.[column as keyof typeof company] as string | null;
     if (currentUrl) {
-      const filePath = path.join(process.cwd(), "public", currentUrl);
-      try {
-        await unlink(filePath);
-      } catch {
-        // File may not exist on disk
+      const filePath = path.resolve(path.join(process.cwd(), "public", currentUrl));
+      const allowedDir = path.resolve(UPLOAD_DIR);
+      // Prevent path traversal — only delete files within branding uploads
+      if (filePath.startsWith(allowedDir)) {
+        try {
+          await unlink(filePath);
+        } catch {
+          // File may not exist on disk
+        }
       }
     }
 

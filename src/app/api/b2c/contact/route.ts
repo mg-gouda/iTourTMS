@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/server/db";
 import { contactInquiryCreateSchema } from "@/lib/validations/b2c-site";
+import { b2cRateLimit } from "@/server/b2c-rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const rateLimited = await b2cRateLimit(request, "contact");
+    if (rateLimited) return rateLimited;
     const body = await request.json();
     const parsed = contactInquiryCreateSchema.safeParse(body);
 

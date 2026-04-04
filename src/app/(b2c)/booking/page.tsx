@@ -559,14 +559,23 @@ function BookingFlow() {
             >
               Payment
             </h2>
-            <div className="rounded-lg border border-[var(--pub-border)] bg-[var(--pub-muted)]/20 p-8 text-center">
-              <CreditCard className="mx-auto mb-4 h-12 w-12 text-[var(--pub-muted-foreground)]" />
-              <p className="mb-2 font-semibold">Online Payment</p>
-              <p className="mb-6 text-sm text-[var(--pub-muted-foreground)]">
-                Online payment integration will be available soon. For now,
-                please submit your booking request and our team will contact you
-                with payment details.
-              </p>
+            <div className="space-y-4">
+              {/* Payment method selection */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border-2 border-[var(--pub-primary)] bg-[var(--pub-primary)]/5 p-4 text-center">
+                  <CreditCard className="mx-auto mb-2 h-8 w-8 text-[var(--pub-primary)]" />
+                  <p className="font-semibold text-sm">Pay on Arrival</p>
+                  <p className="text-xs text-[var(--pub-muted-foreground)]">Pay at the hotel during check-in</p>
+                </div>
+                <div className="cursor-not-allowed rounded-lg border border-[var(--pub-border)] bg-[var(--pub-muted)]/20 p-4 text-center opacity-60">
+                  <CreditCard className="mx-auto mb-2 h-8 w-8 text-[var(--pub-muted-foreground)]" />
+                  <p className="font-semibold text-sm">Credit Card</p>
+                  <p className="text-xs text-[var(--pub-muted-foreground)]">Stripe integration — coming soon</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-[var(--pub-border)] bg-[var(--pub-muted)]/10 p-4 text-center text-sm text-[var(--pub-muted-foreground)]">
+                Your booking will be confirmed and our team will contact you with any additional payment details if needed.
+              </div>
 
               {error && (
                 <p className="mb-4 text-sm text-red-600">{error}</p>

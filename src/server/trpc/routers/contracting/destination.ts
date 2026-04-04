@@ -2,19 +2,25 @@ import { z } from "zod";
 
 import { cityCreateSchema, cityUpdateSchema, destinationCreateSchema, destinationUpdateSchema, zoneCreateSchema, zoneUpdateSchema } from "@/lib/validations/contracting";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { withCache, invalidateCache } from "@/server/redis";
 
 const proc = moduleProcedure("contracting");
 
 export const destinationRouter = createTRPCRouter({
   list: proc.query(async ({ ctx }) => {
-    return ctx.db.destination.findMany({
-      where: { companyId: ctx.companyId },
-      include: {
-        country: { select: { id: true, name: true, code: true } },
-        _count: { select: { hotels: true, cities: true } },
-      },
-      orderBy: { name: "asc" },
-    });
+    return withCache(
+      `destinations:${ctx.companyId}`,
+      () =>
+        ctx.db.destination.findMany({
+          where: { companyId: ctx.companyId },
+          include: {
+            country: { select: { id: true, name: true, code: true } },
+            _count: { select: { hotels: true, cities: true } },
+          },
+          orderBy: { name: "asc" },
+        }),
+      3600, // 1 hour cache
+    );
   }),
 
   getById: proc
@@ -53,18 +59,22 @@ export const destinationRouter = createTRPCRouter({
       if (existing) {
         throw new Error(`A destination with code "${input.code}" already exists.`);
       }
-      return ctx.db.destination.create({
+      const dest = await ctx.db.destination.create({
         data: { ...input, companyId: ctx.companyId },
       });
+      await invalidateCache(`destinations:${ctx.companyId}`);
+      return dest;
     }),
 
   update: proc
     .input(z.object({ id: z.string(), data: destinationUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.destination.update({
+      const dest = await ctx.db.destination.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: input.data,
       });
+      await invalidateCache(`destinations:${ctx.companyId}`);
+      return dest;
     }),
 
   delete: proc
@@ -76,9 +86,11 @@ export const destinationRouter = createTRPCRouter({
       if (hotelCount > 0) {
         throw new Error("Cannot delete destination with linked hotels. Remove hotels first.");
       }
-      return ctx.db.destination.delete({
+      const dest = await ctx.db.destination.delete({
         where: { id: input.id, companyId: ctx.companyId },
       });
+      await invalidateCache(`destinations:${ctx.companyId}`);
+      return dest;
     }),
 
   // ── City CRUD ──

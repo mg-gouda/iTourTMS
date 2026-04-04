@@ -306,7 +306,24 @@ export default function SearchAndBookPage() {
                           <p className="font-semibold">${room.total.toFixed(2)}</p>
                           <p className="text-xs text-muted-foreground">${room.pricePerNight.toFixed(2)}/night</p>
                         </div>
-                        <Button size="sm" variant="outline" disabled={room.availability === "sold_out"}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={room.availability === "sold_out"}
+                          onClick={() => {
+                            const params = new URLSearchParams({
+                              hotelId: hotel.hotelId,
+                              contractId: hotel.contractId ?? "",
+                              roomTypeId: room.roomTypeId ?? "",
+                              mealCode: room.mealCode ?? "",
+                              checkIn,
+                              checkOut,
+                              adults: String(adults),
+                              children: String(children),
+                            });
+                            window.open(`/b2b/book?${params}`, "_blank");
+                          }}
+                        >
                           Book
                         </Button>
                       </div>

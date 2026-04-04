@@ -18,7 +18,10 @@ export const publicPageRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.publicPage.findUnique({ where: { id: input.id } });
+      const companyId = ctx.session.user.companyId!;
+      return ctx.db.publicPage.findFirst({
+        where: { id: input.id, companyId },
+      });
     }),
 
   getBySlug: protectedProcedure
@@ -40,13 +43,17 @@ export const publicPageRouter = createTRPCRouter({
   update: protectedProcedure
     .input(publicPageUpdateSchema)
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
       const { id, ...data } = input;
+      await ctx.db.publicPage.findFirstOrThrow({ where: { id, companyId } });
       return ctx.db.publicPage.update({ where: { id }, data });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.publicPage.findFirstOrThrow({ where: { id: input.id, companyId } });
       return ctx.db.publicPage.delete({ where: { id: input.id } });
     }),
 });

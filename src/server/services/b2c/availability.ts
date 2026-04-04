@@ -168,26 +168,16 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
   });
 
   // 2. Process each contract → hotel results
-  console.log(`[availability] Found ${contracts.length} PUBLISHED contracts matching query`);
   const hotelResults: HotelResult[] = [];
 
   for (const contract of contracts) {
     // Check minimum/maximum stay
-    if (nights < contract.minimumStay) {
-      console.log(`[availability] Contract ${contract.name}: skipped — min stay ${contract.minimumStay} > ${nights} nights`);
-      continue;
-    }
-    if (contract.maximumStay && nights > contract.maximumStay) {
-      console.log(`[availability] Contract ${contract.name}: skipped — max stay ${contract.maximumStay} < ${nights} nights`);
-      continue;
-    }
+    if (nights < contract.minimumStay) continue;
+    if (contract.maximumStay && nights > contract.maximumStay) continue;
 
     // Map nights to seasons
     const seasonNights = mapNightsToSeasons(checkIn, checkOut, contract.seasons);
-    if (seasonNights.length !== nights) {
-      console.log(`[availability] Contract ${contract.name}: skipped — only ${seasonNights.length}/${nights} nights covered by seasons. Seasons:`, contract.seasons.map(s => `${s.dateFrom.toISOString().split('T')[0]} → ${s.dateTo.toISOString().split('T')[0]}`));
-      continue;
-    }
+    if (seasonNights.length !== nights) continue;
 
     // Resolve B2C markup rule for this hotel/destination
     const markupRule = await resolveB2cMarkup(
@@ -310,10 +300,7 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
       }
     }
 
-    if (rooms.length === 0) {
-      console.log(`[availability] Contract ${contract.name}: no valid room/meal combos. Room types: ${contract.roomTypes.length}, Meal bases: ${contract.mealBases.length}`);
-      continue;
-    }
+    if (rooms.length === 0) continue;
 
     // Sort rooms by display (customer-facing) price
     rooms.sort((a, b) => a.displayTotal - b.displayTotal);

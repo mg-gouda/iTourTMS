@@ -104,6 +104,14 @@ export default function BookingDetailPage() {
   const [seriesFrequency, setSeriesFrequency] = useState<"WEEKLY" | "BIWEEKLY" | "MONTHLY">("WEEKLY");
   const [seriesCount, setSeriesCount] = useState(4);
 
+  const deletePaymentMutation = trpc.reservations.bookingPayment.delete.useMutation({
+    onSuccess: () => {
+      utils.reservations.booking.getById.invalidate({ id });
+      toast.success("Payment deleted");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const transitionMutation = trpc.reservations.booking.transition.useMutation({
     onSuccess: () => {
       utils.reservations.booking.getById.invalidate({ id });
@@ -410,6 +418,8 @@ export default function BookingDetailPage() {
             Vouchers ({booking.vouchers.length})
           </TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="communications">Comms</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -771,6 +781,7 @@ export default function BookingDetailPage() {
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>By</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -799,6 +810,20 @@ export default function BookingDetailPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {p.createdBy?.name ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive"
+                        onClick={() => {
+                          if (confirm("Delete this payment?")) {
+                            deletePaymentMutation.mutate({ id: p.id });
+                          }
+                        }}
+                      >
+                        &times;
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -927,6 +952,16 @@ export default function BookingDetailPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* Special Requests */}
+        <TabsContent value="requests" className="space-y-4">
+          <SpecialRequestsTab bookingId={id} />
+        </TabsContent>
+
+        {/* Communications */}
+        <TabsContent value="communications" className="space-y-4">
+          <CommunicationsTab bookingId={id} />
+        </TabsContent>
       </Tabs>
 
       {/* Cancel Dialog */}
@@ -939,6 +974,7 @@ export default function BookingDetailPage() {
               confirmed, allotment will be restored.
             </DialogDescription>
           </DialogHeader>
+          <CancellationPenaltyPreview bookingId={id} />
           <div className="space-y-2">
             <Label>Cancellation Reason</Label>
             <Textarea
@@ -1596,4 +1632,191 @@ function downloadVoucher(voucher: any, booking: any) {
   } catch {
     // Silently fail in case PDF generation has issues
   }
+}
+
+// ─── Special Requests Tab ──────────────────────────────────
+
+function SpecialRequestsTab({ bookingId }: { bookingId: string }) {
+  const utils = trpc.useUtils();
+  const { data: requests, isLoading } = trpc.reservations.specialRequest.listByBooking.useQuery({ bookingId });
+  const [text, setText] = useState("");
+
+  const createMutation = trpc.reservations.specialRequest.create.useMutation({
+    onSuccess: () => {
+      utils.reservations.specialRequest.listByBooking.invalidate({ bookingId });
+      setText("");
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
+
+  const deleteMutation = trpc.reservations.specialRequest.delete.useMutation({
+    onSuccess: () => utils.reservations.specialRequest.listByBooking.invalidate({ bookingId }),
+  });
+
+  if (isLoading) return <p className="py-4 text-center text-sm text-muted-foreground">Loading...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input
+          placeholder="Add a special request..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && text.trim()) {
+              createMutation.mutate({ bookingId, text: text.trim() });
+            }
+          }}
+        />
+        <Button
+          size="sm"
+          disabled={!text.trim() || createMutation.isPending}
+          onClick={() => createMutation.mutate({ bookingId, text: text.trim() })}
+        >
+          Add
+        </Button>
+      </div>
+      {(requests ?? []).length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">No special requests.</p>
+      ) : (
+        <div className="space-y-2">
+          {(requests ?? []).map((req: { id: string; text: string; status: string; createdAt: string | Date }) => (
+            <div key={req.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
+              <div>
+                <span>{req.text}</span>
+                <Badge variant="secondary" className="ml-2 text-xs">{req.status}</Badge>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: req.id })}>
+                &times;
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Communications Tab ──────────────────────────────────
+
+function CommunicationsTab({ bookingId }: { bookingId: string }) {
+  const utils = trpc.useUtils();
+  const { data: comms, isLoading } = trpc.reservations.communication.listByBooking.useQuery({ bookingId });
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [channel, setChannel] = useState("EMAIL");
+
+  const createMutation = trpc.reservations.communication.create.useMutation({
+    onSuccess: () => {
+      utils.reservations.communication.listByBooking.invalidate({ bookingId });
+      setSubject("");
+      setMessage("");
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
+
+  const deleteMutation = trpc.reservations.communication.delete.useMutation({
+    onSuccess: () => utils.reservations.communication.listByBooking.invalidate({ bookingId }),
+  });
+
+  if (isLoading) return <p className="py-4 text-center text-sm text-muted-foreground">Loading...</p>;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Subject</Label>
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Communication subject" />
+            </div>
+            <div>
+              <Label className="text-xs">Channel</Label>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EMAIL">Email</SelectItem>
+                  <SelectItem value="PHONE">Phone</SelectItem>
+                  <SelectItem value="SMS">SMS</SelectItem>
+                  <SelectItem value="INTERNAL">Internal Note</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Message</Label>
+            <textarea
+              className="w-full rounded-md border p-2 text-sm"
+              rows={3}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Enter message..."
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={!subject.trim() || !message.trim() || createMutation.isPending}
+            onClick={() => createMutation.mutate({ bookingId, subject, message, channel })}
+          >
+            {createMutation.isPending ? "Sending..." : "Log Communication"}
+          </Button>
+        </CardContent>
+      </Card>
+      {(comms ?? []).length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">No communications logged.</p>
+      ) : (
+        <div className="space-y-2">
+          {(comms ?? []).map((c: { id: string; subject: string; message: string; channel: string; createdAt: string | Date; createdBy?: { name: string } | null }) => (
+            <div key={c.id} className="rounded-md border p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{c.subject}</span>
+                  <Badge variant="outline" className="text-xs">{c.channel}</Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(c.createdAt), "dd MMM yyyy HH:mm")}
+                    {c.createdBy && ` — ${c.createdBy.name}`}
+                  </span>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: c.id })}>
+                    &times;
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-1 text-muted-foreground">{c.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Cancellation Penalty Preview ──────────────────────────
+
+function CancellationPenaltyPreview({ bookingId }: { bookingId: string }) {
+  const { data, isLoading } = trpc.reservations.booking.getCancellationPenalty.useQuery(
+    { bookingId },
+    { retry: false },
+  );
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Calculating penalty...</p>;
+  if (!data) return null;
+
+  return (
+    <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm">
+      <p className="font-medium text-yellow-800">Cancellation Penalty</p>
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-yellow-700">
+          {data.daysBeforeCheckIn} day(s) before check-in — {data.penaltyPct}% penalty
+        </span>
+        <span className="font-bold text-yellow-900">
+          {Number(data.penaltyAmount ?? 0).toFixed(2)} {data.currency ?? ""}
+        </span>
+      </div>
+      {data.policyName && (
+        <p className="mt-1 text-xs text-yellow-600">Policy: {data.policyName}</p>
+      )}
+    </div>
+  );
 }

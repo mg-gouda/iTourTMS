@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Compass, Clock, Users } from "lucide-react";
+import { Compass } from "lucide-react";
 
 import { getCompanyInfo } from "@/lib/b2c/get-branding";
 import { db } from "@/server/db";
+import { ActivityCard } from "@/components/b2c/activity-card";
 
 export const metadata = { title: "Activities & Excursions" };
 
@@ -78,63 +79,21 @@ export default async function ActivitiesPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {excursions.map((exc) => (
-              <div key={exc.id} className="pub-card overflow-hidden">
-                <div className="relative h-40 bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-accent)]">
-                  <div className="flex h-full items-center justify-center">
-                    <Compass className="h-12 w-12 text-white/30" />
-                  </div>
-                  <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-[var(--pub-foreground)]">
-                    {categoryLabels[exc.category] ?? exc.category}
-                  </span>
-                  <span className="absolute right-2 top-2 rounded-full bg-[var(--pub-secondary)] px-2 py-0.5 text-xs font-medium text-white">
-                    {typeLabels[exc.productType] ?? exc.productType}
-                  </span>
-                </div>
-
-                <div className="p-4">
-                  <h3
-                    className="mb-1 text-lg font-bold"
-                    style={{ fontFamily: "var(--pub-heading-font)" }}
-                  >
-                    {exc.name}
-                  </h3>
-
-                  {exc.description && (
-                    <p className="mb-3 line-clamp-2 text-sm text-[var(--pub-muted-foreground)]">
-                      {exc.description}
-                    </p>
-                  )}
-
-                  <div className="flex flex-wrap gap-3 text-xs text-[var(--pub-muted-foreground)]">
-                    {exc.duration && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {exc.duration}
-                      </span>
-                    )}
-                    {exc.maxPax && (
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />
-                        Max {exc.maxPax}
-                      </span>
-                    )}
-                  </div>
-
-                  {exc._count.programs > 0 && (
-                    <p className="mt-3 text-xs text-[var(--pub-accent)]">
-                      {exc._count.programs} day program
-                      {exc._count.programs > 1 ? "s" : ""}
-                    </p>
-                  )}
-
-                  <Link
-                    href="/contact"
-                    className="pub-btn pub-btn-primary mt-4 block w-full text-center text-sm"
-                  >
-                    Enquire Now
-                  </Link>
-                </div>
-              </div>
+              <ActivityCard
+                key={exc.id}
+                excursion={{
+                  id: exc.id,
+                  name: exc.name,
+                  description: exc.description,
+                  duration: exc.duration,
+                  maxPax: exc.maxPax,
+                  productType: exc.productType,
+                  category: exc.category,
+                  programCount: exc._count.programs,
+                }}
+                typeLabel={typeLabels[exc.productType] ?? exc.productType}
+                categoryLabel={categoryLabels[exc.category] ?? exc.category}
+              />
             ))}
           </div>
         )}

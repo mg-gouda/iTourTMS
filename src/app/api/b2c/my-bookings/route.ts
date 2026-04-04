@@ -1,14 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
+
 import { db } from "@/server/db";
+import { b2cRateLimit } from "@/server/b2c-rate-limit";
+
+const emailSchema = z.string().email().max(254);
 
 export async function GET(req: NextRequest) {
+  const rateLimited = await b2cRateLimit(req, "myBookings");
+  if (rateLimited) return rateLimited;
+
   const { searchParams } = req.nextUrl;
-  const email = searchParams.get("email")?.trim().toLowerCase();
+  const rawEmail = searchParams.get("email")?.trim().toLowerCase();
   const code = searchParams.get("code")?.trim().toUpperCase();
 
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  const emailResult = emailSchema.safeParse(rawEmail);
+  if (!emailResult.success) {
+    return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
+  const email = emailResult.data;
 
   // Build where clause
   const where: Record<string, unknown> = {

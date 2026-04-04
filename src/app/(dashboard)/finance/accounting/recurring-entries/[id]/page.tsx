@@ -6,6 +6,10 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -46,6 +50,7 @@ export default function RecurringEntryDetailPage() {
   const utils = trpc.useUtils();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [generateAllDialogOpen, setGenerateAllDialogOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: entry, isLoading } =
     trpc.finance.recurringEntry.getById.useQuery({ id });
@@ -71,6 +76,15 @@ export default function RecurringEntryDetailPage() {
         setGenerateAllDialogOpen(false);
       },
     });
+
+  const updateMutation = trpc.finance.recurringEntry.update.useMutation({
+    onSuccess: () => {
+      toast.success("Recurring entry updated");
+      utils.finance.recurringEntry.getById.invalidate({ id });
+      setEditOpen(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const deleteMutation = trpc.finance.recurringEntry.delete.useMutation({
     onSuccess: () => {
@@ -155,13 +169,21 @@ export default function RecurringEntryDetailPage() {
             </Button>
           )}
           {!isDone && (
-            <Button
-              variant="destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setEditOpen(true)}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -373,6 +395,83 @@ export default function RecurringEntryDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      {entry && (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Recurring Entry</DialogTitle>
+            </DialogHeader>
+            <RecurringEditForm
+              entry={entry}
+              onSave={(data) => updateMutation.mutate({ id, data })}
+              isPending={updateMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function RecurringEditForm({
+  entry,
+  onSave,
+  isPending,
+}: {
+  entry: { name: string; frequency: string; nextRunDate: string | Date | null; endDate: string | Date | null; ref: string | null };
+  onSave: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState(entry.name);
+  const [frequency, setFrequency] = useState(entry.frequency);
+  const [nextRunDate, setNextRunDate] = useState(
+    entry.nextRunDate ? new Date(entry.nextRunDate).toISOString().slice(0, 10) : "",
+  );
+  const [endDate, setEndDate] = useState(
+    entry.endDate ? new Date(entry.endDate).toISOString().slice(0, 10) : "",
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Name</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div>
+        <Label>Frequency</Label>
+        <Select value={frequency} onValueChange={setFrequency}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="MONTHLY">Monthly</SelectItem>
+            <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+            <SelectItem value="YEARLY">Yearly</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Next Run Date</Label>
+        <Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
+      </div>
+      <div>
+        <Label>End Date (optional)</Label>
+        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      </div>
+      <Button
+        className="w-full"
+        disabled={!name || isPending}
+        onClick={() =>
+          onSave({
+            name,
+            frequency,
+            nextRunDate: nextRunDate ? new Date(nextRunDate) : undefined,
+            endDate: endDate ? new Date(endDate) : null,
+          })
+        }
+      >
+        {isPending ? "Saving..." : "Save Changes"}
+      </Button>
     </div>
   );
 }

@@ -26,12 +26,15 @@ export const contactInquiryRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.contactInquiry.findUnique({ where: { id: input.id } });
+      const companyId = ctx.session.user.companyId!;
+      return ctx.db.contactInquiry.findFirst({ where: { id: input.id, companyId } });
     }),
 
   markRead: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.contactInquiry.findFirstOrThrow({ where: { id: input.id, companyId } });
       return ctx.db.contactInquiry.update({
         where: { id: input.id },
         data: { status: "READ" },
@@ -41,6 +44,8 @@ export const contactInquiryRouter = createTRPCRouter({
   reply: protectedProcedure
     .input(contactInquiryReplySchema)
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.contactInquiry.findFirstOrThrow({ where: { id: input.id, companyId } });
       return ctx.db.contactInquiry.update({
         where: { id: input.id },
         data: {
@@ -54,6 +59,8 @@ export const contactInquiryRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.contactInquiry.findFirstOrThrow({ where: { id: input.id, companyId } });
       return ctx.db.contactInquiry.delete({ where: { id: input.id } });
     }),
 });

@@ -4,6 +4,8 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import { db } from "@/server/db";
+import { notifyRole } from "@/server/services/shared/notifications";
+import { LICENSE_EXPIRY_WARNING_DAYS } from "@/server/services/shared/license";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -98,6 +100,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               ),
             ),
           ];
+        }
+
+        // Backup license expiry notification on login
+        if (dbUser?.companyId) {
+          const warningDate = new Date();
+          warningDate.setDate(warningDate.getDate() + LICENSE_EXPIRY_WARNING_DAYS);
+
+          db.license
+            .findFirst({
+              where: {
+                companyId: dbUser.companyId,
+                isActivated: true,
+                isRevoked: false,
+                expiryNotified: false,
+                expiresAt: { gt: new Date(), lte: warningDate },
+              },
+              select: { id: true, companyId: true, expiresAt: true },
+            })
+            .then((license) => {
+              if (license?.companyId && license.expiresAt) {
+                const daysLeft = Math.ceil(
+                  (license.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                );
+                notifyRole(db, license.companyId, "super_admin", {
+                  type: "LICENSE_EXPIRY_WARNING",
+                  title: "License expires soon",
+                  message: `Your iTourTMS license expires on ${license.expiresAt.toLocaleDateString()} (${daysLeft} days). Contact your provider to renew.`,
+                  link: "/settings",
+                });
+                db.license.update({
+                  where: { id: license.id },
+                  data: { expiryNotified: true },
+                });
+              }
+            })
+            .catch(() => {}); // Fire-and-forget
         }
       }
       return token;

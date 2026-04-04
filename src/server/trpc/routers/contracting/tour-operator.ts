@@ -24,6 +24,7 @@ export const tourOperatorRouter = createTRPCRouter({
         },
       },
       orderBy: { name: "asc" },
+      take: 500,
     });
   }),
 

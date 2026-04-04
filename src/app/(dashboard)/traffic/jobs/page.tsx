@@ -180,12 +180,24 @@ export default function TrafficJobsPage() {
           <h1 className="text-2xl font-bold">Traffic Jobs</h1>
           <p className="text-muted-foreground">Manage transport jobs and assignments</p>
         </div>
-        <Button asChild>
-          <Link href="/traffic/jobs/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Job
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={!data?.items?.length}
+            onClick={async () => {
+              const { exportTrafficJobsToExcel } = await import("@/lib/export/traffic-jobs-excel");
+              await exportTrafficJobsToExcel(data?.items ?? []);
+            }}
+          >
+            Export Excel
+          </Button>
+          <Button asChild>
+            <Link href="/traffic/jobs/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Job
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

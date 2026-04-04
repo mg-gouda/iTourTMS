@@ -27,7 +27,7 @@ export default function B2BLoginPage() {
       if (result?.error) {
         setError("Invalid email or password. Please try again.");
       } else {
-        router.push("/b2b-portal");
+        router.push("/b2b/dashboard");
       }
     } catch {
       setError("Something went wrong. Please try again later.");

@@ -4,9 +4,15 @@ import type { NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { searchAvailability } from "@/server/services/b2c/availability";
 import { resolveMarketByCountry } from "@/server/services/b2c/market-resolver";
+import { b2cRateLimit } from "@/server/b2c-rate-limit";
+
+const VALID_SORTS = ["price_asc", "price_desc", "star_desc", "name_asc"] as const;
+type SortOption = (typeof VALID_SORTS)[number];
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimited = await b2cRateLimit(request, "search");
+    if (rateLimited) return rateLimited;
     const sp = request.nextUrl.searchParams;
 
     const checkInStr = sp.get("checkIn");
@@ -61,26 +67,6 @@ export async function GET(request: NextRequest) {
       // (show all available contracts instead of blocking)
     }
 
-    // ── Debug: count contracts by status to help diagnose ──
-    const contractCounts = await db.contract.groupBy({
-      by: ["status"],
-      where: {
-        companyId: company.id,
-        validFrom: { lte: checkOut },
-        validTo: { gte: checkIn },
-        hotel: { active: true, publicVisible: true },
-      },
-      _count: true,
-    });
-    console.log("[search] Contracts overlapping dates by status:", contractCounts);
-
-    if (marketId) {
-      const marketContracts = await db.contractMarket.count({
-        where: { marketId },
-      });
-      console.log(`[search] ContractMarket records for market ${marketId}: ${marketContracts}`);
-    }
-
     const result = await searchAvailability({
       companyId: company.id,
       destinationId: sp.get("destination") || undefined,
@@ -94,14 +80,11 @@ export async function GET(request: NextRequest) {
       starRating: sp.get("star") || undefined,
       page: parseInt(sp.get("page") ?? "1", 10) || 1,
       pageSize: Math.min(parseInt(sp.get("pageSize") ?? "20", 10) || 20, 50),
-      sort: (sp.get("sort") as any) || "price_asc",
+      sort: (VALID_SORTS.includes(sp.get("sort") as SortOption) ? sp.get("sort") : "price_asc") as SortOption,
     });
 
-    console.log(`[search] Results: ${result.total} hotels found`);
-
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[search] Error:", err);
+  } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

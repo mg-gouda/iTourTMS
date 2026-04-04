@@ -170,6 +170,9 @@ model Company {
   crmBookings          CrmBooking[]
   b2bCreditTransactions B2bCreditTransaction[]
 
+  // License
+  license              License?
+
   @@index([countryId])
   @@index([baseCurrencyId])
 }
@@ -186,6 +189,27 @@ model CompanySetup {
   updatedAt       DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ── License ──
+
+model License {
+  id             String    @id @default(cuid())
+  keyHash        String    @unique
+  keyPrefix      String    // first 4 chars for masked display
+  keySuffix      String    // last 4 chars for masked display
+  activatedAt    DateTime?
+  expiresAt      DateTime?
+  isRevoked      Boolean   @default(false)
+  isActivated    Boolean   @default(false)
+  expiryNotified Boolean   @default(false)
+  companyId      String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@map("sys_license")
 }
 
 // ============================================================================
@@ -231,6 +255,9 @@ model User {
   bookingPayments    BookingPayment[]   @relation("BookingPaymentCreator")
   vouchersCreated    Voucher[]          @relation("VoucherCreator")
   bookingTimelines   BookingTimeline[]  @relation("TimelineUser")
+  deadlinesCompleted BookingDeadline[]  @relation("DeadlineCompleter")
+  deadlinesWaived    BookingDeadline[]  @relation("DeadlineWaiver")
+  communicationsSent BookingCommunication[] @relation("CommSender")
 
   // Traffic relations
   ttDriver           TtDriver?
@@ -2676,6 +2703,9 @@ model Booking {
   vouchers       Voucher[]
   timeline       BookingTimeline[]
   notifications  Notification[]
+  deadlines      BookingDeadline[]
+  requestItems    BookingSpecialRequest[]
+  communications BookingCommunication[]
 
   // Traffic relations
   trafficJobs    TtTrafficJob[]
@@ -2691,6 +2721,10 @@ model Booking {
   @@index([companyId, checkIn])
   @@index([hotelId, checkIn, checkOut])
   @@index([contractId])
+  @@index([marketId])
+  @@index([seasonId])
+  @@index([createdById])
+  @@index([leadGuestEmail])
   @@map("rv_booking")
 }
 
@@ -2822,6 +2856,100 @@ model BookingTimeline {
 
   @@index([bookingId])
   @@map("rv_booking_timeline")
+}
+
+// ── Booking Deadlines ──
+enum DeadlineType {
+  OPTION_EXPIRY
+  DEPOSIT_DUE
+  BALANCE_DUE
+  ROOMING_LIST
+  FREE_CANCELLATION
+  NAME_CHANGE
+  RECONFIRMATION
+  SUPPLIER_PAYMENT
+  ALLOTMENT_RELEASE
+}
+
+enum DeadlineStatus {
+  UPCOMING
+  WARNING
+  OVERDUE
+  COMPLETED
+  WAIVED
+}
+
+model BookingDeadline {
+  id          String         @id @default(cuid())
+  bookingId   String
+  type        DeadlineType
+  status      DeadlineStatus @default(UPCOMING)
+  dueDate     DateTime       @db.Date
+  description String?
+  completedAt DateTime?
+  completedBy String?
+  waivedAt    DateTime?
+  waivedBy    String?
+  waiverNote  String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  completedByUser User? @relation("DeadlineCompleter", fields: [completedBy], references: [id])
+  waivedByUser    User? @relation("DeadlineWaiver", fields: [waivedBy], references: [id])
+
+  @@index([bookingId])
+  @@index([dueDate, status])
+  @@map("rv_booking_deadline")
+}
+
+// ── Booking Special Requests ──
+enum SpecialRequestStatus {
+  REQUESTED
+  CONFIRMED
+  NOT_AVAILABLE
+  CANCELLED
+}
+
+model BookingSpecialRequest {
+  id        String               @id @default(cuid())
+  bookingId String
+  category  String               // BED_CONFIG, FLOOR, VIEW, DIETARY, ACCESSIBILITY, CELEBRATION, OTHER
+  request   String               @db.Text
+  status    SpecialRequestStatus @default(REQUESTED)
+  response  String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("rv_booking_special_request")
+}
+
+// ── Booking Communication Log ──
+enum CommunicationDirection {
+  OUTBOUND
+  INBOUND
+}
+
+model BookingCommunication {
+  id        String                 @id @default(cuid())
+  bookingId String
+  direction CommunicationDirection
+  channel   String                 // EMAIL, PHONE, FAX, API, PORTAL
+  type      String                 // AVAILABILITY_REQUEST, CONFIRMATION, AMENDMENT, VOUCHER, PAYMENT_REMINDER
+  subject   String?
+  body      String?                @db.Text
+  recipient String?
+  sentById  String?
+  sentAt    DateTime               @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sentBy  User?   @relation("CommSender", fields: [sentById], references: [id])
+
+  @@index([bookingId])
+  @@map("rv_booking_communication")
 }
 
 model Notification {
@@ -3300,6 +3428,7 @@ model TtTrafficJob {
   @@index([partnerId])
   @@index([bookingId])
   @@index([flightId])
+  @@index([createdById])
   @@map("tt_traffic_job")
 }
 

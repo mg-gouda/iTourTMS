@@ -1,9 +1,11 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   DataTable,
@@ -11,6 +13,8 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -146,6 +150,90 @@ export default function ChartOfAccountsPage() {
           }
         />
       )}
+
+      {/* Account Groups & Tags */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <AccountGroupsPanel />
+        <AccountTagsPanel />
+      </div>
     </div>
+  );
+}
+
+function AccountGroupsPanel() {
+  const utils = trpc.useUtils();
+  const { data: groups } = trpc.finance.account.listGroups.useQuery();
+  const [name, setName] = useState("");
+
+  const createMutation = trpc.finance.account.createGroup.useMutation({
+    onSuccess: () => { utils.finance.account.listGroups.invalidate(); setName(""); toast.success("Group created"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMutation = trpc.finance.account.deleteGroup.useMutation({
+    onSuccess: () => { utils.finance.account.listGroups.invalidate(); toast.success("Group deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Account Groups</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New group name..." className="h-8 text-sm" />
+          <Button size="sm" disabled={!name.trim() || createMutation.isPending} onClick={() => createMutation.mutate({ name: name.trim(), code: name.trim().toUpperCase().replace(/\s+/g, "_") })}>Add</Button>
+        </div>
+        {(groups ?? []).length === 0 ? (
+          <p className="text-xs text-muted-foreground">No account groups.</p>
+        ) : (
+          <div className="space-y-1">
+            {(groups ?? []).map((g: { id: string; name: string; code: string }) => (
+              <div key={g.id} className="flex items-center justify-between rounded border px-2 py-1 text-sm">
+                <span>{g.name} <span className="text-xs text-muted-foreground">({g.code})</span></span>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: g.id })}><Trash2 className="h-3 w-3" /></Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AccountTagsPanel() {
+  const utils = trpc.useUtils();
+  const { data: tags } = trpc.finance.account.listTags.useQuery();
+  const [name, setName] = useState("");
+
+  const createMutation = trpc.finance.account.createTag.useMutation({
+    onSuccess: () => { utils.finance.account.listTags.invalidate(); setName(""); toast.success("Tag created"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMutation = trpc.finance.account.deleteTag.useMutation({
+    onSuccess: () => { utils.finance.account.listTags.invalidate(); toast.success("Tag deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Account Tags</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New tag name..." className="h-8 text-sm" />
+          <Button size="sm" disabled={!name.trim() || createMutation.isPending} onClick={() => createMutation.mutate({ name: name.trim() })}>Add</Button>
+        </div>
+        {(tags ?? []).length === 0 ? (
+          <p className="text-xs text-muted-foreground">No account tags.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {(tags ?? []).map((t: { id: string; name: string }) => (
+              <Badge key={t.id} variant="secondary" className="gap-1">
+                {t.name}
+                <button className="ml-1 text-destructive hover:text-destructive/80" onClick={() => deleteMutation.mutate({ id: t.id })}>&times;</button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

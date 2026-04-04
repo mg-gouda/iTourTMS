@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  KeyRound,
   Landmark,
   Lock,
   Rocket,
@@ -58,23 +59,32 @@ const MONTHS = [
 ];
 
 const STEPS = [
-  { number: 1, title: "Company" },
-  { number: 2, title: "Modules" },
-  { number: 3, title: "Configure" },
-  { number: 4, title: "Admin" },
+  { number: 1, title: "License" },
+  { number: 2, title: "Company" },
+  { number: 3, title: "Modules" },
+  { number: 4, title: "Configure" },
+  { number: 5, title: "Admin" },
 ];
 
 interface SetupWizardProps {
   countries: { id: string; code: string; name: string }[];
   currencies: { id: string; code: string; name: string; symbol: string }[];
+  existingLicenseId?: string | null;
 }
 
-export function SetupWizard({ countries, currencies }: SetupWizardProps) {
+export function SetupWizard({ countries, currencies, existingLicenseId }: SetupWizardProps) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  // If license already activated, skip to step 2
+  const [step, setStep] = useState(existingLicenseId ? 2 : 1);
   const [loading, setLoading] = useState(false);
 
-  // Step 1: Company
+  // Step 1: License
+  const [licenseKey, setLicenseKey] = useState("");
+  const [licenseId, setLicenseId] = useState<string | null>(existingLicenseId ?? null);
+  const [licenseError, setLicenseError] = useState("");
+  const [activating, setActivating] = useState(false);
+
+  // Step 2: Company
   const [companyName, setCompanyName] = useState("");
   const [legalName, setLegalName] = useState("");
   const [taxId, setTaxId] = useState("");
@@ -84,17 +94,31 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
   const [fiscalYearEnd, setFiscalYearEnd] = useState("12");
   const [timezone, setTimezone] = useState("UTC");
 
-  // Step 2: Modules
+  // Step 3: Modules
   const [selectedModules, setSelectedModules] = useState<string[]>([
     "finance",
     "contracting",
   ]);
 
-  // Step 4: Admin
+  // Step 5: Admin
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminConfirm, setAdminConfirm] = useState("");
+
+  const activateLicense = trpc.setup.activateLicense.useMutation({
+    onSuccess: (data) => {
+      setLicenseId(data.licenseId);
+      setLicenseError("");
+      setActivating(false);
+      toast.success("License activated successfully!");
+      setStep(2);
+    },
+    onError: (err) => {
+      setLicenseError(err.message);
+      setActivating(false);
+    },
+  });
 
   const completeSetup = trpc.setup.completeSetup.useMutation({
     onSuccess: () => {
@@ -107,6 +131,16 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
       setLoading(false);
     },
   });
+
+  function handleActivateLicense() {
+    if (!licenseKey.trim()) {
+      setLicenseError("Please enter a license key");
+      return;
+    }
+    setActivating(true);
+    setLicenseError("");
+    activateLicense.mutate({ key: licenseKey.trim() });
+  }
 
   function toggleModule(name: string) {
     const mod = MODULE_REGISTRY.find((m) => m.name === name);
@@ -130,12 +164,14 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
   function canProceed(): boolean {
     switch (step) {
       case 1:
-        return companyName.trim().length > 0;
+        return !!licenseId;
       case 2:
-        return selectedModules.length > 0;
+        return companyName.trim().length > 0;
       case 3:
-        return true;
+        return selectedModules.length > 0;
       case 4:
+        return true;
+      case 5:
         return (
           adminName.trim().length > 0 &&
           adminEmail.includes("@") &&
@@ -148,10 +184,11 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
   }
 
   async function handleFinish() {
-    if (!canProceed()) return;
+    if (!canProceed() || !licenseId) return;
     setLoading(true);
 
     completeSetup.mutate({
+      licenseId,
       company: {
         name: companyName,
         legalName: legalName || undefined,
@@ -211,8 +248,66 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
 
       {/* Step content */}
       <Card>
-        {/* Step 1: Company Setup */}
+        {/* Step 1: License Activation */}
         {step === 1 && (
+          <>
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <KeyRound className="h-7 w-7 text-primary" />
+              </div>
+              <CardTitle>Activate Your License</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Enter the license key provided by your system administrator
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="mx-auto max-w-md space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="licenseKey">
+                    License Key <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="licenseKey"
+                    value={licenseKey}
+                    onChange={(e) => {
+                      setLicenseKey(e.target.value);
+                      setLicenseError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleActivateLicense();
+                    }}
+                    placeholder="xxxx-xxxx-xxxx-xxxx"
+                    className="font-mono text-center text-lg tracking-wider"
+                    disabled={activating || !!licenseId}
+                  />
+                  {licenseError && (
+                    <p className="text-sm text-destructive">{licenseError}</p>
+                  )}
+                </div>
+
+                {licenseId ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center dark:border-green-800 dark:bg-green-950">
+                    <div className="flex items-center justify-center gap-2 text-sm font-medium text-green-700 dark:text-green-300">
+                      <Check className="h-4 w-4" />
+                      License activated successfully
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleActivateLicense}
+                    disabled={activating || !licenseKey.trim()}
+                    className="w-full"
+                  >
+                    {activating ? "Validating..." : "Activate License"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </>
+        )}
+
+        {/* Step 2: Company Setup */}
+        {step === 2 && (
           <>
             <CardHeader>
               <CardTitle>Welcome to iTourTMS</CardTitle>
@@ -364,8 +459,8 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
           </>
         )}
 
-        {/* Step 2: Install Modules */}
-        {step === 2 && (
+        {/* Step 3: Install Modules */}
+        {step === 3 && (
           <>
             <CardHeader>
               <CardTitle>Choose Modules to Install</CardTitle>
@@ -379,11 +474,6 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
                 {MODULE_REGISTRY.map((mod) => {
                   const Icon = iconMap[mod.icon] || FileText;
                   const isSelected = selectedModules.includes(mod.name);
-                  const hasDeps =
-                    mod.dependencies.length > 0 &&
-                    !mod.dependencies.every((d) =>
-                      selectedModules.includes(d),
-                    );
 
                   return (
                     <button
@@ -444,8 +534,8 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
           </>
         )}
 
-        {/* Step 3: Module Configuration */}
-        {step === 3 && (
+        {/* Step 4: Module Configuration */}
+        {step === 4 && (
           <>
             <CardHeader>
               <CardTitle>Configure Your Modules</CardTitle>
@@ -562,8 +652,8 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
           </>
         )}
 
-        {/* Step 4: Admin Account */}
-        {step === 4 && (
+        {/* Step 5: Admin Account */}
+        {step === 5 && (
           <>
             <CardHeader>
               <CardTitle>Create Administrator Account</CardTitle>
@@ -637,13 +727,13 @@ export function SetupWizard({ countries, currencies }: SetupWizardProps) {
           <Button
             variant="outline"
             onClick={() => setStep((s) => s - 1)}
-            disabled={step === 1 || loading}
+            disabled={step === 1 || (step === 2 && !!existingLicenseId) || loading}
           >
             <ChevronLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
 
-          {step < 4 ? (
+          {step < 5 ? (
             <Button
               onClick={() => setStep((s) => s + 1)}
               disabled={!canProceed()}

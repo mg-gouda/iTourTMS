@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -141,6 +142,7 @@ const defaultForm = {
 };
 
 export default function B2bMarkupsPage() {
+  const router = useRouter();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.b2bPortal.markup.list.useQuery();
   const { data: toList } = trpc.b2bPortal.tourOperator.list.useQuery();
@@ -243,6 +245,7 @@ export default function B2bMarkupsPage() {
           data={filtered}
           searchKey="name"
           searchPlaceholder="Search markup rules..."
+          onRowClick={(row) => router.push(`/b2b-portal/markups/${row.id}`)}
           toolbar={
             <Select value={toFilter} onValueChange={setToFilter}>
               <SelectTrigger className="h-9 w-[200px]">

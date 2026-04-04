@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useForm, FormProvider } from "react-hook-form";
 import type { z } from "zod";
 
@@ -96,20 +97,20 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
   // Fetch reference data
   const { data: journals } = trpc.finance.journal.list.useQuery();
   const { data: accounts } = trpc.finance.account.list.useQuery({});
-  const { data: partners } = trpc.finance.account.list.useQuery({}); // We'll use a partner query
+  const { data: partners } = trpc.finance.account.listPartners.useQuery();
   const { data: currencies } = trpc.finance.currency.list.useQuery();
   const { data: taxList } = trpc.finance.tax.list.useQuery();
   const { data: paymentTerms } = trpc.finance.paymentTerm.list.useQuery();
   const { data: fiscalPositions } = trpc.finance.fiscalPosition.list.useQuery();
 
-  // We need partners — let's fetch them separately
-  // For now, use a simple approach using the existing tRPC context
+  // Partners are fetched via listPartners above
 
   const createMutation = trpc.finance.move.create.useMutation({
     onSuccess: () => {
       utils.finance.move.list.invalidate();
       router.push(returnPath);
     },
+    onError: (e) => toast.error(e.message),
   });
 
   const updateMutation = trpc.finance.move.update.useMutation({
@@ -118,6 +119,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
       utils.finance.move.getById.invalidate();
       router.push(returnPath);
     },
+    onError: (e) => toast.error(e.message),
   });
 
   const confirmMutation = trpc.finance.move.confirm.useMutation({
@@ -126,6 +128,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
       utils.finance.move.getById.invalidate();
       router.refresh();
     },
+    onError: (e) => toast.error(e.message),
   });
 
   const cancelMutation = trpc.finance.move.cancel.useMutation({
@@ -134,6 +137,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
       utils.finance.move.getById.invalidate();
       router.refresh();
     },
+    onError: (e) => toast.error(e.message),
   });
 
   const resetDraftMutation = trpc.finance.move.resetDraft.useMutation({
@@ -142,17 +146,18 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
       utils.finance.move.getById.invalidate();
       router.refresh();
     },
+    onError: (e) => toast.error(e.message),
   });
 
   const creditNoteMutation = trpc.finance.move.createCreditNote.useMutation({
     onSuccess: (data) => {
       utils.finance.move.list.invalidate();
-      // Navigate to the new credit note
       const basePath = moveType === "OUT_INVOICE"
         ? "/finance/customers/credit-notes"
         : "/finance/vendors/refunds";
       router.push(`${basePath}/${data.id}`);
     },
+    onError: (e) => toast.error(e.message),
   });
 
   function onSubmit(values: MoveFormValues) {
@@ -228,6 +233,11 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="__none">None</SelectItem>
+                      {(partners ?? []).map((p: { id: string; name: string; type: string }) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.type})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

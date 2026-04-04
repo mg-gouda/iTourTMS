@@ -141,4 +141,30 @@ export const accountRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountTag.delete({ where: { id: input.id } });
     }),
+
+  // ── Partner list for invoice/bill partner selection ──
+
+  listPartners: financeProcedure
+    .input(
+      z.object({
+        type: z.string().optional(),
+        search: z.string().optional(),
+      }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = { companyId: ctx.companyId, isActive: true };
+      if (input?.type) where.type = input.type;
+      if (input?.search) {
+        where.OR = [
+          { name: { contains: input.search, mode: "insensitive" } },
+          { email: { contains: input.search, mode: "insensitive" } },
+        ];
+      }
+      return ctx.db.partner.findMany({
+        where: where as Parameters<typeof ctx.db.partner.findMany>[0]["where"],
+        select: { id: true, name: true, type: true, email: true },
+        orderBy: { name: "asc" },
+        take: 200,
+      });
+    }),
 });

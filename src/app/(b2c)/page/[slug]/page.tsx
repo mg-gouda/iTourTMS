@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { db } from "@/server/db";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -45,7 +46,7 @@ export default async function GenericPublicPage({ params }: Props) {
         </h1>
         <div
           className="prose max-w-none text-[var(--pub-foreground)]"
-          dangerouslySetInnerHTML={{ __html: page.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }}
         />
       </div>
     </div>

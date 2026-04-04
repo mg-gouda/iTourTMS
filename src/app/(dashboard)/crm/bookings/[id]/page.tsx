@@ -5,6 +5,7 @@ import { Check, Copy, Download, FileSpreadsheet, Pencil, Plus, Trash2, X } from 
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +96,15 @@ export default function BookingDetailPage() {
       utils.crm.booking.list.invalidate();
       router.push("/crm/bookings");
     },
+  });
+
+  const transitionMutation = trpc.crm.booking.transition.useMutation({
+    onSuccess: () => {
+      toast.success("Booking status updated");
+      utils.crm.booking.getById.invalidate({ id });
+      utils.crm.booking.list.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   // Edit mode state
@@ -290,19 +300,26 @@ export default function BookingDetailPage() {
               >
                 <Copy className="mr-1 h-4 w-4" /> {cloneMutation.isPending ? "Cloning..." : "Duplicate"}
               </Button>
-              <Select
-                value={booking.status}
-                onValueChange={(newStatus) => updateMutation.mutate({ id, data: { status: newStatus as "DRAFT" } })}
-              >
-                <SelectTrigger className="h-9 w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(CRM_BOOKING_STATUS_LABELS).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {booking.status === "DRAFT" && (
+                <Button size="sm" onClick={() => transitionMutation.mutate({ id, action: "confirm" })} disabled={transitionMutation.isPending}>
+                  Confirm
+                </Button>
+              )}
+              {(booking.status === "DRAFT" || booking.status === "CONFIRMED") && (
+                <Button size="sm" variant="destructive" onClick={() => { if (confirm("Cancel this booking?")) transitionMutation.mutate({ id, action: "cancel" }); }} disabled={transitionMutation.isPending}>
+                  Cancel
+                </Button>
+              )}
+              {booking.status === "CONFIRMED" && (
+                <Button size="sm" variant="outline" onClick={() => transitionMutation.mutate({ id, action: "complete" })} disabled={transitionMutation.isPending}>
+                  Complete
+                </Button>
+              )}
+              {booking.status === "CANCELLED" && (
+                <Button size="sm" variant="outline" onClick={() => transitionMutation.mutate({ id, action: "reopen" })} disabled={transitionMutation.isPending}>
+                  Reopen
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { sendBookingConfirmation } from "@/server/services/shared/email";
+import { b2cRateLimit } from "@/server/b2c-rate-limit";
 
 const guestSchema = z.object({
   title: z.string().default(""),
@@ -17,23 +18,25 @@ const bookingSchema = z.object({
   roomTypeId: z.string().min(1),
   mealCode: z.string().min(1),
   contractId: z.string().min(1),
-  checkIn: z.string().min(1),
-  checkOut: z.string().min(1),
-  adults: z.number().int().min(1),
-  children: z.number().int().min(0).default(0),
-  childAges: z.array(z.number().int().min(0)).default([]),
+  checkIn: z.string().date("Invalid check-in date format (expected YYYY-MM-DD)"),
+  checkOut: z.string().date("Invalid check-out date format (expected YYYY-MM-DD)"),
+  adults: z.number().int().min(1).max(10),
+  children: z.number().int().min(0).max(10).default(0),
+  childAges: z.array(z.number().int().min(0).max(17)).max(10).default([]),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   email: z.string().email(),
   phone: z.string().optional(),
   nationality: z.string().optional(),
   specialRequests: z.string().optional(),
-  total: z.number().min(0),
+  total: z.number().min(0).max(999999),
   guests: z.array(guestSchema).optional(),
 });
 
 export async function POST(request: Request) {
   try {
+    const rateLimited = await b2cRateLimit(request, "booking");
+    if (rateLimited) return rateLimited;
     const body = await request.json();
     const parsed = bookingSchema.safeParse(body);
 
@@ -180,15 +183,14 @@ export async function POST(request: Request) {
       companyName: companyInfo?.name ?? undefined,
       companyEmail: companyInfo?.email ?? undefined,
       companyPhone: companyInfo?.phone ?? undefined,
-    }).catch((err) => console.error("[b2c/booking] Email error:", err));
+    }).catch(() => {/* email send failure is non-critical */});
 
     return NextResponse.json({
       success: true,
       bookingCode,
       bookingId: booking.id,
     });
-  } catch (err) {
-    console.error("[b2c/booking] Error:", err);
+  } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

@@ -30,6 +30,7 @@ export const bookingRouter = createTRPCRouter({
         _count: { select: { items: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
   }),
 
@@ -345,5 +346,47 @@ export const bookingRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       return excursion;
+    }),
+
+  // ── Status transitions with validation ──
+
+  transition: moduleProcedure("crm")
+    .input(
+      z.object({
+        id: z.string(),
+        action: z.enum(["confirm", "cancel", "complete", "reopen"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.crmBooking.findFirst({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const transitions: Record<string, Record<string, string>> = {
+        DRAFT: { confirm: "CONFIRMED", cancel: "CANCELLED" },
+        CONFIRMED: { complete: "COMPLETED", cancel: "CANCELLED" },
+        CANCELLED: { reopen: "DRAFT" },
+        COMPLETED: {},
+      };
+
+      const allowed = transitions[booking.status];
+      if (!allowed || !allowed[input.action]) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot ${input.action} a ${booking.status} booking`,
+        });
+      }
+
+      const newStatus = allowed[input.action];
+
+      const updated = await ctx.db.crmBooking.update({
+        where: { id: input.id },
+        data: { status: newStatus },
+      });
+
+      await recalcCustomerLifetimeValue(ctx.db, booking.customerId);
+
+      return updated;
     }),
 });

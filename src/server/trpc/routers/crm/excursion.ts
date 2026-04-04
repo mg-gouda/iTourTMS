@@ -15,6 +15,7 @@ export const excursionRouter = createTRPCRouter({
         },
       },
       orderBy: { name: "asc" },
+      take: 500,
     });
   }),
 

@@ -13,6 +13,7 @@ export const leadRouter = createTRPCRouter({
         assignedTo: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
   }),
 

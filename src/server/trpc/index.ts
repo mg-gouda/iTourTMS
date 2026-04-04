@@ -63,6 +63,56 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
   });
 });
 
+// Middleware: Verify license is active and not expired
+const licenseMiddleware = t.middleware(async ({ ctx, next }) => {
+  const companyId = ctx.session?.user?.companyId;
+  if (!companyId) return next();
+
+  // Check Redis cache first (5-minute TTL)
+  const cacheKey = `license:valid:${companyId}`;
+  try {
+    await ctx.redis.connect().catch(() => {});
+    const cached = await ctx.redis.get(cacheKey);
+    if (cached === "1") return next();
+    if (cached === "0") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "License expired or invalid. Please renew your license.",
+      });
+    }
+  } catch (e) {
+    if (e instanceof TRPCError) throw e;
+    // Redis unavailable — fall through to DB check
+  }
+
+  const license = await ctx.db.license.findFirst({
+    where: { companyId, isActivated: true },
+    select: { expiresAt: true, isRevoked: true },
+  });
+
+  const isValid =
+    !!license &&
+    !license.isRevoked &&
+    !!license.expiresAt &&
+    license.expiresAt > new Date();
+
+  // Cache result for 5 minutes
+  try {
+    await ctx.redis.setex(cacheKey, 300, isValid ? "1" : "0");
+  } catch {
+    // Redis unavailable — ignore
+  }
+
+  if (!isValid) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "License expired or invalid. Please renew your license.",
+    });
+  }
+
+  return next();
+});
+
 // Middleware: Require specific module to be installed
 const moduleMiddleware = (moduleName: string) =>
   t.middleware(async ({ ctx, next }) => {
@@ -134,10 +184,11 @@ export const createCallerFactory = t.createCallerFactory;
 // Public: no auth required
 export const publicProcedure = t.procedure.use(loggerMiddleware);
 
-// Protected: session required
+// Protected: session required + license valid
 export const protectedProcedure = t.procedure
   .use(loggerMiddleware)
-  .use(authMiddleware);
+  .use(authMiddleware)
+  .use(licenseMiddleware);
 
 // Module-scoped: session + module installed
 export const moduleProcedure = (moduleName: string) =>

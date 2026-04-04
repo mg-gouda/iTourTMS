@@ -2,7 +2,8 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Download, X } from "lucide-react";
+import { CheckCircle, Download, X, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -104,11 +105,77 @@ const columns: ColumnDef<VoucherRow>[] = [
     cell: ({ row }) =>
       format(new Date(row.original.createdAt), "dd MMM yyyy"),
   },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) => {
+      const v = row.original;
+      return (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="View booking"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = `/reservations/bookings/${v.booking.id}`;
+            }}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          {v.status === "ISSUED" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-green-600"
+                title="Mark as Used"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  (window as unknown as Record<string, unknown>).__voucherTransition?.({ id: v.id, status: "USED" });
+                }}
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive"
+                title="Cancel voucher"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  (window as unknown as Record<string, unknown>).__voucherTransition?.({ id: v.id, status: "CANCELLED" });
+                }}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+      );
+    },
+  },
 ];
 
 export default function VouchersPage() {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const { data, isLoading } = trpc.reservations.voucher.list.useQuery();
+
+  const transitionMutation = trpc.reservations.voucher.transition.useMutation({
+    onSuccess: () => {
+      utils.reservations.voucher.list.invalidate();
+      toast.success("Voucher status updated");
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
+
+  // Expose transition to static column cells via window
+  if (typeof window !== "undefined") {
+    (window as unknown as Record<string, unknown>).__voucherTransition = (input: { id: string; status: string }) =>
+      transitionMutation.mutate(input);
+  }
 
   const [statusFilter, setStatusFilter] = useState("ALL");
 

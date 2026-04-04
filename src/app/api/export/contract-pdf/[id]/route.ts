@@ -145,11 +145,16 @@ export async function GET(
     let logoFormat: string | undefined;
     if (company?.reportsLogoUrl) {
       try {
-        const logoPath = path.join(
-          process.cwd(),
-          "public",
-          company.reportsLogoUrl,
+        const logoPath = path.resolve(
+          path.join(process.cwd(), "public", company.reportsLogoUrl),
         );
+        const allowedDir = path.resolve(
+          path.join(process.cwd(), "public", "uploads"),
+        );
+        // Prevent path traversal
+        if (!logoPath.startsWith(allowedDir)) {
+          throw new Error("Invalid logo path");
+        }
         const logoBuffer = await readFile(logoPath);
         const ext =
           company.reportsLogoUrl.split(".").pop()?.toLowerCase() ?? "png";

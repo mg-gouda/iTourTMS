@@ -42,13 +42,29 @@ export function AgedReport({ reportType }: AgedReportProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <p className="text-muted-foreground">
-          {reportType === "receivable"
-            ? "Outstanding customer invoices by aging bucket"
-            : "Outstanding vendor bills by aging bucket"}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{title}</h1>
+          <p className="text-muted-foreground">
+            {reportType === "receivable"
+              ? "Outstanding customer invoices by aging bucket"
+              : "Outstanding vendor bills by aging bucket"}
+          </p>
+        </div>
+        {query.data && (
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={async () => {
+              const { exportAgedReportToExcel } = await import("@/lib/export/finance-report-excel");
+              const rows = (query.data.partners ?? query.data ?? []).map((p: { partnerName: string; current: number; days1to30: number; days31to60: number; days61to90: number; days90plus: number; total: number }) => ({
+                partnerName: p.partnerName, current: Number(p.current ?? 0), days1to30: Number(p.days1to30 ?? 0), days31to60: Number(p.days31to60 ?? 0), days61to90: Number(p.days61to90 ?? 0), days90plus: Number(p.days90plus ?? 0), total: Number(p.total ?? 0),
+              }));
+              await exportAgedReportToExcel(rows, reportType, "USD");
+            }}
+          >
+            Export Excel
+          </button>
+        )}
       </div>
 
       <AsOfDateFilter

@@ -209,6 +209,11 @@ export default function ReportsPage() {
           <TabsTrigger value="arrival-list">Arrival List</TabsTrigger>
           <TabsTrigger value="payment-option">Payment Option Date</TabsTrigger>
           <TabsTrigger value="materialization">Materialization</TabsTrigger>
+          <TabsTrigger value="production-to">Production by TO</TabsTrigger>
+          <TabsTrigger value="cancellation">Cancellations</TabsTrigger>
+          <TabsTrigger value="no-show">No-Shows</TabsTrigger>
+          <TabsTrigger value="lead-time">Lead Time</TabsTrigger>
+          <TabsTrigger value="market-mix">Market Mix</TabsTrigger>
         </TabsList>
 
         {/* Revenue Tab */}
@@ -1406,7 +1411,157 @@ export default function ReportsPage() {
             </Card>
           )}
         </TabsContent>
+
+        {/* Production by TO */}
+        <TabsContent value="production-to" className="space-y-4">
+          <ProductionByToReport />
+        </TabsContent>
+
+        {/* Cancellation Report */}
+        <TabsContent value="cancellation" className="space-y-4">
+          <CancellationReport />
+        </TabsContent>
+
+        {/* No-Show Report */}
+        <TabsContent value="no-show" className="space-y-4">
+          <NoShowReport />
+        </TabsContent>
+
+        {/* Lead Time Report */}
+        <TabsContent value="lead-time" className="space-y-4">
+          <LeadTimeReport />
+        </TabsContent>
+
+        {/* Market Mix Report */}
+        <TabsContent value="market-mix" className="space-y-4">
+          <MarketMixReport />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function ProductionByToReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data, isLoading } = trpc.reservations.reports.productionByTO.useQuery(
+    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+      </div>
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <Card><CardContent className="pt-4">
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Tour Operator</th><th className="text-right pb-2">Bookings</th><th className="text-right pb-2">Room Nights</th><th className="text-right pb-2">Revenue</th></tr></thead>
+          <tbody>{(data as Array<{ tourOperatorName: string; bookingCount: number; roomNights: number; revenue: number }>).map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5">{r.tourOperatorName}</td><td className="py-1.5 text-right">{r.bookingCount}</td><td className="py-1.5 text-right">{r.roomNights}</td><td className="py-1.5 text-right font-medium">{Number(r.revenue).toFixed(2)}</td></tr>
+          ))}</tbody></table>
+        </CardContent></Card>
+      ) : <p className="text-sm text-muted-foreground">Select a date range to generate the report.</p>}
+    </div>
+  );
+}
+
+function CancellationReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data, isLoading } = trpc.reservations.reports.cancellationReport.useQuery(
+    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+      </div>
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <Card><CardContent className="pt-4">
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Booking</th><th className="text-left pb-2">Hotel</th><th className="text-left pb-2">Guest</th><th className="text-left pb-2">Cancelled</th><th className="text-right pb-2">Penalty</th></tr></thead>
+          <tbody>{(data as Array<{ code: string; hotelName: string; guestName: string; cancelledAt: string; penalty: number }>).map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5 font-mono">{r.code}</td><td className="py-1.5">{r.hotelName}</td><td className="py-1.5">{r.guestName}</td><td className="py-1.5">{new Date(r.cancelledAt).toLocaleDateString()}</td><td className="py-1.5 text-right">{Number(r.penalty).toFixed(2)}</td></tr>
+          ))}</tbody></table>
+        </CardContent></Card>
+      ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
+    </div>
+  );
+}
+
+function NoShowReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data, isLoading } = trpc.reservations.reports.noShowReport.useQuery(
+    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+      </div>
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <Card><CardContent className="pt-4">
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Booking</th><th className="text-left pb-2">Hotel</th><th className="text-left pb-2">Guest</th><th className="text-left pb-2">Check-in</th></tr></thead>
+          <tbody>{(data as Array<{ code: string; hotelName: string; guestName: string; checkIn: string }>).map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5 font-mono">{r.code}</td><td className="py-1.5">{r.hotelName}</td><td className="py-1.5">{r.guestName}</td><td className="py-1.5">{new Date(r.checkIn).toLocaleDateString()}</td></tr>
+          ))}</tbody></table>
+        </CardContent></Card>
+      ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
+    </div>
+  );
+}
+
+function LeadTimeReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data, isLoading } = trpc.reservations.reports.bookingLeadTime.useQuery(
+    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+      </div>
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <Card><CardContent className="pt-4">
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Bucket</th><th className="text-right pb-2">Count</th><th className="text-right pb-2">%</th></tr></thead>
+          <tbody>{(data as Array<{ bucket: string; count: number; percentage: number }>).map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5">{r.bucket}</td><td className="py-1.5 text-right">{r.count}</td><td className="py-1.5 text-right">{r.percentage.toFixed(1)}%</td></tr>
+          ))}</tbody></table>
+        </CardContent></Card>
+      ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
+    </div>
+  );
+}
+
+function MarketMixReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data, isLoading } = trpc.reservations.reports.marketMix.useQuery(
+    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+      </div>
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <Card><CardContent className="pt-4">
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Market</th><th className="text-right pb-2">Bookings</th><th className="text-right pb-2">Room Nights</th><th className="text-right pb-2">Revenue</th><th className="text-right pb-2">%</th></tr></thead>
+          <tbody>{(data as Array<{ marketName: string; bookingCount: number; roomNights: number; revenue: number; percentage: number }>).map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5">{r.marketName}</td><td className="py-1.5 text-right">{r.bookingCount}</td><td className="py-1.5 text-right">{r.roomNights}</td><td className="py-1.5 text-right font-medium">{Number(r.revenue).toFixed(2)}</td><td className="py-1.5 text-right">{r.percentage.toFixed(1)}%</td></tr>
+          ))}</tbody></table>
+        </CardContent></Card>
+      ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
     </div>
   );
 }

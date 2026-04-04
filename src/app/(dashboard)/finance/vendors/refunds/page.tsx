@@ -102,11 +102,16 @@ export default function VendorRefundsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Vendor Refunds</h1>
-        <p className="text-muted-foreground">
-          Vendor debit notes and refunds.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Vendor Refunds</h1>
+          <p className="text-muted-foreground">
+            Vendor debit notes and refunds.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/finance/vendors/refunds/new">New Refund</Link>
+        </Button>
       </div>
 
       {isLoading ? (

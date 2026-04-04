@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import { Plus, X } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -384,6 +386,148 @@ export default function HotelDetailPage() {
 // Overview Tab
 // ============================================================================
 
+function AmenitiesCard({ hotel }: { hotel: any }) {
+  const utils = trpc.useUtils();
+  const [showAdd, setShowAdd] = useState(false);
+  const [newAmenityName, setNewAmenityName] = useState("");
+
+  const { data: allAmenities } = trpc.contracting.hotel.listAmenities.useQuery(
+    undefined,
+    { enabled: showAdd },
+  );
+
+  const hotelAmenityIds = new Set((hotel.amenities ?? []).map((a: any) => a.id));
+  const availableAmenities = (allAmenities ?? []).filter(
+    (a) => !hotelAmenityIds.has(a.id),
+  );
+
+  const createAmenityMutation = trpc.contracting.hotel.createAmenity.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.listAmenities.invalidate();
+      setNewAmenityName("");
+      toast.success("Amenity created");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateHotelMutation = trpc.contracting.hotel.update.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.getById.invalidate({ id: hotel.id });
+      toast.success("Amenities updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function addAmenityToHotel(amenityId: string) {
+    const currentIds = (hotel.amenities ?? []).map((a: any) => a.id);
+    updateHotelMutation.mutate({
+      id: hotel.id,
+      data: { amenityIds: [...currentIds, amenityId] },
+    });
+  }
+
+  function removeAmenityFromHotel(amenityId: string) {
+    const currentIds = (hotel.amenities ?? []).map((a: any) => a.id).filter((id: string) => id !== amenityId);
+    updateHotelMutation.mutate({
+      id: hotel.id,
+      data: { amenityIds: currentIds },
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Amenities</CardTitle>
+        <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
+          <Plus className="mr-2 size-3" /> Add
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {hotel.amenities?.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {hotel.amenities.map((a: any) => (
+              <Badge key={a.id} variant="secondary" className="gap-1 pr-1">
+                {a.name}
+                <button
+                  type="button"
+                  className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                  onClick={() => removeAmenityFromHotel(a.id)}
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No amenities assigned.</p>
+        )}
+      </CardContent>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Amenities</DialogTitle>
+            <DialogDescription>
+              Select existing amenities or create a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Create new amenity */}
+            <div>
+              <label className="text-sm font-medium">Create New Amenity</label>
+              <div className="mt-1 flex gap-2">
+                <Input
+                  value={newAmenityName}
+                  onChange={(e) => setNewAmenityName(e.target.value)}
+                  placeholder="e.g. Swimming Pool"
+                />
+                <Button
+                  size="sm"
+                  disabled={!newAmenityName.trim() || createAmenityMutation.isPending}
+                  onClick={() => createAmenityMutation.mutate({ name: newAmenityName.trim() })}
+                >
+                  Create
+                </Button>
+              </div>
+            </div>
+
+            {/* Available amenities to add */}
+            {availableAmenities.length > 0 && (
+              <div>
+                <label className="text-sm font-medium">Available Amenities</label>
+                <div className="mt-2 flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                  {availableAmenities.map((a) => (
+                    <Badge
+                      key={a.id}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-accent"
+                      onClick={() => { addAmenityToHotel(a.id); }}
+                    >
+                      <Plus className="mr-1 size-3" /> {a.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {availableAmenities.length === 0 && !allAmenities && (
+              <p className="text-sm text-muted-foreground">Loading amenities...</p>
+            )}
+            {availableAmenities.length === 0 && allAmenities && (
+              <p className="text-sm text-muted-foreground">All amenities are already assigned. Create a new one above.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdd(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function OverviewTab({ hotel }: { hotel: any }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -432,22 +576,7 @@ function OverviewTab({ hotel }: { hotel: any }) {
         </CardContent>
       </Card>
 
-      {hotel.amenities?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Amenities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {hotel.amenities.map((a: any) => (
-                <Badge key={a.id} variant="secondary">
-                  {a.name}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <AmenitiesCard hotel={hotel} />
 
       {hotel.description && (
         <Card className="md:col-span-2">

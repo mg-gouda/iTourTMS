@@ -29,13 +29,53 @@ export default function EditCustomerInvoicePage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {data.name ?? "Draft Invoice"}
-        </h1>
-        <p className="text-muted-foreground">
-          {data.partner?.name ?? "No partner"}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {data.name ?? "Draft Invoice"}
+          </h1>
+          <p className="text-muted-foreground">
+            {data.partner?.name ?? "No partner"}
+          </p>
+        </div>
+        <button
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          onClick={async () => {
+            const { generateInvoicePdf } = await import("@/lib/export/finance-invoice-pdf");
+            const pdf = generateInvoicePdf({
+              name: data.name ?? "Invoice",
+              moveType: data.moveType,
+              state: data.state,
+              paymentState: data.paymentState,
+              date: data.date,
+              dueDate: data.invoiceDateDue,
+              ref: data.ref,
+              narration: data.narration,
+              amountUntaxed: data.amountUntaxed,
+              amountTax: data.amountTax,
+              amountTotal: data.amountTotal,
+              amountResidual: data.amountResidual,
+              partner: data.partner,
+              journal: data.journal ?? { code: "", name: "" },
+              currency: data.currency ?? data.companyCurrency ?? { code: "USD", symbol: "$" },
+              paymentTerm: data.paymentTerm,
+              lineItems: (data.lineItems ?? []).map((l: Record<string, unknown>) => ({
+                displayType: l.displayType as string,
+                name: l.name as string | null,
+                accountName: (l.account as { name: string } | null)?.name ?? "",
+                quantity: l.quantity,
+                priceUnit: l.priceUnit,
+                discount: l.discount,
+                debit: l.debit,
+                credit: l.credit,
+                taxAmount: l.taxAmount ?? 0,
+              })),
+            });
+            pdf.save(`${data.name ?? "invoice"}.pdf`);
+          }}
+        >
+          Download PDF
+        </button>
       </div>
       <MoveForm
         moveType="OUT_INVOICE"
