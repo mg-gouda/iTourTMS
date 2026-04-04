@@ -186,8 +186,8 @@ export default function PricingPage() {
                 onClick={() => {
                   createMutation.mutate({
                     vehicleTypeId,
-                    priceType,
-                    serviceType: serviceType || null,
+                    priceType: priceType as "PER_VEHICLE" | "PER_PERSON" | "PER_ZONE" | "FLAT_RATE",
+                    serviceType: (serviceType || null) as "ARR" | "DEP" | "ARR_DEP" | "EXCURSION" | "INTER_HOTEL" | "CITY_TOUR" | "PRIVATE_HIRE" | "AIRPORT_MEET" | "VIP" | "SHUTTLE" | "CHARTER" | "OTHER" | null,
                     fromZoneId: fromZoneId || null,
                     toZoneId: toZoneId || null,
                     price: Number(price),

@@ -247,26 +247,20 @@ export default function BookingsPage() {
             size="sm"
             disabled={!filteredData.length}
             onClick={async () => {
-              const { exportBookingListToExcel } = await import("@/lib/export/report-excel").catch(() => ({ exportBookingListToExcel: null }));
-              if (exportBookingListToExcel) {
-                await exportBookingListToExcel(filteredData);
-              } else {
-                // Fallback: use xlsx directly
-                const XLSX = await import("xlsx");
-                const wb = XLSX.utils.book_new();
-                const rows = filteredData.map((b: BookingRow) => ({
-                  Code: b.code,
-                  Guest: b.leadGuestName ?? "",
-                  Hotel: b.hotel?.name ?? "",
-                  "Check-in": b.checkIn ? new Date(b.checkIn).toLocaleDateString() : "",
-                  "Check-out": b.checkOut ? new Date(b.checkOut).toLocaleDateString() : "",
-                  Status: b.status,
-                  Source: b.source,
-                }));
-                const ws = XLSX.utils.json_to_sheet(rows);
-                XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-                XLSX.writeFile(wb, `bookings-${new Date().toISOString().slice(0, 10)}.xlsx`);
-              }
+              const XLSX = await import("xlsx");
+              const wb = XLSX.utils.book_new();
+              const rows = filteredData.map((b: BookingRow) => ({
+                Code: b.code,
+                Guest: b.leadGuestName ?? "",
+                Hotel: b.hotel?.name ?? "",
+                "Check-in": b.checkIn ? new Date(b.checkIn).toLocaleDateString() : "",
+                "Check-out": b.checkOut ? new Date(b.checkOut).toLocaleDateString() : "",
+                Status: b.status,
+                Source: b.source,
+              }));
+              const ws = XLSX.utils.json_to_sheet(rows);
+              XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+              XLSX.writeFile(wb, `bookings-${new Date().toISOString().slice(0, 10)}.xlsx`);
             }}
           >
             Export

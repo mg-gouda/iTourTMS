@@ -93,8 +93,8 @@ export function GeneralLedgerReport() {
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
             onClick={async () => {
               const { exportGeneralLedgerToExcel } = await import("@/lib/export/finance-report-excel");
-              const rows = (data.lines ?? data ?? []).map((l: { date: string; moveName: string; accountName: string; partnerName: string; label: string; debit: number; credit: number; balance: number }) => ({
-                date: l.date, move: l.moveName ?? "", account: l.accountName ?? "", partner: l.partnerName ?? "", label: l.label ?? "", debit: Number(l.debit ?? 0), credit: Number(l.credit ?? 0), balance: Number(l.balance ?? 0),
+              const rows = (data.lines ?? []).map((l) => ({
+                date: l.date, move: l.moveName ?? "", account: data.account.name ?? "", partner: l.partnerName ?? "", label: l.label ?? "", debit: Number(l.debit ?? 0), credit: Number(l.credit ?? 0), balance: Number(l.debit - l.credit),
               }));
               await exportGeneralLedgerToExcel(rows, "USD");
             }}

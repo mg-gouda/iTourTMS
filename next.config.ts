@@ -4,11 +4,6 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  typescript: {
-    // Type errors are caught in CI via `tsc --noEmit`.
-    // Skipping during build to avoid OOM and speed up deployments.
-    ignoreBuildErrors: true,
-  },
   serverExternalPackages: ["pino", "pino-pretty", "pdf-parse"],
   images: {
     formats: ["image/avif", "image/webp"],

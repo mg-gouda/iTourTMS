@@ -134,7 +134,7 @@ export default function LeadsPage() {
             variant="outline"
             onClick={async () => {
               const { exportLeadsToExcel } = await import("@/lib/export/crm-leads-excel");
-              await exportLeadsToExcel(data ?? []);
+              await exportLeadsToExcel((data ?? []) as unknown as Parameters<typeof exportLeadsToExcel>[0]);
             }}
             disabled={!data?.length}
           >

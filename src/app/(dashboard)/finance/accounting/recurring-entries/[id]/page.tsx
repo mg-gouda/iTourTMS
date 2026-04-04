@@ -405,7 +405,7 @@ export default function RecurringEntryDetailPage() {
             </DialogHeader>
             <RecurringEditForm
               entry={entry}
-              onSave={(data) => updateMutation.mutate({ id, data })}
+              onSave={(data) => updateMutation.mutate({ id, ...data })}
               isPending={updateMutation.isPending}
             />
           </DialogContent>

@@ -183,10 +183,10 @@ export default function TrafficJobsPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            disabled={!data?.items?.length}
+            disabled={!jobs?.length}
             onClick={async () => {
               const { exportTrafficJobsToExcel } = await import("@/lib/export/traffic-jobs-excel");
-              await exportTrafficJobsToExcel(data?.items ?? []);
+              await exportTrafficJobsToExcel((jobs ?? []) as unknown as Parameters<typeof exportTrafficJobsToExcel>[0]);
             }}
           >
             Export Excel

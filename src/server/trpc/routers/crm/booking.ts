@@ -378,7 +378,7 @@ export const bookingRouter = createTRPCRouter({
         });
       }
 
-      const newStatus = allowed[input.action];
+      const newStatus = allowed[input.action] as "DRAFT" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
 
       const updated = await ctx.db.crmBooking.update({
         where: { id: input.id },

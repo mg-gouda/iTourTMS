@@ -152,16 +152,20 @@ export const accountRouter = createTRPCRouter({
       }).optional(),
     )
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = { companyId: ctx.companyId, isActive: true };
-      if (input?.type) where.type = input.type;
-      if (input?.search) {
-        where.OR = [
-          { name: { contains: input.search, mode: "insensitive" } },
-          { email: { contains: input.search, mode: "insensitive" } },
-        ];
-      }
       return ctx.db.partner.findMany({
-        where: where as Parameters<typeof ctx.db.partner.findMany>[0]["where"],
+        where: {
+          companyId: ctx.companyId,
+          isActive: true,
+          ...(input?.type ? { type: input.type as never } : {}),
+          ...(input?.search
+            ? {
+                OR: [
+                  { name: { contains: input.search, mode: "insensitive" as const } },
+                  { email: { contains: input.search, mode: "insensitive" as const } },
+                ],
+              }
+            : {}),
+        },
         select: { id: true, name: true, type: true, email: true },
         orderBy: { name: "asc" },
         take: 200,

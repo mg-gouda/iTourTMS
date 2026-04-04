@@ -49,7 +49,7 @@ export default function ViewBankStatementPage({
               state: data.state,
               date: data.date,
               journal: data.journal ?? { code: "", name: "" },
-              currency: data.journal?.currency ?? data.currency ?? { code: "USD", symbol: "$" },
+              currency: (data.journal as Record<string, unknown>)?.currency as { code: string; symbol: string } ?? { code: "USD", symbol: "$" },
               openingBalance: data.balanceStart,
               closingBalance: data.balanceEnd,
               lines: (data.lines ?? []).map((l: Record<string, unknown>) => ({

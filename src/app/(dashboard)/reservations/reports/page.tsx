@@ -1445,7 +1445,7 @@ function ProductionByToReport() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { data, isLoading } = trpc.reservations.reports.productionByTO.useQuery(
-    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { dateFrom, dateTo },
     { enabled: !!dateFrom && !!dateTo },
   );
   return (
@@ -1457,8 +1457,8 @@ function ProductionByToReport() {
       {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
         <Card><CardContent className="pt-4">
           <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Tour Operator</th><th className="text-right pb-2">Bookings</th><th className="text-right pb-2">Room Nights</th><th className="text-right pb-2">Revenue</th></tr></thead>
-          <tbody>{(data as Array<{ tourOperatorName: string; bookingCount: number; roomNights: number; revenue: number }>).map((r, i) => (
-            <tr key={i} className="border-b"><td className="py-1.5">{r.tourOperatorName}</td><td className="py-1.5 text-right">{r.bookingCount}</td><td className="py-1.5 text-right">{r.roomNights}</td><td className="py-1.5 text-right font-medium">{Number(r.revenue).toFixed(2)}</td></tr>
+          <tbody>{data.map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5">{r.name}</td><td className="py-1.5 text-right">{r.bookingCount}</td><td className="py-1.5 text-right">{r.roomNights}</td><td className="py-1.5 text-right font-medium">{Number(r.totalSelling).toFixed(2)}</td></tr>
           ))}</tbody></table>
         </CardContent></Card>
       ) : <p className="text-sm text-muted-foreground">Select a date range to generate the report.</p>}
@@ -1470,7 +1470,7 @@ function CancellationReport() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { data, isLoading } = trpc.reservations.reports.cancellationReport.useQuery(
-    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { dateFrom, dateTo },
     { enabled: !!dateFrom && !!dateTo },
   );
   return (
@@ -1481,9 +1481,9 @@ function CancellationReport() {
       </div>
       {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
         <Card><CardContent className="pt-4">
-          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Booking</th><th className="text-left pb-2">Hotel</th><th className="text-left pb-2">Guest</th><th className="text-left pb-2">Cancelled</th><th className="text-right pb-2">Penalty</th></tr></thead>
-          <tbody>{(data as Array<{ code: string; hotelName: string; guestName: string; cancelledAt: string; penalty: number }>).map((r, i) => (
-            <tr key={i} className="border-b"><td className="py-1.5 font-mono">{r.code}</td><td className="py-1.5">{r.hotelName}</td><td className="py-1.5">{r.guestName}</td><td className="py-1.5">{new Date(r.cancelledAt).toLocaleDateString()}</td><td className="py-1.5 text-right">{Number(r.penalty).toFixed(2)}</td></tr>
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Booking</th><th className="text-left pb-2">Hotel</th><th className="text-left pb-2">Guest</th><th className="text-left pb-2">Cancelled</th><th className="text-right pb-2">Selling Total</th></tr></thead>
+          <tbody>{data.map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5 font-mono">{r.code}</td><td className="py-1.5">{r.hotelName}</td><td className="py-1.5">{r.guestName}</td><td className="py-1.5">{r.cancelledAt ? new Date(r.cancelledAt).toLocaleDateString() : "—"}</td><td className="py-1.5 text-right">{Number(r.sellingTotal).toFixed(2)}</td></tr>
           ))}</tbody></table>
         </CardContent></Card>
       ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
@@ -1495,7 +1495,7 @@ function NoShowReport() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { data, isLoading } = trpc.reservations.reports.noShowReport.useQuery(
-    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { dateFrom, dateTo },
     { enabled: !!dateFrom && !!dateTo },
   );
   return (
@@ -1507,7 +1507,7 @@ function NoShowReport() {
       {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
         <Card><CardContent className="pt-4">
           <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Booking</th><th className="text-left pb-2">Hotel</th><th className="text-left pb-2">Guest</th><th className="text-left pb-2">Check-in</th></tr></thead>
-          <tbody>{(data as Array<{ code: string; hotelName: string; guestName: string; checkIn: string }>).map((r, i) => (
+          <tbody>{data.map((r, i) => (
             <tr key={i} className="border-b"><td className="py-1.5 font-mono">{r.code}</td><td className="py-1.5">{r.hotelName}</td><td className="py-1.5">{r.guestName}</td><td className="py-1.5">{new Date(r.checkIn).toLocaleDateString()}</td></tr>
           ))}</tbody></table>
         </CardContent></Card>
@@ -1520,7 +1520,7 @@ function LeadTimeReport() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { data, isLoading } = trpc.reservations.reports.bookingLeadTime.useQuery(
-    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { dateFrom, dateTo },
     { enabled: !!dateFrom && !!dateTo },
   );
   return (
@@ -1531,9 +1531,10 @@ function LeadTimeReport() {
       </div>
       {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
         <Card><CardContent className="pt-4">
-          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Bucket</th><th className="text-right pb-2">Count</th><th className="text-right pb-2">%</th></tr></thead>
-          <tbody>{(data as Array<{ bucket: string; count: number; percentage: number }>).map((r, i) => (
-            <tr key={i} className="border-b"><td className="py-1.5">{r.bucket}</td><td className="py-1.5 text-right">{r.count}</td><td className="py-1.5 text-right">{r.percentage.toFixed(1)}%</td></tr>
+          <p className="mb-3 text-sm font-medium">Average Lead Time: {data.averageLeadDays} days</p>
+          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Hotel</th><th className="text-right pb-2">Avg Lead Days</th><th className="text-right pb-2">Bookings</th></tr></thead>
+          <tbody>{data.byHotel.map((r, i) => (
+            <tr key={i} className="border-b"><td className="py-1.5">{r.hotelName}</td><td className="py-1.5 text-right">{r.avgLeadDays}</td><td className="py-1.5 text-right">{r.bookingCount}</td></tr>
           ))}</tbody></table>
         </CardContent></Card>
       ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
@@ -1545,7 +1546,7 @@ function MarketMixReport() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { data, isLoading } = trpc.reservations.reports.marketMix.useQuery(
-    { dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) },
+    { dateFrom, dateTo },
     { enabled: !!dateFrom && !!dateTo },
   );
   return (
@@ -1556,10 +1557,24 @@ function MarketMixReport() {
       </div>
       {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
         <Card><CardContent className="pt-4">
-          <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Market</th><th className="text-right pb-2">Bookings</th><th className="text-right pb-2">Room Nights</th><th className="text-right pb-2">Revenue</th><th className="text-right pb-2">%</th></tr></thead>
-          <tbody>{(data as Array<{ marketName: string; bookingCount: number; roomNights: number; revenue: number; percentage: number }>).map((r, i) => (
-            <tr key={i} className="border-b"><td className="py-1.5">{r.marketName}</td><td className="py-1.5 text-right">{r.bookingCount}</td><td className="py-1.5 text-right">{r.roomNights}</td><td className="py-1.5 text-right font-medium">{Number(r.revenue).toFixed(2)}</td><td className="py-1.5 text-right">{r.percentage.toFixed(1)}%</td></tr>
-          ))}</tbody></table>
+          {data.bySource.length > 0 && (
+            <>
+              <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">By Source</p>
+              <table className="mb-4 w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Source</th><th className="text-right pb-2">Bookings</th><th className="text-right pb-2">Revenue</th></tr></thead>
+              <tbody>{data.bySource.map((r, i) => (
+                <tr key={i} className="border-b"><td className="py-1.5">{r.source}</td><td className="py-1.5 text-right">{r.count}</td><td className="py-1.5 text-right font-medium">{Number(r.revenue).toFixed(2)}</td></tr>
+              ))}</tbody></table>
+            </>
+          )}
+          {data.byMarket.length > 0 && (
+            <>
+              <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">By Market</p>
+              <table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left pb-2">Market</th><th className="text-right pb-2">Bookings</th><th className="text-right pb-2">Revenue</th></tr></thead>
+              <tbody>{data.byMarket.map((r, i) => (
+                <tr key={i} className="border-b"><td className="py-1.5">{r.marketName}</td><td className="py-1.5 text-right">{r.count}</td><td className="py-1.5 text-right font-medium">{Number(r.revenue).toFixed(2)}</td></tr>
+              ))}</tbody></table>
+            </>
+          )}
         </CardContent></Card>
       ) : <p className="text-sm text-muted-foreground">Select a date range.</p>}
     </div>

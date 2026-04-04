@@ -818,7 +818,7 @@ export default function BookingDetailPage() {
                         className="h-7 w-7 p-0 text-destructive"
                         onClick={() => {
                           if (confirm("Delete this payment?")) {
-                            deletePaymentMutation.mutate({ id: p.id });
+                            deletePaymentMutation.mutate({ id: p.id, bookingId: id });
                           }
                         }}
                       >
@@ -1664,14 +1664,14 @@ function SpecialRequestsTab({ bookingId }: { bookingId: string }) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && text.trim()) {
-              createMutation.mutate({ bookingId, text: text.trim() });
+              createMutation.mutate({ bookingId, category: "OTHER" as const, request: text.trim() });
             }
           }}
         />
         <Button
           size="sm"
           disabled={!text.trim() || createMutation.isPending}
-          onClick={() => createMutation.mutate({ bookingId, text: text.trim() })}
+          onClick={() => createMutation.mutate({ bookingId, category: "OTHER" as const, request: text.trim() })}
         >
           Add
         </Button>
@@ -1680,10 +1680,10 @@ function SpecialRequestsTab({ bookingId }: { bookingId: string }) {
         <p className="py-6 text-center text-sm text-muted-foreground">No special requests.</p>
       ) : (
         <div className="space-y-2">
-          {(requests ?? []).map((req: { id: string; text: string; status: string; createdAt: string | Date }) => (
+          {(requests ?? []).map((req) => (
             <div key={req.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
               <div>
-                <span>{req.text}</span>
+                <span>{req.request}</span>
                 <Badge variant="secondary" className="ml-2 text-xs">{req.status}</Badge>
               </div>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: req.id })}>
@@ -1756,7 +1756,7 @@ function CommunicationsTab({ bookingId }: { bookingId: string }) {
           <Button
             size="sm"
             disabled={!subject.trim() || !message.trim() || createMutation.isPending}
-            onClick={() => createMutation.mutate({ bookingId, subject, message, channel })}
+            onClick={() => createMutation.mutate({ bookingId, subject, body: message, channel: channel as "EMAIL" | "PHONE" | "FAX" | "API" | "PORTAL", direction: "OUTBOUND" as const, type: "GENERAL" as const })}
           >
             {createMutation.isPending ? "Sending..." : "Log Communication"}
           </Button>
@@ -1766,7 +1766,7 @@ function CommunicationsTab({ bookingId }: { bookingId: string }) {
         <p className="py-6 text-center text-sm text-muted-foreground">No communications logged.</p>
       ) : (
         <div className="space-y-2">
-          {(comms ?? []).map((c: { id: string; subject: string; message: string; channel: string; createdAt: string | Date; createdBy?: { name: string } | null }) => (
+          {(comms ?? []).map((c) => (
             <div key={c.id} className="rounded-md border p-3 text-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1775,15 +1775,15 @@ function CommunicationsTab({ bookingId }: { bookingId: string }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(c.createdAt), "dd MMM yyyy HH:mm")}
-                    {c.createdBy && ` — ${c.createdBy.name}`}
+                    {format(new Date(c.sentAt), "dd MMM yyyy HH:mm")}
+                    {c.sentBy && ` — ${c.sentBy.name}`}
                   </span>
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: c.id })}>
                     &times;
                   </Button>
                 </div>
               </div>
-              <p className="mt-1 text-muted-foreground">{c.message}</p>
+              <p className="mt-1 text-muted-foreground">{c.body}</p>
             </div>
           ))}
         </div>
@@ -1808,14 +1808,14 @@ function CancellationPenaltyPreview({ bookingId }: { bookingId: string }) {
       <p className="font-medium text-yellow-800">Cancellation Penalty</p>
       <div className="mt-1 flex items-center justify-between">
         <span className="text-yellow-700">
-          {data.daysBeforeCheckIn} day(s) before check-in — {data.penaltyPct}% penalty
+          {data.daysBefore} day(s) before check-in — {data.penaltyPercent}% penalty
         </span>
         <span className="font-bold text-yellow-900">
-          {Number(data.penaltyAmount ?? 0).toFixed(2)} {data.currency ?? ""}
+          {Number(data.penaltyAmount ?? 0).toFixed(2)}
         </span>
       </div>
-      {data.policyName && (
-        <p className="mt-1 text-xs text-yellow-600">Policy: {data.policyName}</p>
+      {data.description && (
+        <p className="mt-1 text-xs text-yellow-600">Policy: {data.description}</p>
       )}
     </div>
   );

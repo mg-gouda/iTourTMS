@@ -180,15 +180,15 @@ function AccountGroupsPanel() {
       <CardContent className="space-y-3">
         <div className="flex gap-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New group name..." className="h-8 text-sm" />
-          <Button size="sm" disabled={!name.trim() || createMutation.isPending} onClick={() => createMutation.mutate({ name: name.trim(), code: name.trim().toUpperCase().replace(/\s+/g, "_") })}>Add</Button>
+          <Button size="sm" disabled={!name.trim() || createMutation.isPending} onClick={() => createMutation.mutate({ name: name.trim(), codePrefixStart: name.trim().toUpperCase().replace(/\s+/g, "_"), codePrefixEnd: name.trim().toUpperCase().replace(/\s+/g, "_") })}>Add</Button>
         </div>
         {(groups ?? []).length === 0 ? (
           <p className="text-xs text-muted-foreground">No account groups.</p>
         ) : (
           <div className="space-y-1">
-            {(groups ?? []).map((g: { id: string; name: string; code: string }) => (
+            {(groups ?? []).map((g: { id: string; name: string; codePrefixStart: string }) => (
               <div key={g.id} className="flex items-center justify-between rounded border px-2 py-1 text-sm">
-                <span>{g.name} <span className="text-xs text-muted-foreground">({g.code})</span></span>
+                <span>{g.name} <span className="text-xs text-muted-foreground">({g.codePrefixStart})</span></span>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: g.id })}><Trash2 className="h-3 w-3" /></Button>
               </div>
             ))}

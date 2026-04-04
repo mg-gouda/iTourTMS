@@ -45,15 +45,15 @@ export async function GET(request: NextRequest) {
                 companyId,
                 tourOperatorId,
                 source: "TOUR_OPERATOR",
-                status: "CONFIRMED",
+                status: "CONFIRMED" as const,
               },
             }),
             db.booking.count({
               where: {
                 companyId,
                 tourOperatorId,
-                source: "TOUR_OPERATOR",
-                status: "PENDING",
+                source: "TOUR_OPERATOR" as const,
+                status: "PENDING_APPROVAL" as const,
               },
             }),
           ]);
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         }
 
         const items = await db.booking.findMany({
-          where: where as Parameters<typeof db.booking.findMany>[0]["where"],
+          where: where as Record<string, unknown>,
           include: {
             hotel: { select: { name: true } },
             currency: { select: { code: true } },

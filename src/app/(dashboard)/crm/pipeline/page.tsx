@@ -79,7 +79,7 @@ export default function PipelinePage() {
             variant="outline"
             onClick={async () => {
               const { exportPipelineToExcel } = await import("@/lib/export/crm-pipeline-excel");
-              await exportPipelineToExcel(opportunities ?? []);
+              await exportPipelineToExcel((opportunities ?? []) as unknown as Parameters<typeof exportPipelineToExcel>[0]);
             }}
             disabled={!opportunities?.length}
           >

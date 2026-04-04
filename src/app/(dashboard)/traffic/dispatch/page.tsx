@@ -175,8 +175,8 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
               <Select value={driverId} onValueChange={setDriverId}>
                 <SelectTrigger><SelectValue placeholder="Select driver..." /></SelectTrigger>
                 <SelectContent>
-                  {(drivers ?? []).map((d: { id: string; user?: { name: string }; name?: string }) => (
-                    <SelectItem key={d.id} value={d.id}>{d.user?.name ?? d.name ?? d.id}</SelectItem>
+                  {(drivers ?? []).map((d: { id: string; user?: { id: string; name: string | null } | null }) => (
+                    <SelectItem key={d.id} value={d.id}>{d.user?.name ?? d.id}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -187,8 +187,8 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
                 <SelectTrigger><SelectValue placeholder="No rep" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">No rep</SelectItem>
-                  {(reps ?? []).map((r: { id: string; name: string }) => (
-                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  {(reps ?? []).map((r: { id: string; user?: { id: string; name: string | null } | null }) => (
+                    <SelectItem key={r.id} value={r.id}>{r.user?.name ?? r.id}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

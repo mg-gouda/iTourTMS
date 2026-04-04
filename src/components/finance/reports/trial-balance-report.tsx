@@ -40,10 +40,10 @@ export function TrialBalanceReport() {
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
             onClick={async () => {
               const { exportTrialBalanceToExcel } = await import("@/lib/export/finance-report-excel");
-              const rows = (data.accounts ?? data ?? []).map((a: { code: string; name: string; accountType: string; debit: number; credit: number; balance: number }) => ({
-                accountCode: a.code, accountName: a.name, accountType: a.accountType, debit: Number(a.debit ?? 0), credit: Number(a.credit ?? 0), balance: Number(a.balance ?? 0),
+              const rows = (data.accounts ?? []).map((a) => ({
+                accountCode: a.code, accountName: a.name, accountType: a.accountType, debit: Number(a.closingDebit ?? 0), credit: Number(a.closingCredit ?? 0), balance: Number((a.closingDebit ?? 0) - (a.closingCredit ?? 0)),
               }));
-              await exportTrialBalanceToExcel(rows, "USD", params);
+              await exportTrialBalanceToExcel(rows, "USD", params ? { from: params.dateFrom.toISOString().split("T")[0], to: params.dateTo.toISOString().split("T")[0] } : undefined);
             }}
           >
             Export Excel

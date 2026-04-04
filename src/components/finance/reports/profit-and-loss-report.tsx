@@ -103,8 +103,8 @@ export function ProfitAndLossReport() {
               const { exportProfitAndLossToExcel } = await import("@/lib/export/finance-report-excel");
               const toRow = (r: { code: string; name: string; balance: number }, type: string) => ({ accountCode: r.code, accountName: r.name, accountType: type, debit: 0, credit: 0, balance: r.balance });
               await exportProfitAndLossToExcel(
-                (data.income ?? []).map((r: { code: string; name: string; balance: number }) => toRow(r, "INCOME")),
-                (data.expenses ?? []).map((r: { code: string; name: string; balance: number }) => toRow(r, "EXPENSE")),
+                (data.incomeAccounts ?? []).map((r) => toRow(r, "INCOME")),
+                (data.expenseAccounts ?? []).map((r) => toRow(r, "EXPENSE")),
                 "USD",
               );
             }}

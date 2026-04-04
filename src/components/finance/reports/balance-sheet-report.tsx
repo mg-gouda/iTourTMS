@@ -99,8 +99,8 @@ export function BalanceSheetReport() {
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
             onClick={async () => {
               const { exportBalanceSheetToExcel } = await import("@/lib/export/finance-report-excel");
-              const toRows = (items: Array<{ code: string; name: string; balance: number }>) =>
-                items.map((a) => ({ accountCode: a.code, accountName: a.name, accountType: "", debit: 0, credit: 0, balance: Number(a.balance ?? 0) }));
+              const toRows = (groups: SectionGroup[]) =>
+                groups.flatMap((g) => g.accounts.map((a) => ({ accountCode: a.code, accountName: a.name, accountType: g.accountTypeLabel, debit: 0, credit: 0, balance: Number(a.balance ?? 0) })));
               await exportBalanceSheetToExcel(toRows(data.assets ?? []), toRows(data.liabilities ?? []), toRows(data.equity ?? []), "USD");
             }}
           >

@@ -133,7 +133,7 @@ const columns: ColumnDef<VoucherRow>[] = [
                 title="Mark as Used"
                 onClick={(e) => {
                   e.stopPropagation();
-                  (window as unknown as Record<string, unknown>).__voucherTransition?.({ id: v.id, status: "USED" });
+                  ((window as unknown as Record<string, unknown>).__voucherTransition as ((input: { id: string; action: "use" | "cancel" }) => void) | undefined)?.({ id: v.id, action: "use" });
                 }}
               >
                 <CheckCircle className="h-3.5 w-3.5" />
@@ -145,7 +145,7 @@ const columns: ColumnDef<VoucherRow>[] = [
                 title="Cancel voucher"
                 onClick={(e) => {
                   e.stopPropagation();
-                  (window as unknown as Record<string, unknown>).__voucherTransition?.({ id: v.id, status: "CANCELLED" });
+                  ((window as unknown as Record<string, unknown>).__voucherTransition as ((input: { id: string; action: "use" | "cancel" }) => void) | undefined)?.({ id: v.id, action: "cancel" });
                 }}
               >
                 <XCircle className="h-3.5 w-3.5" />
@@ -173,7 +173,7 @@ export default function VouchersPage() {
 
   // Expose transition to static column cells via window
   if (typeof window !== "undefined") {
-    (window as unknown as Record<string, unknown>).__voucherTransition = (input: { id: string; status: string }) =>
+    (window as unknown as Record<string, unknown>).__voucherTransition = (input: { id: string; action: "use" | "cancel" }) =>
       transitionMutation.mutate(input);
   }
 
