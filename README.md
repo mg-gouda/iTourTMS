@@ -212,4 +212,8 @@ For production, ensure:
 
 ## License
 
-Proprietary. All rights reserved.
+This software is proprietary and requires a valid license key to operate. A license key must be activated during the initial setup and is valid for 365 days from the date of activation. The system will cease to function upon license expiry until a new key is provided.
+
+To obtain or renew a license key, contact the software provider.
+
+All rights reserved.
