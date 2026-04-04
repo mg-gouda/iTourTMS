@@ -74,3 +74,7 @@ public/uploads/
 # Documentation / specs (local only)
 *.md
 !README.md
+!CODE_OF_CONDUCT.md
+!CONTRIBUTING.md
+!SECURITY.md
+!.github/**/*.md
