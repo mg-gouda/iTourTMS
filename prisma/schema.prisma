@@ -76,6 +76,7 @@ model Company {
   fiscalYearEnd   Int      @default(12)
   timezone             String   @default("UTC")
   googlePlacesApiKey   String?
+  giataApiKey          String?
   hotelCodePrefix      String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -2423,8 +2424,9 @@ model ApiIntegration {
   company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   tourOperator     TourOperator          @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
   apiKey           ApiKey                @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  hotels           ApiIntegrationHotel[]
+  hotels            ApiIntegrationHotel[]
   webhookDeliveries WebhookDelivery[]
+  incomingWebhooks  IncomingWebhook[]
 
   @@unique([companyId, tourOperatorId])
   @@index([companyId])
@@ -2463,6 +2465,22 @@ model WebhookDelivery {
   @@index([apiIntegrationId])
   @@index([event])
   @@index([createdAt])
+}
+
+model IncomingWebhook {
+  id               String    @id @default(cuid())
+  apiIntegrationId String
+  event            String?
+  payload          Json
+  verified         Boolean   @default(false)
+  ipAddress        String?
+  createdAt        DateTime  @default(now())
+
+  integration ApiIntegration @relation(fields: [apiIntegrationId], references: [id], onDelete: Cascade)
+
+  @@index([apiIntegrationId])
+  @@index([createdAt])
+  @@map("incoming_webhook")
 }
 
 // ============================================================================
@@ -2643,6 +2661,10 @@ model Booking {
   // Hotel payment
   hotelPaymentMethod HotelPaymentMethod?
   paymentOptionDate  DateTime?           @db.Date
+
+  // Hotel confirmation
+  hotelConfNo        String?
+  confirmationFile   String?
 
   // Misc
   specialRequests    String?             @db.Text
@@ -3716,6 +3738,17 @@ model PublicSiteBranding {
   // Trust badges
   yearsInBusiness Int?
   happyGuests     Int?
+  // Newsletter section
+  newsletterImageUrl   String?
+  newsletterHeading    String?  @default("Stay Updated")
+  newsletterSubheading String?  @db.Text
+  newsletterCtaText    String?  @default("Subscribe")
+  newsletterFeature1Title String?
+  newsletterFeature1Desc  String?
+  newsletterFeature2Title String?
+  newsletterFeature2Desc  String?
+  newsletterFeature3Title String?
+  newsletterFeature3Desc  String?
   // Custom CSS
   customCss       String?      @db.Text
   defaultMarketId String?

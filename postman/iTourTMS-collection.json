@@ -1,0 +1,515 @@
+{
+  "info": {
+    "_postman_id": "itour-tms-api-collection",
+    "name": "iTourTMS API v1",
+    "description": "Full API collection for iTourTMS integration testing.\n\nSetup:\n1. Import the environment file `iTourTMS-environment.json`\n2. Set `api_key` to your plain API key from Settings → Integrations\n3. Run requests in order — IDs from responses auto-fill into variables\n\nAuth: Bearer token in Authorization header (all endpoints except webhook receive)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [],
+  "item": [
+    {
+      "name": "🏨 Hotels",
+      "item": [
+        {
+          "name": "List Hotels",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.length > 0) {",
+                  "  pm.environment.set('hotel_id', res.data[0].id);",
+                  "  console.log('hotel_id set to:', res.data[0].id, '-', res.data[0].name);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels?page=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            },
+            "description": "List hotels assigned to this API integration that have at least one PUBLISHED contract.\n\nThe first hotel ID is automatically saved to the `hotel_id` environment variable."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Hotel by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}"]
+            },
+            "description": "Get full details for a single hotel including room types, meal bases, and amenities."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📄 Contracts",
+      "item": [
+        {
+          "name": "List Contracts for Hotel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.length > 0) {",
+                  "  pm.environment.set('contract_id', res.data[0].id);",
+                  "  console.log('contract_id set to:', res.data[0].id, '-', res.data[0].name);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts"]
+            },
+            "description": "List all PUBLISHED contracts for the given hotel.\n\nThe first contract ID is automatically saved to `contract_id`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contract Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) {",
+                  "  const seasons = res.data.seasons;",
+                  "  const roomTypes = res.data.roomTypes;",
+                  "  const mealBases = res.data.mealBases;",
+                  "  if (seasons && seasons.length > 0) {",
+                  "    pm.environment.set('season_id', seasons[0].id);",
+                  "    console.log('season_id set to:', seasons[0].id);",
+                  "  }",
+                  "  if (roomTypes && roomTypes.length > 0) {",
+                  "    pm.environment.set('room_type_id', roomTypes[0].roomTypeId);",
+                  "    console.log('room_type_id set to:', roomTypes[0].roomTypeId);",
+                  "  }",
+                  "  if (mealBases && mealBases.length > 0) {",
+                  "    pm.environment.set('meal_basis_id', mealBases[0].mealBasisId);",
+                  "    console.log('meal_basis_id set to:', mealBases[0].mealBasisId);",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts/{{contract_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts", "{{contract_id}}"]
+            },
+            "description": "Get full contract detail including seasons, room types, meal bases, and base rates.\n\nAutomatically saves season_id, room_type_id, and meal_basis_id from the first items in each list."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contract Rates",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts/{{contract_id}}/rates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts", "{{contract_id}}", "rates"]
+            },
+            "description": "Get the full rates matrix: base rates per season, supplements, special offers, and child policies."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Availability & Allotments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts/{{contract_id}}/availability",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts", "{{contract_id}}", "availability"]
+            },
+            "description": "Get allotment blocks and stop-sale periods for the contract."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Contract PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts/{{contract_id}}/pdf",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts", "{{contract_id}}", "pdf"]
+            },
+            "description": "Download the contract as a PDF file. Response is application/pdf."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🧮 Rate Calculator",
+      "item": [
+        {
+          "name": "Calculate Rate (2 Adults, BB)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seasonId\": \"{{season_id}}\",\n  \"roomTypeId\": \"{{room_type_id}}\",\n  \"mealBasisId\": \"{{meal_basis_id}}\",\n  \"adults\": 2,\n  \"children\": [],\n  \"extraBed\": false,\n  \"nights\": 7,\n  \"checkInDate\": \"2026-08-01\",\n  \"bookingDate\": \"2026-04-06\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts/{{contract_id}}/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts", "{{contract_id}}", "calculate"]
+            },
+            "description": "Calculate the buying + selling rate for a given room/meal/occupancy combination.\n\nReturns:\n- perNightRate, totalStay, totalStayAfterOffers (buying/net)\n- sellingRate.total with markup applied\n- Full breakdown per night\n\nRun 'Get Contract Detail' first to populate season_id, room_type_id, meal_basis_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Rate (1 Adult + 1 Child)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seasonId\": \"{{season_id}}\",\n  \"roomTypeId\": \"{{room_type_id}}\",\n  \"mealBasisId\": \"{{meal_basis_id}}\",\n  \"adults\": 1,\n  \"children\": [\n    { \"category\": \"CHILD\" }\n  ],\n  \"extraBed\": true,\n  \"nights\": 5,\n  \"checkInDate\": \"2026-09-10\",\n  \"bookingDate\": \"2026-04-06\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels/{{hotel_id}}/contracts/{{contract_id}}/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels", "{{hotel_id}}", "contracts", "{{contract_id}}", "calculate"]
+            },
+            "description": "Calculate rate for 1 adult + 1 child with extra bed."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📅 Bookings",
+      "item": [
+        {
+          "name": "Create Booking (with contract rates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.id) {",
+                  "  pm.environment.set('booking_id', res.data.id);",
+                  "  console.log('booking_id set to:', res.data.id, '| code:', res.data.code);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hotelId\": \"{{hotel_id}}\",\n  \"contractId\": \"{{contract_id}}\",\n  \"checkIn\": \"2026-08-01\",\n  \"checkOut\": \"2026-08-08\",\n  \"leadGuestName\": \"John Smith\",\n  \"leadGuestEmail\": \"john.smith@example.com\",\n  \"leadGuestPhone\": \"+44 7700 900123\",\n  \"externalRef\": \"TO-REF-00001\",\n  \"specialRequests\": \"High floor, sea view if possible\",\n  \"rooms\": [\n    {\n      \"roomTypeId\": \"{{room_type_id}}\",\n      \"mealBasisId\": \"{{meal_basis_id}}\",\n      \"adults\": 2,\n      \"children\": 0,\n      \"extraBed\": false\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Create a booking. Rates are auto-calculated from the contract.\n\nRequires `reservations:write` permission on the API key.\n\nThe booking code (BK-xxxxx) and ID are automatically saved to `booking_id`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Booking (manual rates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.id) {",
+                  "  pm.environment.set('booking_id', res.data.id);",
+                  "  console.log('booking_id set to:', res.data.id, '| code:', res.data.code);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hotelId\": \"{{hotel_id}}\",\n  \"checkIn\": \"2026-09-01\",\n  \"checkOut\": \"2026-09-07\",\n  \"manualRate\": true,\n  \"currencyId\": \"PASTE_CURRENCY_ID_HERE\",\n  \"leadGuestName\": \"Jane Doe\",\n  \"leadGuestEmail\": \"jane.doe@example.com\",\n  \"externalRef\": \"TO-REF-00002\",\n  \"rooms\": [\n    {\n      \"roomTypeId\": \"{{room_type_id}}\",\n      \"mealBasisId\": \"{{meal_basis_id}}\",\n      \"adults\": 2,\n      \"children\": 0,\n      \"extraBed\": false,\n      \"buyingRatePerNight\": 120.00,\n      \"sellingRatePerNight\": 150.00\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Create a booking with manually entered rates instead of contract-calculated rates.\n\nSet `manualRate: true` and provide `buyingRatePerNight` + `sellingRatePerNight` per room.\n`currencyId` is required for manual rates."
+          },
+          "response": []
+        },
+        {
+          "name": "List Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bookings?page=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "bookings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" },
+                { "key": "status", "value": "NEW_BOOKING", "disabled": true },
+                { "key": "hotelId", "value": "{{hotel_id}}", "disabled": true }
+              ]
+            },
+            "description": "List all bookings created by this integration.\n\nOptional filters:\n- `status`: NEW_BOOKING, CONFIRMED, AMENDED, CANCELLED, NO_SHOW\n- `hotelId`: filter to a specific hotel"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bookings/{{booking_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "bookings", "{{booking_id}}"]
+            },
+            "description": "Get full detail for a single booking including rooms, guest info, and rate breakdown."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📋 Tariffs",
+      "item": [
+        {
+          "name": "List Tariffs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tariffs?hotelId={{hotel_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tariffs"],
+              "query": [
+                { "key": "hotelId", "value": "{{hotel_id}}" }
+              ]
+            },
+            "description": "List tariff sheets for the given hotel."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🪝 Webhooks",
+      "item": [
+        {
+          "name": "Receive Webhook — Valid Signature ✅",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Compute HMAC-SHA256 signature using the webhook secret",
+                  "const secret = pm.environment.get('webhook_secret');",
+                  "const body = pm.request.body.raw;",
+                  "",
+                  "const encoder = new TextEncoder();",
+                  "const keyData = encoder.encode(secret);",
+                  "const msgData = encoder.encode(body);",
+                  "",
+                  "crypto.subtle.importKey(",
+                  "  'raw', keyData,",
+                  "  { name: 'HMAC', hash: 'SHA-256' },",
+                  "  false, ['sign']",
+                  ").then(key =>",
+                  "  crypto.subtle.sign('HMAC', key, msgData)",
+                  ").then(sig => {",
+                  "  const hex = Array.from(new Uint8Array(sig))",
+                  "    .map(b => b.toString(16).padStart(2, '0'))",
+                  "    .join('');",
+                  "  pm.request.headers.upsert({ key: 'x-webhook-signature', value: hex });",
+                  "  console.log('Signature computed:', hex.substring(0, 20) + '...');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-webhook-signature", "value": "computed-by-pre-request-script", "description": "Auto-replaced by the Pre-request Script" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"booking.created\",\n  \"data\": {\n    \"bookingRef\": \"TO-REF-00042\",\n    \"hotelCode\": \"GPH\",\n    \"checkIn\": \"2026-08-01\",\n    \"checkOut\": \"2026-08-07\",\n    \"guests\": 2,\n    \"roomType\": \"DBL\",\n    \"mealBasis\": \"BB\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/receive/{{webhook_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", "receive", "{{webhook_token}}"]
+            },
+            "description": "Simulates a tour operator sending a signed webhook to your system.\n\nThe Pre-request Script automatically computes the HMAC-SHA256 signature from `webhook_secret` and sets the `x-webhook-signature` header.\n\nExpected response: { received: true, event: \"booking.created\", verified: true }"
+          },
+          "response": []
+        },
+        {
+          "name": "Receive Webhook — Wrong Signature ❌",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-webhook-signature", "value": "0000000000000000000000000000000000000000000000000000000000000000" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"booking.cancelled\",\n  \"data\": {\n    \"bookingRef\": \"TO-REF-00042\",\n    \"reason\": \"Guest request\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/receive/{{webhook_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", "receive", "{{webhook_token}}"]
+            },
+            "description": "Tests signature rejection.\n\nExpected response: 401 UNAUTHORIZED\nThe failed attempt is still logged in the incoming webhook log (verified: false)."
+          },
+          "response": []
+        },
+        {
+          "name": "Receive Webhook — Unknown Token 🔍",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"test\",\n  \"data\": {}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/receive/unknowntoken1234567890abcdef",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", "receive", "unknowntoken1234567890abcdef"]
+            },
+            "description": "Tests a completely unknown token.\n\nExpected response: 404 NOT_FOUND"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⚠️ Error Cases",
+      "item": [
+        {
+          "name": "Missing API Key → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels"]
+            },
+            "description": "No Authorization header. Expected: 401 UNAUTHORIZED"
+          },
+          "response": []
+        },
+        {
+          "name": "Wrong API Key → 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer itms_wrongkeyvalue" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/hotels",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "hotels"]
+            },
+            "description": "Bad API key. Expected: 401 UNAUTHORIZED"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

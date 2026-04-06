@@ -1,0 +1,67 @@
+{
+  "id": "itour-tms-local-env",
+  "name": "iTourTMS Local",
+  "_postman_variable_scope": "environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "api_key",
+      "value": "PASTE_YOUR_PLAIN_API_KEY_HERE",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "webhook_token",
+      "value": "21360cd382ba8733d4d2c2fb65b95aea811c5af947eef41b",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "webhook_secret",
+      "value": "whsec_6b08e7861df08b9e46f0b458d35cf9ac0b6dd800d0dbfaec7ca49a9b5b5036cd",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "hotel_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "contract_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "season_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "room_type_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "meal_basis_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "booking_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ]
+}

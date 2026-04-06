@@ -11,6 +11,7 @@ import { settingsRouter } from "@/server/trpc/routers/shared/settings";
 import { setupRouter } from "@/server/trpc/routers/shared/setup";
 import { userRouter } from "@/server/trpc/routers/shared/user";
 import { notificationRouter } from "@/server/trpc/routers/shared/notification";
+import { giataRouter } from "@/server/trpc/routers/shared/giata";
 
 export const appRouter = createTRPCRouter({
   setup: setupRouter,
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
   traffic: trafficRouter,
   apiIntegration: apiIntegrationRouter,
   notification: notificationRouter,
+  giata: giataRouter,
   crm: crmRouter,
   b2cSite: b2cSiteRouter,
   b2bPortal: b2bPortalRouter,

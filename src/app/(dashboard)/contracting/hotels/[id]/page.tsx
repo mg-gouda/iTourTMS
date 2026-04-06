@@ -3,11 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { Plus, X } from "lucide-react";
+import { ExternalLink, Link2, Link2Off, Loader2, Plus, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,6 @@ import {
   roomTypeUpdateSchema,
   childPolicyCreateSchema,
   mealBasisCreateSchema,
-  hotelImageCreateSchema,
 } from "@/lib/validations/contracting";
 
 // ============================================================================
@@ -404,11 +403,26 @@ function AmenitiesCard({ hotel }: { hotel: any }) {
   const createAmenityMutation = trpc.contracting.hotel.createAmenity.useMutation({
     onSuccess: () => {
       utils.contracting.hotel.listAmenities.invalidate();
-      setNewAmenityName("");
-      toast.success("Amenity created");
     },
     onError: (err) => toast.error(err.message),
   });
+
+  async function createAmenities() {
+    const names = newAmenityName
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
+    let created = 0;
+    for (const name of names) {
+      try {
+        await createAmenityMutation.mutateAsync({ name });
+        created++;
+      } catch { /* skip duplicates / errors */ }
+    }
+    setNewAmenityName("");
+    if (created > 0) toast.success(`${created} amenit${created === 1 ? "y" : "ies"} created`);
+  }
 
   const updateHotelMutation = trpc.contracting.hotel.update.useMutation({
     onSuccess: () => {
@@ -479,12 +493,13 @@ function AmenitiesCard({ hotel }: { hotel: any }) {
                 <Input
                   value={newAmenityName}
                   onChange={(e) => setNewAmenityName(e.target.value)}
-                  placeholder="e.g. Swimming Pool"
+                  placeholder="e.g. Pool, Spa, Gym"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); createAmenities(); } }}
                 />
                 <Button
                   size="sm"
                   disabled={!newAmenityName.trim() || createAmenityMutation.isPending}
-                  onClick={() => createAmenityMutation.mutate({ name: newAmenityName.trim() })}
+                  onClick={createAmenities}
                 >
                   Create
                 </Button>
@@ -525,6 +540,252 @@ function AmenitiesCard({ hotel }: { hotel: any }) {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+// ============================================================================
+// GIATA Card
+// ============================================================================
+
+function GiataCard({ hotel }: { hotel: any }) {
+  const utils = trpc.useUtils();
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [searchName, setSearchName] = useState(hotel.name ?? "");
+  const [countryCode, setCountryCode] = useState(hotel.country?.iso2 ?? "");
+  const [enrichFields, setEnrichFields] = useState({
+    description: true,
+    address: true,
+    coordinates: true,
+    images: true,
+  });
+
+  const searchQuery = trpc.giata.search.useQuery(
+    { name: searchName, countryCode: countryCode || undefined },
+    { enabled: linkOpen && searchName.length >= 2 },
+  );
+
+  const linkMutation = trpc.giata.link.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.getById.invalidate({ id: hotel.id });
+      toast.success("GIATA linked successfully");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const unlinkMutation = trpc.giata.unlink.useMutation({
+    onSuccess: () => {
+      utils.contracting.hotel.getById.invalidate({ id: hotel.id });
+      toast.success("GIATA link removed");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const enrichMutation = trpc.giata.enrich.useMutation({
+    onSuccess: (res) => {
+      utils.contracting.hotel.getById.invalidate({ id: hotel.id });
+      toast.success(
+        `Enriched from GIATA — ${res.imagesImported} image(s) imported`,
+      );
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function handleSelectResult(giataId: number) {
+    linkMutation.mutate({ hotelId: hotel.id, giataId: String(giataId) });
+    setLinkOpen(false);
+  }
+
+  function handleEnrich() {
+    if (!hotel.giataId) return;
+    enrichMutation.mutate({
+      hotelId: hotel.id,
+      giataId: Number(hotel.giataId),
+      fields: enrichFields,
+    });
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <span>GIATA</span>
+            {hotel.giataId && (
+              <Badge variant="secondary" className="font-mono">
+                ID: {hotel.giataId}
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex gap-2">
+            {hotel.giataId ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={handleEnrich}
+                  disabled={enrichMutation.isPending}
+                >
+                  {enrichMutation.isPending ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <ExternalLink className="size-3" />
+                  )}
+                  Enrich
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => setLinkOpen(true)}
+                >
+                  <Link2 className="size-3" />
+                  Relink
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1 text-destructive hover:text-destructive"
+                  onClick={() => unlinkMutation.mutate({ hotelId: hotel.id })}
+                  disabled={unlinkMutation.isPending}
+                >
+                  <Link2Off className="size-3" />
+                  Unlink
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className="gap-1"
+                onClick={() => setLinkOpen(true)}
+              >
+                <Link2 className="size-3" />
+                Link GIATA
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {hotel.giataId ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                This hotel is linked to GIATA ID{" "}
+                <span className="font-mono font-medium">{hotel.giataId}</span>.
+                Click <strong>Enrich</strong> to import description, address,
+                coordinates and images from GIATA Drive.
+              </p>
+              <div className="rounded-md border p-3 space-y-2">
+                <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
+                  Enrich Options
+                </p>
+                {(
+                  [
+                    ["description", "Description"],
+                    ["address", "Address & ZIP"],
+                    ["coordinates", "Lat / Long"],
+                    ["images", "Images (from GIATA)"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={enrichFields[key]}
+                      onChange={(e) =>
+                        setEnrichFields((prev) => ({
+                          ...prev,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Not linked to GIATA. Click{" "}
+              <strong>Link GIATA</strong> to search and connect this hotel to
+              the GIATA Drive database for content enrichment.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Link Dialog */}
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link to GIATA</DialogTitle>
+            <DialogDescription>
+              Search the GIATA Drive database and select the matching property.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder="Hotel name..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                />
+              </div>
+              <Input
+                className="w-24"
+                placeholder="Country"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
+                maxLength={2}
+              />
+            </div>
+
+            <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+              {searchQuery.isLoading && (
+                <div className="flex items-center justify-center py-6 text-muted-foreground gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Searching GIATA...
+                </div>
+              )}
+              {!searchQuery.isLoading &&
+                searchQuery.data?.length === 0 && (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    No results found
+                  </div>
+                )}
+              {(searchQuery.data ?? []).map((result) => (
+                <button
+                  key={result.giataId}
+                  type="button"
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                  onClick={() => handleSelectResult(result.giataId)}
+                >
+                  <div>
+                    <p className="text-sm font-medium">{result.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {result.city}
+                      {result.country ? `, ${result.country}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="font-mono text-xs shrink-0">
+                    {result.giataId}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -577,6 +838,8 @@ function OverviewTab({ hotel }: { hotel: any }) {
       </Card>
 
       <AmenitiesCard hotel={hotel} />
+
+      <GiataCard hotel={hotel} />
 
       {hotel.description && (
         <Card className="md:col-span-2">
@@ -1857,18 +2120,13 @@ function GalleryTab({
   images: any[];
 }) {
   const utils = trpc.useUtils();
-  const [addOpen, setAddOpen] = useState(false);
-
-  const form = useForm<z.input<typeof hotelImageCreateSchema>>({
-    resolver: zodResolver(hotelImageCreateSchema),
-    defaultValues: { hotelId, url: "", caption: "", sortOrder: 0, isPrimary: false },
-  });
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const addMutation = trpc.contracting.hotel.addImage.useMutation({
     onSuccess: () => {
       utils.contracting.hotel.getById.invalidate({ id: hotelId });
-      setAddOpen(false);
-      form.reset();
     },
   });
 
@@ -1880,15 +2138,87 @@ function GalleryTab({
     onSuccess: () => utils.contracting.hotel.getById.invalidate({ id: hotelId }),
   });
 
+  async function uploadFiles(files: FileList | File[]) {
+    const fileArr = Array.from(files).filter((f) =>
+      ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"].includes(f.type),
+    );
+    if (fileArr.length === 0) return;
+
+    setUploading(true);
+    let uploaded = 0;
+    for (const file of fileArr) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name}: too large (max 5 MB)`);
+        continue;
+      }
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "hotels");
+        const res = await fetch("/api/upload/image", { method: "POST", body: formData });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Upload failed");
+        await addMutation.mutateAsync({
+          hotelId,
+          url: json.url,
+          caption: file.name.replace(/\.[^.]+$/, ""),
+          sortOrder: images.length + uploaded,
+          isPrimary: images.length === 0 && uploaded === 0,
+        });
+        uploaded++;
+      } catch (err) {
+        toast.error(`${file.name}: ${err instanceof Error ? err.message : "failed"}`);
+      }
+    }
+    setUploading(false);
+    if (uploaded > 0) toast.success(`${uploaded} image${uploaded === 1 ? "" : "s"} uploaded`);
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setAddOpen(true)}>Add Image</Button>
+      {/* Drop zone / upload area */}
+      <div
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 transition-colors hover:border-primary/50 ${
+          dragOver ? "border-primary bg-primary/5" : "bg-muted/50"
+        }`}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+        }}
+      >
+        {uploading ? (
+          <p className="text-sm text-muted-foreground">Uploading...</p>
+        ) : (
+          <>
+            <Plus className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Click or drag to upload images (multiple allowed)
+            </p>
+            <p className="text-xs text-muted-foreground">
+              PNG, JPG, WEBP, GIF — max 5 MB each
+            </p>
+          </>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.length) uploadFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
       </div>
 
       {images.length === 0 ? (
-        <div className="py-8 text-center text-muted-foreground">
-          No images yet. Add image URLs to build the gallery.
+        <div className="py-4 text-center text-muted-foreground">
+          No images yet.
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -1940,82 +2270,6 @@ function GalleryTab({
           ))}
         </div>
       )}
-
-      {/* Add Image Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Image</DialogTitle>
-            <DialogDescription>
-              Enter a URL for the hotel image.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit((v) => addMutation.mutate(v))}
-              className="space-y-4"
-            >
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Image URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://example.com/image.jpg"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="caption"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Caption</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Hotel lobby"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="isPrimary"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Set as Primary Image</FormLabel>
-                  </FormItem>
-                )}
-              />
-              {addMutation.error && (
-                <p className="text-sm text-destructive">
-                  {addMutation.error.message}
-                </p>
-              )}
-              <DialogFooter>
-                <Button type="submit" disabled={addMutation.isPending}>
-                  {addMutation.isPending ? "Adding..." : "Add Image"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

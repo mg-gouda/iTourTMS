@@ -224,6 +224,75 @@ export const apiIntegrationRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  /**
+   * Hotels assigned to a specific TO, with their contract markets.
+   * Used to populate & filter the hotel list in the Create Integration dialog.
+   */
+  getHotelsForTO: proc
+    .input(z.object({ tourOperatorId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+
+      const assignments = await ctx.db.hotelTourOperator.findMany({
+        where: {
+          tourOperatorId: input.tourOperatorId,
+          hotel: { companyId },
+        },
+        include: {
+          hotel: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              contracts: {
+                select: {
+                  markets: {
+                    select: {
+                      market: { select: { id: true, name: true, code: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { hotel: { name: "asc" } },
+      });
+
+      return assignments.map((a) => {
+        const marketMap = new Map<string, { id: string; name: string; code: string }>();
+        a.hotel.contracts.forEach((c) =>
+          c.markets.forEach((cm) => marketMap.set(cm.market.id, cm.market)),
+        );
+        return {
+          id: a.hotel.id,
+          name: a.hotel.name,
+          code: a.hotel.code,
+          markets: Array.from(marketMap.values()),
+        };
+      });
+    }),
+
+  listIncomingWebhooks: proc
+    .input(
+      z.object({
+        integrationId: z.string(),
+        pageSize: z.number().int().min(1).max(100).default(50),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const companyId = ctx.session.user.companyId!;
+      await ctx.db.apiIntegration.findFirstOrThrow({
+        where: { id: input.integrationId, companyId },
+        select: { id: true },
+      });
+      return ctx.db.incomingWebhook.findMany({
+        where: { apiIntegrationId: input.integrationId },
+        orderBy: { createdAt: "desc" },
+        take: input.pageSize,
+      });
+    }),
+
   listDeliveries: proc
     .input(
       z.object({

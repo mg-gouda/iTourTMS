@@ -66,6 +66,7 @@ export default function TourOperatorDetailPage() {
   const [selectedContractIds, setSelectedContractIds] = useState<Set<string>>(new Set());
   const [hotelSearch, setHotelSearch] = useState("");
   const [contractSearch, setContractSearch] = useState("");
+  const [contractMarketFilter, setContractMarketFilter] = useState("all");
 
   const { data: to, isLoading } = trpc.contracting.tourOperator.getById.useQuery(
     { id: params.id },
@@ -148,11 +149,11 @@ export default function TourOperatorDetailPage() {
 
   // Already-assigned IDs for filtering out from selection
   const assignedHotelIds = useMemo(
-    () => new Set((to?.hotelAssignments ?? []).map((a) => a.hotel.id)),
+    () => new Set((to?.hotelAssignments ?? []).filter((a) => a.hotel).map((a) => a.hotel.id)),
     [to?.hotelAssignments],
   );
   const assignedContractIdSet = useMemo(
-    () => new Set((to?.contractAssignments ?? []).map((a) => a.contract.id)),
+    () => new Set((to?.contractAssignments ?? []).filter((a) => a.contract).map((a) => a.contract.id)),
     [to?.contractAssignments],
   );
 
@@ -169,7 +170,15 @@ export default function TourOperatorDetailPage() {
   }, [allHotels, assignedHotelIds, hotelSearch]);
 
   const availableContracts = useMemo(() => {
-    const list = (allContracts ?? []).filter((c) => !assignedContractIdSet.has(c.id));
+    let list = (allContracts ?? []).filter((c) => !assignedContractIdSet.has(c.id));
+
+    // Market filter
+    if (contractMarketFilter !== "all") {
+      list = list.filter((c) =>
+        c.markets?.some((m) => m.marketId === contractMarketFilter),
+      );
+    }
+
     const q = contractSearch.toLowerCase().trim();
     if (!q) return list;
     const marketMap = new Map((markets ?? []).map((m) => [m.id, m]));
@@ -187,7 +196,7 @@ export default function TourOperatorDetailPage() {
           );
         }),
     );
-  }, [allContracts, assignedContractIdSet, contractSearch, markets]);
+  }, [allContracts, assignedContractIdSet, contractSearch, contractMarketFilter, markets]);
 
   function onSubmit(values: FormValues) {
     updateMutation.mutate({ id: params.id, data: values });
@@ -486,7 +495,7 @@ export default function TourOperatorDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {to.contractAssignments.map((a) => (
+                    {to.contractAssignments.filter((a) => a.contract).map((a) => (
                       <TableRow key={a.id}>
                         <TableCell>
                           <Link
@@ -570,7 +579,7 @@ export default function TourOperatorDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {to.hotelAssignments.map((a) => (
+                    {to.hotelAssignments.filter((a) => a.hotel).map((a) => (
                       <TableRow key={a.id}>
                         <TableCell>
                           <Link
@@ -740,6 +749,7 @@ export default function TourOperatorDetailPage() {
           if (!open) {
             setSelectedContractIds(new Set());
             setContractSearch("");
+            setContractMarketFilter("all");
           }
         }}
       >
@@ -751,12 +761,27 @@ export default function TourOperatorDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Input
-              placeholder="Search contracts..."
-              value={contractSearch}
-              onChange={(e) => setContractSearch(e.target.value)}
-              className="h-8"
-            />
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search contracts..."
+                value={contractSearch}
+                onChange={(e) => setContractSearch(e.target.value)}
+                className="h-8"
+              />
+              <Select value={contractMarketFilter} onValueChange={setContractMarketFilter}>
+                <SelectTrigger className="h-8 w-36 shrink-0">
+                  <SelectValue placeholder="All markets" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All markets</SelectItem>
+                  {(markets ?? []).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-0.5">
               {availableContracts.map((c) => (
                 <label
@@ -793,7 +818,9 @@ export default function TourOperatorDetailPage() {
               ))}
               {availableContracts.length === 0 && (
                 <p className="text-xs text-muted-foreground py-3 text-center">
-                  {contractSearch ? "No contracts match your search" : "No unassigned contracts available"}
+                  {contractSearch || contractMarketFilter !== "all"
+                    ? "No contracts match your filters"
+                    : "No unassigned contracts available"}
                 </p>
               )}
             </div>

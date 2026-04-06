@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ApiIntegrationsTab } from "./_components/api-integrations-tab";
@@ -74,6 +74,16 @@ const timezoneOptions: ComboboxOption[] = [
 ];
 
 export default function SettingsPage() {
+  // Single shared query — all tabs receive data as props to avoid
+  // multiple parallel fetches of the same endpoint.
+  const { data, isLoading } = trpc.settings.getCompanySettings.useQuery();
+  const utils = trpc.useUtils();
+
+  const refresh = () => {
+    utils.settings.getCompanySettings.invalidate();
+    utils.settings.getGooglePlacesKey.invalidate();
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -93,7 +103,7 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
-          <GeneralSettings />
+          <GeneralSettings data={data} isLoading={isLoading} onSaved={refresh} />
         </TabsContent>
 
         <TabsContent value="license" className="mt-4">
@@ -101,15 +111,15 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="branding" className="mt-4">
-          <BrandingSettings />
+          <BrandingSettings data={data} isLoading={isLoading} onUploaded={refresh} />
         </TabsContent>
 
         <TabsContent value="contracting" className="mt-4">
-          <ContractingSettings />
+          <ContractingSettings data={data} onSaved={refresh} />
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-4">
-          <IntegrationsSettings />
+          <IntegrationsSettings data={data} onSaved={refresh} />
         </TabsContent>
       </Tabs>
     </div>
@@ -120,14 +130,42 @@ export default function SettingsPage() {
 // General Settings Tab
 // ---------------------------------------------------------------------------
 
-function GeneralSettings() {
-  const { data, isLoading } = trpc.settings.getCompanySettings.useQuery();
-  const utils = trpc.useUtils();
+interface CompanySettings {
+  id: string;
+  name: string;
+  legalName: string | null;
+  taxId: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  loginLogoUrl: string | null;
+  sidebarLogoUrl: string | null;
+  loginBgUrl: string | null;
+  innerBgUrl: string | null;
+  reportsLogoUrl: string | null;
+  timezone: string;
+  googlePlacesApiKey: string | null;
+  giataApiKey: string | null;
+  hotelCodePrefix: string | null;
+  fiscalYearStart: number | null;
+  fiscalYearEnd: number | null;
+  country: { id: string; name: string; code: string } | null;
+  baseCurrency: { id: string; code: string; name: string } | null;
+}
+
+function GeneralSettings({
+  data,
+  isLoading,
+  onSaved,
+}: {
+  data: CompanySettings | null | undefined;
+  isLoading: boolean;
+  onSaved: () => void;
+}) {
   const updateMutation = trpc.settings.updateCompanySettings.useMutation({
-    onSuccess: () => {
-      toast.success("Settings saved");
-      utils.settings.getCompanySettings.invalidate();
-    },
+    onSuccess: () => { toast.success("Settings saved"); onSaved(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -141,18 +179,19 @@ function GeneralSettings() {
     timezone: string;
   } | null>(null);
 
-  // Initialize form when data loads
-  if (data && !form) {
-    setForm({
-      name: data.name,
-      legalName: data.legalName ?? "",
-      taxId: data.taxId ?? "",
-      phone: data.phone ?? "",
-      email: data.email ?? "",
-      website: data.website ?? "",
-      timezone: data.timezone,
-    });
-  }
+  useEffect(() => {
+    if (data) {
+      setForm({
+        name: data.name,
+        legalName: data.legalName ?? "",
+        taxId: data.taxId ?? "",
+        phone: data.phone ?? "",
+        email: data.email ?? "",
+        website: data.website ?? "",
+        timezone: data.timezone,
+      });
+    }
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -290,19 +329,30 @@ function GeneralSettings() {
 // Branding Settings Tab
 // ---------------------------------------------------------------------------
 
-function BrandingSettings() {
-  const { data, isLoading } = trpc.settings.getCompanySettings.useQuery();
-  const utils = trpc.useUtils();
-
-  const handleUploaded = () => {
-    utils.settings.getCompanySettings.invalidate();
-  };
-
-  if (isLoading || !data) {
+function BrandingSettings({
+  data,
+  isLoading,
+  onUploaded,
+}: {
+  data: CompanySettings | null | undefined;
+  isLoading: boolean;
+  onUploaded: () => void;
+}) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="py-10 text-center text-muted-foreground">
           Loading...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">
+          Unable to load branding settings.
         </CardContent>
       </Card>
     );
@@ -321,7 +371,7 @@ function BrandingSettings() {
             currentUrl={data.logoUrl}
             label="Logo"
             hint="Recommended: 200x200px or larger. PNG, SVG, or JPG."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
           />
         </CardContent>
       </Card>
@@ -337,7 +387,7 @@ function BrandingSettings() {
             currentUrl={data.faviconUrl}
             label="Favicon"
             hint="Recommended: 32x32px or 64x64px. PNG, SVG, or ICO."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
           />
         </CardContent>
       </Card>
@@ -353,7 +403,7 @@ function BrandingSettings() {
             currentUrl={data.loginLogoUrl}
             label="Login Logo"
             hint="Displayed above the login form. PNG, SVG, or JPG."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
           />
         </CardContent>
       </Card>
@@ -369,7 +419,7 @@ function BrandingSettings() {
             currentUrl={data.sidebarLogoUrl}
             label="Sidebar Logo"
             hint="Replaces the default iTourTMS text in the sidebar header."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
           />
         </CardContent>
       </Card>
@@ -385,7 +435,7 @@ function BrandingSettings() {
             currentUrl={data.loginBgUrl}
             label="Login Background"
             hint="Recommended: 1920x1080px. Falls back to default gradient if empty."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
             aspectClass="aspect-video"
           />
         </CardContent>
@@ -402,7 +452,7 @@ function BrandingSettings() {
             currentUrl={data.innerBgUrl}
             label="Inner Background"
             hint="Optional subtle pattern or watermark. PNG or SVG."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
             aspectClass="aspect-video"
           />
         </CardContent>
@@ -419,7 +469,7 @@ function BrandingSettings() {
             currentUrl={data.reportsLogoUrl}
             label="Reports Logo"
             hint="Recommended: transparent PNG, at least 300px wide."
-            onUploaded={handleUploaded}
+            onUploaded={onUploaded}
             aspectClass="aspect-video"
           />
         </CardContent>
@@ -432,34 +482,39 @@ function BrandingSettings() {
 // Contracting Settings Tab
 // ---------------------------------------------------------------------------
 
-function ContractingSettings() {
+function ContractingSettings({
+  data,
+  onSaved,
+}: {
+  data: CompanySettings | null | undefined;
+  onSaved: () => void;
+}) {
   return (
     <div className="space-y-6">
-      <HotelCodePrefixSection />
+      <HotelCodePrefixSection data={data} onSaved={onSaved} />
     </div>
   );
 }
 
 // ── Hotel Code Prefix ──
 
-function HotelCodePrefixSection() {
-  const { data } = trpc.settings.getCompanySettings.useQuery();
-  const utils = trpc.useUtils();
+function HotelCodePrefixSection({
+  data,
+  onSaved,
+}: {
+  data: CompanySettings | null | undefined;
+  onSaved: () => void;
+}) {
   const updateMutation = trpc.settings.updateCompanySettings.useMutation({
-    onSuccess: () => {
-      toast.success("Hotel code prefix saved");
-      utils.settings.getCompanySettings.invalidate();
-    },
+    onSuccess: () => { toast.success("Hotel code prefix saved"); onSaved(); },
     onError: (err) => toast.error(err.message),
   });
 
   const [prefix, setPrefix] = useState("");
-  const [prefixInit, setPrefixInit] = useState(false);
 
-  if (data && !prefixInit) {
-    setPrefix(data.hotelCodePrefix ?? "");
-    setPrefixInit(true);
-  }
+  useEffect(() => {
+    if (data) setPrefix(data.hotelCodePrefix ?? "");
+  }, [data]);
 
   return (
     <Card>
@@ -591,25 +646,27 @@ function LicenseSettings() {
 // Integrations Settings Tab
 // ---------------------------------------------------------------------------
 
-function IntegrationsSettings() {
-  const { data } = trpc.settings.getCompanySettings.useQuery();
-  const utils = trpc.useUtils();
+function IntegrationsSettings({
+  data,
+  onSaved,
+}: {
+  data: CompanySettings | null | undefined;
+  onSaved: () => void;
+}) {
   const updateMutation = trpc.settings.updateCompanySettings.useMutation({
-    onSuccess: () => {
-      toast.success("Settings saved");
-      utils.settings.getCompanySettings.invalidate();
-      utils.settings.getGooglePlacesKey.invalidate();
-    },
+    onSuccess: () => { toast.success("Settings saved"); onSaved(); },
     onError: (err) => toast.error(err.message),
   });
 
   const [gpKey, setGpKey] = useState("");
-  const [gpKeyInit, setGpKeyInit] = useState(false);
+  const [giataKey, setGiataKey] = useState("");
 
-  if (data && !gpKeyInit) {
-    setGpKey(data.googlePlacesApiKey ?? "");
-    setGpKeyInit(true);
-  }
+  useEffect(() => {
+    if (data) {
+      setGpKey(data.googlePlacesApiKey ?? "");
+      setGiataKey(data.giataApiKey ?? "");
+    }
+  }, [data]);
 
   return (
     <Card>
@@ -655,30 +712,35 @@ function IntegrationsSettings() {
 
           <TabsContent value="giata" className="mt-4 space-y-4">
             <p className="text-sm text-muted-foreground">
-              GIATA provides hotel content data (descriptions, images, amenities).
-              Configure your API credentials below to enable hotel content import.
+              GIATA Drive provides hotel content (descriptions, images, coordinates).
+              Get your API key at{" "}
+              <a
+                href="https://console.giatamedia.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                console.giatamedia.com
+              </a>
+              .
             </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>API Base URL</Label>
-                <Input placeholder="https://api.giata.com/v1" disabled />
-              </div>
-              <div className="space-y-1.5">
-                <Label>API Key</Label>
-                <Input type="password" placeholder="Enter your GIATA API key" disabled />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Username</Label>
-                <Input placeholder="GIATA username" disabled />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Password</Label>
-                <Input type="password" placeholder="GIATA password" disabled />
-              </div>
+            <div className="max-w-md space-y-1.5">
+              <Label>GIATA Drive API Key</Label>
+              <Input
+                type="password"
+                placeholder="Enter your GIATA Drive API key"
+                value={giataKey}
+                onChange={(e) => setGiataKey(e.target.value)}
+              />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Integration fields will be enabled once the GIATA API module is configured.
-            </p>
+            <Button
+              disabled={updateMutation.isPending}
+              onClick={() =>
+                updateMutation.mutate({ giataApiKey: giataKey || null })
+              }
+            >
+              {updateMutation.isPending ? "Saving..." : "Save"}
+            </Button>
           </TabsContent>
 
           <TabsContent value="apiIntegrations" className="mt-4">
