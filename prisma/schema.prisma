@@ -1747,7 +1747,7 @@ model Contract {
   company        Company        @relation(fields: [companyId], references: [id])
   parentContract Contract?      @relation("ContractLineage", fields: [parentContractId], references: [id])
   childContracts Contract[]     @relation("ContractLineage")
-  hotel         Hotel          @relation(fields: [hotelId], references: [id])
+  hotel         Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   baseCurrency  Currency       @relation("ContractBaseCurrency", fields: [baseCurrencyId], references: [id])
   baseRoomType  HotelRoomType  @relation("ContractBaseRoom", fields: [baseRoomTypeId], references: [id])
   baseMealBasis HotelMealBasis @relation("ContractBaseMeal", fields: [baseMealBasisId], references: [id])
@@ -1816,7 +1816,7 @@ model ContractRoomType {
   sortOrder  Int     @default(0)
 
   contract Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  roomType HotelRoomType @relation(fields: [roomTypeId], references: [id])
+  roomType HotelRoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
 
   @@unique([contractId, roomTypeId])
   @@index([contractId])
@@ -1831,7 +1831,7 @@ model ContractMealBasis {
   sortOrder   Int     @default(0)
 
   contract  Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  mealBasis HotelMealBasis @relation(fields: [mealBasisId], references: [id])
+  mealBasis HotelMealBasis @relation(fields: [mealBasisId], references: [id], onDelete: Cascade)
 
   @@unique([contractId, mealBasisId])
   @@index([contractId])
@@ -1881,8 +1881,8 @@ model ContractSupplement {
 
   contract  Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
   season    ContractSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  roomType  HotelRoomType?  @relation(fields: [roomTypeId], references: [id])
-  mealBasis HotelMealBasis? @relation(fields: [mealBasisId], references: [id])
+  roomType  HotelRoomType?  @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
+  mealBasis HotelMealBasis? @relation(fields: [mealBasisId], references: [id], onDelete: SetNull)
 
   @@index([contractId])
   @@index([contractId, supplementType])
@@ -2007,7 +2007,7 @@ model ContractAllotment {
 
   contract Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
   season   ContractSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  roomType HotelRoomType   @relation(fields: [roomTypeId], references: [id])
+  roomType HotelRoomType   @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
 
   @@unique([contractId, seasonId, roomTypeId])
   @@index([contractId])
@@ -2025,7 +2025,7 @@ model ContractStopSale {
   updatedAt  DateTime  @updatedAt
 
   contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  roomType HotelRoomType? @relation(fields: [roomTypeId], references: [id])
+  roomType HotelRoomType? @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
 
   @@index([contractId])
   @@index([contractId, dateFrom, dateTo])
@@ -2234,10 +2234,10 @@ model MarkupRule {
 
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contract     Contract?     @relation(fields: [contractId], references: [id])
-  hotel        Hotel?        @relation("MarkupRuleHotel", fields: [hotelId], references: [id])
+  hotel        Hotel?        @relation("MarkupRuleHotel", fields: [hotelId], references: [id], onDelete: SetNull)
   destination  Destination?  @relation(fields: [destinationId], references: [id])
   market       Market?       @relation(fields: [marketId], references: [id])
-  tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
+  tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id], onDelete: SetNull)
   tariffs      Tariff[]
   bookings     Booking[]
 
@@ -2259,8 +2259,8 @@ model Tariff {
   updatedAt     DateTime @updatedAt
 
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contract     Contract      @relation(fields: [contractId], references: [id])
-  tourOperator TourOperator  @relation(fields: [tourOperatorId], references: [id])
+  contract     Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator  @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
   markupRule   MarkupRule?   @relation(fields: [markupRuleId], references: [id])
 
   @@index([companyId])
@@ -2704,10 +2704,10 @@ model Booking {
 
   // Relations
   company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  hotel          Hotel            @relation(fields: [hotelId], references: [id])
-  contract       Contract?        @relation(fields: [contractId], references: [id])
-  tourOperator   TourOperator?    @relation(fields: [tourOperatorId], references: [id])
-  season         ContractSeason?  @relation(fields: [seasonId], references: [id])
+  hotel          Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  contract       Contract?        @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  tourOperator   TourOperator?    @relation(fields: [tourOperatorId], references: [id], onDelete: SetNull)
+  season         ContractSeason?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   market         Market?          @relation(fields: [marketId], references: [id])
   currency       Currency         @relation("BookingCurrency", fields: [currencyId], references: [id])
   markupRule     MarkupRule?      @relation(fields: [markupRuleId], references: [id])
@@ -2779,8 +2779,8 @@ model BookingRoom {
   updatedAt           DateTime @updatedAt
 
   booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  roomType  HotelRoomType  @relation("BookingRoomType", fields: [roomTypeId], references: [id])
-  mealBasis HotelMealBasis @relation("BookingMealBasis", fields: [mealBasisId], references: [id])
+  roomType  HotelRoomType  @relation("BookingRoomType", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  mealBasis HotelMealBasis @relation("BookingMealBasis", fields: [mealBasisId], references: [id], onDelete: Cascade)
 
   guests    BookingGuest[]
 
@@ -3914,7 +3914,7 @@ model B2cMarkupRule {
 
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   destination Destination?  @relation(fields: [destinationId], references: [id])
-  hotel       Hotel?        @relation(fields: [hotelId], references: [id])
+  hotel       Hotel?        @relation(fields: [hotelId], references: [id], onDelete: SetNull)
   tiers       B2cMarkupTier[]
 
   @@index([companyId])
