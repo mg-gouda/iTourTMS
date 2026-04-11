@@ -91,6 +91,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         label: "Banking",
         routes: [
           { label: "Payments", href: "/finance/payments" },
+          { label: "Booking Reconciliation", href: "/finance/booking-reconciliation" },
           { label: "Statements", href: "/finance/banking/statements" },
           { label: "Reconciliation", href: "/finance/banking/reconciliation" },
           { label: "Batch Payments", href: "/finance/banking/batch-payments" },

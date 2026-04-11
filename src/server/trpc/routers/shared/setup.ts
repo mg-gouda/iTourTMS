@@ -57,21 +57,39 @@ export const setupRouter = createTRPCRouter({
           const expiresAt = new Date(now);
           expiresAt.setDate(expiresAt.getDate() + LICENSE_VALIDITY_DAYS);
 
+          // Find the currently active license to inherit companyId (for renewal)
+          const currentLicense = await ctx.db.license.findFirst({
+            where: { isActivated: true, isRevoked: false, companyId: { not: null } },
+            select: { companyId: true },
+          });
+          const inheritCompanyId = currentLicense?.companyId ?? null;
+
           // Revoke any previously activated licenses (for renewal)
           await ctx.db.license.updateMany({
             where: { isActivated: true, isRevoked: false },
-            data: { isRevoked: true },
+            data: { isRevoked: true, companyId: null },
           });
 
-          // Activate this license
+          // Activate this license and link to company
           const activated = await ctx.db.license.update({
             where: { id: license.id },
             data: {
               isActivated: true,
               activatedAt: now,
               expiresAt,
+              companyId: inheritCompanyId,
             },
           });
+
+          // Invalidate Redis license cache so middleware picks up the change
+          if (activated.companyId) {
+            try {
+              await ctx.redis.connect().catch(() => {});
+              await ctx.redis.del(`license:valid:${activated.companyId}`);
+            } catch {
+              // Redis unavailable — ignore
+            }
+          }
 
           return {
             licenseId: activated.id,
