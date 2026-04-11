@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Palette, Type, Layout, ToggleLeft, Globe, Share2 } from "lucide-react";
+import { Palette, Type, Layout, ToggleLeft, Globe, Share2, Mail } from "lucide-react";
+import { ImageUploader } from "@/components/shared/image-uploader";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -93,6 +94,16 @@ type FormState = {
   showPrices: boolean;
   yearsInBusiness: string;
   happyGuests: string;
+  newsletterImageUrl: string;
+  newsletterHeading: string;
+  newsletterSubheading: string;
+  newsletterCtaText: string;
+  newsletterFeature1Title: string;
+  newsletterFeature1Desc: string;
+  newsletterFeature2Title: string;
+  newsletterFeature2Desc: string;
+  newsletterFeature3Title: string;
+  newsletterFeature3Desc: string;
   customCss: string;
 };
 
@@ -148,6 +159,16 @@ export default function B2cSiteBrandingPage() {
     showPrices: true,
     yearsInBusiness: "",
     happyGuests: "",
+    newsletterImageUrl: "",
+    newsletterHeading: "Stay Updated",
+    newsletterSubheading: "",
+    newsletterCtaText: "Subscribe",
+    newsletterFeature1Title: "",
+    newsletterFeature1Desc: "",
+    newsletterFeature2Title: "",
+    newsletterFeature2Desc: "",
+    newsletterFeature3Title: "",
+    newsletterFeature3Desc: "",
     customCss: "",
   };
 
@@ -192,6 +213,16 @@ export default function B2cSiteBrandingPage() {
         showPrices: data.showPrices,
         yearsInBusiness: data.yearsInBusiness?.toString() ?? "",
         happyGuests: data.happyGuests?.toString() ?? "",
+        newsletterImageUrl: data.newsletterImageUrl ?? "",
+        newsletterHeading: data.newsletterHeading ?? "Stay Updated",
+        newsletterSubheading: data.newsletterSubheading ?? "",
+        newsletterCtaText: data.newsletterCtaText ?? "Subscribe",
+        newsletterFeature1Title: data.newsletterFeature1Title ?? "",
+        newsletterFeature1Desc: data.newsletterFeature1Desc ?? "",
+        newsletterFeature2Title: data.newsletterFeature2Title ?? "",
+        newsletterFeature2Desc: data.newsletterFeature2Desc ?? "",
+        newsletterFeature3Title: data.newsletterFeature3Title ?? "",
+        newsletterFeature3Desc: data.newsletterFeature3Desc ?? "",
         customCss: data.customCss ?? "",
       });
     } else {
@@ -261,6 +292,16 @@ export default function B2cSiteBrandingPage() {
       showPrices: form.showPrices,
       yearsInBusiness: form.yearsInBusiness ? parseInt(form.yearsInBusiness) : null,
       happyGuests: form.happyGuests ? parseInt(form.happyGuests) : null,
+      newsletterImageUrl: form.newsletterImageUrl || null,
+      newsletterHeading: form.newsletterHeading || null,
+      newsletterSubheading: form.newsletterSubheading || null,
+      newsletterCtaText: form.newsletterCtaText || null,
+      newsletterFeature1Title: form.newsletterFeature1Title || null,
+      newsletterFeature1Desc: form.newsletterFeature1Desc || null,
+      newsletterFeature2Title: form.newsletterFeature2Title || null,
+      newsletterFeature2Desc: form.newsletterFeature2Desc || null,
+      newsletterFeature3Title: form.newsletterFeature3Title || null,
+      newsletterFeature3Desc: form.newsletterFeature3Desc || null,
       customCss: form.customCss || null,
     });
   };
@@ -298,6 +339,7 @@ export default function B2cSiteBrandingPage() {
           <TabsTrigger value="layout"><Layout className="mr-1.5 h-3.5 w-3.5" />Layout</TabsTrigger>
           <TabsTrigger value="seo"><Globe className="mr-1.5 h-3.5 w-3.5" />SEO</TabsTrigger>
           <TabsTrigger value="social"><Share2 className="mr-1.5 h-3.5 w-3.5" />Social & Contact</TabsTrigger>
+          <TabsTrigger value="newsletter"><Mail className="mr-1.5 h-3.5 w-3.5" />Newsletter</TabsTrigger>
           <TabsTrigger value="features"><ToggleLeft className="mr-1.5 h-3.5 w-3.5" />Features</TabsTrigger>
         </TabsList>
 
@@ -474,6 +516,62 @@ export default function B2cSiteBrandingPage() {
                 <div className="space-y-1.5"><Label>Phone</Label><Input value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} /></div>
                 <div className="space-y-1.5"><Label>WhatsApp</Label><Input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+20..." /></div>
                 <div className="space-y-1.5"><Label>Address</Label><Textarea value={form.contactAddress} onChange={(e) => set("contactAddress", e.target.value)} rows={2} /></div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Newsletter */}
+        <TabsContent value="newsletter" className="mt-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Newsletter Section Design</CardTitle>
+                <CardDescription>Configure the newsletter section on the homepage</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <ImageUploader
+                  value={form.newsletterImageUrl || null}
+                  onChange={(url) => set("newsletterImageUrl", url ?? "")}
+                  folder="b2c"
+                  label="Left Panel Image"
+                  hint="Dark branded image for the left panel (recommended: 600x500px)"
+                />
+                <div className="space-y-1.5">
+                  <Label>Heading</Label>
+                  <Input value={form.newsletterHeading} onChange={(e) => set("newsletterHeading", e.target.value)} placeholder="Stay Updated" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Subheading</Label>
+                  <Textarea value={form.newsletterSubheading} onChange={(e) => set("newsletterSubheading", e.target.value)} placeholder="Subscribe to our newsletter for exclusive deals..." rows={2} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>CTA Button Text</Label>
+                  <Input value={form.newsletterCtaText} onChange={(e) => set("newsletterCtaText", e.target.value)} placeholder="Subscribe" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Feature Highlights</CardTitle>
+                <CardDescription>Up to 3 feature items displayed next to the newsletter form</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="rounded-lg border p-3 space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground">Feature 1</Label>
+                  <Input value={form.newsletterFeature1Title} onChange={(e) => set("newsletterFeature1Title", e.target.value)} placeholder="Title (e.g. Access special discounts)" />
+                  <Input value={form.newsletterFeature1Desc} onChange={(e) => set("newsletterFeature1Desc", e.target.value)} placeholder="Description" />
+                </div>
+                <div className="rounded-lg border p-3 space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground">Feature 2</Label>
+                  <Input value={form.newsletterFeature2Title} onChange={(e) => set("newsletterFeature2Title", e.target.value)} placeholder="Title (e.g. Enjoy great perks)" />
+                  <Input value={form.newsletterFeature2Desc} onChange={(e) => set("newsletterFeature2Desc", e.target.value)} placeholder="Description" />
+                </div>
+                <div className="rounded-lg border p-3 space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground">Feature 3</Label>
+                  <Input value={form.newsletterFeature3Title} onChange={(e) => set("newsletterFeature3Title", e.target.value)} placeholder="Title (e.g. Unlock bigger offers)" />
+                  <Input value={form.newsletterFeature3Desc} onChange={(e) => set("newsletterFeature3Desc", e.target.value)} placeholder="Description" />
+                </div>
               </CardContent>
             </Card>
           </div>

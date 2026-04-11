@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ImageUploader } from "@/components/shared/image-uploader";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -138,10 +139,13 @@ export default function BlogPostEditorPage() {
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Cover Image URL</Label>
-              <Input value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} placeholder="https://..." />
-            </div>
+            <ImageUploader
+              value={form.coverImage || null}
+              onChange={(url) => setForm({ ...form, coverImage: url ?? "" })}
+              folder="blog"
+              label="Cover Image"
+              hint="Recommended: 1200x630px. PNG, JPG, or WEBP."
+            />
             <div className="space-y-1.5">
               <Label>Tags (comma separated)</Label>
               <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="egypt, travel, tips" />

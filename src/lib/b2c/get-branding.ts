@@ -46,6 +46,16 @@ export interface PublicBranding {
   showPrices: boolean;
   yearsInBusiness: number | null;
   happyGuests: number | null;
+  newsletterImageUrl: string | null;
+  newsletterHeading: string | null;
+  newsletterSubheading: string | null;
+  newsletterCtaText: string | null;
+  newsletterFeature1Title: string | null;
+  newsletterFeature1Desc: string | null;
+  newsletterFeature2Title: string | null;
+  newsletterFeature2Desc: string | null;
+  newsletterFeature3Title: string | null;
+  newsletterFeature3Desc: string | null;
   customCss: string | null;
 }
 
@@ -92,6 +102,16 @@ const DEFAULT_BRANDING: PublicBranding = {
   showPrices: true,
   yearsInBusiness: null,
   happyGuests: null,
+  newsletterImageUrl: null,
+  newsletterHeading: "Stay Updated",
+  newsletterSubheading: null,
+  newsletterCtaText: "Subscribe",
+  newsletterFeature1Title: null,
+  newsletterFeature1Desc: null,
+  newsletterFeature2Title: null,
+  newsletterFeature2Desc: null,
+  newsletterFeature3Title: null,
+  newsletterFeature3Desc: null,
   customCss: null,
 };
 
@@ -154,6 +174,16 @@ export const getBranding = cache(async (): Promise<PublicBranding> => {
     showPrices: branding.showPrices,
     yearsInBusiness: branding.yearsInBusiness,
     happyGuests: branding.happyGuests,
+    newsletterImageUrl: branding.newsletterImageUrl,
+    newsletterHeading: branding.newsletterHeading,
+    newsletterSubheading: branding.newsletterSubheading,
+    newsletterCtaText: branding.newsletterCtaText,
+    newsletterFeature1Title: branding.newsletterFeature1Title,
+    newsletterFeature1Desc: branding.newsletterFeature1Desc,
+    newsletterFeature2Title: branding.newsletterFeature2Title,
+    newsletterFeature2Desc: branding.newsletterFeature2Desc,
+    newsletterFeature3Title: branding.newsletterFeature3Title,
+    newsletterFeature3Desc: branding.newsletterFeature3Desc,
     customCss: branding.customCss,
   };
 });

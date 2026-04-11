@@ -132,6 +132,7 @@ export function HotelResultCard({
               bookingParams.set("mealCode", room.mealCode);
               bookingParams.set("mealName", room.mealName);
               bookingParams.set("total", room.displayTotal.toFixed(2));
+              bookingParams.set("netTotal", room.total.toFixed(2));
               bookingParams.set("currency", currency);
               bookingParams.set("nights", String(nights));
               const bookingUrl = `/booking?${bookingParams.toString()}`;

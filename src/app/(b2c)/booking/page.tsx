@@ -42,6 +42,7 @@ function BookingFlow() {
   const adults = searchParams.get("adults") ?? "2";
   const children = searchParams.get("children") ?? "0";
   const total = searchParams.get("total") ?? "0";
+  const netTotal = searchParams.get("netTotal") ?? total;
   const currency = searchParams.get("currency") ?? "USD";
   const nationalityParam = searchParams.get("nationality") ?? "";
 
@@ -121,6 +122,7 @@ function BookingFlow() {
           nationality: contactInfo.nationality,
           specialRequests,
           total: Number(total),
+          netTotal: Number(netTotal),
           guests: [...adultGuests, ...childGuests].map((g, i) => ({
             title: g.title,
             firstName: g.firstName,

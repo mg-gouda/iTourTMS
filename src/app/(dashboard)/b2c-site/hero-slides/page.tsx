@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, GripVertical, Pencil } from "lucide-react";
+import { ImageUploader } from "@/components/shared/image-uploader";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -127,7 +128,13 @@ export default function HeroSlidesPage() {
             <DialogTitle>{editId ? "Edit Slide" : "Add Slide"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
-            <div className="space-y-1.5"><Label>Image URL *</Label><Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..." /></div>
+            <ImageUploader
+              value={form.imageUrl || null}
+              onChange={(url) => setForm({ ...form, imageUrl: url ?? "" })}
+              folder="b2c"
+              label="Slide Image *"
+              hint="Recommended: 1920x800px. PNG, JPG, or WEBP."
+            />
             <div className="space-y-1.5"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Subtitle</Label><Input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">

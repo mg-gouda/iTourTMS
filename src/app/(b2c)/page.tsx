@@ -1,4 +1,4 @@
-import { MapPin, Building2, Star, Users, ChevronRight } from "lucide-react";
+import { MapPin, Building2, Star, ChevronRight, Percent, Sparkles, Trophy, Palmtree, Compass, Bus } from "lucide-react";
 import Link from "next/link";
 
 import { BookingEngine } from "@/components/b2c/booking-engine";
@@ -57,15 +57,103 @@ export default async function HomePage() {
     orderBy: { name: "asc" },
   });
 
-  // Stats
-  const stats = company
-    ? {
-        destinations: await db.destination.count({ where: { companyId: company.id, active: true } }),
-        hotels: await db.hotel.count({ where: { companyId: company.id, active: true, publicVisible: true } }),
-        yearsInBusiness: branding.yearsInBusiness || 10,
-        happyGuests: branding.happyGuests || 5000,
-      }
-    : { destinations: 0, hotels: 0, yearsInBusiness: 10, happyGuests: 5000 };
+  // Fetch last-minute deals: hotels with active special offers on PUBLISHED contracts
+  const now = new Date();
+  const lastMinuteDeals = company
+    ? await db.hotel.findMany({
+        where: {
+          companyId: company.id,
+          active: true,
+          publicVisible: true,
+          contracts: {
+            some: {
+              status: "PUBLISHED",
+              specialOffers: {
+                some: {
+                  OR: [
+                    { validTo: { gte: now } },
+                    { validTo: null },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        include: {
+          destination: { select: { name: true } },
+          images: { where: { isPrimary: true }, take: 1 },
+          contracts: {
+            where: {
+              status: "PUBLISHED",
+              specialOffers: {
+                some: {
+                  OR: [
+                    { validTo: { gte: now } },
+                    { validTo: null },
+                  ],
+                },
+              },
+            },
+            select: {
+              specialOffers: {
+                where: {
+                  OR: [
+                    { validTo: { gte: now } },
+                    { validTo: null },
+                  ],
+                },
+                select: {
+                  name: true,
+                  offerType: true,
+                  discountType: true,
+                  discountValue: true,
+                  validTo: true,
+                },
+                take: 1,
+              },
+            },
+            take: 1,
+          },
+        },
+        take: 9,
+      })
+    : [];
+
+  // Fetch hot holiday destinations with counts
+  const hotDestinations = company
+    ? await db.destination.findMany({
+        where: { companyId: company.id, active: true },
+        include: {
+          country: { select: { name: true } },
+          _count: {
+            select: {
+              hotels: { where: { active: true, publicVisible: true } },
+            },
+          },
+        },
+        orderBy: { featured: "desc" },
+        take: 6,
+      })
+    : [];
+
+  // Company-wide counts for packages, activities, transfers
+  const [packagesCount, activitiesCount, transfersCount] = company
+    ? await Promise.all([
+        db.contract.count({
+          where: {
+            companyId: company.id,
+            status: "PUBLISHED",
+            specialOffers: { some: {} },
+          },
+        }),
+        db.crmExcursion.count({
+          where: { companyId: company.id, active: true },
+        }),
+        db.ttVehicleType.count({
+          where: { companyId: company.id, isActive: true },
+        }),
+      ])
+    : [0, 0, 0];
 
   return (
     <>
@@ -100,52 +188,73 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Trust Badges / Stats */}
-      <section className="border-b border-[var(--pub-border)] bg-[var(--pub-card)]">
-        <div className="pub-container grid grid-cols-2 gap-4 py-8 md:grid-cols-4">
-          <StatBadge icon={<MapPin className="h-6 w-6" />} value={stats.destinations} label="Destinations" />
-          <StatBadge icon={<Building2 className="h-6 w-6" />} value={stats.hotels} label="Hotels" />
-          <StatBadge icon={<Star className="h-6 w-6" />} value={stats.yearsInBusiness} label="Years Experience" />
-          <StatBadge icon={<Users className="h-6 w-6" />} value={stats.happyGuests.toLocaleString()} label="Happy Guests" />
-        </div>
-      </section>
-
-      {/* Featured Destinations */}
-      {destinations.length > 0 && (
-        <section className="pub-section">
+      {/* Last Minute Deals */}
+      {lastMinuteDeals.length > 0 && (
+        <section className="border-b border-[var(--pub-border)] bg-[var(--pub-card)] py-[50px]">
           <div className="pub-container">
             <SectionHeader
-              title="Popular Destinations"
-              subtitle="Explore our most sought-after travel destinations"
-              href="/destinations"
+              title="Last Minute Deals"
+              subtitle="Special offers on handpicked hotels — book before they expire"
+              href="/packages"
             />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {destinations.map((dest) => (
-                <Link
-                  key={dest.id}
-                  href={`/destination/${dest.id}`}
-                  className="pub-card group relative h-64 overflow-hidden"
-                >
-                  {dest.imageUrl ? (
-                    <img
-                      src={dest.imageUrl}
-                      alt={dest.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-accent)]" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                    <h3 className="text-lg font-bold" style={{ fontFamily: "var(--pub-heading-font)" }}>
-                      {dest.name}
-                    </h3>
-                    <p className="text-sm text-white/80">
-                      {dest.country.name} &middot; {dest._count.hotels} hotels
-                    </p>
-                  </div>
-                </Link>
-              ))}
+              {lastMinuteDeals.map((hotel) => {
+                const offer = hotel.contracts[0]?.specialOffers[0];
+                return (
+                  <Link key={hotel.id} href={`/hotel/${hotel.id}`} className="pub-card group overflow-hidden">
+                    <div className="relative h-48 overflow-hidden">
+                      {hotel.images[0]?.url ? (
+                        <img
+                          src={hotel.images[0].url}
+                          alt={hotel.name}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[var(--pub-muted)]">
+                          <Building2 className="h-8 w-8 text-[var(--pub-muted-foreground)]" />
+                        </div>
+                      )}
+                      {/* Offer badge */}
+                      {offer && (
+                        <div className="absolute left-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white shadow-md">
+                          {offer.discountType === "PERCENTAGE"
+                            ? `${Number(offer.discountValue)}% OFF`
+                            : `Save ${Number(offer.discountValue)}`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="pub-stars mb-1">
+                        {Array.from({ length: starCount(hotel.starRating) }).map((_, i) => (
+                          <Star key={i} className="h-3.5 w-3.5 fill-current" />
+                        ))}
+                      </div>
+                      <h3
+                        className="mb-1 font-semibold leading-snug"
+                        style={{ fontFamily: "var(--pub-heading-font)" }}
+                      >
+                        {hotel.name}
+                      </h3>
+                      <p className="mb-2 text-sm text-[var(--pub-muted-foreground)]">
+                        <MapPin className="mr-1 inline h-3 w-3" />
+                        {hotel.destination?.name || hotel.city}
+                      </p>
+                      {offer && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-red-600">
+                            {offer.name}
+                          </span>
+                          {offer.validTo && (
+                            <span className="text-[10px] text-[var(--pub-muted-foreground)]">
+                              Ends {formatB2cDate(offer.validTo)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -239,29 +348,167 @@ export default async function HomePage() {
 
       {/* Newsletter */}
       {branding.enableNewsletter && (
-        <section className="bg-[var(--pub-primary)] py-16 text-white">
-          <div className="pub-container text-center">
-            <h2
-              className="mb-2 text-2xl font-bold md:text-3xl"
-              style={{ fontFamily: "var(--pub-heading-font)" }}
-            >
-              Stay Updated
-            </h2>
-            <p className="mx-auto mb-6 max-w-lg text-white/80">
-              Subscribe to our newsletter for exclusive deals and travel inspiration.
-            </p>
-            <form className="mx-auto flex max-w-md gap-2" action="/api/b2c/newsletter" method="POST">
-              <input
-                type="email"
-                name="email"
-                placeholder="Enter your email"
-                required
-                className="flex-1 rounded-md border-0 bg-white/20 px-4 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/50"
-              />
-              <button type="submit" className="pub-btn bg-white text-[var(--pub-primary)] font-semibold hover:bg-white/90">
-                Subscribe
-              </button>
-            </form>
+        <section className="py-[50px]">
+          <div className="pub-container">
+            <div className="overflow-hidden rounded-2xl border border-[var(--pub-border)] shadow-lg md:grid md:grid-cols-5">
+              {/* Left panel — dark branded image */}
+              <div className="relative flex min-h-[300px] items-center justify-center bg-[var(--pub-foreground)] md:col-span-2">
+                {branding.newsletterImageUrl ? (
+                  <img
+                    src={branding.newsletterImageUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--pub-primary)] via-[var(--pub-foreground)] to-[var(--pub-accent)] opacity-90" />
+                )}
+                <div className="relative z-10 p-8 text-center text-white">
+                  <h3
+                    className="text-3xl font-extrabold italic leading-tight md:text-4xl"
+                    style={{ fontFamily: "var(--pub-heading-font)" }}
+                  >
+                    {branding.newsletterHeading || "Stay Updated"}
+                  </h3>
+                  {branding.newsletterSubheading && (
+                    <p className="mt-3 text-sm text-white/80">{branding.newsletterSubheading}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right panel — features + form */}
+              <div className="flex flex-col justify-center bg-[var(--pub-card)] p-8 md:col-span-3">
+                <h2
+                  className="mb-6 text-xl font-bold md:text-2xl"
+                  style={{ fontFamily: "var(--pub-heading-font)" }}
+                >
+                  {branding.newsletterHeading || "Stay Updated"}
+                </h2>
+
+                {/* Feature list */}
+                <div className="mb-6 space-y-5">
+                  {branding.newsletterFeature1Title && (
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--pub-primary)]/10">
+                        <Percent className="h-5 w-5 text-[var(--pub-primary)]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{branding.newsletterFeature1Title}</p>
+                        {branding.newsletterFeature1Desc && (
+                          <p className="text-sm text-[var(--pub-muted-foreground)]">{branding.newsletterFeature1Desc}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {branding.newsletterFeature2Title && (
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--pub-secondary)]/10">
+                        <Sparkles className="h-5 w-5 text-[var(--pub-secondary)]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{branding.newsletterFeature2Title}</p>
+                        {branding.newsletterFeature2Desc && (
+                          <p className="text-sm text-[var(--pub-muted-foreground)]">{branding.newsletterFeature2Desc}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {branding.newsletterFeature3Title && (
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--pub-accent)]/10">
+                        <Trophy className="h-5 w-5 text-[var(--pub-accent)]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{branding.newsletterFeature3Title}</p>
+                        {branding.newsletterFeature3Desc && (
+                          <p className="text-sm text-[var(--pub-muted-foreground)]">{branding.newsletterFeature3Desc}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Subscribe form */}
+                <form className="flex max-w-md gap-2" action="/api/b2c/newsletter" method="POST">
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    required
+                    className="flex-1 rounded-[var(--pub-radius)] border border-[var(--pub-border)] bg-[var(--pub-background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pub-primary)]"
+                  />
+                  <button
+                    type="submit"
+                    className="pub-btn pub-btn-primary font-semibold"
+                  >
+                    {branding.newsletterCtaText || "Subscribe"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Hot Holiday Destinations */}
+      {hotDestinations.length > 0 && (
+        <section className="pub-section">
+          <div className="pub-container">
+            <SectionHeader
+              title="Hot Holiday Destinations"
+              subtitle="Explore our most popular destinations with the best deals"
+              href="/destinations"
+            />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {hotDestinations.map((dest) => (
+                <Link
+                  key={dest.id}
+                  href={`/destination/${dest.id}`}
+                  className="pub-card group overflow-hidden"
+                >
+                  <div className="relative h-52 overflow-hidden">
+                    {dest.imageUrl ? (
+                      <img
+                        src={dest.imageUrl}
+                        alt={dest.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-accent)]">
+                        <Palmtree className="h-12 w-12 text-white/60" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                      <h3
+                        className="text-lg font-bold"
+                        style={{ fontFamily: "var(--pub-heading-font)" }}
+                      >
+                        {dest.name}
+                      </h3>
+                      <p className="text-xs text-white/70">{dest.country.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 text-xs text-[var(--pub-muted-foreground)]">
+                    <span className="flex items-center gap-1">
+                      <Building2 className="h-3 w-3" />
+                      {dest._count.hotels} Hotels
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Palmtree className="h-3 w-3" />
+                      {packagesCount} Packages
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Compass className="h-3 w-3" />
+                      {activitiesCount} Activities
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Bus className="h-3 w-3" />
+                      {transfersCount} Transfers
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
       )}
@@ -289,26 +536,6 @@ export default async function HomePage() {
         </div>
       </section>
     </>
-  );
-}
-
-function StatBadge({
-  icon,
-  value,
-  label,
-}: {
-  icon: React.ReactNode;
-  value: string | number;
-  label: string;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-1 text-center">
-      <div className="text-[var(--pub-primary)]">{icon}</div>
-      <span className="text-2xl font-bold" style={{ fontFamily: "var(--pub-heading-font)" }}>
-        {value}+
-      </span>
-      <span className="text-xs text-[var(--pub-muted-foreground)]">{label}</span>
-    </div>
   );
 }
 
@@ -343,6 +570,14 @@ function SectionHeader({
       )}
     </div>
   );
+}
+
+function formatB2cDate(date: Date | string): string {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, "0");
+  const mon = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const yr = String(d.getFullYear()).slice(-2);
+  return `${day}-${mon}-${yr}`;
 }
 
 function starCount(rating: string): number {

@@ -142,8 +142,8 @@ export default async function PackagesPage() {
                     {season && (
                       <p className="mt-3 flex items-center gap-1 text-xs text-[var(--pub-muted-foreground)]">
                         <Calendar className="h-3 w-3" />
-                        {new Date(season.dateFrom).toLocaleDateString()} –{" "}
-                        {new Date(season.dateTo).toLocaleDateString()}
+                        {formatB2cDate(season.dateFrom)} –{" "}
+                        {formatB2cDate(season.dateTo)}
                       </p>
                     )}
                   </div>
@@ -155,4 +155,12 @@ export default async function PackagesPage() {
       </div>
     </div>
   );
+}
+
+function formatB2cDate(date: Date | string): string {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, "0");
+  const mon = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const yr = String(d.getFullYear()).slice(-2);
+  return `${day}-${mon}-${yr}`;
 }

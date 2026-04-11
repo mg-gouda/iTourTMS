@@ -145,26 +145,19 @@ export default async function HotelDetailPage({ params, searchParams }: Props) {
               )}
 
               {/* Amenities */}
-              {Object.keys(amenitiesByCategory).length > 0 && (
+              {hotel.amenities.length > 0 && (
                 <div>
                   <h2 className="mb-3 text-xl font-bold" style={{ fontFamily: "var(--pub-heading-font)" }}>
                     Amenities & Facilities
                   </h2>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {Object.entries(amenitiesByCategory).map(([cat, items]) => (
-                      <div key={cat}>
-                        <h3 className="mb-2 text-sm font-semibold text-[var(--pub-muted-foreground)]">{cat}</h3>
-                        <ul className="space-y-1">
-                          {items.map((a) => (
-                            <li key={a.id} className="flex items-center gap-2 text-sm">
-                              <Check className="h-4 w-4 text-[var(--pub-primary)]" />
-                              {a.name}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                  <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {hotel.amenities.map((a) => (
+                      <li key={a.id} className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 shrink-0 text-[var(--pub-primary)]" />
+                        {a.name}
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               )}
 

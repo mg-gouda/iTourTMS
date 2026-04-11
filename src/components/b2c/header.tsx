@@ -1,17 +1,23 @@
 import Link from "next/link";
 import {
+  Briefcase,
+  Bus,
+  Building2,
+  Compass,
+  Facebook,
   Globe,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
   Menu,
+  Palmtree,
   Phone,
   Search,
+  Twitter,
   User,
   X,
-  ChevronDown,
-  MapPin,
-  Building2,
-  Palmtree,
-  Compass,
-  Bus,
+  Youtube,
 } from "lucide-react";
 
 import type { PublicBranding } from "@/lib/b2c/get-branding";
@@ -36,28 +42,63 @@ export function B2cHeader({ branding, companyName, logoUrl }: B2cHeaderProps) {
     >
       {/* Top bar */}
       <div className="border-b border-[var(--pub-border)] bg-[var(--pub-foreground)] text-white/80">
-        <div className="pub-container flex items-center justify-between py-1.5 text-xs">
-          <div className="flex items-center gap-4">
-            {branding.contactPhone && (
-              <a href={`tel:${branding.contactPhone}`} className="flex items-center gap-1 hover:text-white">
-                <Phone className="h-3 w-3" />
-                {branding.contactPhone}
+        <div className="pub-container flex h-[50px] items-center justify-between text-xs">
+          {/* Left: Social media & email */}
+          <div className="flex items-center gap-3">
+            {branding.facebook && (
+              <a href={branding.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-white" aria-label="Facebook">
+                <Facebook className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {branding.instagram && (
+              <a href={branding.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-white" aria-label="Instagram">
+                <Instagram className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {branding.twitter && (
+              <a href={branding.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-white" aria-label="Twitter">
+                <Twitter className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {branding.youtube && (
+              <a href={branding.youtube} target="_blank" rel="noopener noreferrer" className="hover:text-white" aria-label="YouTube">
+                <Youtube className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {branding.linkedin && (
+              <a href={branding.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-white" aria-label="LinkedIn">
+                <Linkedin className="h-3.5 w-3.5" />
               </a>
             )}
             {branding.contactEmail && (
-              <a href={`mailto:${branding.contactEmail}`} className="hidden items-center gap-1 hover:text-white sm:flex">
-                {branding.contactEmail}
-              </a>
+              <>
+                {(branding.facebook || branding.instagram || branding.twitter || branding.youtube || branding.linkedin) && (
+                  <span className="mx-1 hidden h-3 w-px bg-white/20 sm:inline-block" />
+                )}
+                <a href={`mailto:${branding.contactEmail}`} className="hidden items-center gap-1.5 hover:text-white sm:flex">
+                  <Mail className="h-3.5 w-3.5" />
+                  {branding.contactEmail}
+                </a>
+              </>
             )}
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Right: Phone, B2B Portal, Language */}
+          <div className="flex items-center gap-4">
+            {branding.contactPhone && (
+              <a href={`tel:${branding.contactPhone}`} className="flex items-center gap-1.5 hover:text-white">
+                <Phone className="h-3.5 w-3.5" />
+                {branding.contactPhone}
+              </a>
+            )}
             {branding.enableB2bPortal && (
-              <Link href="/b2b/login" className="hover:text-white">
+              <Link href="/b2b/login" className="flex items-center gap-1.5 hover:text-white">
+                <Briefcase className="h-3.5 w-3.5" />
                 B2B Portal
               </Link>
             )}
-            <button className="flex items-center gap-1 hover:text-white">
-              <Globe className="h-3 w-3" />
+            <button className="flex items-center gap-1.5 hover:text-white">
+              <Globe className="h-3.5 w-3.5" />
               EN
             </button>
           </div>

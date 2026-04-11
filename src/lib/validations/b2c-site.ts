@@ -44,6 +44,16 @@ export const brandingSchema = z.object({
   showPrices: z.boolean(),
   yearsInBusiness: z.number().int().min(0).nullable().optional(),
   happyGuests: z.number().int().min(0).nullable().optional(),
+  newsletterImageUrl: z.string().max(1000).nullable().optional(),
+  newsletterHeading: z.string().max(200).nullable().optional(),
+  newsletterSubheading: z.string().max(500).nullable().optional(),
+  newsletterCtaText: z.string().max(100).nullable().optional(),
+  newsletterFeature1Title: z.string().max(200).nullable().optional(),
+  newsletterFeature1Desc: z.string().max(500).nullable().optional(),
+  newsletterFeature2Title: z.string().max(200).nullable().optional(),
+  newsletterFeature2Desc: z.string().max(500).nullable().optional(),
+  newsletterFeature3Title: z.string().max(200).nullable().optional(),
+  newsletterFeature3Desc: z.string().max(500).nullable().optional(),
   customCss: z.string().max(10000).nullable().optional(),
 });
 

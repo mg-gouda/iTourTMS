@@ -28,9 +28,9 @@ export function B2cFooter({ branding, companyName, logoUrl }: B2cFooterProps) {
   ].filter((s) => s.url);
 
   return (
-    <footer className="border-t border-[var(--pub-border)] bg-[var(--pub-foreground)] text-white/80">
+    <footer className="border-t border-[var(--pub-border)] bg-[var(--pub-foreground)] py-[30px] text-white/80">
       {/* Main footer */}
-      <div className="pub-container py-12">
+      <div className="pub-container">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Column 1: Brand & description */}
           <div className="space-y-4">
@@ -144,7 +144,7 @@ export function B2cFooter({ branding, companyName, logoUrl }: B2cFooterProps) {
 
       {/* Bottom bar */}
       <div className="border-t border-white/10">
-        <div className="pub-container flex flex-col items-center justify-between gap-2 py-4 text-xs sm:flex-row">
+        <div className="pub-container flex flex-col items-center justify-between gap-2 py-[30px] text-xs sm:flex-row">
           <p>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</p>
           <p className="text-white/50">
             Powered by{" "}
