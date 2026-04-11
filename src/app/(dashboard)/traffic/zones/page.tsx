@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +17,26 @@ export default function ZonesPage() {
   const utils = trpc.useUtils();
   const { data: zones, isLoading } = trpc.traffic.zone.list.useQuery();
   const { data: cities } = trpc.contracting.destination.listAllCities.useQuery();
+
+  // Create
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [cityId, setCityId] = useState("");
 
+  // Edit
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editCode, setEditCode] = useState("");
+
   const createMutation = trpc.traffic.zone.create.useMutation({
     onSuccess: () => { utils.traffic.zone.invalidate(); setOpen(false); setName(""); setCode(""); setCityId(""); toast.success("Zone created"); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMutation = trpc.traffic.zone.update.useMutation({
+    onSuccess: () => { utils.traffic.zone.invalidate(); setEditOpen(false); toast.success("Zone updated"); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -39,6 +52,13 @@ export default function ZonesPage() {
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(z);
   });
+
+  function openEdit(z: NonNullable<typeof zones>[number]) {
+    setEditId(z.id);
+    setEditName(z.name);
+    setEditCode(z.code);
+    setEditOpen(true);
+  }
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -65,6 +85,20 @@ export default function ZonesPage() {
         </Dialog>
       </div>
 
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Zone</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Name</Label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div><Label>Code</Label><Input value={editCode} onChange={(e) => setEditCode(e.target.value)} /></div>
+            <Button onClick={() => updateMutation.mutate({ id: editId, data: { name: editName, code: editCode } })} disabled={updateMutation.isPending || !editName || !editCode}>
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div> : (
         <div className="space-y-6">
           {Array.from(grouped.entries()).map(([cityName, cityZones]) => (
@@ -75,7 +109,10 @@ export default function ZonesPage() {
                   {cityZones?.map((z) => (
                     <div key={z.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
                       <span>{z.name} <span className="text-muted-foreground">({z.code})</span></span>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm("Delete?")) deleteMutation.mutate({ id: z.id }); }}><Trash2 className="h-4 w-4" /></Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(z)}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { if (confirm("Delete?")) deleteMutation.mutate({ id: z.id }); }}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
                     </div>
                   ))}
                 </div>
