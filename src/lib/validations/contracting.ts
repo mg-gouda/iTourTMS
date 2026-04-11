@@ -6,6 +6,8 @@ export const destinationCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   code: z.string().min(1, "Code is required").max(10),
   countryId: z.string().min(1, "Country is required"),
+  imageUrl: z.string().nullable().optional(),
+  featured: z.boolean().default(false),
   active: z.boolean().default(true),
 });
 
@@ -152,7 +154,7 @@ export const mealBasisUpdateSchema = mealBasisCreateSchema.partial().omit({ hote
 
 export const hotelImageCreateSchema = z.object({
   hotelId: z.string().min(1, "Hotel is required"),
-  url: z.string().url("Valid URL is required"),
+  url: z.string().min(1, "Image URL is required"),
   caption: z.string().nullish(),
   sortOrder: z.number().int().default(0),
   isPrimary: z.boolean().default(false),

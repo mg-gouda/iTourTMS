@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { ImageUploader } from "@/components/shared/image-uploader";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -76,6 +77,8 @@ export default function DestinationDetailPage() {
         name: data.name,
         code: data.code,
         countryId: data.countryId,
+        imageUrl: data.imageUrl ?? "",
+        featured: data.featured,
         active: data.active,
       });
     }
@@ -215,19 +218,54 @@ export default function DestinationDetailPage() {
 
                 <FormField
                   control={form.control}
-                  name="active"
+                  name="imageUrl"
                   render={({ field }) => (
-                    <FormItem className="flex items-center gap-2 space-y-0">
+                    <FormItem>
                       <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                        <ImageUploader
+                          value={field.value || null}
+                          onChange={(url) => field.onChange(url ?? "")}
+                          folder="b2c"
+                          label="Destination Image"
+                          hint="Featured image for the B2C website (recommended: 800x600px)"
                         />
                       </FormControl>
-                      <FormLabel>Active</FormLabel>
                     </FormItem>
                   )}
                 />
+
+                <div className="flex items-center gap-6">
+                  <FormField
+                    control={form.control}
+                    name="featured"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel>Featured</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="active"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel>Active</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 {updateMutation.error && (
                   <p className="text-sm text-destructive">

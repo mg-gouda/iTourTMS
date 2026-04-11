@@ -45,14 +45,8 @@ export default function EditHotelPage() {
   const { data: amenities } = trpc.contracting.hotel.listAmenities.useQuery();
   const { data: googlePlacesApiKey } = trpc.settings.getGooglePlacesKey.useQuery();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(hotelUpdateSchema),
-  });
-
-  // Populate form when hotel data loads
-  useEffect(() => {
-    if (hotel) {
-      form.reset({
+  const formValues = hotel
+    ? {
         name: hotel.name,
         code: hotel.code,
         starRating: hotel.starRating,
@@ -62,7 +56,7 @@ export default function EditHotelPage() {
         address: hotel.address ?? "",
         city: hotel.city ?? "",
         cityId: hotel.cityId ?? "",
-        zoneId: hotel.zone?.id ?? "",
+        zoneId: hotel.zoneId ?? "",
         stateId: hotel.stateId ?? "",
         countryId: hotel.countryId,
         destinationId: hotel.destinationId ?? "",
@@ -75,39 +69,48 @@ export default function EditHotelPage() {
         checkOutTime: hotel.checkOutTime ?? "12:00",
         totalRooms: hotel.totalRooms ?? undefined,
         active: hotel.active,
-        amenityIds: hotel.amenities?.map((a) => a.id) ?? [],
-      });
-    }
-  }, [hotel, form]);
+        amenityIds: hotel.amenities?.map((a: { id: string }) => a.id) ?? [],
+      }
+    : undefined;
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(hotelUpdateSchema),
+    values: formValues,
+  });
 
   const selectedCountryId = form.watch("countryId");
   const selectedDestinationId = form.watch("destinationId");
   const selectedCityId = form.watch("cityId");
   const selectedZoneId = form.watch("zoneId");
 
+  // Use hotel's original IDs as fallback so queries fire on initial load
+  const effectiveDestinationId = selectedDestinationId || hotel?.destinationId;
+  const effectiveCityId = selectedCityId || hotel?.cityId;
+  const effectiveZoneId = selectedZoneId || hotel?.zoneId;
+
   // Filter destinations by selected country
   const filteredDestinations = (destinations ?? []).filter(
-    (d) => d.countryId === selectedCountryId,
+    (d) => d.countryId === (selectedCountryId || hotel?.countryId),
   );
 
   const { data: cities } = trpc.contracting.destination.listCities.useQuery(
-    { destinationId: selectedDestinationId! },
-    { enabled: !!selectedDestinationId },
+    { destinationId: effectiveDestinationId! },
+    { enabled: !!effectiveDestinationId },
   );
 
   const { data: zones } = trpc.contracting.destination.listZones.useQuery(
-    { cityId: selectedCityId! },
-    { enabled: !!selectedCityId },
+    { cityId: effectiveCityId! },
+    { enabled: !!effectiveCityId },
   );
 
   const { data: nextCode } = trpc.contracting.hotel.getNextHotelCode.useQuery(
-    { zoneId: selectedZoneId! },
-    { enabled: !!selectedZoneId },
+    { zoneId: effectiveZoneId! },
+    { enabled: !!effectiveZoneId },
   );
 
   // Auto-fill code when zone changes (only if zone changed from original hotel data)
   useEffect(() => {
-    if (nextCode && selectedZoneId && selectedZoneId !== hotel?.zone?.id) {
+    if (nextCode && selectedZoneId && selectedZoneId !== hotel?.zoneId) {
       form.setValue("code", nextCode);
     }
   }, [nextCode, selectedZoneId]); // eslint-disable-line react-hooks/exhaustive-deps
