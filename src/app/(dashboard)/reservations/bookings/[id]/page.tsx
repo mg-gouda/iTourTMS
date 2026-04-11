@@ -90,7 +90,6 @@ export default function BookingDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  const [paymentOpen, setPaymentOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
   const [spoModalOpen, setSpoModalOpen] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
@@ -99,18 +98,16 @@ export default function BookingDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSpoBreakdown, setSelectedSpoBreakdown] = useState<any[]>([]);
 
+  // Confirm dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [hotelConfNo, setHotelConfNo] = useState("");
+  const [confirmFile, setConfirmFile] = useState("");
+  const [confirmUploading, setConfirmUploading] = useState(false);
+
   // Series dialog state
   const [seriesOpen, setSeriesOpen] = useState(false);
   const [seriesFrequency, setSeriesFrequency] = useState<"WEEKLY" | "BIWEEKLY" | "MONTHLY">("WEEKLY");
   const [seriesCount, setSeriesCount] = useState(4);
-
-  const deletePaymentMutation = trpc.reservations.bookingPayment.delete.useMutation({
-    onSuccess: () => {
-      utils.reservations.booking.getById.invalidate({ id });
-      toast.success("Payment deleted");
-    },
-    onError: (e) => toast.error(e.message),
-  });
 
   const transitionMutation = trpc.reservations.booking.transition.useMutation({
     onSuccess: () => {
@@ -253,12 +250,7 @@ export default function BookingDetailPage() {
           {canConfirm && (
             <Button
               size="sm"
-              onClick={() =>
-                transitionMutation.mutate({
-                  bookingId: id,
-                  action: "confirm",
-                })
-              }
+              onClick={() => setConfirmOpen(true)}
               disabled={transitionMutation.isPending}
             >
               <CheckCircle className="mr-1 size-3.5" />
@@ -583,6 +575,20 @@ export default function BookingDetailPage() {
                     value={`${booking.confirmedBy.name} on ${format(new Date(booking.confirmedAt!), "dd MMM yyyy HH:mm")}`}
                   />
                 )}
+                {booking.hotelConfNo && (
+                  <InfoRow label="Hotel Conf. No." value={<span className="font-mono font-semibold">{booking.hotelConfNo}</span>} />
+                )}
+                {booking.confirmationFile && (
+                  <InfoRow
+                    label="Confirmation Doc"
+                    value={
+                      <a href={booking.confirmationFile} download rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline underline-offset-2 hover:text-primary/80">
+                        <Download className="h-3.5 w-3.5" />
+                        {booking.confirmationFile.split("/").pop()}
+                      </a>
+                    }
+                  />
+                )}
                 {booking.cancelledBy && (
                   <InfoRow
                     label="Cancelled"
@@ -632,7 +638,7 @@ export default function BookingDetailPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Buying:</span>{" "}
                     <span className="font-mono">
@@ -651,6 +657,18 @@ export default function BookingDetailPage() {
                       {booking.nights} ={" "}
                       {booking.currency.symbol}
                       {Number(room.sellingTotal).toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Margin:</span>{" "}
+                    <span className={`font-mono ${Number(room.sellingTotal) - Number(room.buyingTotal) > 0 ? "text-green-600" : Number(room.sellingTotal) - Number(room.buyingTotal) < 0 ? "text-destructive" : ""}`}>
+                      {booking.currency.symbol}
+                      {(Number(room.sellingTotal) - Number(room.buyingTotal)).toFixed(2)}
+                      {Number(room.buyingTotal) > 0 && (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({((Number(room.sellingTotal) - Number(room.buyingTotal)) / Number(room.buyingTotal) * 100).toFixed(1)}%)
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -759,19 +777,42 @@ export default function BookingDetailPage() {
             <p className="text-sm text-muted-foreground">
               {booking.payments.length} payment(s) recorded
             </p>
-            {booking.status !== "CANCELLED" && (
-              <Button size="sm" onClick={() => setPaymentOpen(true)}>
-                <Plus className="mr-1 size-3.5" />
-                Record Payment
-              </Button>
-            )}
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/finance/booking-reconciliation">
+                Go to Booking Reconciliation
+              </Link>
+            </Button>
           </div>
 
-          {booking.payments.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No payments recorded yet.
-            </p>
-          ) : (
+          {/* Payment summary */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Selling Total</p>
+                <p className="text-lg font-mono font-semibold">
+                  {booking.currency.symbol}{Number(booking.sellingTotal).toLocaleString("en", { minimumFractionDigits: 2 })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Total Paid</p>
+                <p className="text-lg font-mono font-semibold text-green-600">
+                  {booking.currency.symbol}{Number(booking.totalPaid).toLocaleString("en", { minimumFractionDigits: 2 })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Balance Due</p>
+                <p className={`text-lg font-mono font-semibold ${Number(booking.balanceDue) > 0 ? "text-destructive" : "text-green-600"}`}>
+                  {booking.currency.symbol}{Number(booking.balanceDue).toLocaleString("en", { minimumFractionDigits: 2 })}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {booking.payments.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -781,7 +822,6 @@ export default function BookingDetailPage() {
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>By</TableHead>
-                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -811,33 +851,11 @@ export default function BookingDetailPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {p.createdBy?.name ?? "—"}
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive"
-                        onClick={() => {
-                          if (confirm("Delete this payment?")) {
-                            deletePaymentMutation.mutate({ id: p.id, bookingId: id });
-                          }
-                        }}
-                      >
-                        &times;
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-
-          <PaymentDialog
-            open={paymentOpen}
-            onOpenChange={setPaymentOpen}
-            bookingId={id}
-            currencyId={booking.currency.id}
-            currencySymbol={booking.currency.symbol}
-          />
         </TabsContent>
 
         {/* Vouchers */}
@@ -963,6 +981,87 @@ export default function BookingDetailPage() {
           <CommunicationsTab bookingId={id} />
         </TabsContent>
       </Tabs>
+
+      {/* Confirm Dialog */}
+      <Dialog open={confirmOpen} onOpenChange={(open) => { setConfirmOpen(open); if (!open) { setHotelConfNo(""); setConfirmFile(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Booking</DialogTitle>
+            <DialogDescription>
+              Provide a hotel confirmation number or upload a confirmation document to confirm booking {booking.code}. At least one is required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Hotel Confirmation Number</Label>
+              <Input
+                value={hotelConfNo}
+                onChange={(e) => setHotelConfNo(e.target.value)}
+                placeholder="e.g. HC-123456"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirmation Document</Label>
+              {confirmFile ? (
+                <div className="flex items-center gap-2 rounded border p-2 text-sm">
+                  <span className="flex-1 truncate">{confirmFile.split("/").pop()}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmFile("")} className="h-7 text-destructive">Remove</Button>
+                </div>
+              ) : (
+                <div>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.eml,.png,.jpg,.jpeg,.webp"
+                    className="text-sm"
+                    disabled={confirmUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 10 * 1024 * 1024) { toast.error("File too large (max 10 MB)"); return; }
+                      setConfirmUploading(true);
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      formData.append("folder", "general");
+                      try {
+                        const res = await fetch("/api/upload/image", { method: "POST", body: formData });
+                        const json = await res.json();
+                        if (!res.ok) throw new Error(json.error || "Upload failed");
+                        setConfirmFile(json.url);
+                        toast.success("File uploaded");
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Upload failed");
+                      } finally {
+                        setConfirmUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, EML, or image — max 10 MB</p>
+                </div>
+              )}
+            </div>
+          </div>
+          {transitionMutation.error && (
+            <p className="text-sm text-destructive">{transitionMutation.error.message}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button
+              disabled={(!hotelConfNo.trim() && !confirmFile) || transitionMutation.isPending || confirmUploading}
+              onClick={() =>
+                transitionMutation.mutate({
+                  bookingId: id,
+                  action: "confirm",
+                  hotelConfNo: hotelConfNo.trim() || undefined,
+                  confirmationFile: confirmFile || undefined,
+                })
+              }
+            >
+              {transitionMutation.isPending ? "Confirming..." : "Confirm Booking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cancel Dialog */}
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
@@ -1341,137 +1440,6 @@ function InfoRow({
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-right max-w-[60%]">{value ?? "—"}</span>
     </div>
-  );
-}
-
-function PaymentDialog({
-  open,
-  onOpenChange,
-  bookingId,
-  currencyId,
-  currencySymbol,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  bookingId: string;
-  currencyId: string;
-  currencySymbol: string;
-}) {
-  const utils = trpc.useUtils();
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("BANK_TRANSFER");
-  const [reference, setReference] = useState("");
-  const [paidAt, setPaidAt] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
-  const [isRefund, setIsRefund] = useState(false);
-
-  const createMutation = trpc.reservations.bookingPayment.create.useMutation({
-    onSuccess: () => {
-      utils.reservations.booking.getById.invalidate({ id: bookingId });
-      onOpenChange(false);
-      setAmount("");
-      setReference("");
-    },
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isRefund ? "Record Refund" : "Record Payment"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Amount ({currencySymbol})</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Method</Label>
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>
-                      {v}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={paidAt}
-                onChange={(e) => setPaidAt(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reference</Label>
-              <Input
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Transaction ref"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isRefund"
-              checked={isRefund}
-              onChange={(e) => setIsRefund(e.target.checked)}
-              className="rounded"
-            />
-            <Label htmlFor="isRefund">This is a refund</Label>
-          </div>
-        </div>
-        {createMutation.error && (
-          <p className="text-sm text-destructive">
-            {createMutation.error.message}
-          </p>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!amount || createMutation.isPending}
-            onClick={() =>
-              createMutation.mutate({
-                bookingId,
-                amount: parseFloat(amount),
-                currencyId,
-                method: method as "CASH" | "BANK_TRANSFER" | "CREDIT_CARD" | "CHEQUE",
-                reference: reference || undefined,
-                paidAt,
-                isRefund,
-                createFinanceRecords: false,
-              })
-            }
-          >
-            {createMutation.isPending
-              ? "Saving..."
-              : isRefund
-                ? "Record Refund"
-                : "Record Payment"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

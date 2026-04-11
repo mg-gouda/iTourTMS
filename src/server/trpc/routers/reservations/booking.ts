@@ -918,7 +918,13 @@ export const bookingRouter = createTRPCRouter({
 
           const updated = await ctx.db.booking.update({
             where: { id: booking.id },
-            data: { status: "CONFIRMED", confirmedAt: now, confirmedById: userId },
+            data: {
+              status: "CONFIRMED",
+              confirmedAt: now,
+              confirmedById: userId,
+              hotelConfNo: input.hotelConfNo || null,
+              confirmationFile: input.confirmationFile || null,
+            },
           });
 
           await logBookingAction(ctx.db, booking.id, "CONFIRMED", `Booking confirmed. Voucher ${voucherCode} issued.`, userId);

@@ -214,6 +214,8 @@ export const bookingStatusTransitionSchema = z.object({
   bookingId: z.string().min(1),
   action: z.enum(["confirm", "cancel", "check_in", "check_out", "no_show"]),
   reason: z.string().optional(),
+  hotelConfNo: z.string().optional(),
+  confirmationFile: z.string().optional(),
 });
 
 // ── Payment Schemas ──

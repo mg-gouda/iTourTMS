@@ -9,8 +9,82 @@ import {
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 
 const proc = moduleProcedure("reservations");
+const finProc = moduleProcedure("finance");
 
 export const bookingPaymentRouter = createTRPCRouter({
+  // Finance team: list all payments across bookings with filters
+  listAll: finProc
+    .input(
+      z.object({
+        status: z.enum(["ALL", "UNPAID", "PARTIAL", "PAID"]).default("ALL"),
+        source: z.enum(["ALL", "WEBSITE", "DIRECT", "B2B", "TOUR_OPERATOR"]).default("ALL"),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const where: any = { companyId: ctx.companyId };
+
+      if (input.status !== "ALL") {
+        where.paymentStatus = input.status;
+      }
+      if (input.source !== "ALL") {
+        where.source = input.source;
+      }
+      if (input.dateFrom) {
+        where.checkIn = { ...(where.checkIn ?? {}), gte: new Date(input.dateFrom) };
+      }
+      if (input.dateTo) {
+        where.checkOut = { ...(where.checkOut ?? {}), lte: new Date(input.dateTo) };
+      }
+      if (input.search) {
+        where.OR = [
+          { code: { contains: input.search, mode: "insensitive" } },
+          { leadGuestName: { contains: input.search, mode: "insensitive" } },
+          { hotel: { name: { contains: input.search, mode: "insensitive" } } },
+        ];
+      }
+
+      return ctx.db.booking.findMany({
+        where,
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          source: true,
+          checkIn: true,
+          checkOut: true,
+          nights: true,
+          leadGuestName: true,
+          buyingTotal: true,
+          sellingTotal: true,
+          paymentStatus: true,
+          totalPaid: true,
+          balanceDue: true,
+          hotel: { select: { id: true, name: true, code: true } },
+          tourOperator: { select: { id: true, name: true } },
+          currency: { select: { id: true, code: true, symbol: true } },
+          payments: {
+            select: {
+              id: true,
+              amount: true,
+              method: true,
+              reference: true,
+              paidAt: true,
+              isRefund: true,
+              notes: true,
+              createdBy: { select: { name: true } },
+            },
+            orderBy: { paidAt: "desc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+    }),
+
   listByBooking: proc
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {

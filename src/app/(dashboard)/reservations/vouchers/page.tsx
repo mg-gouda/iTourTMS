@@ -58,20 +58,20 @@ const columns: ColumnDef<VoucherRow>[] = [
   {
     id: "bookingCode",
     header: "Booking",
-    accessorFn: (row) => row.booking.code,
+    accessorFn: (row) => row.booking?.code ?? "—",
     cell: ({ row }) => (
-      <span className="font-mono text-sm">{row.original.booking.code}</span>
+      <span className="font-mono text-sm">{row.original.booking?.code ?? "—"}</span>
     ),
   },
   {
     id: "hotel",
     header: "Hotel",
-    cell: ({ row }) => row.original.booking.hotel.name,
+    cell: ({ row }) => row.original.booking?.hotel?.name ?? "—",
   },
   {
     id: "guest",
     header: "Lead Guest",
-    cell: ({ row }) => row.original.booking.leadGuestName ?? "—",
+    cell: ({ row }) => row.original.booking?.leadGuestName ?? "—",
   },
   {
     id: "checkIn",

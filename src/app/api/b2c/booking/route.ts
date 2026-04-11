@@ -30,6 +30,7 @@ const bookingSchema = z.object({
   nationality: z.string().optional(),
   specialRequests: z.string().optional(),
   total: z.number().min(0).max(999999),
+  netTotal: z.number().min(0).max(999999).optional(),
   guests: z.array(guestSchema).optional(),
 });
 
@@ -62,8 +63,14 @@ export async function POST(request: Request) {
       phone,
       specialRequests,
       total,
+      netTotal,
       guests,
     } = parsed.data;
+
+    // total = selling price (with markup, customer-facing)
+    // netTotal = buying price (net, without markup)
+    const buyingPrice = netTotal ?? total;
+    const sellingPrice = total;
 
     const company = await db.company.findFirst({ select: { id: true } });
     if (!company) {
@@ -122,11 +129,11 @@ export async function POST(request: Request) {
         leadGuestEmail: email,
         leadGuestPhone: phone || null,
         specialRequests: specialRequests || null,
-        buyingTotal: total,
-        sellingTotal: total,
+        buyingTotal: buyingPrice,
+        sellingTotal: sellingPrice,
         paymentStatus: "UNPAID",
         totalPaid: 0,
-        balanceDue: total,
+        balanceDue: sellingPrice,
         manualRate: false,
         guestNames: guests && guests.length > 0
           ? guests.map((g, i) => ({
@@ -152,10 +159,10 @@ export async function POST(request: Request) {
               adults,
               children,
               extraBed: false,
-              buyingRatePerNight: total / nights,
-              buyingTotal: total,
-              sellingRatePerNight: total / nights,
-              sellingTotal: total,
+              buyingRatePerNight: buyingPrice / nights,
+              buyingTotal: buyingPrice,
+              sellingRatePerNight: sellingPrice / nights,
+              sellingTotal: sellingPrice,
             },
           ],
         },
