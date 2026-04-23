@@ -1,6 +1,5 @@
 "use client";
 
-import * as Collapsible from "@radix-ui/react-collapsible";
 import {
   Briefcase,
   Bus,
@@ -15,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -355,6 +354,7 @@ function CollapsibleSubGroup({
 
   // Always start with hasActiveRoute for SSR to avoid hydration mismatch,
   // then sync with localStorage after mount.
+  const contentId = useId();
   const [open, setOpen] = useState(hasActiveRoute);
   const [hydrated, setHydrated] = useState(false);
 
@@ -376,24 +376,31 @@ function CollapsibleSubGroup({
   }, [hasActiveRoute]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Collapsible.Root open={open} onOpenChange={setOpen}>
-      <Collapsible.Trigger asChild>
-        <button
+    <div>
+      <button
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          hasActiveRoute && "text-sidebar-foreground",
+        )}
+      >
+        <ChevronRight
           className={cn(
-            "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            hasActiveRoute && "text-sidebar-foreground",
+            "h-3 w-3 shrink-0 transition-transform duration-200",
+            open && "rotate-90",
           )}
-        >
-          <ChevronRight
-            className={cn(
-              "h-3 w-3 shrink-0 transition-transform duration-200",
-              open && "rotate-90",
-            )}
-          />
-          {group.label}
-        </button>
-      </Collapsible.Trigger>
-      <Collapsible.Content className="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
+        />
+        {group.label}
+      </button>
+      <div
+        id={contentId}
+        className={cn(
+          "overflow-hidden transition-all duration-200",
+          open ? "max-h-96" : "max-h-0",
+        )}
+      >
         <SidebarMenu className="ml-3 border-l border-sidebar-border pl-2">
           {group.routes.map((route) => (
             <SidebarMenuItem key={route.href}>
@@ -409,8 +416,8 @@ function CollapsibleSubGroup({
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
-      </Collapsible.Content>
-    </Collapsible.Root>
+      </div>
+    </div>
   );
 }
 
@@ -439,6 +446,7 @@ function CollapsibleModule({
     (href) => pathname === href || pathname.startsWith(href + "/"),
   );
 
+  const contentId = useId();
   const [open, setOpen] = useState(hasActiveRoute);
   const [hydrated, setHydrated] = useState(false);
 
@@ -461,54 +469,59 @@ function CollapsibleModule({
 
   return (
     <SidebarGroup>
-      <Collapsible.Root open={open} onOpenChange={setOpen}>
-        <Collapsible.Trigger asChild>
-          <button
-            className={cn(
-              "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              hasActiveRoute && "text-sidebar-foreground",
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            <span className="flex-1 text-left">{mod.displayName}</span>
-            <ChevronRight
-              className={cn(
-                "h-3 w-3 shrink-0 transition-transform duration-200",
-                open && "rotate-90",
-              )}
-            />
-          </button>
-        </Collapsible.Trigger>
-        <Collapsible.Content className="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
-          <SidebarGroupContent className="space-y-1">
-            {/* Top-level routes (e.g. Dashboard) */}
-            <SidebarMenu>
-              {config.topLevel.map((route) => (
-                <SidebarMenuItem key={route.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === route.href}
-                  >
-                    <Link href={route.href}>
-                      <span>{route.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-
-            {/* Collapsible sub-groups */}
-            {config.groups.map((group) => (
-              <CollapsibleSubGroup
-                key={group.label}
-                group={group}
-                moduleKey={mod.name}
-                pathname={pathname}
-              />
+      <button
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          hasActiveRoute && "text-sidebar-foreground",
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        <span className="flex-1 text-left">{mod.displayName}</span>
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 shrink-0 transition-transform duration-200",
+            open && "rotate-90",
+          )}
+        />
+      </button>
+      <div
+        id={contentId}
+        className={cn(
+          "overflow-hidden transition-all duration-200",
+          open ? "max-h-[2000px]" : "max-h-0",
+        )}
+      >
+        <SidebarGroupContent className="space-y-1">
+          {/* Top-level routes (e.g. Dashboard) */}
+          <SidebarMenu>
+            {config.topLevel.map((route) => (
+              <SidebarMenuItem key={route.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === route.href}
+                >
+                  <Link href={route.href}>
+                    <span>{route.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             ))}
-          </SidebarGroupContent>
-        </Collapsible.Content>
-      </Collapsible.Root>
+          </SidebarMenu>
+
+          {/* Collapsible sub-groups */}
+          {config.groups.map((group) => (
+            <CollapsibleSubGroup
+              key={group.label}
+              group={group}
+              moduleKey={mod.name}
+              pathname={pathname}
+            />
+          ))}
+        </SidebarGroupContent>
+      </div>
     </SidebarGroup>
   );
 }

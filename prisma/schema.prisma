@@ -4069,16 +4069,30 @@ enum CrmCostCalcBasis {
   FLAT
 }
 
-enum CrmCostComponentType {
-  TRANSPORT
+// Replaces CrmCostComponentType — maps to real excursion cost line items
+enum CrmCostType {
+  GUIDE
+  REP_FEES
+  POLICE_PERMIT
+  POLICE_TIP
+  FELUCCA
+  CARRIAGE
   TICKETS
-  GUIDE_FEE
   MEALS
-  EQUIPMENT
-  INSURANCE
-  COMMISSION
-  PERMIT
-  MISCELLANEOUS
+  EXTRAS
+  DIVING_SNORKELING
+  CUSTOM
+}
+
+enum CrmPricingType {
+  BULK     // total cost divided by pax count at booking time
+  PER_PAX  // cost per person, multiply by pax
+}
+
+enum CrmCurrency {
+  EGP
+  USD
+  EUR
 }
 
 // ── CRM Lead ──
@@ -4254,11 +4268,12 @@ model CrmExcursion {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  programs     CrmExcursionProgram[]
-  ageGroups    CrmExcursionAgeGroup[]
-  addons       CrmExcursionAddon[]
-  costSheets   CrmCostSheet[]
-  bookingItems CrmBookingItem[]
+  programs        CrmExcursionProgram[]
+  ageGroups       CrmExcursionAgeGroup[]
+  addons          CrmExcursionAddon[]
+  costSheets      CrmCostSheet[]
+  bookingItems    CrmBookingItem[]
+  pickupLocations CrmPickupLocation[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -4340,19 +4355,21 @@ model CrmExcursionAddon {
 // ── CRM Cost Sheet ──
 
 model CrmCostSheet {
-  id             String            @id @default(cuid())
-  excursionId    String
-  name           String
-  seasonType     CrmSeasonType     @default(LOW)
+  id              String            @id @default(cuid())
+  excursionId     String
+  name            String
+  seasonType      CrmSeasonType     @default(LOW)
   nationalityTier CrmNationalityTier @default(DEFAULT)
-  tripMode       CrmTripMode       @default(SHARED)
-  validFrom      DateTime?         @db.Date
-  validTo        DateTime?         @db.Date
-  calcBasis      CrmCostCalcBasis  @default(PER_PERSON)
-  totalCost      Decimal?          @db.Decimal(12, 2)
-  notes          String?           @db.Text
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  tripMode        CrmTripMode       @default(SHARED)
+  validFrom       DateTime?         @db.Date
+  validTo         DateTime?         @db.Date
+  calcBasis       CrmCostCalcBasis  @default(PER_PERSON)
+  referencePax    Int               @default(10)
+  baseCurrency    CrmCurrency       @default(USD)
+  totalCost       Decimal?          @db.Decimal(12, 2)  // fixed per-pax total in baseCurrency
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   excursion     CrmExcursion      @relation(fields: [excursionId], references: [id], onDelete: Cascade)
   components    CrmCostComponent[]
@@ -4366,16 +4383,18 @@ model CrmCostSheet {
 // ── CRM Cost Component ──
 
 model CrmCostComponent {
-  id          String                @id @default(cuid())
-  costSheetId String
-  type        CrmCostComponentType
-  description String
-  supplierId  String?
-  unitCost    Decimal               @db.Decimal(12, 2)
-  quantity    Int                   @default(1)
-  total       Decimal               @db.Decimal(12, 2)
-  sortOrder   Int                   @default(0)
-  createdAt   DateTime              @default(now())
+  id           String         @id @default(cuid())
+  costSheetId  String
+  costType     CrmCostType    @default(CUSTOM)
+  pricingType  CrmPricingType @default(BULK)
+  description  String
+  supplierId   String?
+  qty          Int            @default(1)
+  unitCost     Decimal        @db.Decimal(12, 2)
+  currency     CrmCurrency    @default(USD)
+  exchangeRate Decimal        @default(1) @db.Decimal(10, 4)  // to baseCurrency
+  sortOrder    Int            @default(0)
+  createdAt    DateTime       @default(now())
 
   costSheet CrmCostSheet @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
   supplier  CrmSupplier? @relation(fields: [supplierId], references: [id])
@@ -4383,6 +4402,42 @@ model CrmCostComponent {
   @@index([costSheetId])
   @@index([supplierId])
   @@map("crm_cost_component")
+}
+
+// ── CRM Pickup Location ──
+
+model CrmPickupLocation {
+  id          String   @id @default(cuid())
+  excursionId String
+  name        String   // e.g. "Hurghada", "El Gouna", "Sahl Hasheesh"
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  excursion      CrmExcursion      @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+  transportTiers CrmTransportTier[]
+
+  @@index([excursionId])
+  @@map("crm_pickup_location")
+}
+
+// ── CRM Transport Tier ──
+
+model CrmTransportTier {
+  id               String          @id @default(cuid())
+  pickupLocationId String
+  vehicleName      String          // e.g. "Limo", "Hi-Ace", "Coaster", "Bus"
+  minPax           Int
+  maxPax           Int
+  unitCost         Decimal         @db.Decimal(12, 2)
+  currency         CrmCurrency     @default(EGP)
+  exchangeRate     Decimal         @default(1) @db.Decimal(10, 4)
+  sortOrder        Int             @default(0)
+  createdAt        DateTime        @default(now())
+
+  pickupLocation CrmPickupLocation @relation(fields: [pickupLocationId], references: [id], onDelete: Cascade)
+
+  @@index([pickupLocationId])
+  @@map("crm_transport_tier")
 }
 
 // ── CRM Markup Type ──

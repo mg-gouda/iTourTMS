@@ -1,3 +1,5 @@
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | "success" | "warning" | "info";
+
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
   NEW_BOOKING: "New Booking",
   DRAFT: "Draft",
@@ -9,7 +11,7 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   PENDING_APPROVAL: "Pending Approval",
 };
 
-export const BOOKING_STATUS_VARIANTS: Record<string, string> = {
+export const BOOKING_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   NEW_BOOKING: "default",
   DRAFT: "secondary",
   CONFIRMED: "info",
@@ -26,7 +28,7 @@ export const BOOKING_SOURCE_LABELS: Record<string, string> = {
   API: "API",
 };
 
-export const BOOKING_SOURCE_VARIANTS: Record<string, string> = {
+export const BOOKING_SOURCE_VARIANTS: Record<string, BadgeVariant> = {
   DIRECT: "default",
   TOUR_OPERATOR: "info",
   API: "outline",
@@ -38,7 +40,7 @@ export const VOUCHER_STATUS_LABELS: Record<string, string> = {
   CANCELLED: "Cancelled",
 };
 
-export const VOUCHER_STATUS_VARIANTS: Record<string, string> = {
+export const VOUCHER_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   ISSUED: "info",
   USED: "success",
   CANCELLED: "destructive",
@@ -51,7 +53,7 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   REFUNDED: "Refunded",
 };
 
-export const PAYMENT_STATUS_VARIANTS: Record<string, string> = {
+export const PAYMENT_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   UNPAID: "destructive",
   PARTIAL: "warning",
   PAID: "success",
@@ -80,7 +82,7 @@ export const PARTNER_BOOKING_STATUS_LABELS: Record<string, string> = {
   CANCELLED: "Cancelled",
 };
 
-export const PARTNER_BOOKING_STATUS_VARIANTS: Record<string, string> = {
+export const PARTNER_BOOKING_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   NEW_BOOKING: "default",
   SENT: "secondary",
   CONFIRMED: "success",

@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { CRM_COST_COMPONENT_TYPE_LABELS } from "@/lib/constants/crm";
+import { CRM_COST_TYPE_LABELS } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { supplierUpdateSchema } from "@/lib/validations/crm";
 
@@ -189,13 +189,13 @@ export default function SupplierDetailPage() {
                       <td className="px-3 py-1.5 text-muted-foreground">{comp.costSheet?.name ?? "—"}</td>
                       <td className="px-3 py-1.5">
                         <Badge variant="outline" className="text-xs">
-                          {CRM_COST_COMPONENT_TYPE_LABELS[comp.type] ?? comp.type}
+                          {CRM_COST_TYPE_LABELS[comp.costType] ?? comp.costType}
                         </Badge>
                       </td>
                       <td className="px-3 py-1.5">{comp.description}</td>
                       <td className="px-3 py-1.5 text-right font-mono">${Number(comp.unitCost).toFixed(2)}</td>
-                      <td className="px-3 py-1.5 text-right">{comp.quantity}</td>
-                      <td className="px-3 py-1.5 text-right font-mono font-semibold">${Number(comp.total).toFixed(2)}</td>
+                      <td className="px-3 py-1.5 text-right">{comp.qty}</td>
+                      <td className="px-3 py-1.5 text-right font-mono font-semibold">{comp.currency} {Number(comp.unitCost).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>

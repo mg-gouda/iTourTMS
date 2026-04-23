@@ -120,16 +120,44 @@ export const CRM_COST_CALC_BASIS_LABELS: Record<string, string> = {
   FLAT: "Flat",
 };
 
-export const CRM_COST_COMPONENT_TYPE_LABELS: Record<string, string> = {
-  TRANSPORT: "Transport",
+export const CRM_COST_TYPE_LABELS: Record<string, string> = {
+  GUIDE: "Guide",
+  REP_FEES: "Rep Fees",
+  POLICE_PERMIT: "Police Permit",
+  POLICE_TIP: "Police Tip",
+  FELUCCA: "Felucca",
+  CARRIAGE: "Carriage",
   TICKETS: "Tickets",
-  GUIDE_FEE: "Guide Fee",
   MEALS: "Meals",
-  EQUIPMENT: "Equipment",
-  INSURANCE: "Insurance",
-  COMMISSION: "Commission",
-  PERMIT: "Permit",
-  MISCELLANEOUS: "Miscellaneous",
+  EXTRAS: "Extras",
+  DIVING_SNORKELING: "Diving & Snorkeling",
+  CUSTOM: "Custom",
+};
+
+export const CRM_PRICING_TYPE_LABELS: Record<string, string> = {
+  BULK: "Bulk ÷ Pax",
+  PER_PAX: "Per Pax",
+};
+
+// Default pricing type for each cost type (auto-filled in UI)
+export const CRM_COST_TYPE_PRICING_DEFAULTS: Record<string, "BULK" | "PER_PAX"> = {
+  GUIDE: "BULK",
+  REP_FEES: "BULK",
+  POLICE_PERMIT: "BULK",
+  POLICE_TIP: "BULK",
+  FELUCCA: "BULK",
+  CARRIAGE: "BULK",
+  TICKETS: "PER_PAX",
+  MEALS: "PER_PAX",
+  EXTRAS: "PER_PAX",
+  DIVING_SNORKELING: "PER_PAX",
+  CUSTOM: "BULK",
+};
+
+export const CRM_CURRENCY_LABELS: Record<string, string> = {
+  EGP: "EGP",
+  USD: "USD",
+  EUR: "EUR",
 };
 
 export const CRM_MARKUP_TYPE_LABELS: Record<string, string> = {

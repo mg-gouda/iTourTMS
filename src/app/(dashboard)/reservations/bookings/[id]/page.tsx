@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1433,7 +1433,7 @@ function InfoRow({
   value,
 }: {
   label: string;
-  value: string | null | undefined;
+  value: ReactNode;
 }) {
   return (
     <div className="flex justify-between">

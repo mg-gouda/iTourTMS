@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Clock, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Clock, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import type { ExcursionPdfData } from "@/lib/export/crm-excursion-pdf";
@@ -39,12 +39,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { CostSheetEditor } from "@/components/crm/cost-sheet-editor";
 import { SellingPriceEditor } from "@/components/crm/selling-price-editor";
 import {
   CRM_ACTIVITY_CATEGORY_LABELS,
   CRM_AGE_GROUP_LABELS,
-  CRM_COST_CALC_BASIS_LABELS,
-  CRM_COST_COMPONENT_TYPE_LABELS,
   CRM_NATIONALITY_TIER_LABELS,
   CRM_PRODUCT_TYPE_LABELS,
   CRM_SEASON_TYPE_LABELS,
@@ -74,7 +73,16 @@ export default function ExcursionDetailPage() {
   // --- Info form ---
   const form = useForm<ExcursionFormValues>({
     resolver: zodResolver(excursionUpdateSchema),
-    defaultValues: {},
+    defaultValues: {
+      code: "",
+      name: "",
+      duration: "",
+      description: "",
+      inclusions: "",
+      exclusions: "",
+      minPax: 1,
+      active: true,
+    },
   });
 
   useEffect(() => {
@@ -196,7 +204,7 @@ export default function ExcursionDetailPage() {
     resolver: zodResolver(costSheetCreateSchema),
     defaultValues: {
       excursionId: id, name: "", seasonType: "LOW", nationalityTier: "DEFAULT",
-      tripMode: "SHARED", validFrom: "", validTo: "", calcBasis: "PER_PERSON", notes: "",
+      tripMode: "SHARED", validFrom: "", validTo: "", referencePax: 10, baseCurrency: "USD", notes: "",
     },
   });
   const createCostSheet = trpc.crm.costSheet.create.useMutation({
@@ -205,7 +213,7 @@ export default function ExcursionDetailPage() {
       setCostSheetDialogOpen(false);
       costSheetForm.reset({
         excursionId: id, name: "", seasonType: "LOW", nationalityTier: "DEFAULT",
-        tripMode: "SHARED", validFrom: "", validTo: "", calcBasis: "PER_PERSON", notes: "",
+        tripMode: "SHARED", validFrom: "", validTo: "", referencePax: 10, baseCurrency: "USD", notes: "",
       });
     },
   });
@@ -218,60 +226,8 @@ export default function ExcursionDetailPage() {
   });
 
   // --- Component Editor ---
-  type CostComponentType = "TRANSPORT" | "TICKETS" | "GUIDE_FEE" | "MEALS" | "EQUIPMENT" | "INSURANCE" | "COMMISSION" | "PERMIT" | "MISCELLANEOUS";
-  type ComponentRow = {
-    type: CostComponentType;
-    description: string;
-    supplierId: string;
-    unitCost: number;
-    quantity: number;
-    total: number;
-    sortOrder: number;
-  };
-
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
-  const [componentRows, setComponentRows] = useState<ComponentRow[]>([]);
-
-  const openComponentEditor = useCallback((sheetId: string, existing: ComponentRow[]) => {
-    setEditingSheetId(sheetId);
-    setComponentRows(existing.length > 0 ? existing : [
-      { type: "TRANSPORT", description: "", supplierId: "", unitCost: 0, quantity: 1, total: 0, sortOrder: 0 },
-    ]);
-  }, []);
-
-  const addComponentRow = useCallback(() => {
-    setComponentRows((prev) => [
-      ...prev,
-      { type: "TRANSPORT", description: "", supplierId: "", unitCost: 0, quantity: 1, total: 0, sortOrder: prev.length },
-    ]);
-  }, []);
-
-  const removeComponentRow = useCallback((index: number) => {
-    setComponentRows((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const updateComponentRow = useCallback((index: number, field: keyof ComponentRow, value: string | number) => {
-    setComponentRows((prev) => {
-      const updated = [...prev];
-      const row = { ...updated[index] };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (row as any)[field] = value;
-      // Auto-calculate total
-      if (field === "unitCost" || field === "quantity") {
-        row.total = Number(row.unitCost) * Number(row.quantity);
-      }
-      updated[index] = row;
-      return updated;
-    });
-  }, []);
-
-  const saveComponentsMutation = trpc.crm.costSheet.saveComponents.useMutation({
-    onSuccess: () => {
-      utils.crm.excursion.getById.invalidate({ id });
-      setEditingSheetId(null);
-      setComponentRows([]);
-    },
-  });
+  const { data: pickupLocations } = trpc.crm.pickupLocation.listByExcursion.useQuery({ excursionId: id });
 
   if (isLoading) {
     return (
@@ -785,17 +741,27 @@ export default function ExcursionDetailPage() {
                         <FormItem><FormLabel>Valid To</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
                       )} />
                     </div>
-                    <FormField control={costSheetForm.control} name="calcBasis" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Calculation Basis</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {Object.entries(CRM_COST_CALC_BASIS_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField control={costSheetForm.control} name="referencePax" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reference Pax</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={1} {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          </FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={costSheetForm.control} name="baseCurrency" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Base Currency</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              {["EGP", "USD", "EUR"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                    </div>
                     <Button type="submit" disabled={createCostSheet.isPending}>Create Cost Sheet</Button>
                   </form>
                 </Form>
@@ -818,27 +784,19 @@ export default function ExcursionDetailPage() {
                           <Badge variant="outline">{CRM_SEASON_TYPE_LABELS[sheet.seasonType]}</Badge>
                           <Badge variant="outline">{CRM_NATIONALITY_TIER_LABELS[sheet.nationalityTier]}</Badge>
                           <Badge variant="outline">{CRM_TRIP_MODE_LABELS[sheet.tripMode]}</Badge>
-                          <Badge variant="outline">{CRM_COST_CALC_BASIS_LABELS[sheet.calcBasis]}</Badge>
+                          <Badge variant="outline">{sheet.referencePax} pax ref</Badge>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold">
-                          ${Number(sheet.totalCost ?? 0).toFixed(2)}
+                          {sheet.baseCurrency} {Number(sheet.totalCost ?? 0).toFixed(2)}/pax
                         </span>
                         {!isEditing && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => openComponentEditor(sheet.id, sheet.components.map((c) => ({
-                              type: c.type,
-                              description: c.description,
-                              supplierId: c.supplierId ?? "",
-                              unitCost: Number(c.unitCost),
-                              quantity: c.quantity,
-                              total: Number(c.total),
-                              sortOrder: c.sortOrder,
-                            })))}
+                            onClick={() => setEditingSheetId(sheet.id)}
                           >
                             <Pencil className="h-3 w-3" />
                           </Button>
@@ -856,159 +814,47 @@ export default function ExcursionDetailPage() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     {isEditing ? (
-                      /* ── Inline Component Editor ── */
-                      <div className="space-y-3">
-                        <div className="overflow-x-auto rounded border">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b bg-muted/50">
-                                <th className="px-2 py-1.5 text-left text-xs font-medium w-[130px]">Type</th>
-                                <th className="px-2 py-1.5 text-left text-xs font-medium">Description</th>
-                                <th className="px-2 py-1.5 text-left text-xs font-medium w-[140px]">Supplier</th>
-                                <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">Unit Cost</th>
-                                <th className="px-2 py-1.5 text-right text-xs font-medium w-[60px]">Qty</th>
-                                <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">Total</th>
-                                <th className="w-[36px]" />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {componentRows.map((row, idx) => (
-                                <tr key={idx} className="border-b last:border-0">
-                                  <td className="px-1 py-1">
-                                    <select
-                                      className="h-8 w-full rounded border bg-background px-1 text-xs"
-                                      value={row.type}
-                                      onChange={(e) => updateComponentRow(idx, "type", e.target.value)}
-                                    >
-                                      {Object.entries(CRM_COST_COMPONENT_TYPE_LABELS).map(([v, l]) => (
-                                        <option key={v} value={v}>{l}</option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                  <td className="px-1 py-1">
-                                    <Input
-                                      className="h-8 text-xs"
-                                      value={row.description}
-                                      onChange={(e) => updateComponentRow(idx, "description", e.target.value)}
-                                    />
-                                  </td>
-                                  <td className="px-1 py-1">
-                                    <select
-                                      className="h-8 w-full rounded border bg-background px-1 text-xs"
-                                      value={row.supplierId}
-                                      onChange={(e) => updateComponentRow(idx, "supplierId", e.target.value)}
-                                    >
-                                      <option value="">—</option>
-                                      {(suppliers ?? []).map((s) => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                  <td className="px-1 py-1">
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      step="0.01"
-                                      className="h-8 text-xs text-right"
-                                      value={row.unitCost}
-                                      onChange={(e) => updateComponentRow(idx, "unitCost", Number(e.target.value))}
-                                    />
-                                  </td>
-                                  <td className="px-1 py-1">
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      className="h-8 text-xs text-right"
-                                      value={row.quantity}
-                                      onChange={(e) => updateComponentRow(idx, "quantity", Number(e.target.value))}
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1 text-right font-mono text-xs">
-                                    {row.total.toFixed(2)}
-                                  </td>
-                                  <td className="px-1 py-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-destructive"
-                                      onClick={() => removeComponentRow(idx)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot>
-                              <tr className="bg-muted/30">
-                                <td colSpan={5} className="px-2 py-1.5 text-right text-xs font-semibold">Total</td>
-                                <td className="px-2 py-1.5 text-right font-mono text-xs font-semibold">
-                                  {componentRows.reduce((s, r) => s + r.total, 0).toFixed(2)}
-                                </td>
-                                <td />
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={addComponentRow}>
-                            <Plus className="mr-1 h-3 w-3" /> Add Row
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              const valid = componentRows.every((r) => r.description.trim() !== "");
-                              if (!valid) { alert("All components need a description"); return; }
-                              saveComponentsMutation.mutate({
-                                costSheetId: sheet.id,
-                                components: componentRows.map((r, i) => ({
-                                  ...r,
-                                  supplierId: r.supplierId || "",
-                                  sortOrder: i,
-                                })),
-                              });
-                            }}
-                            disabled={saveComponentsMutation.isPending}
-                          >
-                            <Save className="mr-1 h-3 w-3" />
-                            {saveComponentsMutation.isPending ? "Saving..." : "Save Components"}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setEditingSheetId(null); setComponentRows([]); }}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
+                      <CostSheetEditor
+                        sheetId={sheet.id}
+                        excursionId={id}
+                        referencePax={sheet.referencePax ?? 10}
+                        baseCurrency={(sheet.baseCurrency as "EGP" | "USD" | "EUR") ?? "USD"}
+                        existingComponents={sheet.components}
+                        existingLocations={pickupLocations ?? []}
+                        suppliers={suppliers ?? []}
+                        onSaved={() => { utils.crm.excursion.getById.invalidate({ id }); setEditingSheetId(null); }}
+                        onCancel={() => setEditingSheetId(null)}
+                      />
                     ) : sheet.components.length === 0 ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-1"
-                        onClick={() => openComponentEditor(sheet.id, [])}
-                      >
+                      <Button variant="outline" size="sm" className="mt-1" onClick={() => setEditingSheetId(sheet.id)}>
                         <Plus className="mr-1 h-3 w-3" /> Add Components
                       </Button>
                     ) : (
                       <div className="overflow-hidden rounded border">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-xs">
                           <thead>
                             <tr className="border-b bg-muted/50">
-                              <th className="px-3 py-1.5 text-left text-xs font-medium">Type</th>
-                              <th className="px-3 py-1.5 text-left text-xs font-medium">Description</th>
-                              <th className="px-3 py-1.5 text-left text-xs font-medium">Supplier</th>
-                              <th className="px-3 py-1.5 text-right text-xs font-medium">Unit</th>
-                              <th className="px-3 py-1.5 text-right text-xs font-medium">Qty</th>
-                              <th className="px-3 py-1.5 text-right text-xs font-medium">Total</th>
+                              <th className="px-3 py-1.5 text-left font-medium">Type</th>
+                              <th className="px-3 py-1.5 text-left font-medium">Description</th>
+                              <th className="px-3 py-1.5 text-center font-medium">Pricing</th>
+                              <th className="px-3 py-1.5 text-right font-medium">Qty</th>
+                              <th className="px-3 py-1.5 text-right font-medium">Unit Cost</th>
+                              <th className="px-3 py-1.5 text-center font-medium">CCY</th>
                             </tr>
                           </thead>
                           <tbody>
                             {sheet.components.map((comp) => (
                               <tr key={comp.id} className="border-b last:border-0">
-                                <td className="px-3 py-1.5">{CRM_COST_COMPONENT_TYPE_LABELS[comp.type]}</td>
+                                <td className="px-3 py-1.5 capitalize">{comp.costType.toLowerCase().replace(/_/g, " ")}</td>
                                 <td className="px-3 py-1.5">{comp.description}</td>
-                                <td className="px-3 py-1.5">{comp.supplier?.name ?? "—"}</td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <Badge variant={comp.pricingType === "BULK" ? "secondary" : "outline"} className="text-xs">
+                                    {comp.pricingType === "BULK" ? "Bulk" : "Per Pax"}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-1.5 text-right">{comp.qty}</td>
                                 <td className="px-3 py-1.5 text-right font-mono">{Number(comp.unitCost).toFixed(2)}</td>
-                                <td className="px-3 py-1.5 text-right">{comp.quantity}</td>
-                                <td className="px-3 py-1.5 text-right font-mono">{Number(comp.total).toFixed(2)}</td>
+                                <td className="px-3 py-1.5 text-center">{comp.currency}</td>
                               </tr>
                             ))}
                           </tbody>

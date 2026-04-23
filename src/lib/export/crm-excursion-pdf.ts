@@ -7,7 +7,7 @@ import {
   CRM_ACTIVITY_CATEGORY_LABELS,
   CRM_TRIP_MODE_LABELS,
   CRM_AGE_GROUP_LABELS,
-  CRM_COST_COMPONENT_TYPE_LABELS,
+  CRM_COST_TYPE_LABELS,
   CRM_COST_CALC_BASIS_LABELS,
 } from "@/lib/constants/crm";
 
@@ -263,7 +263,7 @@ export function generateExcursionPdf(data: ExcursionPdfData): jsPDF {
           margin: { left: margin, right: margin },
           head: [["Type", "Description", "Supplier", "Basis", "Unit Cost", "Qty", "Total"]],
           body: cs.components.map((c) => [
-            CRM_COST_COMPONENT_TYPE_LABELS[c.componentType] ?? c.componentType,
+            CRM_COST_TYPE_LABELS[c.componentType] ?? c.componentType,
             c.description ?? "",
             c.supplier?.name ?? "",
             CRM_COST_CALC_BASIS_LABELS[c.calcBasis] ?? c.calcBasis,

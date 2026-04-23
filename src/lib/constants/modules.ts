@@ -19,7 +19,7 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
   },
   {
     name: "crm",
-    displayName: "CRM & Sales",
+    displayName: "Excursions",
     description: "Leads, pipeline, activities, quotations, customer management",
     icon: "Users",
     dependencies: [],

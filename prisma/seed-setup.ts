@@ -17,9 +17,11 @@ const prisma = new PrismaClient({ adapter });
 const MODULES = [
   { name: "finance", displayName: "Finance & Accounting" },
   { name: "contracting", displayName: "Contracting" },
-  { name: "crm", displayName: "CRM & Sales" },
+  { name: "crm", displayName: "Excursions" },
   { name: "reservations", displayName: "Reservations" },
   { name: "traffic", displayName: "Traffic & Transport" },
+  { name: "b2c-site", displayName: "B2C Website" },
+  { name: "b2b-portal", displayName: "B2B Portal" },
 ];
 
 const SEQUENCES = [

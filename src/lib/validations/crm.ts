@@ -147,6 +147,10 @@ export const addonUpdateSchema = addonCreateSchema.omit({ excursionId: true }).p
 
 // ── Cost Sheet Schemas ──
 
+const COST_TYPES = ["GUIDE", "REP_FEES", "POLICE_PERMIT", "POLICE_TIP", "FELUCCA", "CARRIAGE", "TICKETS", "MEALS", "EXTRAS", "DIVING_SNORKELING", "CUSTOM"] as const;
+const PRICING_TYPES = ["BULK", "PER_PAX"] as const;
+const CURRENCIES = ["EGP", "USD", "EUR"] as const;
+
 export const costSheetCreateSchema = z.object({
   excursionId: z.string().min(1),
   name: z.string().min(1, "Name is required"),
@@ -155,7 +159,8 @@ export const costSheetCreateSchema = z.object({
   tripMode: z.enum(["SHARED", "PRIVATE", "VIP"]).default("SHARED"),
   validFrom: z.string().optional().or(z.literal("")),
   validTo: z.string().optional().or(z.literal("")),
-  calcBasis: z.enum(["PER_PERSON", "PER_GROUP", "FLAT"]).default("PER_PERSON"),
+  referencePax: z.number().int().min(1).default(10),
+  baseCurrency: z.enum(CURRENCIES).default("USD"),
   notes: z.string().optional().or(z.literal("")),
 });
 
@@ -164,18 +169,49 @@ export const costSheetUpdateSchema = costSheetCreateSchema.omit({ excursionId: t
 // ── Cost Component Schemas ──
 
 export const costComponentSchema = z.object({
-  type: z.enum(["TRANSPORT", "TICKETS", "GUIDE_FEE", "MEALS", "EQUIPMENT", "INSURANCE", "COMMISSION", "PERMIT", "MISCELLANEOUS"]),
+  costType: z.enum(COST_TYPES).default("CUSTOM"),
+  pricingType: z.enum(PRICING_TYPES).default("BULK"),
   description: z.string().min(1, "Description is required"),
   supplierId: z.string().optional().or(z.literal("")),
+  qty: z.number().int().min(1).default(1),
   unitCost: z.number().min(0),
-  quantity: z.number().int().min(1).default(1),
-  total: z.number().min(0),
+  currency: z.enum(CURRENCIES).default("USD"),
+  exchangeRate: z.number().min(0).default(1),
   sortOrder: z.number().int().default(0),
 });
 
 export const costComponentBulkSaveSchema = z.object({
   costSheetId: z.string().min(1),
   components: z.array(costComponentSchema),
+});
+
+// ── Transport Schemas ──
+
+export const transportTierSchema = z.object({
+  vehicleName: z.string().min(1, "Vehicle name is required"),
+  minPax: z.number().int().min(1),
+  maxPax: z.number().int().min(1),
+  unitCost: z.number().min(0),
+  currency: z.enum(CURRENCIES).default("EGP"),
+  exchangeRate: z.number().min(0).default(1),
+  sortOrder: z.number().int().default(0),
+});
+
+export const pickupLocationSchema = z.object({
+  excursionId: z.string().min(1),
+  name: z.string().min(1, "Location name is required"),
+  sortOrder: z.number().int().default(0),
+  tiers: z.array(transportTierSchema),
+});
+
+export const pickupLocationBulkSaveSchema = z.object({
+  excursionId: z.string().min(1),
+  locations: z.array(z.object({
+    id: z.string().optional(),
+    name: z.string().min(1),
+    sortOrder: z.number().int().default(0),
+    tiers: z.array(transportTierSchema),
+  })),
 });
 
 // ── Selling Price Schemas ──

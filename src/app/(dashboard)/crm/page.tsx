@@ -39,7 +39,7 @@ export default function CrmDashboardPage() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">CRM & Sales</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Excursions</h1>
           <p className="text-muted-foreground">Overview of your sales pipeline and leads</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -83,7 +83,7 @@ export default function CrmDashboardPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">CRM & Sales</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Excursions</h1>
         <p className="text-muted-foreground">Overview of your sales pipeline, leads, and bookings</p>
       </div>
 

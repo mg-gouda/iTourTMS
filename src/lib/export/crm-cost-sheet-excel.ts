@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 
 import {
-  CRM_COST_COMPONENT_TYPE_LABELS,
+  CRM_COST_TYPE_LABELS,
   CRM_COST_CALC_BASIS_LABELS,
   CRM_SEASON_TYPE_LABELS,
 } from "@/lib/constants/crm";
@@ -81,7 +81,7 @@ export async function exportCostSheetsToExcel(
     cs.components.map((c) => [
       cs.excursion.code,
       cs.label,
-      CRM_COST_COMPONENT_TYPE_LABELS[c.componentType] ?? c.componentType,
+      CRM_COST_TYPE_LABELS[c.componentType] ?? c.componentType,
       c.description ?? "",
       c.supplier?.name ?? "",
       CRM_COST_CALC_BASIS_LABELS[c.calcBasis] ?? c.calcBasis,

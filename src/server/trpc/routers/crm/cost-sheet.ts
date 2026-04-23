@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Decimal } from "decimal.js";
 
 import { costSheetCreateSchema, costSheetUpdateSchema, costComponentBulkSaveSchema } from "@/lib/validations/crm";
 import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
@@ -14,9 +15,7 @@ export const costSheetRouter = createTRPCRouter({
       });
       return ctx.db.crmCostSheet.findMany({
         where: { excursionId: input.excursionId },
-        include: {
-          _count: { select: { components: true } },
-        },
+        include: { _count: { select: { components: true } } },
         orderBy: { createdAt: "desc" },
       });
     }),
@@ -34,9 +33,7 @@ export const costSheetRouter = createTRPCRouter({
           },
         },
       });
-      if (sheet.excursion.companyId !== ctx.companyId) {
-        throw new Error("Not found");
-      }
+      if (sheet.excursion.companyId !== ctx.companyId) throw new Error("Not found");
       return sheet;
     }),
 
@@ -55,7 +52,8 @@ export const costSheetRouter = createTRPCRouter({
           tripMode: input.tripMode,
           validFrom: input.validFrom ? new Date(input.validFrom) : null,
           validTo: input.validTo ? new Date(input.validTo) : null,
-          calcBasis: input.calcBasis,
+          referencePax: input.referencePax,
+          baseCurrency: input.baseCurrency,
           notes: input.notes || null,
         },
       });
@@ -68,18 +66,12 @@ export const costSheetRouter = createTRPCRouter({
         where: { id: input.id },
         include: { excursion: { select: { companyId: true } } },
       });
-      if (sheet.excursion.companyId !== ctx.companyId) {
-        throw new Error("Not found");
-      }
+      if (sheet.excursion.companyId !== ctx.companyId) throw new Error("Not found");
       const data: Record<string, unknown> = { ...input.data };
       if (data.validFrom !== undefined) data.validFrom = data.validFrom ? new Date(data.validFrom as string) : null;
       if (data.validTo !== undefined) data.validTo = data.validTo ? new Date(data.validTo as string) : null;
       if (data.notes !== undefined) data.notes = data.notes || null;
-
-      return ctx.db.crmCostSheet.update({
-        where: { id: input.id },
-        data,
-      });
+      return ctx.db.crmCostSheet.update({ where: { id: input.id }, data });
     }),
 
   delete: proc
@@ -89,13 +81,10 @@ export const costSheetRouter = createTRPCRouter({
         where: { id: input.id },
         include: { excursion: { select: { companyId: true } } },
       });
-      if (sheet.excursion.companyId !== ctx.companyId) {
-        throw new Error("Not found");
-      }
+      if (sheet.excursion.companyId !== ctx.companyId) throw new Error("Not found");
       return ctx.db.crmCostSheet.delete({ where: { id: input.id } });
     }),
 
-  // Bulk delete-and-recreate components (same pattern as contracting supplements)
   saveComponents: proc
     .input(costComponentBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
@@ -103,38 +92,95 @@ export const costSheetRouter = createTRPCRouter({
         where: { id: input.costSheetId },
         include: { excursion: { select: { companyId: true } } },
       });
-      if (sheet.excursion.companyId !== ctx.companyId) {
-        throw new Error("Not found");
-      }
+      if (sheet.excursion.companyId !== ctx.companyId) throw new Error("Not found");
 
       await ctx.db.$transaction(async (tx) => {
-        // Delete all existing components
-        await tx.crmCostComponent.deleteMany({
-          where: { costSheetId: input.costSheetId },
-        });
-        // Create new ones
+        await tx.crmCostComponent.deleteMany({ where: { costSheetId: input.costSheetId } });
+
         if (input.components.length > 0) {
           await tx.crmCostComponent.createMany({
             data: input.components.map((c, i) => ({
               costSheetId: input.costSheetId,
-              type: c.type,
+              costType: c.costType,
+              pricingType: c.pricingType,
               description: c.description,
               supplierId: c.supplierId || null,
+              qty: c.qty,
               unitCost: c.unitCost,
-              quantity: c.quantity,
-              total: c.total,
+              currency: c.currency,
+              exchangeRate: c.exchangeRate,
               sortOrder: c.sortOrder ?? i,
             })),
           });
         }
-        // Update total on sheet
-        const totalCost = input.components.reduce((sum, c) => sum + c.total, 0);
+
+        // Recalculate totalCost = sum of per-pax costs (BULK ÷ referencePax, PER_PAX as-is) in baseCurrency
+        const referencePax = sheet.referencePax ?? 10;
+        const totalCost = input.components.reduce((sum, c) => {
+          const lineUsd = new Decimal(c.unitCost).times(c.qty).times(c.exchangeRate);
+          const perPax = c.pricingType === "BULK"
+            ? lineUsd.dividedBy(referencePax)
+            : lineUsd;
+          return sum.plus(perPax);
+        }, new Decimal(0));
+
         await tx.crmCostSheet.update({
           where: { id: input.costSheetId },
-          data: { totalCost },
+          data: { totalCost: totalCost.toDecimalPlaces(2) },
         });
       });
 
       return { success: true };
+    }),
+
+  // Recalculate totalCost for a different pax count (used by selling price editor)
+  calculateCost: proc
+    .input(z.object({ id: z.string(), paxCount: z.number().int().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const sheet = await ctx.db.crmCostSheet.findFirstOrThrow({
+        where: { id: input.id },
+        include: {
+          excursion: {
+            select: {
+              companyId: true,
+              pickupLocations: {
+                include: { transportTiers: { orderBy: { minPax: "asc" } } },
+                orderBy: { sortOrder: "asc" },
+              },
+            },
+          },
+          components: true,
+        },
+      });
+      if (sheet.excursion.companyId !== ctx.companyId) throw new Error("Not found");
+
+      // Fixed cost per pax
+      const fixedPerPax = sheet.components.reduce((sum, c) => {
+        const line = new Decimal(c.unitCost.toString()).times(c.qty).times(c.exchangeRate.toString());
+        return sum.plus(c.pricingType === "BULK" ? line.dividedBy(input.paxCount) : line);
+      }, new Decimal(0));
+
+      // Transport per pax per pickup location
+      const transport = sheet.excursion.pickupLocations.map((loc) => {
+        const tier = loc.transportTiers.find(
+          (t) => input.paxCount >= t.minPax && input.paxCount <= t.maxPax,
+        );
+        const transportPerPax = tier
+          ? new Decimal(tier.unitCost.toString()).times(tier.exchangeRate.toString()).dividedBy(input.paxCount)
+          : new Decimal(0);
+        return {
+          locationId: loc.id,
+          locationName: loc.name,
+          vehicleName: tier?.vehicleName ?? null,
+          transportPerPax: transportPerPax.toDecimalPlaces(2).toNumber(),
+          totalPerPax: fixedPerPax.plus(transportPerPax).toDecimalPlaces(2).toNumber(),
+        };
+      });
+
+      return {
+        paxCount: input.paxCount,
+        fixedPerPax: fixedPerPax.toDecimalPlaces(2).toNumber(),
+        transport,
+      };
     }),
 });
