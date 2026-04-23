@@ -193,6 +193,8 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         label: "Catalog",
         routes: [
           { label: "Excursions", href: "/crm/excursions" },
+          { label: "Exc. Programs", href: "/crm/exc-programs" },
+          { label: "TO Assign", href: "/crm/to-assign" },
           { label: "Suppliers", href: "/crm/suppliers" },
         ],
       },
