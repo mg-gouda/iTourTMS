@@ -306,7 +306,7 @@ export function CostSheetEditor({
                 <th className="px-2 py-1.5 text-right font-medium w-[50px]">Qty</th>
                 <th className="px-2 py-1.5 text-right font-medium w-[90px]">Unit Cost</th>
                 <th className="px-2 py-1.5 text-center font-medium w-[70px]">CCY</th>
-                <th className="px-2 py-1.5 text-right font-medium w-[70px]">Rate</th>
+                <th className="px-2 py-1.5 text-right font-medium w-[70px]">ROE</th>
                 <th className="px-2 py-1.5 text-center font-medium w-[90px]">Pricing</th>
                 <th className="px-2 py-1.5 text-right font-medium w-[80px]">Per Pax ({baseCurrency})</th>
                 <th className="w-7" />
@@ -456,7 +456,7 @@ export function CostSheetEditor({
                         <th className="px-2 py-1.5 text-right font-medium w-[70px]">Max Pax</th>
                         <th className="px-2 py-1.5 text-right font-medium w-[90px]">Cost</th>
                         <th className="px-2 py-1.5 text-center font-medium w-[65px]">CCY</th>
-                        <th className="px-2 py-1.5 text-right font-medium w-[70px]">Rate</th>
+                        <th className="px-2 py-1.5 text-right font-medium w-[70px]">ROE</th>
                         <th className="px-2 py-1.5 text-right font-medium w-[80px]">Per Pax ({baseCurrency})</th>
                         <th className="w-7" />
                       </tr>
