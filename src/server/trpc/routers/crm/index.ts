@@ -6,6 +6,7 @@ import { bookingRouter } from "./booking";
 import { ageGroupRouter } from "./age-group";
 import { costSheetRouter } from "./cost-sheet";
 import { pickupLocationRouter } from "./pickup-location";
+import { programPlanRouter } from "./program-plan";
 import { customerRouter } from "./customer";
 import { excursionRouter } from "./excursion";
 import { leadRouter } from "./lead";
@@ -24,6 +25,7 @@ export const crmRouter = createTRPCRouter({
   program: programRouter,
   costSheet: costSheetRouter,
   pickupLocation: pickupLocationRouter,
+  programPlan: programPlanRouter,
   addon: addonRouter,
   ageGroup: ageGroupRouter,
   sellingPrice: sellingPriceRouter,

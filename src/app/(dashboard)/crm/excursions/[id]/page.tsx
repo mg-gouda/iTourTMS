@@ -40,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { CostSheetEditor } from "@/components/crm/cost-sheet-editor";
+import { PickupLocationEditor } from "@/components/crm/pickup-location-editor";
 import { SellingPriceEditor } from "@/components/crm/selling-price-editor";
 import {
   CRM_ACTIVITY_CATEGORY_LABELS,
@@ -347,6 +348,7 @@ export default function ExcursionDetailPage() {
           <TabsTrigger value="info">Info</TabsTrigger>
           <TabsTrigger value="program">Program ({excursion.programs?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="extras">Age Groups & Addons</TabsTrigger>
+          <TabsTrigger value="pickup">Pickup Locations ({excursion.pickupLocations?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="costs">Cost Sheets ({excursion.costSheets?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
         </TabsList>
@@ -403,6 +405,31 @@ export default function ExcursionDetailPage() {
                   <FormField control={form.control} name="duration" render={({ field }) => (
                     <FormItem><FormLabel>Duration</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                   )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="minPax" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Min Pax</FormLabel>
+                        <FormControl>
+                          <Input type="number" min={1} {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="maxPax" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Pax</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
                   <FormField control={form.control} name="description" render={({ field }) => (
                     <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} /></FormControl></FormItem>
                   )} />
@@ -682,6 +709,11 @@ export default function ExcursionDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Pickup Locations Tab ── */}
+        <TabsContent value="pickup" className="mt-4">
+          <PickupLocationEditor excursionId={id} />
         </TabsContent>
 
         {/* ── Cost Sheets Tab ── */}

@@ -271,3 +271,28 @@ export const bookingUpdateSchema = z.object({
   currency: z.string().max(3).optional(),
   notes: z.string().optional().or(z.literal("")),
 });
+
+// ── Program Plan ──
+
+export const programPlanItemSchema = z.object({
+  excursionId: z.string().min(1, "Excursion is required"),
+  sellingPriceId: z.string().optional().or(z.literal("")),
+  minToOperate: z.number().int().min(1).default(1),
+  operatingDays: z.number().int().min(0).max(127).default(127),
+  sortOrder: z.number().int().default(0),
+  notes: z.string().optional().or(z.literal("")),
+});
+
+export const programPlanCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional().or(z.literal("")),
+  marketId: z.string().optional().or(z.literal("")),
+  active: z.boolean().default(true),
+});
+
+export const programPlanUpdateSchema = programPlanCreateSchema.partial();
+
+export const programPlanSaveItemsSchema = z.object({
+  programPlanId: z.string().min(1),
+  items: z.array(programPlanItemSchema),
+});

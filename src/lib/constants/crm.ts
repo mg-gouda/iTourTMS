@@ -180,3 +180,31 @@ export const CRM_BOOKING_STATUS_VARIANTS: Record<string, string> = {
   COMPLETED: "default",
   NO_SHOW: "warning",
 };
+
+// ── Program Plan ──
+
+export const OPERATING_DAYS = [
+  { label: "Mon", bit: 1 },
+  { label: "Tue", bit: 2 },
+  { label: "Wed", bit: 4 },
+  { label: "Thu", bit: 8 },
+  { label: "Fri", bit: 16 },
+  { label: "Sat", bit: 32 },
+  { label: "Sun", bit: 64 },
+] as const;
+
+export function hasDay(mask: number, bit: number): boolean {
+  return (mask & bit) !== 0;
+}
+
+export function toggleDay(mask: number, bit: number): number {
+  return mask ^ bit;
+}
+
+export function formatOperatingDays(mask: number): string {
+  if (mask === 127) return "Every day";
+  if (mask === 0) return "None";
+  return OPERATING_DAYS.filter((d) => hasDay(mask, d.bit))
+    .map((d) => d.label)
+    .join(", ");
+}

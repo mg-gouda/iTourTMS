@@ -42,6 +42,10 @@ export const excursionRouter = createTRPCRouter({
               },
             },
           },
+          pickupLocations: {
+            orderBy: { sortOrder: "asc" },
+            include: { transportTiers: { orderBy: { minPax: "asc" } } },
+          },
         },
       });
     }),

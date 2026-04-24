@@ -169,6 +169,7 @@ model Company {
   crmSuppliers         CrmSupplier[]
   crmExcursions        CrmExcursion[]
   crmBookings          CrmBooking[]
+  crmProgramPlans      CrmProgramPlan[]
   b2bCreditTransactions B2bCreditTransaction[]
 
   // License
@@ -2110,6 +2111,7 @@ model Market {
   markupRules             MarkupRule[]
   marketingContributions  ContractMarketingContribution[]
   publicBrandings         PublicSiteBranding[]
+  crmProgramPlans         CrmProgramPlan[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -4268,12 +4270,13 @@ model CrmExcursion {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  programs        CrmExcursionProgram[]
-  ageGroups       CrmExcursionAgeGroup[]
-  addons          CrmExcursionAddon[]
-  costSheets      CrmCostSheet[]
-  bookingItems    CrmBookingItem[]
-  pickupLocations CrmPickupLocation[]
+  programs         CrmExcursionProgram[]
+  ageGroups        CrmExcursionAgeGroup[]
+  addons           CrmExcursionAddon[]
+  costSheets       CrmCostSheet[]
+  bookingItems     CrmBookingItem[]
+  pickupLocations  CrmPickupLocation[]
+  programPlanItems CrmProgramPlanItem[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -4465,8 +4468,9 @@ model CrmSellingPrice {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  costSheet CrmCostSheet         @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
-  ageGroup  CrmExcursionAgeGroup? @relation(fields: [ageGroupId], references: [id], onDelete: SetNull)
+  costSheet        CrmCostSheet         @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
+  ageGroup         CrmExcursionAgeGroup? @relation(fields: [ageGroupId], references: [id], onDelete: SetNull)
+  programPlanItems CrmProgramPlanItem[]
 
   @@index([costSheetId])
   @@map("crm_selling_price")
@@ -4538,4 +4542,46 @@ model CrmBookingItem {
 
   @@index([bookingId])
   @@map("crm_booking_item")
+}
+
+// ── CRM Program Plan ──
+// A scheduled excursion program: which excursions run, for which market, on which days of the week
+
+model CrmProgramPlan {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?  @db.Text
+  marketId    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  market  Market?          @relation(fields: [marketId], references: [id], onDelete: SetNull)
+  items   CrmProgramPlanItem[]
+
+  @@index([companyId])
+  @@map("crm_program_plan")
+}
+
+model CrmProgramPlanItem {
+  id             String   @id @default(cuid())
+  programPlanId  String
+  excursionId    String
+  sellingPriceId String?
+  minToOperate   Int      @default(1)
+  // Day-of-week bitmask: Mon=1 Tue=2 Wed=4 Thu=8 Fri=16 Sat=32 Sun=64; 127 = all days
+  operatingDays  Int      @default(127)
+  sortOrder      Int      @default(0)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  programPlan  CrmProgramPlan    @relation(fields: [programPlanId], references: [id], onDelete: Cascade)
+  excursion    CrmExcursion      @relation(fields: [excursionId], references: [id])
+  sellingPrice CrmSellingPrice?  @relation(fields: [sellingPriceId], references: [id], onDelete: SetNull)
+
+  @@index([programPlanId])
+  @@index([excursionId])
+  @@map("crm_program_plan_item")
 }
