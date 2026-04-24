@@ -10,18 +10,26 @@ import { db } from "@/server/db";
 
 import "./globals.css";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const company = await db.company.findFirst({
-    select: { faviconUrl: true, name: true },
-  });
+export const dynamic = "force-dynamic";
 
-  return {
-    title: company?.name
-      ? `${company.name} — iTourTMS`
-      : "iTourTMS — Travel Management System",
-    description: "Enterprise Travel Management System",
-    icons: company?.faviconUrl ? { icon: company.faviconUrl } : undefined,
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const company = await db.company.findFirst({
+      select: { faviconUrl: true, name: true },
+    });
+    return {
+      title: company?.name
+        ? `${company.name} — iTourTMS`
+        : "iTourTMS — Travel Management System",
+      description: "Enterprise Travel Management System",
+      icons: company?.faviconUrl ? { icon: company.faviconUrl } : undefined,
+    };
+  } catch {
+    return {
+      title: "iTourTMS — Travel Management System",
+      description: "Enterprise Travel Management System",
+    };
+  }
 }
 
 export default async function RootLayout({
