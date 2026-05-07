@@ -101,6 +101,7 @@ export default function NewBookingPage() {
       internalNotes: "",
       bookingNotes: "",
       meetAssistVisa: false,
+      bookingDate: new Date().toISOString().slice(0, 10),
       leadGuestName: "",
       leadGuestEmail: "",
       leadGuestPhone: "",
@@ -132,6 +133,7 @@ export default function NewBookingPage() {
   const tourOperatorId = form.watch("tourOperatorId");
   const checkIn = form.watch("checkIn");
   const checkOut = form.watch("checkOut");
+  const bookingDate = form.watch("bookingDate");
   const hotelPaymentMethod = form.watch("hotelPaymentMethod");
   const rooms = form.watch("rooms");
 
@@ -255,7 +257,7 @@ export default function NewBookingPage() {
             tourOperatorId: tourOperatorId || undefined,
             checkIn,
             checkOut,
-            bookingDate: new Date().toISOString().slice(0, 10),
+            bookingDate: bookingDate || new Date().toISOString().slice(0, 10),
             rooms: rooms.map((r) => ({
               roomTypeId: r.roomTypeId,
               mealBasisId: r.mealBasisId,
@@ -266,14 +268,20 @@ export default function NewBookingPage() {
           }
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canCalcRates, contractId, hotelId, tourOperatorId, checkIn, checkOut, JSON.stringify(rooms)],
+    [canCalcRates, contractId, hotelId, tourOperatorId, checkIn, checkOut, bookingDate, JSON.stringify(rooms)],
   );
+
+  const [committedCalcInput, setCommittedCalcInput] = useState<typeof rateCalcInput>(null);
+
+  function handleCalculateRates() {
+    if (rateCalcInput) setCommittedCalcInput(rateCalcInput);
+  }
 
   const {
     data: ratePreview,
     isLoading: ratesLoading,
-  } = trpc.reservations.booking.calculateRates.useQuery(rateCalcInput!, {
-    enabled: !!rateCalcInput,
+  } = trpc.reservations.booking.calculateRates.useQuery(committedCalcInput!, {
+    enabled: !!committedCalcInput,
   });
 
   // Derived values
@@ -448,15 +456,19 @@ export default function NewBookingPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {/* BKG Date — auto captured, read-only */}
-                <FormItem>
-                  <FormLabel>BKG Date</FormLabel>
-                  <Input
-                    value={format(new Date(), "dd MMM yyyy")}
-                    disabled
-                    className="bg-muted"
-                  />
-                </FormItem>
+                {/* BKG Date — editable for rebook / SPO validation */}
+                <FormField
+                  control={form.control}
+                  name="bookingDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>BKG Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
                 {/* HTL BKG Status */}
                 <FormField
@@ -814,12 +826,25 @@ export default function NewBookingPage() {
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Rooms</CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    appendRoom({
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canCalcRates || ratesLoading}
+                    onClick={handleCalculateRates}
+                  >
+                    {ratesLoading ? (
+                      <Loader2 className="mr-1 size-3.5 animate-spin" />
+                    ) : null}
+                    Calculate Rates
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      appendRoom({
                       roomTypeId: rooms[0]?.roomTypeId ?? "",
                       mealBasisId: rooms[0]?.mealBasisId ?? "",
                       adults: 2,
@@ -836,6 +861,7 @@ export default function NewBookingPage() {
                   <Plus className="mr-1 size-3.5" />
                   Add Room
                 </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1078,65 +1104,88 @@ export default function NewBookingPage() {
                   </Card>
                 );
               })}
+
+              {/* ── Rate Result (shown after Calculate is clicked) ── */}
+              {(ratePreview || ratesLoading) && (
+                <div className="border-t pt-4 space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">Cost</FormLabel>
+                      <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono">
+                        {ratesLoading ? <Loader2 className="size-3.5 animate-spin" /> : <>{costDisplay} {currencyCode}</>}
+                      </div>
+                    </FormItem>
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">Selling</FormLabel>
+                      <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono">
+                        {ratesLoading ? <Loader2 className="size-3.5 animate-spin" /> : <>{sellingDisplay} {currencyCode}</>}
+                      </div>
+                    </FormItem>
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">P/L</FormLabel>
+                      <div className={`flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono ${
+                        ratePreview && ratePreview.sellingTotal - ratePreview.buyingTotal < 0
+                          ? "text-destructive"
+                          : ratePreview && ratePreview.sellingTotal - ratePreview.buyingTotal > 0
+                            ? "text-green-600"
+                            : ""
+                      }`}>
+                        {ratesLoading ? <Loader2 className="size-3.5 animate-spin" /> : <>{plDisplay} {currencyCode}</>}
+                      </div>
+                    </FormItem>
+                  </div>
+
+                  {ratePreview?.markupRuleName && (
+                    <p className="text-xs text-muted-foreground">
+                      Markup: {ratePreview.markupRuleName} —{" "}
+                      {ratePreview.markupType === "PERCENTAGE"
+                        ? `${ratePreview.markupValue}%`
+                        : `${ratePreview.markupValue} / night`}{" "}
+                      = {ratePreview.markupAmount.toFixed(2)}
+                    </p>
+                  )}
+
+                  {(ratePreview?.rooms?.[0]?.breakdown?.offerDiscounts?.length ?? 0) > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">Special Offers:</p>
+                      {ratePreview!.rooms[0]!.breakdown.offerDiscounts.map(
+                        (od: { offerName: string; discount: number; description: string }, i: number) => (
+                          <p key={i} className={`text-xs ${od.discount > 0 ? "text-green-600" : "text-muted-foreground"}`}>
+                            {od.discount > 0 ? "✓" : "✗"}{" "}
+                            {od.offerName}: {od.description}
+                            {od.discount > 0 && ` — saved ${od.discount.toFixed(2)}`}
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  {(ratePreview?.warnings?.length ?? 0) > 0 && (
+                    <div className="space-y-1">
+                      {ratePreview!.warnings.map((w: string, i: number) => (
+                        <p key={i} className="text-xs text-amber-600">{w}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* ── Section 5: Rates & Payment ── */}
+          {/* ── Section 5: Payment ── */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Rates & Payment</CardTitle>
+              <CardTitle className="text-base">Payment</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Rate display */}
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-                <FormItem>
-                  <FormLabel>Cost</FormLabel>
-                  <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono">
-                    {ratesLoading ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <>{costDisplay} {currencyCode}</>
-                    )}
-                  </div>
-                </FormItem>
-                <FormItem>
-                  <FormLabel>Selling</FormLabel>
-                  <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono">
-                    {ratesLoading ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <>{sellingDisplay} {currencyCode}</>
-                    )}
-                  </div>
-                </FormItem>
-                <FormItem>
-                  <FormLabel>P/L</FormLabel>
-                  <div className={`flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-mono ${
-                    ratePreview && ratePreview.sellingTotal - ratePreview.buyingTotal < 0
-                      ? "text-destructive"
-                      : ratePreview && ratePreview.sellingTotal - ratePreview.buyingTotal > 0
-                        ? "text-green-600"
-                        : ""
-                  }`}>
-                    {ratesLoading ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <>{plDisplay} {currencyCode}</>
-                    )}
-                  </div>
-                </FormItem>
-
-                {/* Payment Method */}
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <FormField
                   control={form.control}
                   name="hotelPaymentMethod"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Payment Method</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select" />
@@ -1144,17 +1193,13 @@ export default function NewBookingPage() {
                         </FormControl>
                         <SelectContent>
                           {PAYMENT_METHOD_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </FormItem>
                   )}
                 />
-
-                {/* Payment Option Date — only shown when method is CASH */}
                 {hotelPaymentMethod === "CASH" && (
                   <FormField
                     control={form.control}
@@ -1170,42 +1215,6 @@ export default function NewBookingPage() {
                   />
                 )}
               </div>
-
-              {ratePreview?.markupRuleName && (
-                <p className="text-xs text-muted-foreground">
-                  Markup: {ratePreview.markupRuleName} —{" "}
-                  {ratePreview.markupType === "PERCENTAGE"
-                    ? `${ratePreview.markupValue}%`
-                    : `${ratePreview.markupValue} / night`}{" "}
-                  = {ratePreview.markupAmount.toFixed(2)}
-                </p>
-              )}
-
-              {/* Offer eligibility feedback */}
-              {(ratePreview?.rooms?.[0]?.breakdown?.offerDiscounts?.length ?? 0) > 0 && (
-                <div className="space-y-1 pt-1">
-                  <p className="text-xs font-medium text-muted-foreground">Special Offers:</p>
-                  {ratePreview!.rooms[0]!.breakdown.offerDiscounts.map(
-                    (od: { offerName: string; discount: number; description: string }, i: number) => (
-                      <p key={i} className={`text-xs ${od.discount > 0 ? "text-green-600" : "text-muted-foreground"}`}>
-                        {od.discount > 0 ? "\u2713" : "\u2717"}{" "}
-                        {od.offerName}: {od.description}
-                        {od.discount > 0 && ` — saved ${od.discount.toFixed(2)}`}
-                      </p>
-                    ),
-                  )}
-                </div>
-              )}
-
-              {(ratePreview?.warnings?.length ?? 0) > 0 && (
-                <div className="space-y-1 pt-1">
-                  {ratePreview!.warnings.map((w: string, i: number) => (
-                    <p key={i} className="text-xs text-amber-600">
-                      {w}
-                    </p>
-                  ))}
-                </div>
-              )}
             </CardContent>
           </Card>
 
