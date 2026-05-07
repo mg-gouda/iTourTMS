@@ -72,9 +72,23 @@ export interface RateContractData {
     active: boolean;
   }[];
   seasonSpos?: {
+    id?: string;
     spoType: string;
-    dateFrom: string;
-    dateTo: string;
+    name: string | null;
+    // travel period (BOOKING_WINDOW/PERCENTAGE use dateFrom/dateTo; RATE_OVERRIDE uses travelDates)
+    dateFrom: string | null;
+    dateTo: string | null;
+    travelDates?: {
+      dateFrom: string;
+      dateTo: string;
+      basePp?: string | number | null;
+      sglSup?: string | number | null;
+      thirdAdultRed?: string | number | null;
+      firstChildPct?: string | number | null;
+      secondChildPct?: string | number | null;
+      value?: string | number | null;
+      valueType?: string | null;
+    }[];
     basePp: string | number | null;
     sglSup: string | number | null;
     thirdAdultRed: string | number | null;
@@ -84,7 +98,10 @@ export interface RateContractData {
     bookTo: string | null;
     value: string | number | null;
     valueType: string | null;
+    excludedRoomTypeIds?: string[];
+    btcPeriods?: { dateFrom: string; dateTo: string; active: boolean }[];
     active: boolean;
+    roomSupplements?: { roomTypeId: string; value: string | number; valueType: string }[];
   }[];
 }
 
@@ -122,6 +139,20 @@ export interface OfferDiscountLine {
   description: string;
 }
 
+export interface NightSegment {
+  type: "SPO" | "BTC";
+  label: string;              // e.g. "RO-25-Apr-26-001" or "Back to Contract"
+  nights: number;
+  ratePerNight: number;       // base rate per person (PER_PERSON) or per room (PER_ROOM)
+  adults: number;
+  adultTotalPerNight: number; // ratePerNight × adults for PER_PERSON
+  subtotal: number;           // adultTotalPerNight × nights (before offers)
+  offerDiscounts: OfferDiscountLine[];  // contract offers applied to this segment (BTC only)
+  subtotalAfterOffers: number;          // subtotal after segment-level offer discounts
+  spoId?: string;                       // DB id of the SPO that produced this segment
+  appliedOfferIds?: string[];           // DB ids of special offers applied (BTC segments)
+}
+
 export interface RateBreakdown {
   baseRate: number;
   baseRateLabel: string;
@@ -139,6 +170,7 @@ export interface RateBreakdown {
   totalStayAfterOffers: number;
   nights: number;
   rateBasis: string;
+  nightSegments?: NightSegment[];  // present when BTC periods split the stay
 }
 
 export interface RateSheetCell {
@@ -243,24 +275,76 @@ function findApplicableSpos(
   let rateOverride: NonNullable<RateContractData["seasonSpos"]>[number] | null = null;
   const discountSpos: { spo: NonNullable<RateContractData["seasonSpos"]>[number]; label: string }[] = [];
 
+  function isInBtcWindow(spo: NonNullable<RateContractData["seasonSpos"]>[number], date: string | null): boolean {
+    if (!date || !spo.btcPeriods?.length) return false;
+    return spo.btcPeriods.some((b) => b.active && date >= b.dateFrom && date <= b.dateTo);
+  }
+
   for (const spo of spos) {
     if (!spo.active) continue;
-    const spoFrom = spo.dateFrom;
-    const spoTo = spo.dateTo;
 
     if (spo.spoType === "RATE_OVERRIDE") {
-      if (checkInDate && checkInDate >= spoFrom && checkInDate <= spoTo) {
-        rateOverride = spo;
+      // Prefer travelDates[] child records; fall back to flat dateFrom/dateTo
+      let matchedTd = null;
+      if (spo.travelDates && spo.travelDates.length > 0) {
+        matchedTd = checkInDate != null
+          ? (spo.travelDates.find((td) => checkInDate >= td.dateFrom && checkInDate <= td.dateTo) ?? null)
+          : null;
+      }
+      const inTravelPeriod = matchedTd != null
+        || (checkInDate != null && spo.dateFrom && spo.dateTo
+          && checkInDate >= spo.dateFrom && checkInDate <= spo.dateTo);
+
+      if (inTravelPeriod && !isInBtcWindow(spo, checkInDate)) {
+        // Merge per-travelDate rates onto the SPO (per-row rates take precedence)
+        const resolved = matchedTd
+          ? {
+              ...spo,
+              basePp: matchedTd.basePp ?? spo.basePp,
+              sglSup: matchedTd.sglSup ?? spo.sglSup,
+              thirdAdultRed: matchedTd.thirdAdultRed ?? spo.thirdAdultRed,
+              firstChildPct: matchedTd.firstChildPct ?? spo.firstChildPct,
+              secondChildPct: matchedTd.secondChildPct ?? spo.secondChildPct,
+            }
+          : spo;
+        if (spo.bookFrom && spo.bookTo) {
+          if (bookingDate && bookingDate >= spo.bookFrom && bookingDate <= spo.bookTo) {
+            rateOverride = resolved;
+          }
+        } else {
+          rateOverride = resolved;
+        }
       }
     } else if (spo.spoType === "BOOKING_WINDOW") {
-      const inStayPeriod = checkInDate && checkInDate >= spoFrom && checkInDate <= spoTo;
+      // Prefer travelDates[] child records; fall back to flat dateFrom/dateTo
+      let matchedTd = null;
+      if (spo.travelDates && spo.travelDates.length > 0) {
+        matchedTd = checkInDate != null
+          ? (spo.travelDates.find((td) => checkInDate >= td.dateFrom && checkInDate <= td.dateTo) ?? null)
+          : null;
+      }
+      const inTravelPeriod = matchedTd != null
+        || (checkInDate != null && spo.dateFrom && spo.dateTo
+          && checkInDate >= spo.dateFrom && checkInDate <= spo.dateTo);
+
       const inBookWindow = bookingDate && spo.bookFrom && spo.bookTo
         && bookingDate >= spo.bookFrom && bookingDate <= spo.bookTo;
-      if (inStayPeriod && inBookWindow) {
-        discountSpos.push({ spo, label: `Booking Window SPO (${spo.bookFrom}–${spo.bookTo})` });
+      if (inTravelPeriod && inBookWindow && !isInBtcWindow(spo, checkInDate)) {
+        // Merge per-travelDate discount onto the SPO
+        const resolved = matchedTd
+          ? {
+              ...spo,
+              value: matchedTd.value ?? spo.value,
+              valueType: matchedTd.valueType ?? spo.valueType,
+            }
+          : spo;
+        const spoCode = spo.name ?? `BWS (${spo.bookFrom}–${spo.bookTo})`;
+        discountSpos.push({ spo: resolved, label: spoCode });
       }
     } else if (spo.spoType === "PERCENTAGE") {
-      if (checkInDate && checkInDate >= spoFrom && checkInDate <= spoTo) {
+      const spoFrom = spo.dateFrom;
+      const spoTo = spo.dateTo;
+      if (checkInDate && spoFrom && spoTo && checkInDate >= spoFrom && checkInDate <= spoTo) {
         discountSpos.push({ spo, label: `Seasonal Adjustment (${spoFrom}–${spoTo})` });
       }
     }
@@ -457,7 +541,7 @@ function applySpecialOffers(
 
 // ── Main Calculation ──
 
-export function calculateRate(
+function calculateRateCore(
   contract: RateContractData,
   scenario: BookingScenario,
 ): RateBreakdown {
@@ -467,6 +551,8 @@ export function calculateRate(
   let { rate: baseRate, label: baseRateLabel } = resolveBaseRate(contract, seasonId, adults);
 
   const spoAdjustments: SeasonSpoAdjustment[] = [];
+  let activeRateOverride: NonNullable<RateContractData["seasonSpos"]>[number] | null = null;
+
   if (contract.seasonSpos && contract.seasonSpos.length > 0) {
     const { rateOverride, discountSpos } = findApplicableSpos(
       contract.seasonSpos,
@@ -474,45 +560,55 @@ export function calculateRate(
       scenario.bookingDate,
     );
 
-    // Apply RATE_OVERRIDE: replace base rate with SPO rate
-    if (rateOverride && rateOverride.basePp != null) {
+    // Apply RATE_OVERRIDE: replace base rate with SPO rate (skip if room type is excluded)
+    const roExcluded = rateOverride?.excludedRoomTypeIds?.includes(roomTypeId) ?? false;
+    if (rateOverride && !roExcluded && rateOverride.basePp != null) {
+      activeRateOverride = rateOverride;
       const overrideRate = new Decimal(rateOverride.basePp);
       const diff = overrideRate.minus(baseRate);
       spoAdjustments.push({
-        label: `Rate Override (${rateOverride.dateFrom}–${rateOverride.dateTo})`,
+        label: rateOverride.name ? `Rate Override (${rateOverride.name})` : "Rate Override",
         amount: diff.toDecimalPlaces(4).toNumber(),
       });
       baseRate = overrideRate;
-      baseRateLabel = "SPO Rate Override";
+      baseRateLabel = rateOverride.name ?? "SPO Rate Override";
     }
 
-    // Store discount SPOs to apply after supplements
+    // Store discount SPOs to apply after supplements (skip if room type is excluded)
     for (const { spo, label } of discountSpos) {
-      if (spo.value != null) {
-        // Will be applied after supplements are calculated
+      const bwExcluded = spo.excludedRoomTypeIds?.includes(roomTypeId) ?? false;
+      if (spo.value != null && !bwExcluded) {
         spoAdjustments.push({ label, amount: 0 }); // placeholder, computed below
       }
     }
   }
 
-  // 2. Room type supplement
+  // 2. Room type supplement — use SPO room supplement if active override provides one
   let roomTypeSupplement: SupplementLine | null = null;
   if (roomTypeId !== contract.baseRoomTypeId) {
-    const sup = findSupplement(
-      contract.supplements,
-      "ROOM_TYPE",
-      (s) => s.roomTypeId === roomTypeId,
-    );
-    if (sup) {
-      let amount = applyValue(baseRate, new Decimal(sup.value), sup.valueType, false);
-      if (sup.perPerson && contract.rateBasis === "PER_ROOM") {
-        amount = amount.times(adults);
+    const rtName = contract.roomTypes.find((rt) => rt.roomTypeId === roomTypeId)?.roomType.name ?? "Room Upgrade";
+
+    // Check for SPO-level room supplement override first
+    const spoRoomSup = activeRateOverride?.roomSupplements?.find((rs) => rs.roomTypeId === roomTypeId);
+    if (spoRoomSup) {
+      let amount = applyValue(baseRate, new Decimal(spoRoomSup.value), spoRoomSup.valueType, false);
+      if (contract.rateBasis === "PER_ROOM") {
+        amount = amount; // flat per room already
       }
-      const rtName = contract.roomTypes.find((rt) => rt.roomTypeId === roomTypeId)?.roomType.name ?? "Room Upgrade";
-      roomTypeSupplement = {
-        label: rtName,
-        amount: amount.toDecimalPlaces(4).toNumber(),
-      };
+      roomTypeSupplement = { label: rtName, amount: amount.toDecimalPlaces(4).toNumber() };
+    } else {
+      const sup = findSupplement(
+        contract.supplements,
+        "ROOM_TYPE",
+        (s) => s.roomTypeId === roomTypeId,
+      );
+      if (sup) {
+        let amount = applyValue(baseRate, new Decimal(sup.value), sup.valueType, false);
+        if (sup.perPerson && contract.rateBasis === "PER_ROOM") {
+          amount = amount.times(adults);
+        }
+        roomTypeSupplement = { label: rtName, amount: amount.toDecimalPlaces(4).toNumber() };
+      }
     }
   }
 
@@ -528,9 +624,6 @@ export function calculateRate(
       let amount = applyValue(baseRate, new Decimal(sup.value), sup.valueType, sup.isReduction);
       if (sup.perPerson && contract.rateBasis === "PER_ROOM") {
         amount = amount.times(adults);
-      } else if (!sup.perPerson && contract.rateBasis === "PER_PERSON") {
-        // perPerson=false on a PER_PERSON contract: divide by adults to get per-person amount
-        // Actually, keep it as a flat amount added to the per-night total
       }
       const mbName = contract.mealBases.find((mb) => mb.mealBasisId === mealBasisId)?.mealBasis.name ?? "Meal Upgrade";
       mealSupplement = {
@@ -540,21 +633,38 @@ export function calculateRate(
     }
   }
 
-  // 4. Occupancy supplement
+  // 4. Occupancy supplement — SPO overrides (sglSup / thirdAdultRed) take precedence
   let occupancySupplement: SupplementLine | null = null;
   if (adults === 1 || adults >= 3) {
-    const forAdults = adults === 1 ? 1 : 3;
-    const sup = findSupplement(
-      contract.supplements,
-      "OCCUPANCY",
-      (s) => s.forAdults === forAdults,
-    );
-    if (sup) {
-      const amount = applyValue(baseRate, new Decimal(sup.value), sup.valueType, sup.isReduction);
-      occupancySupplement = {
-        label: adults === 1 ? "Single Supplement" : "3rd Adult Reduction",
-        amount: amount.toDecimalPlaces(4).toNumber(),
-      };
+    if (activeRateOverride) {
+      // SPO defines occupancy overrides as flat amounts
+      if (adults === 1 && activeRateOverride.sglSup != null) {
+        occupancySupplement = {
+          label: "Single Supplement (SPO)",
+          amount: new Decimal(activeRateOverride.sglSup).toDecimalPlaces(4).toNumber(),
+        };
+      } else if (adults >= 3 && activeRateOverride.thirdAdultRed != null) {
+        occupancySupplement = {
+          label: "3rd Adult Reduction (SPO)",
+          amount: new Decimal(activeRateOverride.thirdAdultRed).negated().toDecimalPlaces(4).toNumber(),
+        };
+      }
+    }
+    // Fall back to contract supplement if no SPO override
+    if (!occupancySupplement) {
+      const forAdults = adults === 1 ? 1 : 3;
+      const sup = findSupplement(
+        contract.supplements,
+        "OCCUPANCY",
+        (s) => s.forAdults === forAdults,
+      );
+      if (sup) {
+        const amount = applyValue(baseRate, new Decimal(sup.value), sup.valueType, sup.isReduction);
+        occupancySupplement = {
+          label: adults === 1 ? "Single Supplement" : "3rd Adult Reduction",
+          amount: amount.toDecimalPlaces(4).toNumber(),
+        };
+      }
     }
   }
 
@@ -656,11 +766,17 @@ export function calculateRate(
     });
   }
 
-  // 8. Aggregate
-  let adultTotal = baseRate;
-  if (roomTypeSupplement) adultTotal = adultTotal.plus(roomTypeSupplement.amount);
-  if (mealSupplement) adultTotal = adultTotal.plus(mealSupplement.amount);
-  if (occupancySupplement) adultTotal = adultTotal.plus(occupancySupplement.amount);
+  // 8. Aggregate — for PER_PERSON contracts multiply per-person total by adults,
+  // keeping extraBed as a flat per-room addition.
+  let perPersonTotal = baseRate;
+  if (roomTypeSupplement) perPersonTotal = perPersonTotal.plus(roomTypeSupplement.amount);
+  if (mealSupplement) perPersonTotal = perPersonTotal.plus(mealSupplement.amount);
+  if (occupancySupplement) perPersonTotal = perPersonTotal.plus(occupancySupplement.amount);
+
+  let adultTotal = contract.rateBasis === "PER_PERSON"
+    ? perPersonTotal.times(adults)
+    : perPersonTotal;
+
   if (extraBedSupplement) adultTotal = adultTotal.plus(extraBedSupplement.amount);
 
   // 8b. Apply BOOKING_WINDOW / PERCENTAGE Season SPO discounts
@@ -672,6 +788,7 @@ export function calculateRate(
     );
     for (const { spo } of discountSpos) {
       if (spo.value == null) continue;
+      if (spo.excludedRoomTypeIds?.includes(roomTypeId)) continue;
       const val = new Decimal(spo.value);
       if (spo.valueType === "PERCENTAGE") {
         const reduction = adultTotal.times(val).div(100);
@@ -713,6 +830,173 @@ export function calculateRate(
     nights,
     rateBasis: contract.rateBasis,
   };
+}
+
+// ── Segmented Calculation (BTC split) ──
+
+function calculateRateSegmented(
+  contract: RateContractData,
+  scenario: BookingScenario,
+): RateBreakdown {
+  const { nights, checkInDate } = scenario;
+  const spos = contract.seasonSpos ?? [];
+
+  // Strip special offers from per-night calls; offers are applied at segment level below
+  const contractNoOffers: RateContractData = { ...contract, specialOffers: [] };
+
+  const nightResults: { date: string; result: RateBreakdown; isSpo: boolean; spoId?: string }[] = [];
+  for (let i = 0; i < nights; i++) {
+    const nightDate = addDaysISO(checkInDate!, i);
+    const result = calculateRateCore(contractNoOffers, {
+      ...scenario,
+      nights: 1,
+      checkInDate: nightDate,
+    });
+    const inBtcWindow = spos.some(
+      (spo) =>
+        spo.active &&
+        spo.btcPeriods?.some((b) => b.active && nightDate >= b.dateFrom && nightDate <= b.dateTo),
+    );
+    // Night is SPO if: not in BTC window AND a RATE_OVERRIDE SPO covers this night
+    let appliedSpoId: string | undefined;
+    const isSpo =
+      !inBtcWindow &&
+      spos.some((spo) => {
+        if (!spo.active || spo.spoType !== "RATE_OVERRIDE") return false;
+        const td = spo.travelDates?.find((t) => nightDate >= t.dateFrom && nightDate <= t.dateTo);
+        const inTravel =
+          td != null ||
+          (spo.dateFrom != null && spo.dateTo != null && nightDate >= spo.dateFrom && nightDate <= spo.dateTo);
+        if (inTravel && !(spo.excludedRoomTypeIds?.includes(scenario.roomTypeId) ?? false)) {
+          appliedSpoId = spo.id;
+          return true;
+        }
+        return false;
+      });
+    nightResults.push({ date: nightDate, result, isSpo, spoId: appliedSpoId });
+  }
+
+  // ── Apply special offers ONLY to BTC nights ──
+  // SPO nights are already at a negotiated rate — contract offers do not apply.
+  // Eligibility uses the full stay scenario (booking date, check-in, total nights);
+  // the discount amount is computed against the BTC-nights subtotal only.
+  const btcNights = nightResults.filter((n) => !n.isSpo);
+  const btcAdultTotal = btcNights.reduce((s, n) => s + n.result.adultTotalPerNight, 0);
+  const btcChildTotal = btcNights.reduce((s, n) => s + n.result.childTotalPerNight, 0);
+  const btcTotal = new Decimal(btcAdultTotal).plus(btcChildTotal).toDecimalPlaces(4).toNumber();
+  const btcNightCount = btcNights.length;
+  const btcPerNightAvg = btcNightCount > 0
+    ? new Decimal(btcTotal).div(btcNightCount).toDecimalPlaces(4).toNumber()
+    : 0;
+
+  const { offerDiscounts: btcOfferDiscounts, totalStayAfterOffers: btcAfterOffers } =
+    btcNightCount > 0
+      ? applySpecialOffers(contract, scenario, btcPerNightAvg, btcTotal)
+      : { offerDiscounts: [], totalStayAfterOffers: 0 };
+
+  // SPO total (no offers)
+  const spoNights = nightResults.filter((n) => n.isSpo);
+  const spoTotal = spoNights.reduce(
+    (s, n) => s + n.result.adultTotalPerNight + n.result.childTotalPerNight,
+    0,
+  );
+
+  const totalStay = new Decimal(spoTotal).plus(btcTotal).toDecimalPlaces(4).toNumber();
+  const totalStayAfterOffers = new Decimal(spoTotal).plus(btcAfterOffers).toDecimalPlaces(4).toNumber();
+  const totalPerNightAvg = new Decimal(totalStay).div(nights).toDecimalPlaces(4).toNumber();
+
+  // ── Build NightSegment[] ──
+  // Group consecutive nights with same type + same per-night amount
+  const segments: NightSegment[] = [];
+  for (const { result, isSpo, spoId } of nightResults) {
+    const type: "SPO" | "BTC" = isSpo ? "SPO" : "BTC";
+    const label = isSpo ? result.baseRateLabel : "Back to Contract";
+    const prev = segments[segments.length - 1];
+    if (
+      prev &&
+      prev.type === type &&
+      Math.abs(prev.adultTotalPerNight - result.adultTotalPerNight) < 0.001 &&
+      prev.spoId === spoId
+    ) {
+      prev.nights += 1;
+      prev.subtotal = new Decimal(prev.adultTotalPerNight).times(prev.nights).toDecimalPlaces(4).toNumber();
+      prev.subtotalAfterOffers = prev.subtotal; // recalculated below for BTC
+    } else {
+      segments.push({
+        type,
+        label,
+        nights: 1,
+        ratePerNight: result.baseRate,
+        adults: scenario.adults,
+        adultTotalPerNight: result.adultTotalPerNight,
+        subtotal: result.adultTotalPerNight,
+        offerDiscounts: [],
+        subtotalAfterOffers: result.adultTotalPerNight,
+        spoId,
+      });
+    }
+  }
+
+  // Distribute BTC offer discounts across BTC segments proportionally by subtotal
+  const btcDiscount = btcTotal - btcAfterOffers;
+  const btcSegsTotal = segments.filter((s) => s.type === "BTC").reduce((s, seg) => s + seg.subtotal, 0);
+  const appliedBtcOfferIds = btcOfferDiscounts.filter((o) => o.discount > 0).map((o) => o.offerName); // names used as keys; IDs stored separately
+  const appliedOfferIds = contract.specialOffers
+    .filter((o) => btcOfferDiscounts.some((d) => d.offerName === o.name && d.discount > 0))
+    .map((o) => o.id);
+  for (const seg of segments) {
+    if (seg.type === "BTC") {
+      seg.offerDiscounts = btcOfferDiscounts;
+      seg.appliedOfferIds = appliedOfferIds;
+      const ratio = btcSegsTotal > 0 ? seg.subtotal / btcSegsTotal : 0;
+      const segDiscount = new Decimal(btcDiscount).times(ratio).toDecimalPlaces(4).toNumber();
+      seg.subtotalAfterOffers = new Decimal(seg.subtotal).minus(segDiscount).toDecimalPlaces(4).toNumber();
+    }
+    // SPO segments keep offerDiscounts: [] and subtotalAfterOffers = subtotal
+  }
+  void appliedBtcOfferIds; // suppress unused warning — IDs resolved via appliedOfferIds above
+
+  const display = nightResults[0].result;
+  const totalAdult = nightResults.reduce((s, n) => s + n.result.adultTotalPerNight, 0);
+  const totalChild = nightResults.reduce((s, n) => s + n.result.childTotalPerNight, 0);
+
+  return {
+    ...display,
+    nights,
+    adultTotalPerNight: new Decimal(totalAdult).div(nights).toDecimalPlaces(4).toNumber(),
+    childTotalPerNight: new Decimal(totalChild).div(nights).toDecimalPlaces(4).toNumber(),
+    totalPerNight: totalPerNightAvg,
+    totalStay,
+    offerDiscounts: btcOfferDiscounts,
+    totalStayBeforeOffers: totalStay,
+    totalStayAfterOffers,
+    nightSegments: segments,
+  };
+}
+
+export function calculateRate(
+  contract: RateContractData,
+  scenario: BookingScenario,
+): RateBreakdown {
+  const { checkInDate, nights } = scenario;
+  const spos = contract.seasonSpos ?? [];
+
+  // If any night of the stay falls inside a BTC period, use per-night calculation
+  if (checkInDate && nights > 1) {
+    let hasBtcSplit = false;
+    for (const spo of spos) {
+      if (!spo.active || !spo.btcPeriods?.length) continue;
+      for (let i = 0; i < nights && !hasBtcSplit; i++) {
+        const nightDate = addDaysISO(checkInDate, i);
+        if (spo.btcPeriods.some((b) => b.active && nightDate >= b.dateFrom && nightDate <= b.dateTo)) {
+          hasBtcSplit = true;
+        }
+      }
+    }
+    if (hasBtcSplit) return calculateRateSegmented(contract, scenario);
+  }
+
+  return calculateRateCore(contract, scenario);
 }
 
 // ── Multi-Room Types ──
@@ -894,11 +1178,8 @@ export function calculateMultiRoomRate(
         checkInDate: nightInfo.date,
       });
 
-      // For PER_PERSON: adultTotalPerNight is per-person, multiply by adults
-      // For PER_ROOM: totalPerNight is already the room rate
-      const nightRoomTotal = contract.rateBasis === "PER_PERSON"
-        ? new Decimal(nightBd.adultTotalPerNight).times(input.adults).plus(nightBd.childTotalPerNight)
-        : new Decimal(nightBd.totalPerNight);
+      // adultTotalPerNight already contains the full adult room total (pax multiplied for PER_PERSON)
+      const nightRoomTotal = new Decimal(nightBd.totalPerNight);
 
       roomTotalAccum = roomTotalAccum.plus(nightRoomTotal);
     }

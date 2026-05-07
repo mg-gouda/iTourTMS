@@ -36,7 +36,14 @@ async function fetchContractData(
       baseRates: true,
       supplements: true,
       specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" } },
-      seasonSpos: { where: { active: true }, orderBy: { sortOrder: "asc" } },
+      seasonSpos: {
+        where: { active: true },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          roomSupplements: true,
+          travelDates: { orderBy: { sortOrder: "asc" } },
+        },
+      },
       childPolicies: true,
       hotel: {
         include: {
@@ -148,9 +155,15 @@ async function fetchContractData(
       active: o.active,
     })),
     seasonSpos: contract.seasonSpos.map((spo) => ({
+      id: spo.id,
       spoType: spo.spoType,
-      dateFrom: spo.dateFrom.toISOString().slice(0, 10),
-      dateTo: spo.dateTo.toISOString().slice(0, 10),
+      name: spo.name,
+      dateFrom: spo.dateFrom?.toISOString().slice(0, 10) ?? null,
+      dateTo: spo.dateTo?.toISOString().slice(0, 10) ?? null,
+      travelDates: spo.travelDates.map((td) => ({
+        dateFrom: td.dateFrom.toISOString().slice(0, 10),
+        dateTo: td.dateTo.toISOString().slice(0, 10),
+      })),
       basePp: spo.basePp?.toString() ?? null,
       sglSup: spo.sglSup?.toString() ?? null,
       thirdAdultRed: spo.thirdAdultRed?.toString() ?? null,
@@ -161,6 +174,11 @@ async function fetchContractData(
       value: spo.value?.toString() ?? null,
       valueType: spo.valueType,
       active: spo.active,
+      roomSupplements: spo.roomSupplements.map((rs) => ({
+        roomTypeId: rs.roomTypeId,
+        value: rs.value.toString(),
+        valueType: rs.valueType,
+      })),
     })),
   };
 }

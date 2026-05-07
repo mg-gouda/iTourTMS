@@ -451,8 +451,24 @@ export const seasonSpoBulkSaveSchema = z.object({
   spoType: z.enum(["RATE_OVERRIDE", "BOOKING_WINDOW", "PERCENTAGE"]),
   items: z.array(z.object({
     id: z.string().nullish(),
-    dateFrom: z.string().min(1),
-    dateTo: z.string().min(1),
+    name: z.string().nullish(),
+    // Legacy flat period (PERCENTAGE only; RATE_OVERRIDE and BOOKING_WINDOW use travelDates)
+    dateFrom: z.string().nullish(),
+    dateTo: z.string().nullish(),
+    // RATE_OVERRIDE and BOOKING_WINDOW store travel periods as child records (with per-row rates)
+    travelDates: z.array(z.object({
+      dateFrom: z.string().min(1),
+      dateTo: z.string().min(1),
+      // RATE_OVERRIDE per-period rates
+      basePp: z.number().nullish(),
+      sglSup: z.number().nullish(),
+      thirdAdultRed: z.number().nullish(),
+      firstChildPct: z.number().nullish(),
+      secondChildPct: z.number().nullish(),
+      // BOOKING_WINDOW per-period discount
+      value: z.number().nullish(),
+      valueType: z.enum(["FIXED", "PERCENTAGE"]).nullish(),
+    })).optional(),
     basePp: z.number().nullish(),
     sglSup: z.number().nullish(),
     thirdAdultRed: z.number().nullish(),
@@ -462,7 +478,13 @@ export const seasonSpoBulkSaveSchema = z.object({
     bookTo: z.string().nullish(),
     value: z.number().nullish(),
     valueType: z.enum(["FIXED", "PERCENTAGE"]).nullish(),
+    excludedRoomTypeIds: z.array(z.string()).optional().default([]),
     active: z.boolean().default(true),
+    roomSupplements: z.array(z.object({
+      roomTypeId: z.string().min(1),
+      value: z.number(),
+      valueType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+    })).optional(),
   })),
 });
 

@@ -14,6 +14,7 @@ import { contractSupplementRouter } from "./contract-supplement";
 import { rateCalculatorRouter } from "./rate-calculator";
 import { reportsRouter } from "./reports";
 import { seasonSpoRouter } from "./season-spo";
+import { seasonSpoBtcRouter } from "./season-spo-btc";
 import { specialOfferRouter } from "./special-offer";
 import { destinationRouter } from "./destination";
 import { hotelRouter } from "./hotel";
@@ -42,6 +43,7 @@ export const contractingRouter = createTRPCRouter({
   rateCalculator: rateCalculatorRouter,
   reports: reportsRouter,
   seasonSpo: seasonSpoRouter,
+  seasonSpoBtc: seasonSpoBtcRouter,
   specialOffer: specialOfferRouter,
   destination: destinationRouter,
   hotel: hotelRouter,

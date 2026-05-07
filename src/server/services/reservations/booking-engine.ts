@@ -28,6 +28,14 @@ export interface RoomInput {
   extraBed: boolean;
 }
 
+export interface SellingMarkup {
+  ruleId: string | null;
+  ruleName: string | null;
+  markupType: string;
+  markupValue: number;
+  markupAmount: number;
+}
+
 export interface RoomRateResult {
   roomIndex: number;
   roomTypeId: string;
@@ -40,6 +48,7 @@ export interface RoomRateResult {
   sellingRatePerNight: number;
   sellingTotal: number;
   breakdown: RateBreakdown;
+  sellingMarkup: SellingMarkup;
 }
 
 export interface BookingRateResult {
@@ -94,7 +103,15 @@ export async function fetchContractForRates(
       baseRates: true,
       supplements: true,
       specialOffers: { where: { active: true }, orderBy: { sortOrder: "asc" } },
-      seasonSpos: { where: { active: true }, orderBy: { sortOrder: "asc" } },
+      seasonSpos: {
+        where: { active: true },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          roomSupplements: true,
+          travelDates: { orderBy: { sortOrder: "asc" } },
+          btcPeriods: { where: { active: true }, orderBy: { sortOrder: "asc" } },
+        },
+      },
       childPolicies: true,
       hotel: {
         include: { childrenPolicies: { orderBy: { ageFrom: "asc" } } },
@@ -205,9 +222,22 @@ export async function fetchContractForRates(
       active: o.active,
     })),
     seasonSpos: contract.seasonSpos.map((spo) => ({
+      id: spo.id,
       spoType: spo.spoType,
-      dateFrom: spo.dateFrom.toISOString().slice(0, 10),
-      dateTo: spo.dateTo.toISOString().slice(0, 10),
+      name: spo.name,
+      dateFrom: spo.dateFrom?.toISOString().slice(0, 10) ?? null,
+      dateTo: spo.dateTo?.toISOString().slice(0, 10) ?? null,
+      travelDates: spo.travelDates.map((td) => ({
+        dateFrom: td.dateFrom.toISOString().slice(0, 10),
+        dateTo: td.dateTo.toISOString().slice(0, 10),
+        basePp: td.basePp?.toString() ?? null,
+        sglSup: td.sglSup?.toString() ?? null,
+        thirdAdultRed: td.thirdAdultRed?.toString() ?? null,
+        firstChildPct: td.firstChildPct?.toString() ?? null,
+        secondChildPct: td.secondChildPct?.toString() ?? null,
+        value: td.value?.toString() ?? null,
+        valueType: td.valueType ?? null,
+      })),
       basePp: spo.basePp?.toString() ?? null,
       sglSup: spo.sglSup?.toString() ?? null,
       thirdAdultRed: spo.thirdAdultRed?.toString() ?? null,
@@ -217,7 +247,18 @@ export async function fetchContractForRates(
       bookTo: spo.bookTo?.toISOString().slice(0, 10) ?? null,
       value: spo.value?.toString() ?? null,
       valueType: spo.valueType,
+      excludedRoomTypeIds: spo.excludedRoomTypeIds,
+      btcPeriods: spo.btcPeriods.map((b) => ({
+        dateFrom: b.dateFrom.toISOString().slice(0, 10),
+        dateTo: b.dateTo.toISOString().slice(0, 10),
+        active: b.active,
+      })),
       active: spo.active,
+      roomSupplements: spo.roomSupplements.map((rs) => ({
+        roomTypeId: rs.roomTypeId,
+        value: rs.value.toString(),
+        valueType: rs.valueType,
+      })),
     })),
   };
 
@@ -324,6 +365,8 @@ export async function calculateBookingRates(
     totalBuying = totalBuying.plus(buyingTotal);
     totalSelling = totalSelling.plus(sellingTotal);
 
+    const buyingRounded = Math.round(buyingTotal * 100) / 100;
+    const sellingRounded = Math.round(sellingTotal * 100) / 100;
     roomResults.push({
       roomIndex: i + 1,
       roomTypeId: room.roomTypeId,
@@ -332,10 +375,17 @@ export async function calculateBookingRates(
       children: room.children,
       extraBed: room.extraBed,
       buyingRatePerNight: buyingPerNight,
-      buyingTotal: Math.round(buyingTotal * 100) / 100,
+      buyingTotal: buyingRounded,
       sellingRatePerNight: sellingPerNight,
-      sellingTotal: Math.round(sellingTotal * 100) / 100,
+      sellingTotal: sellingRounded,
       breakdown,
+      sellingMarkup: {
+        ruleId: markupRule?.id ?? null,
+        ruleName: markupRule?.name ?? null,
+        markupType: mType,
+        markupValue: mValue,
+        markupAmount: Math.round((sellingRounded - buyingRounded) * 100) / 100,
+      },
     });
   }
 

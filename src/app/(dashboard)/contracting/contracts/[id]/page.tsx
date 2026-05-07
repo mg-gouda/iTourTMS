@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -68,10 +68,11 @@ import {
   RATE_BASIS_LABELS,
   SUPPLEMENT_VALUE_TYPE_LABELS,
 } from "@/lib/constants/contracting";
+import { Combobox } from "@/components/ui/combobox";
 import { exportContractToExcel } from "@/lib/export/contract-excel";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
-import { formatSeasonLabel } from "@/lib/utils";
+import { cn, formatSeasonLabel } from "@/lib/utils";
 import {
   contractSeasonCreateSchema,
   contractSeasonUpdateSchema,
@@ -433,7 +434,7 @@ export default function ContractDetailPage() {
           <SpecialOffersTab contractId={id} />
         </TabsContent>
         <TabsContent value="seasonSpos">
-          <SeasonSpoTab contractId={id} />
+          <SeasonSpoTab contractId={id} roomTypes={contract.roomTypes} supplements={contract.supplements} />
         </TabsContent>
         <TabsContent value="allotments">
           <AllotmentsTab contractId={id} contract={contract} />
@@ -2377,10 +2378,298 @@ function ExtraBedSupplementGrid({
 
 // ─── View Supplement Section ──────────────────────────────
 
+// ─── Back To Contract Panel ──────────────────────────────
+
+type BtcRow = {
+  id?: string | null;
+  dateFrom: string;
+  dateTo: string;
+  active: boolean;
+  isDirty: boolean;
+};
+
+function emptyBtcRow(): BtcRow {
+  return { dateFrom: "", dateTo: "", active: true, isDirty: true };
+}
+
+type AllSpoItem = {
+  id: string;
+  name: string | null;
+  spoType: string;
+  sortOrder: number;
+  createdAt: Date | string;
+  btcPeriods: { id: string; dateFrom: string | Date; dateTo: string | Date; active: boolean; sortOrder: number }[];
+};
+
+function spoReadableName(spo: { name: string | null; spoType: string; sortOrder: number; createdAt?: Date | string | null }) {
+  if (spo.name) return spo.name;
+  const prefix = spo.spoType === "RATE_OVERRIDE" ? "RO" : "BW";
+  const date = spo.createdAt ? format(new Date(spo.createdAt as Date), "dd-MMM-yy") : spoDateStamp();
+  return `${prefix}-${date}-${String(spo.sortOrder + 1).padStart(3, "0")}`;
+}
+
+function BackToContractPanel({ contractId, allSpos }: { contractId: string; allSpos: AllSpoItem[] }) {
+  const utils = trpc.useUtils();
+  const [selectedSpoId, setSelectedSpoId] = useState<string>("");
+  const [rows, setRows] = useState<BtcRow[]>([]);
+
+  const spoOptions = useMemo(() =>
+    allSpos.map((s) => ({
+      value: s.id,
+      label: `${spoReadableName(s)} (${s.spoType === "RATE_OVERRIDE" ? "Rate Override" : "Booking Window"})`,
+      group: s.spoType === "RATE_OVERRIDE" ? "Rate Override" : "Booking Window",
+    })),
+  [allSpos]);
+
+  // Load existing BTC rows when SPO selection changes
+  useEffect(() => {
+    if (!selectedSpoId) { setRows([]); return; }
+    const spo = allSpos.find((s) => s.id === selectedSpoId);
+    if (!spo) { setRows([]); return; }
+    setRows(
+      spo.btcPeriods.length > 0
+        ? spo.btcPeriods
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((b) => ({
+              id: b.id,
+              dateFrom: format(new Date(b.dateFrom), "yyyy-MM-dd"),
+              dateTo: format(new Date(b.dateTo), "yyyy-MM-dd"),
+              active: b.active,
+              isDirty: false,
+            }))
+        : [],
+    );
+  }, [selectedSpoId, allSpos]);
+
+  const upsertMutation = trpc.contracting.seasonSpoBtc.upsert.useMutation({
+    onSuccess: () => utils.contracting.seasonSpo.listByContract.invalidate({ contractId }),
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteMutation = trpc.contracting.seasonSpoBtc.delete.useMutation({
+    onSuccess: () => utils.contracting.seasonSpo.listByContract.invalidate({ contractId }),
+    onError: (e) => toast.error(e.message),
+  });
+
+  function updateRow(idx: number, patch: Partial<BtcRow>) {
+    setRows((prev) => prev.map((r, i) => i === idx ? { ...r, ...patch, isDirty: true } : r));
+  }
+
+  function handleSaveRow(idx: number) {
+    const row = rows[idx];
+    if (!row || !selectedSpoId || !row.dateFrom || !row.dateTo) return;
+    upsertMutation.mutate({
+      id: row.id ?? undefined,
+      spoId: selectedSpoId,
+      dateFrom: row.dateFrom,
+      dateTo: row.dateTo,
+      active: row.active,
+      sortOrder: idx,
+    }, {
+      onSuccess: (saved) => {
+        setRows((prev) => prev.map((r, i) => i === idx ? { ...r, id: saved.id, isDirty: false } : r));
+        toast.success("BTC period saved");
+      },
+    });
+  }
+
+  function handleDeleteRow(idx: number) {
+    const row = rows[idx];
+    if (row?.id) {
+      deleteMutation.mutate({ id: row.id }, {
+        onSuccess: () => {
+          setRows((prev) => prev.filter((_, i) => i !== idx));
+          toast.success("BTC period removed");
+        },
+      });
+    } else {
+      setRows((prev) => prev.filter((_, i) => i !== idx));
+    }
+  }
+
+  const selectedSpo = allSpos.find((s) => s.id === selectedSpoId);
+
+  return (
+    <div className="space-y-5">
+      {/* ── Overview of all configured BTC periods ── */}
+      {allSpos.some((s) => s.btcPeriods.length > 0) && (
+        <div className="rounded-md border overflow-hidden">
+          <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/20 border-b">
+            <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+              Configured Back-To-Contract Periods
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/20">
+                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">SPO</th>
+                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Type</th>
+                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">BTC From</th>
+                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">BTC To</th>
+                  <th className="px-3 py-1.5 text-center font-medium text-muted-foreground">Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allSpos
+                  .filter((s) => s.btcPeriods.length > 0)
+                  .flatMap((s) =>
+                    s.btcPeriods.map((b) => ({
+                      ...b,
+                      spoReadable: spoReadableName(s),
+                      spoType: s.spoType,
+                    }))
+                  )
+                  .map((b) => (
+                    <tr key={b.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-1.5 font-mono font-semibold">
+                        {b.spoReadable}
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant="outline" className="text-[10px]">
+                          {b.spoType === "RATE_OVERRIDE" ? "RO" : "BW"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-1.5 tabular-nums whitespace-nowrap">
+                        {format(new Date(b.dateFrom), "dd MMM yyyy")}
+                      </td>
+                      <td className="px-3 py-1.5 tabular-nums whitespace-nowrap">
+                        {format(new Date(b.dateTo), "dd MMM yyyy")}
+                      </td>
+                      <td className="px-3 py-1.5 text-center">
+                        {b.active
+                          ? <span className="text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">Active</span>
+                          : <span className="text-muted-foreground text-[11px]">Inactive</span>}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Select SPO</p>
+        <p className="text-[11px] text-muted-foreground">
+          Choose an SPO to define Back-To-Contract suspension windows. During a BTC period the SPO is bypassed
+          and the contract base rate + supplements apply.
+        </p>
+        <Combobox
+          options={spoOptions}
+          value={selectedSpoId}
+          onValueChange={setSelectedSpoId}
+          placeholder="Search SPO ID…"
+          searchPlaceholder="Search by SPO code…"
+          emptyMessage="No SPOs found for this contract."
+          className="max-w-sm"
+        />
+      </div>
+
+      {selectedSpoId && (
+        <div className="space-y-3">
+          {selectedSpo && (
+            <p className="text-xs text-muted-foreground">
+              SPO: <span className="font-semibold text-foreground">{spoReadableName(selectedSpo)}</span>
+              {" — "}
+              {selectedSpo.spoType === "RATE_OVERRIDE" ? "Rate Override" : "Booking Window"}
+            </p>
+          )}
+
+          {/* Column headers */}
+          {rows.length > 0 && (
+            <div className="grid gap-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1"
+              style={{ gridTemplateColumns: "1fr 1fr 110px 64px 64px 36px" }}>
+              <span>Travel From</span>
+              <span>Travel To</span>
+              <span>Back To Contract</span>
+              <span>Save</span>
+              <span />
+              <span />
+            </div>
+          )}
+
+          {/* BTC rows */}
+          <div className="space-y-1.5">
+            {rows.map((row, idx) => {
+              const isDuplicate = row.dateFrom !== "" && row.dateTo !== "" && rows.some(
+                (other, otherIdx) => otherIdx < idx && other.dateFrom === row.dateFrom && other.dateTo === row.dateTo,
+              );
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "grid items-center gap-2 rounded p-1",
+                    isDuplicate && "ring-1 ring-destructive bg-destructive/5",
+                  )}
+                  style={{ gridTemplateColumns: "1fr 1fr 110px 64px 64px 36px" }}
+                >
+                  <Input
+                    type="date"
+                    value={row.dateFrom}
+                    onChange={(e) => updateRow(idx, { dateFrom: e.target.value })}
+                    className={cn("h-7 text-xs", isDuplicate && "border-destructive")}
+                  />
+                  <Input
+                    type="date"
+                    value={row.dateTo}
+                    onChange={(e) => updateRow(idx, { dateTo: e.target.value })}
+                    className={cn("h-7 text-xs", isDuplicate && "border-destructive")}
+                  />
+                  <div className="flex items-center gap-2 pl-2">
+                    <Checkbox
+                      checked={row.active}
+                      onCheckedChange={(v) => updateRow(idx, { active: !!v })}
+                    />
+                    <span className="text-xs text-muted-foreground">{row.active ? "Active" : "Inactive"}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    disabled={!row.isDirty || !row.dateFrom || !row.dateTo || upsertMutation.isPending}
+                    onClick={() => handleSaveRow(idx)}
+                  >
+                    {upsertMutation.isPending ? "…" : "Save"}
+                  </Button>
+                  {row.isDirty && !row.id && (
+                    <span className="text-[10px] text-amber-500 font-medium">Unsaved</span>
+                  )}
+                  {!row.isDirty && row.id && (
+                    <span className="text-[10px] text-green-600 font-medium">Saved</span>
+                  )}
+                  <Button
+                    variant="ghost" size="sm"
+                    className={cn("h-7 w-7 p-0 shrink-0", isDuplicate ? "text-destructive" : "text-muted-foreground")}
+                    onClick={() => handleDeleteRow(idx)}
+                  >×</Button>
+                </div>
+              );
+            })}
+          </div>
+
+          {rows.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No Back-To-Contract periods defined. Click &quot;+ Add Row&quot; to create one.
+            </p>
+          )}
+
+          <Button
+            variant="outline" size="sm"
+            onClick={() => setRows((prev) => [...prev, emptyBtcRow()])}
+          >
+            + Add Row
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Season SPO Dialog ──────────────────────────────────
 
-type SeasonSpoRow = {
-  id?: string | null;
+type SpoRoomSup = { roomTypeId: string; value: string; valueType: "FIXED" | "PERCENTAGE" };
+// RATE_OVERRIDE travel date row — each row has its own rates
+type RoTravelDate = {
   dateFrom: string;
   dateTo: string;
   basePp: string;
@@ -2388,269 +2677,791 @@ type SeasonSpoRow = {
   thirdAdultRed: string;
   firstChildPct: string;
   secondChildPct: string;
-  bookFrom: string;
-  bookTo: string;
+};
+
+// BOOKING_WINDOW travel date row — each row has its own discount
+type BwTravelDate = {
+  dateFrom: string;
+  dateTo: string;
   value: string;
   valueType: "FIXED" | "PERCENTAGE";
+};
+
+// RATE_OVERRIDE SPO: booking window header + travel date rows with per-row rates
+type RateOverrideSpo = {
+  id?: string | null;
+  name: string;
+  bookFrom: string;
+  bookTo: string;
+  travelDates: RoTravelDate[];
+  excludedRoomTypeIds: string[];
+  roomSupplements: SpoRoomSup[];
   active: boolean;
 };
 
-function emptyRow(): SeasonSpoRow {
+// BOOKING_WINDOW SPO: booking window header + travel date rows with per-row discount
+type BookingWindowSpo = {
+  id?: string | null;
+  name: string;
+  bookFrom: string;
+  bookTo: string;
+  travelDates: BwTravelDate[];
+  excludedRoomTypeIds: string[];
+  active: boolean;
+  roomSupplements: SpoRoomSup[];
+};
+
+function emptyRoTravelDate(): RoTravelDate {
+  return { dateFrom: "", dateTo: "", basePp: "", sglSup: "", thirdAdultRed: "", firstChildPct: "", secondChildPct: "" };
+}
+
+function emptyBwTravelDate(): BwTravelDate {
+  return { dateFrom: "", dateTo: "", value: "", valueType: "PERCENTAGE" };
+}
+
+function spoDateStamp() {
+  return format(new Date(), "dd-MMM-yy");
+}
+
+function emptyRateOverrideSpo(spoNumber: number): RateOverrideSpo {
   return {
-    dateFrom: "",
-    dateTo: "",
-    basePp: "",
-    sglSup: "",
-    thirdAdultRed: "",
-    firstChildPct: "",
-    secondChildPct: "",
+    name: `RO-${spoDateStamp()}-${String(spoNumber).padStart(3, "0")}`,
     bookFrom: "",
     bookTo: "",
-    value: "",
-    valueType: "PERCENTAGE",
+    travelDates: [emptyRoTravelDate()],
+    excludedRoomTypeIds: [],
+    roomSupplements: [],
     active: true,
   };
 }
 
-function SeasonSpoTab({ contractId }: { contractId: string }) {
+function emptyBookingWindowSpo(spoNumber: number): BookingWindowSpo {
+  return {
+    name: `BW-${spoDateStamp()}-${String(spoNumber).padStart(3, "0")}`,
+    bookFrom: "",
+    bookTo: "",
+    travelDates: [emptyBwTravelDate()],
+    excludedRoomTypeIds: [],
+    active: true,
+    roomSupplements: [],
+  };
+}
+
+function SeasonSpoTab({ contractId, roomTypes, supplements }: { contractId: string; roomTypes: ContractRoomTypeData[]; supplements: SupplementData[] }) {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState("RATE_OVERRIDE");
 
-  const [rateRows, setRateRows] = useState<SeasonSpoRow[]>([]);
-  const [bookingRows, setBookingRows] = useState<SeasonSpoRow[]>([]);
-  const [pctRows, setPctRows] = useState<SeasonSpoRow[]>([]);
+  // RATE_OVERRIDE: card-per-SPO model (each SPO has multiple travel date periods)
+  const [rateSpOs, setRateSpOs] = useState<RateOverrideSpo[]>([]);
+  // BOOKING_WINDOW: card-per-SPO model with discount value and room supplements
+  const [bookingSpOs, setBookingSpOs] = useState<BookingWindowSpo[]>([]);
 
-  const { data: allSpos } = trpc.contracting.seasonSpo.listByContract.useQuery(
-    { contractId },
-  );
+  const { data: allSpos } = trpc.contracting.seasonSpo.listByContract.useQuery({ contractId });
 
   const bulkSaveMutation = trpc.contracting.seasonSpo.bulkSave.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       utils.contracting.seasonSpo.listByContract.invalidate({ contractId });
+      toast.success(`${vars.spoType === "RATE_OVERRIDE" ? "Rate Override" : "Booking Window"} SPOs saved`);
     },
+    onError: (e) => toast.error(`Save failed: ${e.message}`),
   });
 
   const toggleMutation = trpc.contracting.seasonSpo.toggleActive.useMutation({
-    onSuccess: () => {
-      utils.contracting.seasonSpo.listByContract.invalidate({ contractId });
-    },
+    onSuccess: () => utils.contracting.seasonSpo.listByContract.invalidate({ contractId }),
+    onError: (e) => toast.error(e.message),
   });
 
-  // Sync fetched data into local state when dialog opens
   useEffect(() => {
     if (!allSpos) return;
-    const toRow = (s: typeof allSpos[number]): SeasonSpoRow => ({
-      id: s.id,
-      dateFrom: format(new Date(s.dateFrom), "yyyy-MM-dd"),
-      dateTo: format(new Date(s.dateTo), "yyyy-MM-dd"),
-      basePp: s.basePp != null ? String(Number(s.basePp)) : "",
-      sglSup: s.sglSup != null ? String(Number(s.sglSup)) : "",
-      thirdAdultRed: s.thirdAdultRed != null ? String(Number(s.thirdAdultRed)) : "",
-      firstChildPct: s.firstChildPct != null ? String(Number(s.firstChildPct)) : "",
-      secondChildPct: s.secondChildPct != null ? String(Number(s.secondChildPct)) : "",
-      bookFrom: s.bookFrom ? format(new Date(s.bookFrom), "yyyy-MM-dd") : "",
-      bookTo: s.bookTo ? format(new Date(s.bookTo), "yyyy-MM-dd") : "",
-      value: s.value != null ? String(Number(s.value)) : "",
-      valueType: (s.valueType as "FIXED" | "PERCENTAGE") ?? "PERCENTAGE",
-      active: s.active,
-    });
-    setRateRows(allSpos.filter((s) => s.spoType === "RATE_OVERRIDE").map(toRow));
-    setBookingRows(allSpos.filter((s) => s.spoType === "BOOKING_WINDOW").map(toRow));
-    setPctRows(allSpos.filter((s) => s.spoType === "PERCENTAGE").map(toRow));
+
+    // Map RATE_OVERRIDE SPOs — each DB row is one SPO entity
+    setRateSpOs(
+      allSpos
+        .filter((s) => s.spoType === "RATE_OVERRIDE")
+        .map((s): RateOverrideSpo => ({
+          id: s.id,
+          name: s.name ?? "",
+          bookFrom: s.bookFrom ? format(new Date(s.bookFrom), "yyyy-MM-dd") : "",
+          bookTo: s.bookTo ? format(new Date(s.bookTo), "yyyy-MM-dd") : "",
+          travelDates: s.travelDates.length > 0
+            ? s.travelDates.map((td): RoTravelDate => ({
+                dateFrom: format(new Date(td.dateFrom), "yyyy-MM-dd"),
+                dateTo: format(new Date(td.dateTo), "yyyy-MM-dd"),
+                // Per-row rates; fall back to SPO-level for backward compat
+                basePp: td.basePp != null ? String(Number(td.basePp)) : (s.basePp != null ? String(Number(s.basePp)) : ""),
+                sglSup: td.sglSup != null ? String(Number(td.sglSup)) : (s.sglSup != null ? String(Number(s.sglSup)) : ""),
+                thirdAdultRed: td.thirdAdultRed != null ? String(Number(td.thirdAdultRed)) : (s.thirdAdultRed != null ? String(Number(s.thirdAdultRed)) : ""),
+                firstChildPct: td.firstChildPct != null ? String(Number(td.firstChildPct)) : (s.firstChildPct != null ? String(Number(s.firstChildPct)) : ""),
+                secondChildPct: td.secondChildPct != null ? String(Number(td.secondChildPct)) : (s.secondChildPct != null ? String(Number(s.secondChildPct)) : ""),
+              }))
+            // backward compat: old rows stored dateFrom/dateTo directly on the SPO
+            : s.dateFrom
+              ? [{ dateFrom: format(new Date(s.dateFrom), "yyyy-MM-dd"), dateTo: format(new Date(s.dateTo ?? s.dateFrom), "yyyy-MM-dd"), basePp: s.basePp != null ? String(Number(s.basePp)) : "", sglSup: s.sglSup != null ? String(Number(s.sglSup)) : "", thirdAdultRed: s.thirdAdultRed != null ? String(Number(s.thirdAdultRed)) : "", firstChildPct: s.firstChildPct != null ? String(Number(s.firstChildPct)) : "", secondChildPct: s.secondChildPct != null ? String(Number(s.secondChildPct)) : "" }]
+              : [emptyRoTravelDate()],
+          excludedRoomTypeIds: s.excludedRoomTypeIds ?? [],
+          roomSupplements: s.roomSupplements.map((rs) => ({
+            roomTypeId: rs.roomTypeId,
+            value: String(Number(rs.value)),
+            valueType: rs.valueType as "FIXED" | "PERCENTAGE",
+          })),
+          active: s.active,
+        })),
+    );
+
+    // Map BOOKING_WINDOW SPOs — card-per-SPO with per-row travel periods + discount
+    setBookingSpOs(
+      allSpos
+        .filter((s) => s.spoType === "BOOKING_WINDOW")
+        .map((s): BookingWindowSpo => ({
+          id: s.id,
+          name: s.name ?? "",
+          bookFrom: s.bookFrom ? format(new Date(s.bookFrom), "yyyy-MM-dd") : "",
+          bookTo: s.bookTo ? format(new Date(s.bookTo), "yyyy-MM-dd") : "",
+          travelDates: s.travelDates.length > 0
+            ? s.travelDates.map((td): BwTravelDate => ({
+                dateFrom: format(new Date(td.dateFrom), "yyyy-MM-dd"),
+                dateTo: format(new Date(td.dateTo), "yyyy-MM-dd"),
+                // Per-row discount; fall back to SPO-level for backward compat
+                value: td.value != null ? String(Number(td.value)) : (s.value != null ? String(Number(s.value)) : ""),
+                valueType: (td.valueType as "FIXED" | "PERCENTAGE") ?? (s.valueType as "FIXED" | "PERCENTAGE") ?? "PERCENTAGE",
+              }))
+            : s.dateFrom
+              ? [{ dateFrom: format(new Date(s.dateFrom), "yyyy-MM-dd"), dateTo: format(new Date(s.dateTo ?? s.dateFrom), "yyyy-MM-dd"), value: s.value != null ? String(Number(s.value)) : "", valueType: (s.valueType as "FIXED" | "PERCENTAGE") ?? "PERCENTAGE" }]
+              : [emptyBwTravelDate()],
+          excludedRoomTypeIds: s.excludedRoomTypeIds ?? [],
+          active: s.active,
+          roomSupplements: s.roomSupplements.map((rs) => ({
+            roomTypeId: rs.roomTypeId,
+            value: String(Number(rs.value)),
+            valueType: rs.valueType as "FIXED" | "PERCENTAGE",
+          })),
+        })),
+    );
   }, [allSpos]);
 
-  function getRowsForTab(tab: string) {
-    if (tab === "RATE_OVERRIDE") return rateRows;
-    if (tab === "BOOKING_WINDOW") return bookingRows;
-    return pctRows;
+  // ── Rate Override SPO helpers ──
+  function updateSpo(idx: number, patch: Partial<RateOverrideSpo>) {
+    setRateSpOs((prev) => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
   }
 
-  function setRowsForTab(tab: string, rows: SeasonSpoRow[]) {
-    if (tab === "RATE_OVERRIDE") setRateRows(rows);
-    else if (tab === "BOOKING_WINDOW") setBookingRows(rows);
-    else setPctRows(rows);
+  function updateTravelDate(spoIdx: number, tdIdx: number, field: keyof RoTravelDate, val: string) {
+    setRateSpOs((prev) => prev.map((s, i) => {
+      if (i !== spoIdx) return s;
+      const travelDates = s.travelDates.map((td, j) => j === tdIdx ? { ...td, [field]: val } : td);
+      return { ...s, travelDates };
+    }));
   }
 
-  function updateRow(tab: string, idx: number, field: keyof SeasonSpoRow, val: string | boolean) {
-    const rows = [...getRowsForTab(tab)];
-    rows[idx] = { ...rows[idx], [field]: val };
-    setRowsForTab(tab, rows);
+  function addTravelDate(spoIdx: number) {
+    setRateSpOs((prev) => prev.map((s, i) =>
+      i === spoIdx ? { ...s, travelDates: [...s.travelDates, emptyRoTravelDate()] } : s,
+    ));
   }
 
-  function addRow(tab: string) {
-    setRowsForTab(tab, [...getRowsForTab(tab), emptyRow()]);
+  function removeTravelDate(spoIdx: number, tdIdx: number) {
+    setRateSpOs((prev) => prev.map((s, i) =>
+      i === spoIdx ? { ...s, travelDates: s.travelDates.filter((_, j) => j !== tdIdx) } : s,
+    ));
   }
 
-  function removeRow(tab: string, idx: number) {
-    const rows = getRowsForTab(tab).filter((_, i) => i !== idx);
-    setRowsForTab(tab, rows);
+  function toggleRoExclusion(spoIdx: number, roomTypeId: string, included: boolean) {
+    setRateSpOs((prev) => prev.map((s, i) => {
+      if (i !== spoIdx) return s;
+      const excludedRoomTypeIds = included
+        ? s.excludedRoomTypeIds.filter((id) => id !== roomTypeId)
+        : [...s.excludedRoomTypeIds.filter((id) => id !== roomTypeId), roomTypeId];
+      return { ...s, excludedRoomTypeIds };
+    }));
   }
 
-  function handleSave(spoType: string) {
-    const rows = getRowsForTab(spoType);
+  function updateRoomSup(spoIdx: number, roomTypeId: string, val: string, vt: "FIXED" | "PERCENTAGE") {
+    setRateSpOs((prev) => prev.map((s, i) => {
+      if (i !== spoIdx) return s;
+      const filtered = s.roomSupplements.filter((rs) => rs.roomTypeId !== roomTypeId);
+      const updated = val !== "" ? [...filtered, { roomTypeId, value: val, valueType: vt }] : filtered;
+      return { ...s, roomSupplements: updated };
+    }));
+  }
+
+  function handleSaveRateOverride() {
     bulkSaveMutation.mutate({
       contractId,
-      spoType: spoType as "RATE_OVERRIDE" | "BOOKING_WINDOW" | "PERCENTAGE",
-      items: rows
-        .filter((r) => r.dateFrom && r.dateTo)
-        .map((r) => ({
-          id: r.id,
-          dateFrom: r.dateFrom,
-          dateTo: r.dateTo,
-          basePp: r.basePp ? Number(r.basePp) : null,
-          sglSup: r.sglSup ? Number(r.sglSup) : null,
-          thirdAdultRed: r.thirdAdultRed ? Number(r.thirdAdultRed) : null,
-          firstChildPct: r.firstChildPct ? Number(r.firstChildPct) : null,
-          secondChildPct: r.secondChildPct ? Number(r.secondChildPct) : null,
-          bookFrom: r.bookFrom || null,
-          bookTo: r.bookTo || null,
-          value: r.value ? Number(r.value) : null,
-          valueType: r.valueType || null,
-          active: r.active,
-        })),
+      spoType: "RATE_OVERRIDE",
+      items: rateSpOs.map((spo) => ({
+        id: spo.id,
+        name: spo.name || null,
+        travelDates: spo.travelDates
+          .filter((td) => td.dateFrom && td.dateTo)
+          .map((td) => ({
+            dateFrom: td.dateFrom,
+            dateTo: td.dateTo,
+            basePp: td.basePp ? Number(td.basePp) : null,
+            sglSup: td.sglSup ? Number(td.sglSup) : null,
+            thirdAdultRed: td.thirdAdultRed ? Number(td.thirdAdultRed) : null,
+            firstChildPct: td.firstChildPct ? Number(td.firstChildPct) : null,
+            secondChildPct: td.secondChildPct ? Number(td.secondChildPct) : null,
+          })),
+        bookFrom: spo.bookFrom || null,
+        bookTo: spo.bookTo || null,
+        excludedRoomTypeIds: spo.excludedRoomTypeIds,
+        active: spo.active,
+        roomSupplements: spo.roomSupplements
+          .filter((rs) => rs.roomTypeId && rs.value !== "")
+          .map((rs) => ({ roomTypeId: rs.roomTypeId, value: Number(rs.value), valueType: rs.valueType })),
+      })),
     });
   }
 
-  function handleToggle(row: SeasonSpoRow, tab: string, idx: number) {
-    if (row.id) {
-      toggleMutation.mutate({ id: row.id });
-    }
-    updateRow(tab, idx, "active", !row.active);
+  // ── Booking Window SPO helpers ──
+  function updateBwSpo(idx: number, patch: Partial<BookingWindowSpo>) {
+    setBookingSpOs((prev) => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
   }
+
+  function updateBwTravelDate(spoIdx: number, tdIdx: number, field: keyof BwTravelDate, val: string) {
+    setBookingSpOs((prev) => prev.map((s, i) => {
+      if (i !== spoIdx) return s;
+      const travelDates = s.travelDates.map((td, j) => j === tdIdx ? { ...td, [field]: val } : td);
+      return { ...s, travelDates };
+    }));
+  }
+
+  function addBwTravelDate(spoIdx: number) {
+    setBookingSpOs((prev) => prev.map((s, i) =>
+      i === spoIdx ? { ...s, travelDates: [...s.travelDates, emptyBwTravelDate()] } : s,
+    ));
+  }
+
+  function removeBwTravelDate(spoIdx: number, tdIdx: number) {
+    setBookingSpOs((prev) => prev.map((s, i) =>
+      i === spoIdx ? { ...s, travelDates: s.travelDates.filter((_, j) => j !== tdIdx) } : s,
+    ));
+  }
+
+  function toggleBwExclusion(spoIdx: number, roomTypeId: string, included: boolean) {
+    setBookingSpOs((prev) => prev.map((s, i) => {
+      if (i !== spoIdx) return s;
+      const excludedRoomTypeIds = included
+        ? s.excludedRoomTypeIds.filter((id) => id !== roomTypeId)
+        : [...s.excludedRoomTypeIds.filter((id) => id !== roomTypeId), roomTypeId];
+      return { ...s, excludedRoomTypeIds };
+    }));
+  }
+
+  function updateBwRoomSup(spoIdx: number, roomTypeId: string, val: string, vt: "FIXED" | "PERCENTAGE") {
+    setBookingSpOs((prev) => prev.map((s, i) => {
+      if (i !== spoIdx) return s;
+      const filtered = s.roomSupplements.filter((rs) => rs.roomTypeId !== roomTypeId);
+      const updated = val !== "" ? [...filtered, { roomTypeId, value: val, valueType: vt }] : filtered;
+      return { ...s, roomSupplements: updated };
+    }));
+  }
+
+  function handleSaveBookingWindow() {
+    bulkSaveMutation.mutate({
+      contractId,
+      spoType: "BOOKING_WINDOW",
+      items: bookingSpOs.map((spo) => ({
+        id: spo.id,
+        name: spo.name || null,
+        travelDates: spo.travelDates
+          .filter((td) => td.dateFrom && td.dateTo)
+          .map((td) => ({
+            dateFrom: td.dateFrom,
+            dateTo: td.dateTo,
+            value: td.value ? Number(td.value) : null,
+            valueType: td.valueType || null,
+          })),
+        bookFrom: spo.bookFrom || null,
+        bookTo: spo.bookTo || null,
+        excludedRoomTypeIds: spo.excludedRoomTypeIds,
+        active: spo.active,
+        roomSupplements: spo.roomSupplements
+          .filter((rs) => rs.roomTypeId && rs.value !== "")
+          .map((rs) => ({ roomTypeId: rs.roomTypeId, value: Number(rs.value), valueType: rs.valueType })),
+      })),
+    });
+  }
+
+  const nonBaseRoomTypes = roomTypes.filter((rt) => !rt.isBase);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Season Special Offers</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Manage season-level rate overrides, booking window offers, and percentage discounts.
+          Each SPO has a unique ID, a booking window, multiple travel date periods, and optional room type supplements.
         </p>
       </CardHeader>
       <CardContent>
+        {/* ── Saved SPOs summary ── */}
+        {allSpos && allSpos.length > 0 && (
+          <div className="mb-5 rounded-md border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Saved SPOs
+              </p>
+              <span className="text-[11px] text-muted-foreground">
+                {allSpos.filter((s) => s.spoType === "RATE_OVERRIDE").length} Rate Override
+                {" · "}
+                {allSpos.filter((s) => s.spoType === "BOOKING_WINDOW").length} Booking Window
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/20">
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Type</th>
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">SPO Name / ID</th>
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Book Window</th>
+                    <th className="px-3 py-1.5 text-center font-medium text-muted-foreground">Travel Dates</th>
+                    <th className="px-3 py-1.5 text-center font-medium text-muted-foreground">BTC</th>
+                    <th className="px-3 py-1.5 text-center font-medium text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allSpos.map((spo) => (
+                    <tr key={spo.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-1.5">
+                        <Badge variant="outline" className="text-[10px]">
+                          {spo.spoType === "RATE_OVERRIDE" ? "Rate Override" : "Booking Window"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-1.5 font-mono font-semibold">
+                        {spoReadableName(spo)}
+                      </td>
+                      <td className="px-3 py-1.5 text-muted-foreground tabular-nums whitespace-nowrap">
+                        {spo.bookFrom && spo.bookTo
+                          ? `${format(new Date(spo.bookFrom), "dd MMM yy")} → ${format(new Date(spo.bookTo), "dd MMM yy")}`
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-1.5 text-center tabular-nums">{spo.travelDates.length}</td>
+                      <td className="px-3 py-1.5 text-center tabular-nums">
+                        {spo.btcPeriods.length > 0
+                          ? <span className="text-amber-600 dark:text-amber-400 font-semibold">{spo.btcPeriods.length}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-1.5 text-center">
+                        <Badge variant={spo.active ? "default" : "secondary"} className="text-[10px]">
+                          {spo.active ? "Active" : "Inactive"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="RATE_OVERRIDE">Rate Override</TabsTrigger>
-            <TabsTrigger value="BOOKING_WINDOW">Booking Window</TabsTrigger>
-            <TabsTrigger value="PERCENTAGE">Percentage SPO</TabsTrigger>
+            <TabsTrigger value="RATE_OVERRIDE">Rate Override ({rateSpOs.length})</TabsTrigger>
+            <TabsTrigger value="BOOKING_WINDOW">Booking Window ({bookingSpOs.length})</TabsTrigger>
+            <TabsTrigger value="BACK_TO_CONTRACT">Back To Contract</TabsTrigger>
           </TabsList>
 
-          {/* ── Rate Override Grid ── */}
+          {/* ── Rate Override: one card per SPO ── */}
           <TabsContent value="RATE_OVERRIDE">
-              <div className="space-y-3">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[120px]">From</TableHead>
-                      <TableHead className="w-[120px]">To</TableHead>
-                      <TableHead>Base PP</TableHead>
-                      <TableHead>SGL Sup %</TableHead>
-                      <TableHead>3rd Adult Red</TableHead>
-                      <TableHead>1st Child %</TableHead>
-                      <TableHead>2nd Child %</TableHead>
-                      <TableHead className="w-[70px]">Active</TableHead>
-                      <TableHead className="w-[40px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rateRows.map((row, idx) => (
-                      <TableRow key={idx} className={!row.active ? "opacity-50 line-through" : ""}>
-                        <TableCell><Input type="date" value={row.dateFrom} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "dateFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="date" value={row.dateTo} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "dateTo", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.basePp} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "basePp", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.sglSup} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "sglSup", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.thirdAdultRed} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "thirdAdultRed", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.firstChildPct} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "firstChildPct", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.secondChildPct} onChange={(e) => updateRow("RATE_OVERRIDE", idx, "secondChildPct", e.target.value)} className="h-8 w-20 text-xs" /></TableCell>
-                        <TableCell><Switch checked={row.active} onCheckedChange={() => handleToggle(row, "RATE_OVERRIDE", idx)} /></TableCell>
-                        <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeRow("RATE_OVERRIDE", idx)}>×</Button></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => addRow("RATE_OVERRIDE")}>Add Row</Button>
-                  <Button size="sm" onClick={() => handleSave("RATE_OVERRIDE")} disabled={bulkSaveMutation.isPending}>Save All</Button>
-                </div>
-              </div>
-            </TabsContent>
+            <div className="space-y-3">
+              {rateSpOs.length === 0 && (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No Rate Override SPOs yet — click &quot;Add SPO&quot; below.
+                </p>
+              )}
+              {rateSpOs.map((spo, spoIdx) => (
+                <div
+                  key={spo.id ?? `new-${spoIdx}`}
+                  className={cn("border rounded-lg overflow-hidden", !spo.active && "opacity-60")}
+                >
+                  {/* ── SPO identifier band ── */}
+                  <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 border-b">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">SPO ID</span>
+                      <Input
+                        value={spo.name}
+                        onChange={(e) => updateSpo(spoIdx, { name: e.target.value })}
+                        placeholder={`RO-${spoDateStamp()}-${String(spoIdx + 1).padStart(3, "0")}`}
+                        className="h-7 w-40 text-xs font-mono font-semibold"
+                      />
+                    </div>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">Active</span>
+                      <Switch
+                        checked={spo.active}
+                        onCheckedChange={(v) => {
+                          if (spo.id) toggleMutation.mutate({ id: spo.id });
+                          updateSpo(spoIdx, { active: v });
+                        }}
+                      />
+                      <Button
+                        variant="ghost" size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={() => setRateSpOs((prev) => prev.filter((_, i) => i !== spoIdx))}
+                      >×</Button>
+                    </div>
+                  </div>
 
-            {/* ── Booking Window Grid ── */}
-            <TabsContent value="BOOKING_WINDOW">
-              <div className="space-y-3">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[120px]">From</TableHead>
-                      <TableHead className="w-[120px]">To</TableHead>
-                      <TableHead className="w-[120px]">Book From</TableHead>
-                      <TableHead className="w-[120px]">Book To</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="w-[70px]">Active</TableHead>
-                      <TableHead className="w-[40px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bookingRows.map((row, idx) => (
-                      <TableRow key={idx} className={!row.active ? "opacity-50 line-through" : ""}>
-                        <TableCell><Input type="date" value={row.dateFrom} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "dateFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="date" value={row.dateTo} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "dateTo", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="date" value={row.bookFrom} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "bookFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="date" value={row.bookTo} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "bookTo", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.value} onChange={(e) => updateRow("BOOKING_WINDOW", idx, "value", e.target.value)} className="h-8 w-24 text-xs" /></TableCell>
-                        <TableCell>
-                          <Select value={row.valueType} onValueChange={(v) => updateRow("BOOKING_WINDOW", idx, "valueType", v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="FIXED">Fixed</SelectItem>
-                              <SelectItem value="PERCENTAGE">%</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell><Switch checked={row.active} onCheckedChange={() => handleToggle(row, "BOOKING_WINDOW", idx)} /></TableCell>
-                        <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeRow("BOOKING_WINDOW", idx)}>×</Button></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => addRow("BOOKING_WINDOW")}>Add Row</Button>
-                  <Button size="sm" onClick={() => handleSave("BOOKING_WINDOW")} disabled={bulkSaveMutation.isPending}>Save All</Button>
-                </div>
-              </div>
-            </TabsContent>
+                  {/* ── SPO body ── */}
+                  <div className="p-4 space-y-4">
 
-            {/* ── Percentage SPO Grid ── */}
-            <TabsContent value="PERCENTAGE">
-              <div className="space-y-3">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[140px]">From</TableHead>
-                      <TableHead className="w-[140px]">To</TableHead>
-                      <TableHead>Discount %</TableHead>
-                      <TableHead className="w-[70px]">Active</TableHead>
-                      <TableHead className="w-[40px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pctRows.map((row, idx) => (
-                      <TableRow key={idx} className={!row.active ? "opacity-50 line-through" : ""}>
-                        <TableCell><Input type="date" value={row.dateFrom} onChange={(e) => updateRow("PERCENTAGE", idx, "dateFrom", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="date" value={row.dateTo} onChange={(e) => updateRow("PERCENTAGE", idx, "dateTo", e.target.value)} className="h-8 text-xs" /></TableCell>
-                        <TableCell><Input type="number" value={row.value} onChange={(e) => updateRow("PERCENTAGE", idx, "value", e.target.value)} className="h-8 w-28 text-xs" /></TableCell>
-                        <TableCell><Switch checked={row.active} onCheckedChange={() => handleToggle(row, "PERCENTAGE", idx)} /></TableCell>
-                        <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeRow("PERCENTAGE", idx)}>×</Button></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => addRow("PERCENTAGE")}>Add Row</Button>
-                  <Button size="sm" onClick={() => handleSave("PERCENTAGE")} disabled={bulkSaveMutation.isPending}>Save All</Button>
+                    {/* ── Section: Booking Window ── */}
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Booking Window
+                      </p>
+                      <div className="flex items-end gap-2">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-muted-foreground">Book From</span>
+                          <Input
+                            type="date"
+                            value={spo.bookFrom}
+                            onChange={(e) => updateSpo(spoIdx, { bookFrom: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <span className="text-muted-foreground pb-1.5">→</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-muted-foreground">Book To</span>
+                          <Input
+                            type="date"
+                            value={spo.bookTo}
+                            onChange={(e) => updateSpo(spoIdx, { bookTo: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Section: Travel Periods + Rates (inline table) ── */}
+                    <div className="space-y-2 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Travel Periods &amp; Override Rates
+                        </p>
+                        <Button
+                          variant="outline" size="sm"
+                          className="h-6 text-xs px-2"
+                          onClick={() => addTravelDate(spoIdx)}
+                        >
+                          + Add Row
+                        </Button>
+                      </div>
+                      {/* Table header */}
+                      <div className="grid gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr 1fr auto" }}>
+                        <span>Travel From</span>
+                        <span>Travel To</span>
+                        <span>Base PP</span>
+                        <span>SGL Sup</span>
+                        <span>3rd Ad Red</span>
+                        <span>1st CHD %</span>
+                        <span>2nd CHD %</span>
+                        <span />
+                      </div>
+                      {/* Table rows */}
+                      <div className="space-y-1">
+                        {spo.travelDates.map((td, tdIdx) => {
+                          const isDuplicate = td.dateFrom !== "" && td.dateTo !== "" && spo.travelDates.some(
+                            (other, otherIdx) => otherIdx < tdIdx && other.dateFrom === td.dateFrom && other.dateTo === td.dateTo,
+                          );
+                          return (
+                          <div key={tdIdx} className={cn("grid items-center gap-1 rounded", isDuplicate && "ring-1 ring-destructive bg-destructive/5")} style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr 1fr auto" }}>
+                            <Input type="date" value={td.dateFrom ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "dateFrom", e.target.value)} className={cn("h-7 text-xs", isDuplicate && "border-destructive")} />
+                            <Input type="date" value={td.dateTo ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "dateTo", e.target.value)} className={cn("h-7 text-xs", isDuplicate && "border-destructive")} />
+                            <Input type="number" value={td.basePp ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "basePp", e.target.value)} className="h-7 text-xs" placeholder="—" />
+                            <Input type="number" value={td.sglSup ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "sglSup", e.target.value)} className="h-7 text-xs" placeholder="—" />
+                            <Input type="number" value={td.thirdAdultRed ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "thirdAdultRed", e.target.value)} className="h-7 text-xs" placeholder="—" />
+                            <Input type="number" value={td.firstChildPct ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "firstChildPct", e.target.value)} className="h-7 text-xs" placeholder="—" />
+                            <Input type="number" value={td.secondChildPct ?? ""} onChange={(e) => updateTravelDate(spoIdx, tdIdx, "secondChildPct", e.target.value)} className="h-7 text-xs" placeholder="—" />
+                            {spo.travelDates.length > 1 ? (
+                              <Button variant="ghost" size="sm" className={cn("h-7 w-7 p-0", isDuplicate ? "text-destructive" : "text-muted-foreground")} onClick={() => removeTravelDate(spoIdx, tdIdx)}>×</Button>
+                            ) : <span />}
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ── Section: Room Type Supplements ── */}
+                    {nonBaseRoomTypes.length > 0 && (
+                      <div className="space-y-2 pt-3 border-t">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Room Type Supplements
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Checked = included in SPO. Unchecked = excluded (room type uses contract base rate + contract supplement).
+                          Leave amount empty to inherit the contract supplement.
+                        </p>
+                        <div className="space-y-1.5">
+                          {nonBaseRoomTypes.map((rt) => {
+                            const included = !spo.excludedRoomTypeIds.includes(rt.roomTypeId);
+                            const override = spo.roomSupplements.find((rs) => rs.roomTypeId === rt.roomTypeId);
+                            const val = override?.value ?? "";
+                            const vt = override?.valueType ?? "FIXED";
+                            const contractSup = supplements.find(
+                              (s) => s.supplementType === "ROOM_TYPE" && s.roomTypeId === rt.roomTypeId,
+                            );
+                            return (
+                              <div key={rt.roomTypeId} className="flex items-center gap-2 min-h-[28px]">
+                                <Checkbox
+                                  checked={included}
+                                  onCheckedChange={(v) => toggleRoExclusion(spoIdx, rt.roomTypeId, !!v)}
+                                  className="shrink-0"
+                                />
+                                <span className={cn("text-xs w-44 shrink-0", !included && "text-muted-foreground line-through")}>
+                                  {rt.roomType.name} ({rt.roomType.code})
+                                </span>
+                                {included ? (
+                                  <>
+                                    <Input
+                                      type="number"
+                                      value={val}
+                                      placeholder="—"
+                                      onChange={(e) => updateRoomSup(spoIdx, rt.roomTypeId, e.target.value, vt)}
+                                      className="h-7 w-24 text-xs"
+                                    />
+                                    <Select value={vt} onValueChange={(v) => updateRoomSup(spoIdx, rt.roomTypeId, val, v as "FIXED" | "PERCENTAGE")}>
+                                      <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="FIXED">Fixed</SelectItem>
+                                        <SelectItem value="PERCENTAGE">%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    {val !== "" ? (
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground shrink-0" onClick={() => updateRoomSup(spoIdx, rt.roomTypeId, "", vt)}>×</Button>
+                                    ) : contractSup ? (
+                                      <span className="text-[10px] text-muted-foreground italic">← contract: {Number(contractSup.value)} {contractSup.valueType === "PERCENTAGE" ? "%" : "Fixed"}</span>
+                                    ) : null}
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground italic">Excluded — contract rates apply</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              ))}
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => setRateSpOs((prev) => [...prev, emptyRateOverrideSpo(prev.length + 1)])}
+                >
+                  + Add SPO
+                </Button>
+                <Button size="sm" onClick={handleSaveRateOverride} disabled={bulkSaveMutation.isPending}>
+                  {bulkSaveMutation.isPending ? "Saving…" : "Save All"}
+                </Button>
               </div>
-            </TabsContent>
+            </div>
+          </TabsContent>
+
+          {/* ── Booking Window: one card per SPO ── */}
+          <TabsContent value="BOOKING_WINDOW">
+            <div className="space-y-3">
+              {bookingSpOs.length === 0 && (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No Booking Window SPOs yet — click &quot;Add SPO&quot; below.
+                </p>
+              )}
+              {bookingSpOs.map((spo, spoIdx) => (
+                <div
+                  key={spo.id ?? `bw-new-${spoIdx}`}
+                  className={cn("border rounded-lg overflow-hidden", !spo.active && "opacity-60")}
+                >
+                  {/* ── SPO identifier band ── */}
+                  <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 border-b">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">SPO ID</span>
+                      <Input
+                        value={spo.name}
+                        onChange={(e) => updateBwSpo(spoIdx, { name: e.target.value })}
+                        placeholder={`BW-${spoDateStamp()}-${String(spoIdx + 1).padStart(3, "0")}`}
+                        className="h-7 w-40 text-xs font-mono font-semibold"
+                      />
+                    </div>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">Active</span>
+                      <Switch
+                        checked={spo.active}
+                        onCheckedChange={(v) => {
+                          if (spo.id) toggleMutation.mutate({ id: spo.id });
+                          updateBwSpo(spoIdx, { active: v });
+                        }}
+                      />
+                      <Button
+                        variant="ghost" size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={() => setBookingSpOs((prev) => prev.filter((_, i) => i !== spoIdx))}
+                      >×</Button>
+                    </div>
+                  </div>
+
+                  {/* ── SPO body ── */}
+                  <div className="p-4 space-y-4">
+
+                    {/* ── Section: Booking Window ── */}
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Booking Window
+                      </p>
+                      <div className="flex items-end gap-2">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-muted-foreground">Book From</span>
+                          <Input
+                            type="date"
+                            value={spo.bookFrom}
+                            onChange={(e) => updateBwSpo(spoIdx, { bookFrom: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <span className="text-muted-foreground pb-1.5">→</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-muted-foreground">Book To</span>
+                          <Input
+                            type="date"
+                            value={spo.bookTo}
+                            onChange={(e) => updateBwSpo(spoIdx, { bookTo: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Section: Travel Periods + Discount (inline table) ── */}
+                    <div className="space-y-2 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Travel Periods &amp; Discount
+                        </p>
+                        <Button
+                          variant="outline" size="sm"
+                          className="h-6 text-xs px-2"
+                          onClick={() => addBwTravelDate(spoIdx)}
+                        >
+                          + Add Row
+                        </Button>
+                      </div>
+                      {/* Table header */}
+                      <div className="grid gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1" style={{ gridTemplateColumns: "1fr 1fr 1fr 120px auto" }}>
+                        <span>Travel From</span>
+                        <span>Travel To</span>
+                        <span>Discount Value</span>
+                        <span>Type</span>
+                        <span />
+                      </div>
+                      {/* Table rows */}
+                      <div className="space-y-1">
+                        {spo.travelDates.map((td, tdIdx) => {
+                          const isDuplicate = td.dateFrom !== "" && td.dateTo !== "" && spo.travelDates.some(
+                            (other, otherIdx) => otherIdx < tdIdx && other.dateFrom === td.dateFrom && other.dateTo === td.dateTo,
+                          );
+                          return (
+                          <div key={tdIdx} className={cn("grid items-center gap-1 rounded", isDuplicate && "ring-1 ring-destructive bg-destructive/5")} style={{ gridTemplateColumns: "1fr 1fr 1fr 120px auto" }}>
+                            <Input type="date" value={td.dateFrom ?? ""} onChange={(e) => updateBwTravelDate(spoIdx, tdIdx, "dateFrom", e.target.value)} className={cn("h-7 text-xs", isDuplicate && "border-destructive")} />
+                            <Input type="date" value={td.dateTo ?? ""} onChange={(e) => updateBwTravelDate(spoIdx, tdIdx, "dateTo", e.target.value)} className={cn("h-7 text-xs", isDuplicate && "border-destructive")} />
+                            <Input type="number" value={td.value ?? ""} onChange={(e) => updateBwTravelDate(spoIdx, tdIdx, "value", e.target.value)} className="h-7 text-xs" placeholder="—" />
+                            <Select value={td.valueType ?? "PERCENTAGE"} onValueChange={(v) => updateBwTravelDate(spoIdx, tdIdx, "valueType", v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="FIXED">Fixed</SelectItem>
+                                <SelectItem value="PERCENTAGE">%</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {spo.travelDates.length > 1 ? (
+                              <Button variant="ghost" size="sm" className={cn("h-7 w-7 p-0", isDuplicate ? "text-destructive" : "text-muted-foreground")} onClick={() => removeBwTravelDate(spoIdx, tdIdx)}>×</Button>
+                            ) : <span />}
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ── Section: Room Type Supplements ── */}
+                    {nonBaseRoomTypes.length > 0 && (
+                      <div className="space-y-2 pt-3 border-t">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Room Type Supplements
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Checked = discount applies to this room type. Unchecked = excluded (room type uses contract base rate + contract supplement).
+                          Leave amount empty to inherit the contract supplement.
+                        </p>
+                        <div className="space-y-1.5">
+                          {nonBaseRoomTypes.map((rt) => {
+                            const included = !spo.excludedRoomTypeIds.includes(rt.roomTypeId);
+                            const override = spo.roomSupplements.find((rs) => rs.roomTypeId === rt.roomTypeId);
+                            const val = override?.value ?? "";
+                            const vt = override?.valueType ?? "FIXED";
+                            const contractSup = supplements.find(
+                              (s) => s.supplementType === "ROOM_TYPE" && s.roomTypeId === rt.roomTypeId,
+                            );
+                            return (
+                              <div key={rt.roomTypeId} className="flex items-center gap-2 min-h-[28px]">
+                                <Checkbox
+                                  checked={included}
+                                  onCheckedChange={(v) => toggleBwExclusion(spoIdx, rt.roomTypeId, !!v)}
+                                  className="shrink-0"
+                                />
+                                <span className={cn("text-xs w-44 shrink-0", !included && "text-muted-foreground line-through")}>
+                                  {rt.roomType.name} ({rt.roomType.code})
+                                </span>
+                                {included ? (
+                                  <>
+                                    <Input
+                                      type="number"
+                                      value={val}
+                                      placeholder="—"
+                                      onChange={(e) => updateBwRoomSup(spoIdx, rt.roomTypeId, e.target.value, vt)}
+                                      className="h-7 w-24 text-xs"
+                                    />
+                                    <Select value={vt} onValueChange={(v) => updateBwRoomSup(spoIdx, rt.roomTypeId, val, v as "FIXED" | "PERCENTAGE")}>
+                                      <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="FIXED">Fixed</SelectItem>
+                                        <SelectItem value="PERCENTAGE">%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    {val !== "" ? (
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground shrink-0" onClick={() => updateBwRoomSup(spoIdx, rt.roomTypeId, "", vt)}>×</Button>
+                                    ) : contractSup ? (
+                                      <span className="text-[10px] text-muted-foreground italic">← contract: {Number(contractSup.value)} {contractSup.valueType === "PERCENTAGE" ? "%" : "Fixed"}</span>
+                                    ) : null}
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground italic">Excluded — contract rates apply</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => setBookingSpOs((prev) => [...prev, emptyBookingWindowSpo(prev.length + 1)])}
+                >
+                  + Add SPO
+                </Button>
+                <Button size="sm" onClick={handleSaveBookingWindow} disabled={bulkSaveMutation.isPending}>
+                  {bulkSaveMutation.isPending ? "Saving…" : "Save All"}
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="BACK_TO_CONTRACT">
+            <BackToContractPanel contractId={contractId} allSpos={allSpos ?? []} />
+          </TabsContent>
+
         </Tabs>
       </CardContent>
     </Card>
