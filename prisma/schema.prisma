@@ -170,7 +170,12 @@ model Company {
   crmExcursions        CrmExcursion[]
   crmBookings          CrmBooking[]
   crmProgramPlans      CrmProgramPlan[]
+  crmPickupTimes       CrmPickupTime[]
+  crmExcursionTickets  CrmExcursionTicket[]
+  crmExcursionBreakdowns CrmExcursionBreakdown[]
+  crmExcursionDispatches CrmExcursionDispatch[]
   b2bCreditTransactions B2bCreditTransaction[]
+  hotelCreditNotes      HotelCreditNote[]
 
   // License
   license              License?
@@ -277,7 +282,9 @@ model User {
   // B2B relations
   tourOperatorId        String?
   tourOperator          TourOperator?  @relation("PartnerUser", fields: [tourOperatorId], references: [id])
-  b2bCreditTxCreated    B2bCreditTransaction[] @relation("CreditTxCreator")
+  b2bCreditTxCreated         B2bCreditTransaction[]  @relation("CreditTxCreator")
+  hotelCreditNotesCreated    HotelCreditNote[]       @relation("HotelCreditCreatedBy")
+  hotelCreditConsumptions    HotelCreditConsumption[] @relation("HotelCreditUsedBy")
 
   @@index([companyId])
   @@index([email])
@@ -424,6 +431,7 @@ model Currency {
   // Reservations relations
   bookings               Booking[]        @relation("BookingCurrency")
   bookingPayments        BookingPayment[] @relation("BookingPaymentCurrency")
+  hotelCreditNotes       HotelCreditNote[]
 
   // Traffic relations
   ttPriceItems           TtPriceItem[]
@@ -1460,6 +1468,7 @@ model Destination {
   cities          City[]
   markupRules     MarkupRule[]
   b2cMarkupRules  B2cMarkupRule[]
+  crmPickupTimes  CrmPickupTime[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1584,10 +1593,16 @@ model Hotel {
   apiIntegrationHotels  ApiIntegrationHotel[]
   bookings              Booking[]
   b2cMarkupRules        B2cMarkupRule[]
+  creditNotes           HotelCreditNote[]
 
   // Traffic relations
   ttJobsPickup   TtTrafficJob[] @relation("TtJobPickupHotel")
   ttJobsDropoff  TtTrafficJob[] @relation("TtJobDropoffHotel")
+
+  // CRM relations
+  crmPickupTimes      CrmPickupTime[]
+  excursionTickets    CrmExcursionTicket[]
+  dispatchRunStops    CrmDispatchRunStop[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1641,6 +1656,7 @@ model HotelRoomType {
   contractAllotments  ContractAllotment[]
   contractStopSales   ContractStopSale[]
   bookingRooms        BookingRoom[]       @relation("BookingRoomType")
+  spoRoomSupplements  ContractSeasonSpoRoomSup[]
 
   @@unique([hotelId, code])
   @@index([hotelId])
@@ -1956,9 +1972,11 @@ model ContractSeasonSpo {
   id              String   @id @default(cuid())
   contractId      String
   spoType         String   // "RATE_OVERRIDE" | "BOOKING_WINDOW" | "PERCENTAGE"
+  name            String?  // SPO display name / code (RATE_OVERRIDE only)
 
-  dateFrom        DateTime  @db.Date
-  dateTo          DateTime  @db.Date
+  // Travel period — used by BOOKING_WINDOW & PERCENTAGE; RATE_OVERRIDE uses travelDates child
+  dateFrom        DateTime? @db.Date
+  dateTo          DateTime? @db.Date
 
   // Rate Override columns
   basePp          Decimal?  @db.Decimal(12, 4)
@@ -1967,7 +1985,7 @@ model ContractSeasonSpo {
   firstChildPct   Decimal?  @db.Decimal(12, 4)
   secondChildPct  Decimal?  @db.Decimal(12, 4)
 
-  // Booking Window fields
+  // Booking window — used by BOOKING_WINDOW & RATE_OVERRIDE
   bookFrom        DateTime? @db.Date
   bookTo          DateTime? @db.Date
 
@@ -1975,16 +1993,81 @@ model ContractSeasonSpo {
   value           Decimal?  @db.Decimal(12, 4)
   valueType       String?   // "FIXED" | "PERCENTAGE"
 
+  // Room types explicitly excluded from this SPO (use contract base rate + supplement instead)
+  excludedRoomTypeIds String[]
+
   active          Boolean   @default(true)
   sortOrder       Int       @default(0)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract        Contract                    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  travelDates     ContractSeasonSpoDate[]
+  roomSupplements ContractSeasonSpoRoomSup[]
+  btcPeriods      ContractSeasonSpoBtc[]
 
   @@index([contractId])
   @@index([contractId, spoType])
   @@map("ct_contract_season_spo")
+}
+
+model ContractSeasonSpoBtc {
+  id        String   @id @default(cuid())
+  spoId     String
+  dateFrom  DateTime @db.Date
+  dateTo    DateTime @db.Date
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  spo ContractSeasonSpo @relation(fields: [spoId], references: [id], onDelete: Cascade)
+
+  @@index([spoId])
+  @@map("ct_season_spo_btc")
+}
+
+model ContractSeasonSpoRoomSup {
+  id         String   @id @default(cuid())
+  spoId      String
+  roomTypeId String
+  value      Decimal  @db.Decimal(12, 4)
+  valueType  String   @default("FIXED") // "FIXED" | "PERCENTAGE"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  spo      ContractSeasonSpo @relation(fields: [spoId], references: [id], onDelete: Cascade)
+  roomType HotelRoomType     @relation(fields: [roomTypeId], references: [id])
+
+  @@index([spoId])
+  @@map("ct_season_spo_room_sup")
+}
+
+model ContractSeasonSpoDate {
+  id             String    @id @default(cuid())
+  spoId          String
+  dateFrom       DateTime  @db.Date
+  dateTo         DateTime  @db.Date
+  sortOrder      Int       @default(0)
+
+  // Per-period rates (RATE_OVERRIDE)
+  basePp         Decimal?  @db.Decimal(12, 4)
+  sglSup         Decimal?  @db.Decimal(12, 4)
+  thirdAdultRed  Decimal?  @db.Decimal(12, 4)
+  firstChildPct  Decimal?  @db.Decimal(12, 4)
+  secondChildPct Decimal?  @db.Decimal(12, 4)
+
+  // Per-period discount (BOOKING_WINDOW)
+  value          Decimal?  @db.Decimal(12, 4)
+  valueType      String?   // "FIXED" | "PERCENTAGE"
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  spo ContractSeasonSpo @relation(fields: [spoId], references: [id], onDelete: Cascade)
+
+  @@index([spoId])
+  @@map("ct_season_spo_date")
 }
 
 enum AllocationBasis {
@@ -2166,6 +2249,8 @@ model TourOperator {
   bookings            Booking[]
   creditTransactions  B2bCreditTransaction[]
   partnerUsers        User[]   @relation("PartnerUser")
+  crmProgramAssignments CrmProgramTourOperator[]
+  excursionTickets   CrmExcursionTicket[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2547,6 +2632,18 @@ enum HotelPaymentMethod {
   VOUCHER
 }
 
+enum HotelCreditStatus {
+  OPEN
+  PARTIALLY_CONSUMED
+  CONSUMED
+  CANCELLED
+}
+
+enum BookingPaymentDirection {
+  TO_HOTEL
+  FROM_SOURCE
+}
+
 // ============================================================================
 // RESERVATIONS MODULE — Models
 // ============================================================================
@@ -2622,6 +2719,7 @@ model Booking {
   paymentStatus      BookingPaymentStatus @default(UNPAID)
   totalPaid          Decimal             @default(0) @db.Decimal(12, 4)
   balanceDue         Decimal             @default(0) @db.Decimal(12, 4)
+  creditApplied      Decimal             @default(0) @db.Decimal(12, 4)
 
   // Lead guest shortcut
   leadGuestName      String?
@@ -2675,6 +2773,17 @@ model Booking {
   bookingNotes       String?             @db.Text
   meetAssistVisa     Boolean             @default(false)
   apiIntegrationId   String?
+  bookingDate        DateTime?           @db.Date
+
+  // Cancellation penalties (hotel side vs source side — independently overridable)
+  hotelPenaltyAmount      Decimal             @default(0) @db.Decimal(12, 4)
+  sourcePenaltyAmount     Decimal             @default(0) @db.Decimal(12, 4)
+  hotelPenaltyOverridden  Boolean             @default(false)
+  sourcePenaltyOverridden Boolean             @default(false)
+
+  // Finance journal entries auto-posted on confirm
+  finCustomerMoveId  String?             @unique
+  finVendorMoveId    String?             @unique
 
   // Lock
   isLocked           Boolean             @default(false)
@@ -2736,6 +2845,10 @@ model Booking {
 
   // B2B relations
   creditTransactions B2bCreditTransaction[]
+
+  // Hotel credit relations
+  issuedCreditNote   HotelCreditNote?        @relation("HotelCreditSourceBooking")
+  creditConsumptions HotelCreditConsumption[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2825,6 +2938,7 @@ model BookingPayment {
   notes         String?  @db.Text
   paidAt        DateTime @db.Date
   isRefund      Boolean  @default(false)
+  direction     BookingPaymentDirection @default(FROM_SOURCE)
 
   // Finance integration
   finPaymentId  String?  @unique
@@ -3194,6 +3308,7 @@ model TtVehicle {
   compliances  TtVehicleCompliance[]
   driverVehicles TtDriverVehicle[]
   assignments  TtTrafficAssignment[]
+  excursionBreakdowns CrmExcursionBreakdown[]
 
   @@unique([companyId, plateNumber])
   @@index([companyId])
@@ -3241,6 +3356,7 @@ model TtDriver {
   user           User                 @relation(fields: [userId], references: [id])
   driverVehicles TtDriverVehicle[]
   assignments    TtTrafficAssignment[]
+  excursionBreakdowns CrmExcursionBreakdown[]
 
   @@index([companyId])
   @@index([userId])
@@ -3280,6 +3396,8 @@ model TtRep {
   user       User                 @relation(fields: [userId], references: [id])
   repZones   TtRepZone[]
   assignments TtTrafficAssignment[]
+  excursionBreakdowns CrmExcursionBreakdown[]
+  dispatchRuns        CrmDispatchRun[]
 
   @@index([companyId])
   @@index([userId])
@@ -4270,13 +4388,17 @@ model CrmExcursion {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  programs         CrmExcursionProgram[]
-  ageGroups        CrmExcursionAgeGroup[]
-  addons           CrmExcursionAddon[]
-  costSheets       CrmCostSheet[]
-  bookingItems     CrmBookingItem[]
-  pickupLocations  CrmPickupLocation[]
-  programPlanItems CrmProgramPlanItem[]
+  programs          CrmExcursionProgram[]
+  ageGroups         CrmExcursionAgeGroup[]
+  addons            CrmExcursionAddon[]
+  costSheets        CrmCostSheet[]
+  bookingItems      CrmBookingItem[]
+  pickupLocations   CrmPickupLocation[]
+  programPlanItems  CrmProgramPlanItem[]
+  pickupTimes       CrmPickupTime[]
+  excursionTickets  CrmExcursionTicket[]
+  excursionBreakdowns CrmExcursionBreakdown[]
+  excursionDispatches CrmExcursionDispatch[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -4557,9 +4679,10 @@ model CrmProgramPlan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  market  Market?          @relation(fields: [marketId], references: [id], onDelete: SetNull)
-  items   CrmProgramPlanItem[]
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  market        Market?          @relation(fields: [marketId], references: [id], onDelete: SetNull)
+  items         CrmProgramPlanItem[]
+  tourOperators CrmProgramTourOperator[]
 
   @@index([companyId])
   @@map("crm_program_plan")
@@ -4584,4 +4707,263 @@ model CrmProgramPlanItem {
   @@index([programPlanId])
   @@index([excursionId])
   @@map("crm_program_plan_item")
+}
+
+// ── CRM Program ↔ Tour Operator assignment ──
+
+model CrmProgramTourOperator {
+  id             String   @id @default(cuid())
+  programPlanId  String
+  tourOperatorId String
+  createdAt      DateTime @default(now())
+
+  programPlan  CrmProgramPlan @relation(fields: [programPlanId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator   @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+
+  @@unique([programPlanId, tourOperatorId])
+  @@index([programPlanId])
+  @@index([tourOperatorId])
+  @@map("crm_program_tour_operator")
+}
+
+// ── CRM Pickup Time Sheet ──
+// Per-destination grid: Hotel × Excursion → pickup time (HH:MM)
+
+model CrmPickupTime {
+  id            String   @id @default(cuid())
+  companyId     String
+  destinationId String
+  hotelId       String
+  excursionId   String
+  pickupTime    String   // "08:30"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destination Destination  @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  hotel       Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  excursion   CrmExcursion @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, destinationId, hotelId, excursionId])
+  @@index([companyId])
+  @@index([destinationId])
+  @@map("crm_pickup_time")
+}
+
+// ── CRM Excursion Ticket ──
+// Central operational excursion booking — aggregates Manual, B2C, Hotel Guide, B2B sources
+
+enum CrmTicketSource {
+  MANUAL
+  B2C
+  HOTEL_GUIDE
+  B2B
+}
+
+enum CrmTicketStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+}
+
+model CrmExcursionTicket {
+  id             String          @id @default(cuid())
+  companyId      String
+  ticketNo       String          // TKT-00001
+  tourOperatorId String?
+  hotelId        String
+  excursionId    String
+  guestName      String?
+  guestMobile    String?
+  hotelGuideName String?
+  arrivalDate    DateTime?       @db.Date
+  price          Decimal?        @db.Decimal(12, 2)
+  priceCurrency  String?         @db.VarChar(3)
+  pickupTime     String?         // HH:MM — auto from pickup sheet
+  roomNo         String?
+  adults         Int             @default(1)
+  children       Int             @default(0)
+  excursionDate  DateTime        @db.Date
+  language       String          @default("EN")
+  remarks        String?         @db.Text
+  source         CrmTicketSource @default(MANUAL)
+  status         CrmTicketStatus @default(PENDING)
+  breakdownId    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator?         @relation(fields: [tourOperatorId], references: [id], onDelete: SetNull)
+  hotel        Hotel                 @relation(fields: [hotelId], references: [id])
+  excursion    CrmExcursion          @relation(fields: [excursionId], references: [id])
+  breakdown    CrmExcursionBreakdown? @relation(fields: [breakdownId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, ticketNo])
+  @@index([companyId])
+  @@index([excursionId])
+  @@index([hotelId])
+  @@index([tourOperatorId])
+  @@index([excursionDate])
+  @@index([breakdownId])
+  @@map("crm_excursion_ticket")
+}
+
+// ── CRM Excursion Breakdown ──
+// Daily breakdown sheet: groups tickets by excursion/date/language, assigns rep & vehicle
+
+enum CrmBreakdownStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model CrmExcursionBreakdown {
+  id            String             @id @default(cuid())
+  companyId     String
+  excursionId   String
+  excursionDate DateTime           @db.Date
+  language      String             @default("EN")
+  repId         String?
+  vehicleId     String?
+  driverId      String?
+  notes         String?            @db.Text
+  status        CrmBreakdownStatus @default(DRAFT)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  excursion CrmExcursion  @relation(fields: [excursionId], references: [id])
+  rep       TtRep?        @relation(fields: [repId], references: [id], onDelete: SetNull)
+  vehicle   TtVehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver    TtDriver?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  tickets   CrmExcursionTicket[]
+
+  @@unique([companyId, excursionId, excursionDate, language])
+  @@index([companyId])
+  @@index([excursionId])
+  @@index([excursionDate])
+  @@map("crm_excursion_breakdown")
+}
+
+// ── CRM Excursion Dispatch ──
+// Per excursion+date dispatch plan: groups hotel pickups into runs, each run → one traffic job
+
+enum CrmDispatchStatus {
+  DRAFT
+  DISPATCHED
+}
+
+model CrmExcursionDispatch {
+  id                  String            @id @default(cuid())
+  companyId           String
+  excursionId         String
+  dispatchDate        DateTime          @db.Date
+  assemblyPointName   String?
+  assemblyPointLat    Float?
+  assemblyPointLng    Float?
+  notes               String?           @db.Text
+  status              CrmDispatchStatus @default(DRAFT)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  excursion CrmExcursion @relation(fields: [excursionId], references: [id])
+  runs      CrmDispatchRun[]
+
+  @@unique([companyId, excursionId, dispatchDate])
+  @@index([companyId])
+  @@index([excursionId])
+  @@map("crm_excursion_dispatch")
+}
+
+model CrmDispatchRun {
+  id           String   @id @default(cuid())
+  dispatchId   String
+  runNumber    Int
+  repId        String?
+  trafficJobId String?  @unique
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dispatch CrmExcursionDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  rep      TtRep?               @relation(fields: [repId], references: [id], onDelete: SetNull)
+  stops    CrmDispatchRunStop[]
+
+  @@index([dispatchId])
+  @@map("crm_dispatch_run")
+}
+
+model CrmDispatchRunStop {
+  id       String @id @default(cuid())
+  runId    String
+  hotelId  String
+  sequence Int
+  paxCount Int
+
+  run   CrmDispatchRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  hotel Hotel          @relation(fields: [hotelId], references: [id])
+
+  @@unique([runId, hotelId])
+  @@index([runId])
+  @@map("crm_dispatch_run_stop")
+}
+
+// ============================================================================
+// HOTEL CREDIT NOTES — Tracks money left with hotel after penalty-free cancel
+// ============================================================================
+
+model HotelCreditNote {
+  id              String            @id @default(cuid())
+  companyId       String
+  code            String
+
+  hotelId         String
+  sourceBookingId String?           @unique
+
+  amount          Decimal           @db.Decimal(12, 4)
+  remainingAmount Decimal           @db.Decimal(12, 4)
+  currencyId      String
+
+  status          HotelCreditStatus @default(OPEN)
+  notes           String?           @db.Text
+
+  finMoveId       String?           @unique
+
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  hotel         Hotel           @relation(fields: [hotelId], references: [id])
+  sourceBooking Booking?        @relation("HotelCreditSourceBooking", fields: [sourceBookingId], references: [id])
+  currency      Currency        @relation(fields: [currencyId], references: [id])
+  createdBy     User            @relation("HotelCreditCreatedBy", fields: [createdById], references: [id])
+
+  consumptions  HotelCreditConsumption[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, hotelId])
+  @@index([companyId, status])
+  @@map("hotel_credit_note")
+}
+
+model HotelCreditConsumption {
+  id           String @id @default(cuid())
+  creditNoteId String
+  bookingId    String
+
+  amountUsed   Decimal  @db.Decimal(12, 4)
+  notes        String?  @db.Text
+  usedAt       DateTime @default(now())
+  usedById     String
+
+  creditNote HotelCreditNote @relation(fields: [creditNoteId], references: [id])
+  booking    Booking         @relation(fields: [bookingId], references: [id])
+  usedBy     User            @relation("HotelCreditUsedBy", fields: [usedById], references: [id])
+
+  @@index([creditNoteId])
+  @@index([bookingId])
+  @@map("hotel_credit_consumption")
 }

@@ -128,4 +128,24 @@ export const TIMELINE_ACTION_LABELS: Record<string, string> = {
   LOCKED: "Booking Locked",
   UNLOCKED: "Booking Unlocked",
   PAYMENT_REMOVED: "Payment Removed",
+  HOTEL_CREDIT_ISSUED: "Hotel Credit Note Issued",
+};
+
+export const BOOKING_PAYMENT_DIRECTION_LABELS: Record<string, string> = {
+  TO_HOTEL: "Hotel Payment",
+  FROM_SOURCE: "Collection",
+};
+
+export const HOTEL_CREDIT_STATUS_LABELS: Record<string, string> = {
+  OPEN: "Open",
+  PARTIALLY_CONSUMED: "Partially Used",
+  CONSUMED: "Fully Used",
+  CANCELLED: "Cancelled",
+};
+
+export const HOTEL_CREDIT_STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  OPEN: "success",
+  PARTIALLY_CONSUMED: "warning",
+  CONSUMED: "secondary",
+  CANCELLED: "destructive",
 };

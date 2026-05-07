@@ -3,6 +3,112 @@ import { generateSequenceNumber } from "@/server/services/finance/sequence-gener
 import { logger } from "@/lib/logger";
 
 /**
+ * Creates a vendor bill (IN_INVOICE) for the hotel buying total when a booking is confirmed.
+ * Skips silently if no purchase journal or payable account is configured.
+ */
+export async function createBookingVendorBill(
+  db: PrismaClient,
+  companyId: string,
+  bookingId: string,
+): Promise<string | null> {
+  try {
+    const booking = await db.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+      include: { hotel: { select: { name: true } } },
+    });
+
+    const amount = Number(booking.buyingTotal);
+    if (amount <= 0) return null;
+
+    const purchaseJournal = await db.journal.findFirst({
+      where: { companyId, type: "PURCHASE" },
+      select: { id: true },
+    });
+    if (!purchaseJournal) {
+      logger.warn({ companyId }, "Auto vendor bill skipped: no purchase journal configured");
+      return null;
+    }
+
+    const payableAccount = await db.finAccount.findFirst({
+      where: { companyId, accountType: "LIABILITY_PAYABLE" },
+      select: { id: true },
+    });
+    if (!payableAccount) {
+      logger.warn({ companyId }, "Auto vendor bill skipped: no payable account configured");
+      return null;
+    }
+
+    const expenseAccount = await db.finAccount.findFirst({
+      where: { companyId, accountType: "EXPENSE_DIRECT_COST" },
+      select: { id: true },
+    }) ?? await db.finAccount.findFirst({
+      where: { companyId, accountType: "EXPENSE" },
+      select: { id: true },
+    });
+    if (!expenseAccount) {
+      logger.warn({ companyId }, "Auto vendor bill skipped: no expense account configured");
+      return null;
+    }
+
+    const moveName = await generateSequenceNumber(db, companyId, "in_invoice")
+      .catch(() => `BILL-${Date.now()}`);
+
+    const move = await db.move.create({
+      data: {
+        companyId,
+        name: moveName,
+        moveType: "IN_INVOICE",
+        state: "POSTED",
+        date: new Date(),
+        journalId: purchaseJournal.id,
+        currencyId: booking.currencyId,
+        companyCurrencyId: booking.currencyId,
+        ref: `Booking ${booking.code}`,
+        narration: `Hotel cost — ${booking.hotel.name} — ${booking.checkIn.toISOString().slice(0, 10)} to ${booking.checkOut.toISOString().slice(0, 10)}`,
+        amountUntaxed: amount,
+        amountTax: 0,
+        amountTotal: amount,
+        amountResidual: amount,
+        postedAt: new Date(),
+        lineItems: {
+          create: [
+            // Debit: Expense
+            {
+              name: `Hotel cost — ${booking.hotel.name}`,
+              accountId: expenseAccount.id,
+              currencyId: booking.currencyId,
+              debit: amount,
+              credit: 0,
+              amountCurrency: amount,
+            },
+            // Credit: Accounts Payable
+            {
+              name: `Booking ${booking.code} — payable to hotel`,
+              accountId: payableAccount.id,
+              currencyId: booking.currencyId,
+              debit: 0,
+              credit: amount,
+              amountCurrency: amount,
+            },
+          ],
+        },
+      },
+    });
+
+    await db.booking.update({
+      where: { id: bookingId },
+      data: { finVendorMoveId: move.id },
+    });
+
+    logger.info({ bookingId, moveId: move.id }, "Auto vendor bill created for booking");
+    return move.id;
+  } catch (err) {
+    logger.error({ err, bookingId }, "Failed to create auto vendor bill for booking");
+    return null;
+  }
+}
+
+/**
  * Creates a pro-forma invoice (OUT_INVOICE Move) when a booking is confirmed.
  * Skips if no receivable account or journal is configured.
  */
@@ -101,6 +207,11 @@ export async function createBookingInvoice(
           ],
         },
       },
+    });
+
+    await db.booking.update({
+      where: { id: bookingId },
+      data: { finCustomerMoveId: move.id },
     });
 
     logger.info({ bookingId, moveId: move.id, moveName }, "Auto-invoice created for booking");

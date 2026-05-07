@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  BOOKING_PAYMENT_DIRECTION_LABELS,
   BOOKING_STATUS_LABELS,
   BOOKING_STATUS_VARIANTS,
   BOOKING_SOURCE_LABELS,
@@ -65,6 +66,7 @@ export default function BookingReconciliationPage() {
   const [payReference, setPayReference] = useState("");
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payIsRefund, setPayIsRefund] = useState(false);
+  const [payDirection, setPayDirection] = useState<"FROM_SOURCE" | "TO_HOTEL">("FROM_SOURCE");
 
   // Expanded row for payment history
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -112,6 +114,7 @@ export default function BookingReconciliationPage() {
     setPayDate(new Date().toISOString().slice(0, 10));
     setPayIsRefund(false);
     setPayMethod("BANK_TRANSFER");
+    setPayDirection("FROM_SOURCE");
     setPaymentOpen(true);
   }
 
@@ -409,6 +412,19 @@ export default function BookingReconciliationPage() {
                 <Input value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="Transaction ref" />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label>Direction</Label>
+              <Select value={payDirection} onValueChange={(v) => setPayDirection(v as "FROM_SOURCE" | "TO_HOTEL")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(BOOKING_PAYMENT_DIRECTION_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="payIsRefund" checked={payIsRefund} onChange={(e) => setPayIsRefund(e.target.checked)} className="rounded" />
               <Label htmlFor="payIsRefund">This is a refund</Label>
@@ -431,6 +447,7 @@ export default function BookingReconciliationPage() {
                   reference: payReference || undefined,
                   paidAt: payDate,
                   isRefund: payIsRefund,
+                  direction: payDirection,
                   createFinanceRecords: false,
                 })
               }

@@ -115,6 +115,7 @@ export const bookingCreateSchema = z
     bookingNotes: z.string().nullish(),
     meetAssistVisa: z.boolean().default(false),
     stopSaleOverride: z.boolean().default(false),
+    bookingDate: z.string().nullish(),
 
     leadGuestName: z.string().nullish(),
     leadGuestEmail: z.string().email().nullish().or(z.literal("")),
@@ -199,6 +200,9 @@ export const bookingAmendSchema = z.object({
 
   // Amendment reason
   amendmentReason: z.string().optional(),
+
+  // Booking date override (for SPO / rate re-validation on rebook)
+  bookingDate: z.string().nullish(),
 });
 
 // ── Booking Lock ──
@@ -216,6 +220,14 @@ export const bookingStatusTransitionSchema = z.object({
   reason: z.string().optional(),
   hotelConfNo: z.string().optional(),
   confirmationFile: z.string().optional(),
+  // Split cancellation penalties (hotel side vs source side)
+  hotelPenaltyAmount: z.number().min(0).optional(),
+  sourcePenaltyAmount: z.number().min(0).optional(),
+  hotelPenaltyOverridden: z.boolean().optional(),
+  sourcePenaltyOverridden: z.boolean().optional(),
+  // Hotel credit note fields (used when action="cancel")
+  issueCreditNote: z.boolean().default(false),
+  creditNoteNotes: z.string().optional(),
 });
 
 // ── Payment Schemas ──
@@ -225,6 +237,7 @@ export const bookingPaymentCreateSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
   currencyId: z.string().min(1, "Currency is required"),
   method: z.enum(["CASH", "BANK_TRANSFER", "CREDIT_CARD", "CHEQUE"]),
+  direction: z.enum(["TO_HOTEL", "FROM_SOURCE"]).default("FROM_SOURCE"),
   reference: z.string().nullish(),
   notes: z.string().nullish(),
   paidAt: z.string().min(1, "Payment date is required"),
@@ -302,4 +315,20 @@ export const materializationFilterSchema = z.object({
   hotelId: z.string().min(1),
   dateFrom: z.string().min(1),
   dateTo: z.string().min(1),
+});
+
+// ── Hotel Credit Note Schemas ──
+
+export const hotelCreditCreateSchema = z.object({
+  bookingId: z.string().min(1, "Source booking is required"),
+  amount: z.number().positive("Amount must be positive"),
+  currencyId: z.string().min(1, "Currency is required"),
+  notes: z.string().optional(),
+});
+
+export const hotelCreditApplySchema = z.object({
+  creditNoteId: z.string().min(1),
+  bookingId: z.string().min(1),
+  amountUsed: z.number().positive("Amount must be positive"),
+  notes: z.string().optional(),
 });

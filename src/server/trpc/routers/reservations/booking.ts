@@ -18,11 +18,20 @@ import {
   deductAllotment,
   restoreAllotment,
 } from "@/server/services/reservations/booking-engine";
+import {
+  resolveMarkupRule,
+  applyMarkup,
+  type MarkupRuleData,
+  type ResolveContext,
+} from "@/server/services/contracting/markup-calculator";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
 import { syncTrafficJobsForBooking } from "@/server/services/traffic/booking-sync";
-import { createBookingInvoice } from "@/server/services/reservations/auto-invoice";
+import { createBookingInvoice, createBookingVendorBill } from "@/server/services/reservations/auto-invoice";
 import { notifyBookingStatusChange } from "@/server/services/shared/notifications";
+import {
+  createHotelCreditFinanceRecord,
+} from "@/server/services/reservations/finance-bridge";
 
 const proc = moduleProcedure("reservations");
 
@@ -197,7 +206,7 @@ export const bookingRouter = createTRPCRouter({
           tourOperatorId: input.tourOperatorId ?? null,
           checkIn: input.checkIn,
           checkOut: input.checkOut,
-          bookingDate: new Date().toISOString().slice(0, 10),
+          bookingDate: input.bookingDate ?? new Date().toISOString().slice(0, 10),
           rooms: input.rooms.map((r) => ({
             roomTypeId: r.roomTypeId,
             mealBasisId: r.mealBasisId,
@@ -235,7 +244,7 @@ export const bookingRouter = createTRPCRouter({
             buyingTotal: rr.buyingTotal,
             sellingRatePerNight: rr.sellingRatePerNight,
             sellingTotal: rr.sellingTotal,
-            rateBreakdown: rr.breakdown,
+            rateBreakdown: { ...rr.breakdown, sellingMarkup: rr.sellingMarkup },
             specialRequests: input.rooms[rr.roomIndex - 1]?.specialRequests ?? null,
           });
         }
@@ -347,6 +356,7 @@ export const bookingRouter = createTRPCRouter({
           meetAssistVisa: input.meetAssistVisa ?? false,
           stopSaleOverride: input.stopSaleOverride ?? false,
           approvalStatus: input.stopSaleOverride ? "PENDING" : null,
+          bookingDate: input.bookingDate ? new Date(input.bookingDate) : null,
           createdById: ctx.session.user.id,
           rooms: {
             create: roomsData,
@@ -609,6 +619,9 @@ export const bookingRouter = createTRPCRouter({
       if (d.bookingNotes !== undefined) data.bookingNotes = d.bookingNotes || null;
       if (d.meetAssistVisa !== undefined) data.meetAssistVisa = d.meetAssistVisa;
 
+      // Booking date override
+      if (d.bookingDate !== undefined) data.bookingDate = d.bookingDate ? new Date(d.bookingDate) : null;
+
       // Recalculate rates if hotel/dates/room changed and contract exists
       const effectiveHotelId = (d.hotelId as string) ?? booking.hotelId;
       const effectiveContractId = (d.contractId as string) ?? booking.contractId;
@@ -635,7 +648,7 @@ export const bookingRouter = createTRPCRouter({
               tourOperatorId: (d.tourOperatorId as string) ?? booking.tourOperatorId ?? null,
               checkIn,
               checkOut,
-              bookingDate: new Date().toISOString().slice(0, 10),
+              bookingDate: d.bookingDate ?? booking.bookingDate?.toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10),
               rooms: d.rooms.map((r) => ({
                 roomTypeId: r.roomTypeId,
                 mealBasisId: r.mealBasisId,
@@ -668,7 +681,7 @@ export const bookingRouter = createTRPCRouter({
                   buyingTotal: rr.buyingTotal,
                   sellingRatePerNight: rr.sellingRatePerNight,
                   sellingTotal: rr.sellingTotal,
-                  rateBreakdown: rr.breakdown as never,
+                  rateBreakdown: { ...rr.breakdown, sellingMarkup: rr.sellingMarkup } as never,
                   specialRequests: d.rooms[rr.roomIndex - 1]?.specialRequests ?? null,
                 },
               });
@@ -742,7 +755,7 @@ export const bookingRouter = createTRPCRouter({
               tourOperatorId: (d.tourOperatorId as string) ?? booking.tourOperatorId ?? null,
               checkIn,
               checkOut,
-              bookingDate: new Date().toISOString().slice(0, 10),
+              bookingDate: d.bookingDate ?? booking.bookingDate?.toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10),
               rooms: [{
                 roomTypeId: d.roomTypeId ?? existingRoom?.roomTypeId ?? "",
                 mealBasisId: d.mealBasisId ?? existingRoom?.mealBasisId ?? "",
@@ -776,7 +789,7 @@ export const bookingRouter = createTRPCRouter({
                     buyingTotal: roomRate.buyingTotal,
                     sellingRatePerNight: roomRate.sellingRatePerNight,
                     sellingTotal: roomRate.sellingTotal,
-                    rateBreakdown: roomRate.breakdown as never,
+                    rateBreakdown: { ...roomRate.breakdown, sellingMarkup: roomRate.sellingMarkup } as never,
                   },
                 });
               }
@@ -932,8 +945,9 @@ export const bookingRouter = createTRPCRouter({
           // Sync traffic jobs (create ARR/DEP jobs if flight data exists)
           await syncTrafficJobsForBooking(ctx.db, ctx.companyId, booking.id, userId);
 
-          // Auto-create pro-forma invoice (fire-and-forget)
+          // Auto-create customer invoice + vendor bill (fire-and-forget)
           createBookingInvoice(ctx.db, ctx.companyId, booking.id, userId).catch(() => {});
+          createBookingVendorBill(ctx.db, ctx.companyId, booking.id).catch(() => {});
 
           // Notify booking creator
           notifyBookingStatusChange(ctx.db, ctx.companyId, booking.id, booking.code, "CONFIRMED", userId).catch(() => {});
@@ -955,6 +969,9 @@ export const bookingRouter = createTRPCRouter({
             await restoreAllotment(ctx.db, booking.contractId, roomTypeIds);
           }
 
+          const hotelPenalty = input.hotelPenaltyAmount ?? 0;
+          const sourcePenalty = input.sourcePenaltyAmount ?? 0;
+
           const updated = await ctx.db.booking.update({
             where: { id: booking.id },
             data: {
@@ -962,10 +979,62 @@ export const bookingRouter = createTRPCRouter({
               cancelledAt: now,
               cancelledById: userId,
               cancellationReason: input.reason ?? null,
+              hotelPenaltyAmount: hotelPenalty,
+              sourcePenaltyAmount: sourcePenalty,
+              hotelPenaltyOverridden: input.hotelPenaltyOverridden ?? false,
+              sourcePenaltyOverridden: input.sourcePenaltyOverridden ?? false,
             },
           });
 
-          await logBookingAction(ctx.db, booking.id, "CANCELLED", input.reason ?? "Booking cancelled", userId);
+          await logBookingAction(
+            ctx.db, booking.id, "CANCELLED",
+            `Booking cancelled. Hotel penalty: ${hotelPenalty}. Source penalty: ${sourcePenalty}. ${input.reason ?? ""}`.trim(),
+            userId,
+          );
+
+          // Auto-issue hotel credit note: net amount = buyingTotal - hotelPenaltyAmount
+          if (input.issueCreditNote && booking.hotelPaymentMethod === "CASH") {
+            const buyingAmount = Math.max(0, Number(booking.buyingTotal) - hotelPenalty);
+            if (buyingAmount > 0) {
+              const creditCode = await generateSequenceNumber(ctx.db, ctx.companyId, "hotel_credit");
+              const creditNote = await ctx.db.hotelCreditNote.create({
+                data: {
+                  companyId: ctx.companyId,
+                  code: creditCode,
+                  hotelId: booking.hotelId,
+                  sourceBookingId: booking.id,
+                  amount: buyingAmount,
+                  remainingAmount: buyingAmount,
+                  currencyId: booking.currencyId,
+                  notes: input.creditNoteNotes ?? null,
+                  status: "OPEN",
+                  createdById: userId,
+                },
+              });
+
+              await createHotelCreditFinanceRecord(
+                ctx.db,
+                ctx.companyId,
+                {
+                  id: creditNote.id,
+                  hotelId: booking.hotelId,
+                  amount: buyingAmount,
+                  currencyId: booking.currencyId,
+                  code: creditCode,
+                  sourceBookingCode: booking.code,
+                },
+              ).catch(ctx.logger.error);
+
+              await logBookingAction(
+                ctx.db,
+                booking.id,
+                "HOTEL_CREDIT_ISSUED",
+                `Hotel credit note ${creditCode} issued for ${buyingAmount} ${booking.currencyId}`,
+                userId,
+              );
+            }
+          }
+
           notifyBookingStatusChange(ctx.db, ctx.companyId, booking.id, booking.code, "CANCELLED", userId).catch(() => {});
           dispatchWebhooks(ctx.companyId, booking.hotelId, "booking.cancelled", {
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
@@ -1352,5 +1421,184 @@ export const bookingRouter = createTRPCRouter({
 
       await logBookingAction(ctx.db, template.id, "SERIES_CREATED", `Created ${input.count} recurring bookings: ${createdBookings.join(", ")}`, ctx.session.user.id);
       return { count: createdBookings.length, codes: createdBookings };
+    }),
+
+  // ── Update booking date (for rebook / SPO re-validation) ──
+  updateBookingDate: proc
+    .input(z.object({ id: z.string(), bookingDate: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { id: true, isLocked: true, status: true },
+      });
+      if (booking.isLocked) throw new Error("Booking is locked");
+      if (["CANCELLED", "CHECKED_OUT"].includes(booking.status)) throw new Error("Cannot modify a cancelled or checked-out booking");
+
+      const updated = await ctx.db.booking.update({
+        where: { id: input.id },
+        data: { bookingDate: input.bookingDate ? new Date(input.bookingDate) : null },
+      });
+
+      await logBookingAction(ctx.db, input.id, "AMENDED", `Booking date changed to ${input.bookingDate ?? "auto (created date)"}`, ctx.session.user.id);
+      return updated;
+    }),
+
+  // ── Recalculate buying rates from current contract/SPO ──
+  recalculateBuying: proc
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: {
+          rooms: { orderBy: { roomIndex: "asc" } },
+        },
+      });
+
+      if (booking.isLocked) throw new Error("Booking is locked");
+      if (!booking.contractId) throw new Error("No contract linked — cannot recalculate rates");
+
+      const effectiveBookingDate = booking.bookingDate
+        ? booking.bookingDate.toISOString().slice(0, 10)
+        : booking.createdAt.toISOString().slice(0, 10);
+
+      const rates = await calculateBookingRates(ctx.db, ctx.companyId, {
+        contractId: booking.contractId,
+        hotelId: booking.hotelId,
+        tourOperatorId: booking.tourOperatorId ?? null,
+        checkIn: booking.checkIn.toISOString().slice(0, 10),
+        checkOut: booking.checkOut.toISOString().slice(0, 10),
+        bookingDate: effectiveBookingDate,
+        rooms: booking.rooms.map((r) => ({
+          roomTypeId: r.roomTypeId,
+          mealBasisId: r.mealBasisId,
+          adults: r.adults,
+          children: Array.from({ length: r.children }, () => ({ category: "CHILD" as const })),
+          extraBed: r.extraBed,
+        })),
+      });
+
+      // Update each room's buying figures
+      for (const rr of rates.rooms) {
+        const room = booking.rooms[rr.roomIndex - 1];
+        if (!room) continue;
+        await ctx.db.bookingRoom.update({
+          where: { id: room.id },
+          data: {
+            buyingRatePerNight: rr.buyingRatePerNight,
+            buyingTotal: rr.buyingTotal,
+            rateBreakdown: { ...rr.breakdown, sellingMarkup: rr.sellingMarkup } as object,
+          },
+        });
+      }
+
+      // Recompute booking-level buying total; keep selling total unchanged
+      const newBuyingTotal = rates.rooms.reduce((s, r) => s + r.buyingTotal, 0);
+      const newMarkupAmount = Number(booking.sellingTotal) - newBuyingTotal;
+
+      const updated = await ctx.db.booking.update({
+        where: { id: input.id },
+        data: {
+          buyingTotal: newBuyingTotal,
+          markupAmount: newMarkupAmount,
+          seasonId: rates.seasonId ?? booking.seasonId,
+        },
+      });
+
+      await logBookingAction(ctx.db, input.id, "AMENDED", `Buying rates recalculated (booking date: ${effectiveBookingDate}). New buying total: ${newBuyingTotal.toFixed(2)}`, ctx.session.user.id);
+      return { ...updated, warnings: rates.warnings };
+    }),
+
+  recalculateSelling: proc
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: { rooms: { orderBy: { roomIndex: "asc" } } },
+      });
+
+      if (booking.isLocked) throw new Error("Booking is locked");
+
+      const nights = computeNights(
+        booking.checkIn.toISOString().slice(0, 10),
+        booking.checkOut.toISOString().slice(0, 10),
+      );
+
+      // Resolve markup rule
+      const markupRules = await ctx.db.markupRule.findMany({
+        where: { companyId: ctx.companyId, active: true },
+      });
+      const resolveCtx: ResolveContext = {
+        contractId: booking.contractId ?? "",
+        hotelId: booking.hotelId,
+        destinationId: null,
+        marketId: null,
+        tourOperatorId: booking.tourOperatorId ?? null,
+        date: booking.checkIn.toISOString().slice(0, 10),
+      };
+      const rules: MarkupRuleData[] = markupRules.map((r) => ({
+        id: r.id,
+        name: r.name,
+        markupType: r.markupType,
+        value: r.value.toString(),
+        contractId: r.contractId,
+        hotelId: r.hotelId,
+        destinationId: r.destinationId,
+        marketId: r.marketId,
+        tourOperatorId: r.tourOperatorId,
+        priority: r.priority,
+        active: r.active,
+        validFrom: r.validFrom?.toISOString().slice(0, 10) ?? null,
+        validTo: r.validTo?.toISOString().slice(0, 10) ?? null,
+      }));
+      const markupRule = resolveMarkupRule(rules, resolveCtx);
+      const mType = markupRule?.markupType ?? "PERCENTAGE";
+      const mValue = markupRule ? parseFloat(markupRule.value) : 0;
+
+      let newSellingTotal = 0;
+      for (const room of booking.rooms) {
+        const buyingTotal = Number(room.buyingTotal);
+        const sellingTotal = applyMarkup(buyingTotal, mType, mValue, nights);
+        const sellingRounded = Math.round(sellingTotal * 100) / 100;
+        const sellingPerNight = Math.round((sellingRounded / nights) * 10000) / 10000;
+        const markupAmount = Math.round((sellingRounded - buyingTotal) * 100) / 100;
+
+        const sellingMarkup = {
+          ruleId: markupRule?.id ?? null,
+          ruleName: markupRule?.name ?? null,
+          markupType: mType,
+          markupValue: mValue,
+          markupAmount,
+        };
+
+        // Merge sellingMarkup into existing rateBreakdown
+        const existingBreakdown = (room.rateBreakdown as Record<string, unknown>) ?? {};
+        await ctx.db.bookingRoom.update({
+          where: { id: room.id },
+          data: {
+            sellingRatePerNight: sellingPerNight,
+            sellingTotal: sellingRounded,
+            rateBreakdown: { ...existingBreakdown, sellingMarkup } as object,
+          },
+        });
+        newSellingTotal += sellingRounded;
+      }
+
+      const newMarkupAmount = newSellingTotal - Number(booking.buyingTotal);
+      const updated = await ctx.db.booking.update({
+        where: { id: input.id },
+        data: {
+          sellingTotal: newSellingTotal,
+          markupAmount: Math.round(newMarkupAmount * 100) / 100,
+        },
+      });
+
+      await logBookingAction(
+        ctx.db,
+        input.id,
+        "AMENDED",
+        `Selling rates recalculated. Markup: ${mType === "PERCENTAGE" ? `${mValue}%` : `${mValue} flat`}${markupRule ? ` (${markupRule.name})` : ""}. New selling total: ${newSellingTotal.toFixed(2)}`,
+        ctx.session.user.id,
+      );
+      return updated;
     }),
 });

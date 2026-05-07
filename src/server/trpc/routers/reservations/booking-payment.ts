@@ -131,6 +131,7 @@ export const bookingPaymentRouter = createTRPCRouter({
           notes: input.notes ?? null,
           paidAt: new Date(input.paidAt),
           isRefund: input.isRefund,
+          direction: input.direction ?? "FROM_SOURCE",
           createdById: ctx.session.user.id,
         },
       });

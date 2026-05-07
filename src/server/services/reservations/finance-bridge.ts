@@ -149,3 +149,90 @@ export async function createFinanceRecords(
 
   return { finMoveId: move.id, finPaymentId: payment.id };
 }
+
+/**
+ * Creates a Finance IN_REFUND move (vendor refund) representing money
+ * the hotel owes us after a penalty-free cancellation with cash payment.
+ * Links the move back to the HotelCreditNote record.
+ */
+export async function createHotelCreditFinanceRecord(
+  db: PrismaClient,
+  companyId: string,
+  creditNote: {
+    id: string;
+    hotelId: string;
+    amount: number;
+    currencyId: string;
+    code: string;
+    sourceBookingCode?: string | null;
+  },
+): Promise<{ finMoveId: string }> {
+  // Auto-select Purchase journal, fall back to General
+  const journal = await db.journal.findFirst({
+    where: { companyId, type: "PURCHASE" },
+    select: { id: true },
+  }) ?? await db.journal.findFirst({
+    where: { companyId, type: "GENERAL" },
+    select: { id: true },
+  });
+
+  if (!journal) {
+    throw new Error("No Purchase or General journal found. Please set up journals in Finance configuration.");
+  }
+
+  const moveName = await generateSequenceNumber(db, companyId, "in_refund").catch(
+    () => `HCN-${Date.now()}`,
+  );
+
+  const hotel = await db.hotel.findUniqueOrThrow({
+    where: { id: creditNote.hotelId },
+    select: { name: true },
+  });
+
+  const payableAccount = await db.finAccount.findFirst({
+    where: { companyId, accountType: "LIABILITY_PAYABLE" },
+    select: { id: true },
+  });
+
+  if (!payableAccount) {
+    throw new Error("No payable account configured. Please set up chart of accounts.");
+  }
+
+  const narration = creditNote.sourceBookingCode
+    ? `Hotel credit note ${creditNote.code} — cancelled booking ${creditNote.sourceBookingCode}`
+    : `Hotel credit note ${creditNote.code} — ${hotel.name}`;
+
+  const move = await db.move.create({
+    data: {
+      companyId,
+      name: moveName,
+      moveType: "IN_REFUND",
+      state: "POSTED",
+      journalId: journal.id,
+      currencyId: creditNote.currencyId,
+      companyCurrencyId: creditNote.currencyId,
+      date: new Date(),
+      ref: creditNote.code,
+      narration,
+      lineItems: {
+        create: [
+          {
+            name: narration,
+            accountId: payableAccount.id,
+            currencyId: creditNote.currencyId,
+            debit: 0,
+            credit: creditNote.amount,
+            amountCurrency: creditNote.amount,
+          },
+        ],
+      },
+    },
+  });
+
+  await db.hotelCreditNote.update({
+    where: { id: creditNote.id },
+    data: { finMoveId: move.id },
+  });
+
+  return { finMoveId: move.id };
+}

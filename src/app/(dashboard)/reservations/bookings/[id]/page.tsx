@@ -14,6 +14,7 @@ import {
   PlaneLanding,
   PlaneTakeoff,
   Plus,
+  RefreshCw,
   ShieldCheck,
   ShieldX,
   Trash2,
@@ -28,6 +29,7 @@ import type { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -66,6 +68,8 @@ import {
   BOOKING_STATUS_LABELS,
   BOOKING_STATUS_VARIANTS,
   GUEST_TYPE_LABELS,
+  HOTEL_CREDIT_STATUS_LABELS,
+  HOTEL_CREDIT_STATUS_VARIANTS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_VARIANTS,
@@ -86,10 +90,26 @@ export default function BookingDetailPage() {
 
   const { data: booking, isLoading } = trpc.reservations.booking.getById.useQuery({ id });
   const { data: company } = trpc.settings.getCompanySettings.useQuery();
+  const { data: hotelCredits, refetch: refetchCredits } = trpc.reservations.hotelCredit.getByBooking.useQuery(id);
+  const { data: cancellationPenalty, isLoading: penaltyLoading } =
+    trpc.reservations.booking.getCancellationPenalty.useQuery(
+      { bookingId: id },
+      { enabled: cancelOpen, retry: false },
+    );
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [issueCreditNote, setIssueCreditNote] = useState(false);
+  const [creditNoteNotes, setCreditNoteNotes] = useState("");
+  // Split penalty state
+  const [hotelPenaltyOverride, setHotelPenaltyOverride] = useState(false);
+  const [hotelPenaltyCustom, setHotelPenaltyCustom] = useState("");
+  const [sourcePenaltyOverride, setSourcePenaltyOverride] = useState(false);
+  const [sourcePenaltyCustom, setSourcePenaltyCustom] = useState("");
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyAmount, setApplyAmount] = useState("");
+  const [applyCreditId, setApplyCreditId] = useState("");
   const [contractModalOpen, setContractModalOpen] = useState(false);
   const [spoModalOpen, setSpoModalOpen] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
@@ -97,6 +117,14 @@ export default function BookingDetailPage() {
   const [approvalNote, setApprovalNote] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedSpoBreakdown, setSelectedSpoBreakdown] = useState<any[]>([]);
+
+  // SPO detail modal
+  const [spoDetailOpen, setSpoDetailOpen] = useState(false);
+  const [selectedSpoId, setSelectedSpoId] = useState<string | null>(null);
+
+  // Special offer detail modal
+  const [offerDetailOpen, setOfferDetailOpen] = useState(false);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
 
   // Confirm dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -109,12 +137,27 @@ export default function BookingDetailPage() {
   const [seriesFrequency, setSeriesFrequency] = useState<"WEEKLY" | "BIWEEKLY" | "MONTHLY">("WEEKLY");
   const [seriesCount, setSeriesCount] = useState(4);
 
+  // Booking date edit state
+  const [editingBookingDate, setEditingBookingDate] = useState(false);
+  const [bookingDateValue, setBookingDateValue] = useState("");
+
+  // Recalculate confirm state
+  const [recalcOpen, setRecalcOpen] = useState(false);
+  const [recalcSellingOpen, setRecalcSellingOpen] = useState(false);
+
   const transitionMutation = trpc.reservations.booking.transition.useMutation({
     onSuccess: () => {
       utils.reservations.booking.getById.invalidate({ id });
       utils.reservations.booking.list.invalidate();
+      refetchCredits();
       setCancelOpen(false);
       setCancelReason("");
+      setIssueCreditNote(false);
+      setCreditNoteNotes("");
+      setHotelPenaltyOverride(false);
+      setHotelPenaltyCustom("");
+      setSourcePenaltyOverride(false);
+      setSourcePenaltyCustom("");
     },
   });
 
@@ -151,6 +194,35 @@ export default function BookingDetailPage() {
     },
   });
 
+  const updateBookingDateMutation = trpc.reservations.booking.updateBookingDate.useMutation({
+    onSuccess: () => {
+      utils.reservations.booking.getById.invalidate({ id });
+      setEditingBookingDate(false);
+      toast.success("Booking date updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const recalculateBuyingMutation = trpc.reservations.booking.recalculateBuying.useMutation({
+    onSuccess: (data) => {
+      utils.reservations.booking.getById.invalidate({ id });
+      setRecalcOpen(false);
+      const w = (data as { warnings?: string[] }).warnings ?? [];
+      if (w.length > 0) toast.warning(`Recalculated with warnings: ${w.join("; ")}`);
+      else toast.success("Buying rates recalculated successfully");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const recalculateSellingMutation = trpc.reservations.booking.recalculateSelling.useMutation({
+    onSuccess: () => {
+      utils.reservations.booking.getById.invalidate({ id });
+      setRecalcSellingOpen(false);
+      toast.success("Selling rates recalculated successfully");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const voucherCreateMutation = trpc.reservations.voucher.create.useMutation({
     onSuccess: (data) => {
       utils.reservations.booking.getById.invalidate({ id });
@@ -161,11 +233,42 @@ export default function BookingDetailPage() {
     },
   });
 
+  const applyCreditMutation = trpc.reservations.hotelCredit.consume.useMutation({
+    onSuccess: () => {
+      refetchCredits();
+      utils.reservations.booking.getById.invalidate({ id });
+      toast.success("Hotel credit applied successfully");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const cancelCreditMutation = trpc.reservations.hotelCredit.cancel.useMutation({
+    onSuccess: () => {
+      refetchCredits();
+      toast.success("Credit note cancelled");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   // Fetch contract details when modal opens
   const { data: contractDetail, isLoading: contractDetailLoading } =
     trpc.contracting.contract.getById.useQuery(
       { id: booking?.contract?.id ?? "" },
       { enabled: contractModalOpen && !!booking?.contract?.id },
+    );
+
+  // Fetch SPO details when SPO detail modal opens
+  const { data: spoDetail, isLoading: spoDetailLoading } =
+    trpc.contracting.seasonSpo.getById.useQuery(
+      { id: selectedSpoId ?? "" },
+      { enabled: spoDetailOpen && !!selectedSpoId },
+    );
+
+  // Fetch special offer details when offer detail modal opens
+  const { data: offerDetail, isLoading: offerDetailLoading } =
+    trpc.contracting.specialOffer.getById.useQuery(
+      { id: selectedOfferId ?? "" },
+      { enabled: offerDetailOpen && !!selectedOfferId },
     );
 
   if (isLoading) {
@@ -311,8 +414,8 @@ export default function BookingDetailPage() {
           <Button
             size="sm"
             variant="outline"
-            disabled={!booking.hotel.email || isPendingApproval}
-            title={isPendingApproval ? "Booking requires manager approval before sending to hotel" : !booking.hotel.email ? "Hotel has no email address" : "Send booking to hotel via email"}
+            disabled={isPendingApproval}
+            title={isPendingApproval ? "Booking requires manager approval before sending to hotel" : !booking.hotel.email ? "Send to hotel — no email on record, add recipient manually in your email client" : "Send booking to hotel via email"}
             onClick={() => handleSendToHotel(booking, company)}
           >
             <Mail className="mr-1 size-3.5" />
@@ -409,6 +512,7 @@ export default function BookingDetailPage() {
           <TabsTrigger value="vouchers">
             Vouchers ({booking.vouchers.length})
           </TabsTrigger>
+          <TabsTrigger value="hotel-credits">Hotel Credits</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="communications">Comms</TabsTrigger>
@@ -569,6 +673,56 @@ export default function BookingDetailPage() {
                       : format(new Date(booking.createdAt), "dd MMM yyyy HH:mm")
                   }
                 />
+                {/* Editable booking date — used for SPO / rate re-validation */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Booking Date</span>
+                  {editingBookingDate ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="date"
+                        className="h-7 w-36 text-xs"
+                        value={bookingDateValue}
+                        onChange={(e) => setBookingDateValue(e.target.value)}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={updateBookingDateMutation.isPending}
+                        onClick={() => updateBookingDateMutation.mutate({ id, bookingDate: bookingDateValue || null })}
+                      >
+                        Save
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingBookingDate(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium">
+                        {booking.bookingDate
+                          ? format(new Date(booking.bookingDate), "dd MMM yyyy")
+                          : format(new Date(booking.createdAt), "dd MMM yyyy") + " (auto)"}
+                      </span>
+                      {!booking.isLocked && !["CANCELLED", "CHECKED_OUT"].includes(booking.status) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-1.5"
+                          onClick={() => {
+                            setBookingDateValue(
+                              booking.bookingDate
+                                ? format(new Date(booking.bookingDate), "yyyy-MM-dd")
+                                : format(new Date(booking.createdAt), "yyyy-MM-dd")
+                            );
+                            setEditingBookingDate(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {booking.confirmedBy && (
                   <InfoRow
                     label="Confirmed"
@@ -638,68 +792,165 @@ export default function BookingDetailPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Buying:</span>{" "}
-                    <span className="font-mono">
-                      {booking.currency.symbol}
-                      {Number(room.buyingRatePerNight).toFixed(2)}/night &times;{" "}
-                      {booking.nights} ={" "}
-                      {booking.currency.symbol}
-                      {Number(room.buyingTotal).toFixed(2)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Selling:</span>{" "}
-                    <span className="font-mono">
-                      {booking.currency.symbol}
-                      {Number(room.sellingRatePerNight).toFixed(2)}/night &times;{" "}
-                      {booking.nights} ={" "}
-                      {booking.currency.symbol}
-                      {Number(room.sellingTotal).toFixed(2)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Margin:</span>{" "}
-                    <span className={`font-mono ${Number(room.sellingTotal) - Number(room.buyingTotal) > 0 ? "text-green-600" : Number(room.sellingTotal) - Number(room.buyingTotal) < 0 ? "text-destructive" : ""}`}>
-                      {booking.currency.symbol}
-                      {(Number(room.sellingTotal) - Number(room.buyingTotal)).toFixed(2)}
-                      {Number(room.buyingTotal) > 0 && (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          ({((Number(room.sellingTotal) - Number(room.buyingTotal)) / Number(room.buyingTotal) * 100).toFixed(1)}%)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                {/* SPO / Offer discounts from rateBreakdown */}
+                {/* ── Rate columns ── */}
                 {(() => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const bd = room.rateBreakdown as any;
-                  const offers = bd?.offerDiscounts as
-                    | { offerName: string; discount: number; description: string }[]
-                    | undefined;
-                  if (!offers || offers.length === 0) return null;
-                  const applied = offers.filter((o) => o.discount > 0);
+                  type NightSeg = {
+                    type: string; label: string; nights: number;
+                    ratePerNight: number; adults: number;
+                    adultTotalPerNight: number; subtotal: number;
+                    subtotalAfterOffers?: number;
+                    offerDiscounts?: { offerName: string; discount: number; description: string }[];
+                    spoId?: string;
+                    appliedOfferIds?: string[];
+                  };
+                  type SellingMk = { ruleId: string | null; ruleName: string | null; markupType: string; markupValue: number; markupAmount: number };
+                  const segs = bd?.nightSegments as NightSeg[] | undefined;
+                  const sellingMk = bd?.sellingMarkup as SellingMk | undefined;
+                  const canRecalc = booking.contractId && !booking.isLocked && !["CANCELLED", "CHECKED_OUT"].includes(booking.status);
+
+                  const buyingContent = segs && segs.length > 1 ? (
+                    <div className="space-y-1 font-mono text-xs mt-1.5">
+                      {segs.map((seg, si) => {
+                        const appliedOffers = seg.offerDiscounts?.filter((o) => o.discount > 0) ?? [];
+                        const hasDiscount = seg.subtotalAfterOffers != null && seg.subtotalAfterOffers < seg.subtotal;
+                        const discountPct = hasDiscount && seg.subtotal > 0
+                          ? ((1 - seg.subtotalAfterOffers! / seg.subtotal) * 100).toFixed(1)
+                          : null;
+                        const offerName = appliedOffers[0]?.offerName ?? "Discount";
+                        return (
+                          <div key={si} className={seg.type === "SPO" ? "text-amber-600 dark:text-amber-400" : ""}>
+                            {seg.type === "SPO" && seg.spoId ? (
+                              <button type="button" className="font-medium underline underline-offset-2 hover:opacity-75"
+                                onClick={() => { setSelectedSpoId(seg.spoId!); setSpoDetailOpen(true); }}>
+                                {seg.label}
+                              </button>
+                            ) : (
+                              <span className="font-medium">{seg.label}</span>
+                            )}
+                            {discountPct && seg.appliedOfferIds?.[0] ? (
+                              <button type="button"
+                                className="text-green-600 dark:text-green-400 underline underline-offset-2 hover:opacity-75"
+                                onClick={() => { setSelectedOfferId(seg.appliedOfferIds![0]); setOfferDetailOpen(true); }}>
+                                {" "}-{discountPct}% {offerName}
+                              </button>
+                            ) : discountPct ? (
+                              <span className="text-green-600 dark:text-green-400"> -{discountPct}% {offerName}</span>
+                            ) : null}
+                            {": "}{booking.currency.symbol}{seg.ratePerNight.toFixed(2)} &times;{" "}
+                            {seg.adults} pax &times; {seg.nights}n{" = "}
+                            {hasDiscount ? (
+                              <><s className="text-muted-foreground">{booking.currency.symbol}{seg.subtotal.toFixed(2)}</s>{" "}{booking.currency.symbol}{seg.subtotalAfterOffers!.toFixed(2)}</>
+                            ) : <>{booking.currency.symbol}{seg.subtotal.toFixed(2)}</>}
+                          </div>
+                        );
+                      })}
+                      <div className="border-t pt-1 font-medium text-foreground">
+                        Total: {booking.currency.symbol}{Number(room.buyingTotal).toFixed(2)}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="font-mono text-xs mt-1.5">
+                      {booking.currency.symbol}{Number(room.buyingRatePerNight).toFixed(2)}/night &times; {booking.nights} = {booking.currency.symbol}{Number(room.buyingTotal).toFixed(2)}
+                    </p>
+                  );
+
+                  const sellingMkLabel = sellingMk
+                    ? sellingMk.markupType === "PERCENTAGE"
+                      ? `+${sellingMk.markupValue}%`
+                      : `+${booking.currency.symbol}${sellingMk.markupValue} flat`
+                    : null;
+
+                  const margin = Number(room.sellingTotal) - Number(room.buyingTotal);
+                  const marginPct = Number(room.buyingTotal) > 0 ? (margin / Number(room.buyingTotal)) * 100 : 0;
+
                   return (
-                    <div className="text-sm">
-                      <button
-                        type="button"
-                        className={`underline underline-offset-2 cursor-pointer text-xs font-medium ${
-                          applied.length > 0
-                            ? "text-green-600 hover:text-green-700"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        onClick={() => {
-                          setSelectedSpoBreakdown(offers);
-                          setSpoModalOpen(true);
-                        }}
-                      >
-                        {applied.length > 0
-                          ? `${applied.length} Special Offer${applied.length !== 1 ? "s" : ""} Applied`
-                          : `${offers.length} Special Offer${offers.length !== 1 ? "s" : ""} Evaluated`}
-                      </button>
+                    <div className="grid grid-cols-[5fr_5fr_2fr] gap-3 text-sm">
+                      {/* ── Buying ── */}
+                      <div className="rounded-md border p-2.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Buying</span>
+                          {canRecalc && (
+                            <button type="button" title="Recalculate buying rates"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setRecalcOpen(true)}>
+                              <RefreshCw className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                        {buyingContent}
+                      </div>
+
+                      {/* ── Selling ── */}
+                      <div className="rounded-md border p-2.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Selling</span>
+                          {!booking.isLocked && !["CANCELLED", "CHECKED_OUT"].includes(booking.status) && (
+                            <button type="button" title="Recalculate selling rates"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setRecalcSellingOpen(true)}>
+                              <RefreshCw className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-1 font-mono text-xs mt-1.5">
+                          {sellingMk ? (
+                            <>
+                              <div>
+                                <span className="text-muted-foreground">Buying: </span>
+                                {booking.currency.symbol}{Number(room.buyingTotal).toFixed(2)}
+                              </div>
+                              <div>
+                                {sellingMk.ruleName ? (
+                                  <button type="button"
+                                    className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:opacity-75"
+                                    onClick={() => {
+                                      if (sellingMk.ruleId) {
+                                        setSelectedSpoBreakdown([{
+                                          offerName: sellingMk.ruleName ?? "",
+                                          discount: sellingMk.markupAmount,
+                                          description: `${sellingMk.markupType === "PERCENTAGE" ? `${sellingMk.markupValue}%` : `${sellingMk.markupValue} flat`} markup`,
+                                        }]);
+                                        setSpoModalOpen(true);
+                                      }
+                                    }}>
+                                    {sellingMkLabel}
+                                  </button>
+                                ) : (
+                                  <span className="text-muted-foreground">{sellingMkLabel ?? "No markup"}</span>
+                                )}
+                                {sellingMk.ruleName && <span className="text-muted-foreground"> ({sellingMk.ruleName})</span>}
+                                {sellingMk.markupAmount !== 0 && (
+                                  <span> = {booking.currency.symbol}{sellingMk.markupAmount > 0 ? "+" : ""}{sellingMk.markupAmount.toFixed(2)}</span>
+                                )}
+                              </div>
+                              <div className="border-t pt-1 font-medium text-foreground">
+                                Total: {booking.currency.symbol}{Number(room.sellingTotal).toFixed(2)}
+                              </div>
+                            </>
+                          ) : (
+                            <p>
+                              {booking.currency.symbol}{Number(room.sellingRatePerNight).toFixed(2)}/night &times; {booking.nights} = {booking.currency.symbol}{Number(room.sellingTotal).toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ── Margin ── */}
+                      <div className="rounded-md border p-2.5">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Margin</span>
+                        <div className="mt-1.5 space-y-0.5">
+                          <p className={`font-mono text-sm font-semibold ${margin > 0 ? "text-green-600 dark:text-green-400" : margin < 0 ? "text-destructive" : ""}`}>
+                            {booking.currency.symbol}{margin.toFixed(2)}
+                          </p>
+                          {Number(room.buyingTotal) > 0 && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              {marginPct.toFixed(1)}% on buying
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}
@@ -772,7 +1023,7 @@ export default function BookingDetailPage() {
         </TabsContent>
 
         {/* Payments */}
-        <TabsContent value="payments" className="space-y-4">
+        <TabsContent value="payments" className="space-y-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               {booking.payments.length} payment(s) recorded
@@ -784,78 +1035,177 @@ export default function BookingDetailPage() {
             </Button>
           </div>
 
-          {/* Payment summary */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Selling Total</p>
-                <p className="text-lg font-mono font-semibold">
-                  {booking.currency.symbol}{Number(booking.sellingTotal).toLocaleString("en", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Total Paid</p>
-                <p className="text-lg font-mono font-semibold text-green-600">
-                  {booking.currency.symbol}{Number(booking.totalPaid).toLocaleString("en", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Balance Due</p>
-                <p className={`text-lg font-mono font-semibold ${Number(booking.balanceDue) > 0 ? "text-destructive" : "text-green-600"}`}>
-                  {booking.currency.symbol}{Number(booking.balanceDue).toLocaleString("en", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {/* ── Collections (FROM_SOURCE) ── */}
+          {(() => {
+            const sourceLabel =
+              booking.source === "TOUR_OPERATOR"
+                ? `Tour Operator${booking.tourOperator ? ` — ${booking.tourOperator.name}` : ""}`
+                : booking.source === "API"
+                  ? "B2C / Online Guest"
+                  : "Direct / Individual Guest";
+            const collections = booking.payments.filter((p) => p.direction === "FROM_SOURCE");
+            const totalCollected = collections.reduce(
+              (s, p) => s + (p.isRefund ? -Number(p.amount) : Number(p.amount)),
+              0,
+            );
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">Collections</h3>
+                  <span className="text-xs text-muted-foreground">({sourceLabel})</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Selling Total</p>
+                      <p className="text-base font-mono font-semibold">
+                        {booking.currency.symbol}{Number(booking.sellingTotal).toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Collected</p>
+                      <p className="text-base font-mono font-semibold text-green-600">
+                        {booking.currency.symbol}{totalCollected.toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Balance Due</p>
+                      <p className={`text-base font-mono font-semibold ${Number(booking.balanceDue) > 0 ? "text-destructive" : "text-green-600"}`}>
+                        {booking.currency.symbol}{Number(booking.balanceDue).toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {collections.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {collections.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>{format(new Date(p.paidAt), "dd MMM yyyy")}</TableCell>
+                          <TableCell>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</TableCell>
+                          <TableCell className="font-mono text-sm">{p.reference ?? "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant={p.isRefund ? "destructive" : "default"}>
+                              {p.isRefund ? "Refund" : "Collection"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {p.isRefund ? "-" : ""}{p.currency.symbol}{Number(p.amount).toLocaleString("en", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{p.createdBy?.name ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-xs text-muted-foreground py-2">No collections recorded yet.</p>
+                )}
+              </div>
+            );
+          })()}
 
-          {booking.payments.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>By</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {booking.payments.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      {format(new Date(p.paidAt), "dd MMM yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      {PAYMENT_METHOD_LABELS[p.method] ?? p.method}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {p.reference ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={p.isRefund ? "destructive" : "default"}>
-                        {p.isRefund ? "Refund" : "Payment"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {p.isRefund ? "-" : ""}
-                      {p.currency.symbol}
-                      {Number(p.amount).toLocaleString("en", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {p.createdBy?.name ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <div className="border-t" />
+
+          {/* ── Hotel Payments (TO_HOTEL) ── */}
+          {(() => {
+            const hotelPayments = booking.payments.filter((p) => p.direction === "TO_HOTEL");
+            const totalPaidToHotel = hotelPayments.reduce(
+              (s, p) => s + (p.isRefund ? -Number(p.amount) : Number(p.amount)),
+              0,
+            );
+            const creditApplied = Number(booking.creditApplied ?? 0);
+            const netDueToHotel = Math.max(0, Number(booking.buyingTotal) - totalPaidToHotel - creditApplied);
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">Hotel Payments</h3>
+                  <span className="text-xs text-muted-foreground">(payments made to {booking.hotel.name})</span>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Buying Total</p>
+                      <p className="text-base font-mono font-semibold">
+                        {booking.currency.symbol}{Number(booking.buyingTotal).toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Paid to Hotel</p>
+                      <p className="text-base font-mono font-semibold text-green-600">
+                        {booking.currency.symbol}{totalPaidToHotel.toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Credit Applied</p>
+                      <p className="text-base font-mono font-semibold text-blue-600">
+                        {booking.currency.symbol}{creditApplied.toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Net Due to Hotel</p>
+                      <p className={`text-base font-mono font-semibold ${netDueToHotel > 0 ? "text-destructive" : "text-green-600"}`}>
+                        {booking.currency.symbol}{netDueToHotel.toLocaleString("en", { minimumFractionDigits: 2 })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {hotelPayments.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hotelPayments.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>{format(new Date(p.paidAt), "dd MMM yyyy")}</TableCell>
+                          <TableCell>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</TableCell>
+                          <TableCell className="font-mono text-sm">{p.reference ?? "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant={p.isRefund ? "destructive" : "secondary"}>
+                              {p.isRefund ? "Refund from Hotel" : "Payment to Hotel"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {p.isRefund ? "-" : ""}{p.currency.symbol}{Number(p.amount).toLocaleString("en", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{p.createdBy?.name ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-xs text-muted-foreground py-2">No hotel payments recorded yet.</p>
+                )}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         {/* Vouchers */}
@@ -929,6 +1279,132 @@ export default function BookingDetailPage() {
               </TableBody>
             </Table>
           )}
+        </TabsContent>
+
+        {/* Hotel Credits */}
+        <TabsContent value="hotel-credits" className="space-y-4">
+          {/* Issued Credit Note (from this booking being cancelled) */}
+          {hotelCredits?.issued && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Credit Note Issued by This Booking</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="font-mono font-semibold">{hotelCredits.issued.code}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Issued {format(new Date(hotelCredits.issued.createdAt), "dd MMM yyyy")} · {hotelCredits.issued.currency.symbol}{Number(hotelCredits.issued.amount).toFixed(2)} original
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={HOTEL_CREDIT_STATUS_VARIANTS[hotelCredits.issued.status] as "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | "success" | "warning" | "info"}>
+                      {HOTEL_CREDIT_STATUS_LABELS[hotelCredits.issued.status]}
+                    </Badge>
+                    <p className="text-sm font-mono">
+                      {hotelCredits.issued.currency.symbol}{Number(hotelCredits.issued.remainingAmount).toFixed(2)} remaining
+                    </p>
+                    {hotelCredits.issued.status === "OPEN" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive"
+                        onClick={() => cancelCreditMutation.mutate(hotelCredits.issued!.id)}
+                        disabled={cancelCreditMutation.isPending}
+                      >
+                        Cancel Credit
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {hotelCredits.issued.consumptions.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Applied To Booking</TableHead>
+                        <TableHead>Amount Used</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hotelCredits.issued.consumptions.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <Link href={`/reservations/bookings/${c.booking.id}`} className="font-mono text-primary hover:underline">
+                              {c.booking.code}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="font-mono">{hotelCredits.issued!.currency.symbol}{Number(c.amountUsed).toFixed(2)}</TableCell>
+                          <TableCell>{format(new Date(c.usedAt), "dd MMM yyyy")}</TableCell>
+                          <TableCell className="text-muted-foreground">{c.usedBy.name}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Credits Applied to This Booking */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Credits Applied to This Booking</CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setApplyDialogOpen(true)}
+                  disabled={booking.status === "CANCELLED" || booking.status === "CHECKED_OUT"}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  Apply Hotel Credit
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {hotelCredits?.consumed && hotelCredits.consumed.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Credit Code</TableHead>
+                        <TableHead>Hotel</TableHead>
+                        <TableHead className="text-right">Amount Applied</TableHead>
+                        <TableHead>Applied By</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hotelCredits.consumed.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-mono">{c.creditNote.code}</TableCell>
+                          <TableCell>{c.creditNote.hotel.name}</TableCell>
+                          <TableCell className="text-right font-mono text-green-600">
+                            -{c.creditNote.currency.symbol}{Number(c.amountUsed).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{c.usedBy.name}</TableCell>
+                          <TableCell>{format(new Date(c.usedAt), "dd MMM yyyy")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="mt-3 flex justify-end text-sm">
+                    <span className="text-muted-foreground mr-2">Net Hotel Cost:</span>
+                    <span className="font-mono font-semibold">
+                      {booking.currency.symbol}{(Number(booking.buyingTotal) - Number(booking.creditApplied)).toFixed(2)}
+                    </span>
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      ({booking.currency.symbol}{Number(booking.buyingTotal).toFixed(2)} - {booking.currency.symbol}{Number(booking.creditApplied).toFixed(2)} credits)
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="py-4 text-center text-sm text-muted-foreground">No hotel credits applied to this booking.</p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Timeline */}
@@ -1063,9 +1539,70 @@ export default function BookingDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Recalculate Buying Rates Confirmation Dialog */}
+      <Dialog open={recalcOpen} onOpenChange={setRecalcOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recalculate Buying Rates</DialogTitle>
+            <DialogDescription>
+              This will re-run the contract rate engine for all rooms in booking{" "}
+              <span className="font-mono font-semibold">{booking.code}</span> using the current
+              seasonal rates and any active SPOs. The buying total will be updated.
+              Selling prices and payments are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current buying total</span>
+              <span className="font-mono">{booking.currency.symbol}{Number(booking.buyingTotal).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Booking date used</span>
+              <span className="font-mono text-xs">
+                {booking.bookingDate
+                  ? format(new Date(booking.bookingDate), "dd MMM yyyy") + " (override)"
+                  : format(new Date(booking.createdAt), "dd MMM yyyy") + " (created date)"}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRecalcOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => recalculateBuyingMutation.mutate({ id })}
+              disabled={recalculateBuyingMutation.isPending}
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              {recalculateBuyingMutation.isPending ? "Calculating…" : "Recalculate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recalculate Selling Confirmation Dialog */}
+      <Dialog open={recalcSellingOpen} onOpenChange={setRecalcSellingOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recalculate Selling Rates</DialogTitle>
+            <DialogDescription>
+              Re-applies the current markup rule to the stored buying totals and updates the selling rates for all rooms. The buying rates are not changed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRecalcSellingOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => recalculateSellingMutation.mutate({ id })}
+              disabled={recalculateSellingMutation.isPending}
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              {recalculateSellingMutation.isPending ? "Calculating…" : "Recalculate Selling"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Cancel Dialog */}
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Cancel Booking</DialogTitle>
             <DialogDescription>
@@ -1073,16 +1610,173 @@ export default function BookingDetailPage() {
               confirmed, allotment will be restored.
             </DialogDescription>
           </DialogHeader>
-          <CancellationPenaltyPreview bookingId={id} />
+
+          {/* ── Split Cancellation Penalty ── */}
+          {penaltyLoading ? (
+            <p className="text-xs text-muted-foreground">Calculating penalty...</p>
+          ) : (
+            <div className="space-y-3">
+              {/* Hotel side (buying) */}
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Hotel Penalty (Buying Side)</p>
+                  {cancellationPenalty && (
+                    <span className="text-xs text-muted-foreground">
+                      {cancellationPenalty.daysBefore}d before — {cancellationPenalty.penaltyPercent}%
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Contract Amount</span>
+                  <span className="font-mono font-semibold">
+                    {booking.currency.symbol}{Number(cancellationPenalty?.penaltyAmount ?? 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="hotel-penalty-override"
+                    checked={hotelPenaltyOverride}
+                    onCheckedChange={(v) => {
+                      setHotelPenaltyOverride(!!v);
+                      if (!v) setHotelPenaltyCustom("");
+                    }}
+                  />
+                  <Label htmlFor="hotel-penalty-override" className="cursor-pointer text-xs">
+                    Override hotel penalty (e.g. hotel waived fees)
+                  </Label>
+                </div>
+                {hotelPenaltyOverride && (
+                  <div className="pl-6 flex items-center gap-2">
+                    <Label className="text-xs shrink-0">Custom Amount</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={hotelPenaltyCustom}
+                      onChange={(e) => setHotelPenaltyCustom(e.target.value)}
+                      placeholder="0.00 = free cancellation"
+                      className="h-7 text-xs"
+                    />
+                    <span className="text-xs text-muted-foreground shrink-0">{booking.currency.symbol}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Source side (selling) */}
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">
+                    Source Penalty (Selling Side)
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {booking.source === "TOUR_OPERATOR"
+                      ? `TO: ${booking.tourOperator?.name ?? "Tour Operator"}`
+                      : booking.source === "API"
+                        ? "B2C / Online Guest"
+                        : "Individual Guest"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Default Amount</span>
+                  <span className="font-mono font-semibold">
+                    {booking.currency.symbol}{Number(cancellationPenalty?.penaltyAmount ?? 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="source-penalty-override"
+                    checked={sourcePenaltyOverride}
+                    onCheckedChange={(v) => {
+                      setSourcePenaltyOverride(!!v);
+                      if (!v) setSourcePenaltyCustom("");
+                    }}
+                  />
+                  <Label htmlFor="source-penalty-override" className="cursor-pointer text-xs">
+                    Override source penalty
+                  </Label>
+                </div>
+                {sourcePenaltyOverride && (
+                  <div className="pl-6 flex items-center gap-2">
+                    <Label className="text-xs shrink-0">Custom Amount</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={sourcePenaltyCustom}
+                      onChange={(e) => setSourcePenaltyCustom(e.target.value)}
+                      placeholder="0.00"
+                      className="h-7 text-xs"
+                    />
+                    <span className="text-xs text-muted-foreground shrink-0">{booking.currency.symbol}</span>
+                  </div>
+                )}
+              </div>
+              {cancellationPenalty?.description && (
+                <p className="text-xs text-muted-foreground px-1">
+                  Policy: {cancellationPenalty.description}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Cancellation Reason</Label>
             <Textarea
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               placeholder="Optional reason..."
-              rows={3}
+              rows={2}
             />
           </div>
+
+          {/* Hotel Credit Note — shown when payment method is CASH */}
+          {booking.hotelPaymentMethod === "CASH" && Number(booking.buyingTotal) > 0 && (() => {
+            const contractPenaltyAmt = Number(cancellationPenalty?.penaltyAmount ?? 0);
+            const effectiveHotelPenalty = hotelPenaltyOverride
+              ? (Number(hotelPenaltyCustom) || 0)
+              : contractPenaltyAmt;
+            const creditNoteAmount = Math.max(0, Number(booking.buyingTotal) - effectiveHotelPenalty);
+            return (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-3 dark:border-amber-800 dark:bg-amber-950/30">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="issue-credit-note"
+                    checked={issueCreditNote}
+                    onCheckedChange={(v) => setIssueCreditNote(!!v)}
+                    disabled={creditNoteAmount <= 0}
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="issue-credit-note" className="cursor-pointer font-medium">
+                      Issue Hotel Credit Note
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {creditNoteAmount > 0 ? (
+                        <>The hotel owes us <strong>{booking.currency.symbol}{creditNoteAmount.toFixed(2)}</strong> after penalty — issue a credit note for future bookings.</>
+                      ) : (
+                        "Hotel penalty covers the full buying amount — no credit balance to issue."
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {issueCreditNote && creditNoteAmount > 0 && (
+                  <div className="space-y-2 pl-6">
+                    <Label className="text-xs">Credit Note Notes (optional)</Label>
+                    <Textarea
+                      value={creditNoteNotes}
+                      onChange={(e) => setCreditNoteNotes(e.target.value)}
+                      placeholder="e.g. Room credit to be used within 12 months"
+                      rows={2}
+                      className="text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      A Vendor Refund entry will be automatically posted to Finance.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {transitionMutation.error && (
             <p className="text-sm text-destructive">
               {transitionMutation.error.message}
@@ -1095,17 +1789,54 @@ export default function BookingDetailPage() {
             <Button
               variant="destructive"
               disabled={transitionMutation.isPending}
-              onClick={() =>
+              onClick={() => {
+                const contractPenaltyAmt = Number(cancellationPenalty?.penaltyAmount ?? 0);
+                const effectiveHotelPenalty = hotelPenaltyOverride
+                  ? (Number(hotelPenaltyCustom) || 0)
+                  : contractPenaltyAmt;
+                const effectiveSourcePenalty = sourcePenaltyOverride
+                  ? (Number(sourcePenaltyCustom) || 0)
+                  : contractPenaltyAmt;
                 transitionMutation.mutate({
                   bookingId: id,
                   action: "cancel",
                   reason: cancelReason || undefined,
-                })
-              }
+                  issueCreditNote,
+                  creditNoteNotes: creditNoteNotes || undefined,
+                  hotelPenaltyOverridden: hotelPenaltyOverride,
+                  hotelPenaltyAmount: effectiveHotelPenalty,
+                  sourcePenaltyOverridden: sourcePenaltyOverride,
+                  sourcePenaltyAmount: effectiveSourcePenalty,
+                });
+              }}
             >
               {transitionMutation.isPending ? "Cancelling..." : "Confirm Cancel"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Apply Hotel Credit Dialog */}
+      <Dialog open={applyDialogOpen} onOpenChange={setApplyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apply Hotel Credit</DialogTitle>
+            <DialogDescription>
+              Apply a hotel credit note against this booking&apos;s hotel cost.
+            </DialogDescription>
+          </DialogHeader>
+          <ApplyCreditDialogContent
+            bookingId={id}
+            hotelId={booking.hotelId}
+            onApply={(creditNoteId, amountUsed) => {
+              applyCreditMutation.mutate(
+                { creditNoteId, bookingId: id, amountUsed },
+                { onSuccess: () => setApplyDialogOpen(false) },
+              );
+
+            }}
+            isPending={applyCreditMutation.isPending}
+          />
         </DialogContent>
       </Dialog>
 
@@ -1362,6 +2093,255 @@ export default function BookingDetailPage() {
               ),
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* SPO Detail Modal */}
+      <Dialog open={spoDetailOpen} onOpenChange={(o) => { setSpoDetailOpen(o); if (!o) setSelectedSpoId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Season SPO Details</DialogTitle>
+            <DialogDescription>
+              {spoDetailLoading ? "Loading…" : spoDetail ? `${spoDetail.name ?? spoDetail.id} — ${spoDetail.spoType.replace(/_/g, " ")}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {spoDetailLoading && <div className="py-6 text-center text-sm text-muted-foreground">Loading SPO details…</div>}
+          {spoDetail && !spoDetailLoading && (() => {
+            const spo = spoDetail;
+            const SPO_TYPE_LABELS: Record<string, string> = {
+              RATE_OVERRIDE: "Rate Override",
+              BOOKING_WINDOW: "Booking Window",
+              PERCENTAGE: "Percentage",
+            };
+            return (
+              <div className="space-y-4 text-sm">
+                {/* Header info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-muted-foreground">Contract:</span>{" "}
+                    <span className="font-medium">{spo.contract.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Hotel:</span>{" "}
+                    <span className="font-medium">{spo.contract.hotel.code} — {spo.contract.hotel.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Type:</span>{" "}
+                    <Badge variant="outline">{SPO_TYPE_LABELS[spo.spoType] ?? spo.spoType}</Badge>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    <Badge variant={spo.active ? "default" : "secondary"}>{spo.active ? "Active" : "Inactive"}</Badge>
+                  </div>
+                  {spo.dateFrom && (
+                    <div>
+                      <span className="text-muted-foreground">Travel From:</span>{" "}
+                      <span>{format(new Date(spo.dateFrom), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                  {spo.dateTo && (
+                    <div>
+                      <span className="text-muted-foreground">Travel To:</span>{" "}
+                      <span>{format(new Date(spo.dateTo), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                  {spo.bookFrom && (
+                    <div>
+                      <span className="text-muted-foreground">Book From:</span>{" "}
+                      <span>{format(new Date(spo.bookFrom), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                  {spo.bookTo && (
+                    <div>
+                      <span className="text-muted-foreground">Book To:</span>{" "}
+                      <span>{format(new Date(spo.bookTo), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                </div>
+                {/* Base rates */}
+                {(spo.basePp != null || spo.sglSup != null || spo.thirdAdultRed != null) && (
+                  <div className="rounded-md border p-3 space-y-1">
+                    <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide mb-2">Rates</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {spo.basePp != null && (
+                        <div><span className="text-muted-foreground">Base PP:</span> <span className="font-mono font-medium">{Number(spo.basePp).toFixed(2)}</span></div>
+                      )}
+                      {spo.sglSup != null && (
+                        <div><span className="text-muted-foreground">Sgl Sup:</span> <span className="font-mono font-medium">{Number(spo.sglSup).toFixed(2)}</span></div>
+                      )}
+                      {spo.thirdAdultRed != null && (
+                        <div><span className="text-muted-foreground">3rd Adult Red:</span> <span className="font-mono font-medium">{Number(spo.thirdAdultRed).toFixed(2)}</span></div>
+                      )}
+                      {spo.firstChildPct != null && (
+                        <div><span className="text-muted-foreground">1st Child %:</span> <span className="font-mono font-medium">{Number(spo.firstChildPct)}%</span></div>
+                      )}
+                      {spo.secondChildPct != null && (
+                        <div><span className="text-muted-foreground">2nd Child %:</span> <span className="font-mono font-medium">{Number(spo.secondChildPct)}%</span></div>
+                      )}
+                      {spo.value != null && spo.valueType && (
+                        <div><span className="text-muted-foreground">Value:</span> <span className="font-mono font-medium">{Number(spo.value)}{spo.valueType === "PERCENTAGE" ? "%" : ""}</span></div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* Travel date rows */}
+                {spo.travelDates.length > 0 && (
+                  <div>
+                    <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide mb-2">Travel Date Periods</p>
+                    <table className="w-full text-xs border rounded-md overflow-hidden">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-2">From</th>
+                          <th className="text-left p-2">To</th>
+                          <th className="text-right p-2">Base PP</th>
+                          <th className="text-right p-2">Sgl Sup</th>
+                          <th className="text-right p-2">3rd Red</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {spo.travelDates.map((td, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="p-2">{format(new Date(td.dateFrom), "dd MMM yyyy")}</td>
+                            <td className="p-2">{format(new Date(td.dateTo), "dd MMM yyyy")}</td>
+                            <td className="p-2 text-right font-mono">{td.basePp != null ? Number(td.basePp).toFixed(2) : "—"}</td>
+                            <td className="p-2 text-right font-mono">{td.sglSup != null ? Number(td.sglSup).toFixed(2) : "—"}</td>
+                            <td className="p-2 text-right font-mono">{td.thirdAdultRed != null ? Number(td.thirdAdultRed).toFixed(2) : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {/* BTC periods */}
+                {spo.btcPeriods.length > 0 && (
+                  <div>
+                    <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide mb-2">Back-to-Contract Periods</p>
+                    <table className="w-full text-xs border rounded-md overflow-hidden">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-2">From</th>
+                          <th className="text-left p-2">To</th>
+                          <th className="text-center p-2">Active</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {spo.btcPeriods.map((b, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="p-2">{format(new Date(b.dateFrom), "dd MMM yyyy")}</td>
+                            <td className="p-2">{format(new Date(b.dateTo), "dd MMM yyyy")}</td>
+                            <td className="p-2 text-center">
+                              <Badge variant={b.active ? "default" : "secondary"} className="text-[10px]">{b.active ? "Yes" : "No"}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {/* Room supplements */}
+                {spo.roomSupplements.length > 0 && (
+                  <div>
+                    <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide mb-2">Room Supplements</p>
+                    <div className="space-y-1">
+                      {spo.roomSupplements.map((rs, i) => (
+                        <div key={i} className="flex items-center justify-between rounded border px-3 py-1.5 text-xs">
+                          <span>{rs.roomType.name} ({rs.roomType.code})</span>
+                          <span className="font-mono">{Number(rs.value)}{rs.valueType === "PERCENTAGE" ? "%" : " flat"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Special Offer Detail Modal */}
+      <Dialog open={offerDetailOpen} onOpenChange={(o) => { setOfferDetailOpen(o); if (!o) setSelectedOfferId(null); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Special Offer Details</DialogTitle>
+            <DialogDescription>
+              {offerDetailLoading ? "Loading…" : offerDetail?.name ?? ""}
+            </DialogDescription>
+          </DialogHeader>
+          {offerDetailLoading && <div className="py-6 text-center text-sm text-muted-foreground">Loading offer details…</div>}
+          {offerDetail && !offerDetailLoading && (() => {
+            const o = offerDetail;
+            const OFFER_TYPE_LABELS: Record<string, string> = {
+              EARLY_BIRD: "Early Bird",
+              LONG_STAY: "Long Stay",
+              FREE_NIGHTS: "Free Nights",
+              HONEYMOON: "Honeymoon",
+              GROUP_DISCOUNT: "Group Discount",
+              NORMAL_EBD: "Early Bird (EBD)",
+            };
+            return (
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-muted-foreground">Type:</span>{" "}
+                    <Badge variant="outline">{OFFER_TYPE_LABELS[o.offerType] ?? o.offerType}</Badge>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    <Badge variant={o.active ? "default" : "secondary"}>{o.active ? "Active" : "Inactive"}</Badge>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Discount:</span>{" "}
+                    <span className="font-mono font-medium text-green-600">
+                      {o.discountType === "PERCENTAGE" ? `${Number(o.discountValue)}%` : `${Number(o.discountValue)} flat`}
+                    </span>
+                  </div>
+                  {o.validFrom && (
+                    <div><span className="text-muted-foreground">Valid From:</span> <span>{format(new Date(o.validFrom), "dd MMM yyyy")}</span></div>
+                  )}
+                  {o.validTo && (
+                    <div><span className="text-muted-foreground">Valid To:</span> <span>{format(new Date(o.validTo), "dd MMM yyyy")}</span></div>
+                  )}
+                  {o.bookByDate && (
+                    <div><span className="text-muted-foreground">Book By:</span> <span>{format(new Date(o.bookByDate), "dd MMM yyyy")}</span></div>
+                  )}
+                  {o.bookFromDate && (
+                    <div><span className="text-muted-foreground">Book From:</span> <span>{format(new Date(o.bookFromDate), "dd MMM yyyy")}</span></div>
+                  )}
+                  {o.advanceBookDays != null && (
+                    <div><span className="text-muted-foreground">Advance Book Days:</span> <span className="font-mono">{o.advanceBookDays}+ days</span></div>
+                  )}
+                  {o.minimumNights != null && (
+                    <div><span className="text-muted-foreground">Min Nights:</span> <span className="font-mono">{o.minimumNights}</span></div>
+                  )}
+                  {o.minimumRooms != null && (
+                    <div><span className="text-muted-foreground">Min Rooms:</span> <span className="font-mono">{o.minimumRooms}</span></div>
+                  )}
+                  {o.stayNights != null && o.payNights != null && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Stay/Pay:</span>{" "}
+                      <span className="font-mono">Stay {o.stayNights}, Pay {o.payNights}</span>
+                    </div>
+                  )}
+                  {o.stayDateType && (
+                    <div><span className="text-muted-foreground">Stay Date Type:</span> <span>{o.stayDateType}</span></div>
+                  )}
+                  {o.paymentPct != null && (
+                    <div><span className="text-muted-foreground">Payment %:</span> <span className="font-mono">{o.paymentPct}%</span></div>
+                  )}
+                  {o.paymentDeadline && (
+                    <div><span className="text-muted-foreground">Payment Deadline:</span> <span>{format(new Date(o.paymentDeadline), "dd MMM yyyy")}</span></div>
+                  )}
+                  {o.roomingListBy && (
+                    <div><span className="text-muted-foreground">Rooming List By:</span> <span>{format(new Date(o.roomingListBy), "dd MMM yyyy")}</span></div>
+                  )}
+                  <div>
+                    <span className="text-muted-foreground">Combinable:</span>{" "}
+                    <Badge variant={o.combinable ? "default" : "secondary"}>{o.combinable ? "Yes" : "No"}</Badge>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -1760,31 +2740,71 @@ function CommunicationsTab({ bookingId }: { bookingId: string }) {
   );
 }
 
-// ─── Cancellation Penalty Preview ──────────────────────────
+// ─── Apply Credit Dialog Content ───────────────────────────
 
-function CancellationPenaltyPreview({ bookingId }: { bookingId: string }) {
-  const { data, isLoading } = trpc.reservations.booking.getCancellationPenalty.useQuery(
-    { bookingId },
-    { retry: false },
-  );
+function ApplyCreditDialogContent({
+  bookingId,
+  hotelId,
+  onApply,
+  isPending,
+}: {
+  bookingId: string;
+  hotelId: string;
+  onApply: (creditNoteId: string, amountUsed: number) => void;
+  isPending: boolean;
+}) {
+  const { data: available, isLoading } = trpc.reservations.hotelCredit.getAvailableByHotel.useQuery(hotelId);
+  const [selectedId, setSelectedId] = useState("");
+  const [amount, setAmount] = useState("");
 
-  if (isLoading) return <p className="text-xs text-muted-foreground">Calculating penalty...</p>;
-  if (!data) return null;
+  const selected = available?.find((c) => c.id === selectedId);
+  const maxAmount = selected ? Number(selected.remainingAmount) : 0;
+
+  if (isLoading) return <p className="py-4 text-center text-sm text-muted-foreground">Loading credits...</p>;
+  if (!available || available.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">No open hotel credit notes available for this hotel.</p>;
+  }
 
   return (
-    <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm">
-      <p className="font-medium text-yellow-800">Cancellation Penalty</p>
-      <div className="mt-1 flex items-center justify-between">
-        <span className="text-yellow-700">
-          {data.daysBefore} day(s) before check-in — {data.penaltyPercent}% penalty
-        </span>
-        <span className="font-bold text-yellow-900">
-          {Number(data.penaltyAmount ?? 0).toFixed(2)}
-        </span>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Select Credit Note</Label>
+        <Select value={selectedId} onValueChange={(v) => { setSelectedId(v); setAmount(""); }}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a credit note..." />
+          </SelectTrigger>
+          <SelectContent>
+            {available.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.code} — {c.sourceBooking?.code} — {c.currency.symbol}{Number(c.remainingAmount).toFixed(2)} remaining
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      {data.description && (
-        <p className="mt-1 text-xs text-yellow-600">Policy: {data.description}</p>
+      {selected && (
+        <div className="space-y-2">
+          <Label>Amount to Apply (max: {selected.currency.symbol}{maxAmount.toFixed(2)})</Label>
+          <Input
+            type="number"
+            min={0.01}
+            max={maxAmount}
+            step={0.01}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={`Max ${maxAmount.toFixed(2)}`}
+          />
+        </div>
       )}
+      <DialogFooter>
+        <Button
+          disabled={!selectedId || !amount || Number(amount) <= 0 || Number(amount) > maxAmount || isPending}
+          onClick={() => onApply(selectedId, Number(amount))}
+        >
+          {isPending ? "Applying..." : "Apply Credit"}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }
+

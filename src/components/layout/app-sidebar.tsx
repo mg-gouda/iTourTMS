@@ -26,6 +26,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -195,6 +197,10 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Excursions", href: "/crm/excursions" },
           { label: "Exc. Programs", href: "/crm/exc-programs" },
           { label: "TO Assign", href: "/crm/to-assign" },
+          { label: "Pick Up Time Sheet", href: "/crm/pickup-time-sheet" },
+          { label: "Excursion Bookings", href: "/crm/excursion-bookings" },
+          { label: "Breakdown", href: "/crm/excursion-breakdown" },
+          { label: "Exc. Dispatch", href: "/crm/excursion-dispatch" },
           { label: "Suppliers", href: "/crm/suppliers" },
         ],
       },
@@ -210,6 +216,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Group Bookings", href: "/reservations/bookings/new-group" },
           { label: "Guests", href: "/reservations/guests" },
           { label: "Vouchers", href: "/reservations/vouchers" },
+          { label: "Hotel Credits", href: "/reservations/hotel-credits" },
           { label: "Daily Operations", href: "/reservations/operations" },
           { label: "Deadlines", href: "/reservations/deadlines" },
         ],
@@ -354,8 +361,6 @@ function CollapsibleSubGroup({
   const storageKey = `sidebar-${moduleKey}-${group.label}`;
   const hasActiveRoute = group.routes.some((r) => pathname === r.href);
 
-  // Always start with hasActiveRoute for SSR to avoid hydration mismatch,
-  // then sync with localStorage after mount.
   const contentId = useId();
   const [open, setOpen] = useState(hasActiveRoute);
   const [hydrated, setHydrated] = useState(false);
@@ -372,7 +377,6 @@ function CollapsibleSubGroup({
     localStorage.setItem(storageKey, String(open));
   }, [open, storageKey, hydrated]);
 
-  // Auto-expand when a route in this group becomes active
   useEffect(() => {
     if (hasActiveRoute && !open) setOpen(true);
   }, [hasActiveRoute]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -424,7 +428,8 @@ function CollapsibleSubGroup({
 }
 
 // ---------------------------------------------------------------------------
-// Collapsible module wrapper — entire module collapses when name is clicked
+// Collapsible module wrapper — entire module collapses when name is clicked.
+// In icon-rail mode (sidebar collapsed) renders as a single icon + tooltip.
 // ---------------------------------------------------------------------------
 
 function CollapsibleModule({
@@ -436,10 +441,11 @@ function CollapsibleModule({
   config: ModuleRouteConfig;
   pathname: string;
 }) {
-  const Icon = iconMap[mod.icon] || FileText;
+  const Icon = iconMap[mod.icon] ?? FileText;
   const storageKey = `sidebar-mod-${mod.name}`;
+  const { state: sidebarState } = useSidebar();
+  const isRail = sidebarState === "collapsed";
 
-  // Check if any route in this module is active
   const allHrefs = [
     ...config.topLevel.map((r) => r.href),
     ...config.groups.flatMap((g) => g.routes.map((r) => r.href)),
@@ -464,11 +470,32 @@ function CollapsibleModule({
     localStorage.setItem(storageKey, String(open));
   }, [open, storageKey, hydrated]);
 
-  // Auto-expand when a route becomes active
   useEffect(() => {
     if (hasActiveRoute && !open) setOpen(true);
   }, [hasActiveRoute]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Icon-rail mode: single icon button with tooltip
+  if (isRail) {
+    return (
+      <SidebarGroup className="py-0.5">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={hasActiveRoute}
+              tooltip={mod.displayName}
+            >
+              <Link href={config.topLevel[0]?.href ?? "/"}>
+                <Icon className="h-5 w-5" />
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+    );
+  }
+
+  // Expanded mode: full collapsible tree
   return (
     <SidebarGroup>
       <button
@@ -480,7 +507,7 @@ function CollapsibleModule({
           hasActiveRoute && "text-sidebar-foreground",
         )}
       >
-        <Icon className="h-3.5 w-3.5" />
+        <Icon className="h-3.5 w-3.5 shrink-0" />
         <span className="flex-1 text-left">{mod.displayName}</span>
         <ChevronRight
           className={cn(
@@ -497,7 +524,6 @@ function CollapsibleModule({
         )}
       >
         <SidebarGroupContent className="space-y-1">
-          {/* Top-level routes (e.g. Dashboard) */}
           <SidebarMenu>
             {config.topLevel.map((route) => (
               <SidebarMenuItem key={route.href}>
@@ -513,7 +539,6 @@ function CollapsibleModule({
             ))}
           </SidebarMenu>
 
-          {/* Collapsible sub-groups */}
           {config.groups.map((group) => (
             <CollapsibleSubGroup
               key={group.label}
@@ -536,31 +561,34 @@ export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps
   const pathname = usePathname();
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-4 py-3">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
           {sidebarLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={sidebarLogoUrl}
               alt="Logo"
-              className="h-8 w-auto object-contain"
+              className="h-8 w-auto shrink-0 object-contain"
             />
           ) : (
             <>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <span className="text-sm font-bold">iT</span>
               </div>
-              <span className="text-lg font-bold">iTourTMS</span>
+              <span className="truncate text-lg font-bold group-data-[state=collapsed]:hidden">
+                iTourTMS
+              </span>
             </>
           )}
         </Link>
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Main navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel className="group-data-[state=collapsed]:hidden">
+            Main
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNav.map((item) => (
@@ -568,9 +596,10 @@ export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}
+                    tooltip={item.name}
                   >
                     <Link href={item.href}>
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className="h-4 w-4 shrink-0" />
                       <span>{item.name}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -580,7 +609,6 @@ export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Module navigation — fully collapsible modules */}
         {installedModules.map((mod) => {
           const config = moduleRoutes[mod.name];
           if (!config) return null;
@@ -599,15 +627,21 @@ export function AppSidebar({ installedModules, sidebarLogoUrl }: AppSidebarProps
       <SidebarFooter className="border-t p-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === "/settings"}>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === "/settings"}
+              tooltip="Settings"
+            >
               <Link href="/settings">
-                <Settings className="h-4 w-4" />
+                <Settings className="h-4 w-4 shrink-0" />
                 <span>Settings</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <SidebarRail />
     </Sidebar>
   );
 }
