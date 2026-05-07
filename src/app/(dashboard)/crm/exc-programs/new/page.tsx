@@ -40,7 +40,7 @@ export default function NewExcProgramPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(programPlanCreateSchema),
-    defaultValues: { name: "", description: "", marketId: "", active: true },
+    defaultValues: { name: "", description: "", marketId: "none", active: true },
   });
 
   const createMutation = trpc.crm.programPlan.create.useMutation({
@@ -51,6 +51,10 @@ export default function NewExcProgramPage() {
     },
     onError: (e) => toast.error(e.message),
   });
+
+  function handleSubmit(v: FormValues) {
+    createMutation.mutate({ ...v, marketId: v.marketId === "none" ? "" : v.marketId });
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -70,7 +74,7 @@ export default function NewExcProgramPage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((v) => createMutation.mutate(v))} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Program Name</FormLabel>
@@ -96,7 +100,7 @@ export default function NewExcProgramPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">All markets</SelectItem>
+                      <SelectItem value="none">All markets</SelectItem>
                       {markets?.map((m) => (
                         <SelectItem key={m.id} value={m.id}>{m.name} ({m.code})</SelectItem>
                       ))}

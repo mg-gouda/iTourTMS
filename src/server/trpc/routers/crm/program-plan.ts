@@ -154,4 +154,61 @@ export const programPlanRouter = createTRPCRouter({
       orderBy: { name: "asc" },
     });
   }),
+
+  // List all tour operators with their program assignments for a given plan
+  listTourOperators: proc
+    .input(z.object({ programPlanId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      await ctx.db.crmProgramPlan.findFirstOrThrow({
+        where: { id: input.programPlanId, companyId: ctx.companyId },
+      });
+      const [allTOs, assigned] = await Promise.all([
+        ctx.db.tourOperator.findMany({
+          where: { companyId: ctx.companyId, active: true },
+          select: { id: true, name: true, code: true, marketId: true, market: { select: { name: true } } },
+          orderBy: { name: "asc" },
+        }),
+        ctx.db.crmProgramTourOperator.findMany({
+          where: { programPlanId: input.programPlanId },
+          select: { tourOperatorId: true, id: true },
+        }),
+      ]);
+      const assignedIds = new Set(assigned.map((a) => a.tourOperatorId));
+      return allTOs.map((to) => ({
+        ...to,
+        assigned: assignedIds.has(to.id),
+        assignmentId: assigned.find((a) => a.tourOperatorId === to.id)?.id ?? null,
+      }));
+    }),
+
+  assignTO: proc
+    .input(z.object({ programPlanId: z.string(), tourOperatorId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.crmProgramPlan.findFirstOrThrow({
+        where: { id: input.programPlanId, companyId: ctx.companyId },
+      });
+      return ctx.db.crmProgramTourOperator.create({
+        data: { programPlanId: input.programPlanId, tourOperatorId: input.tourOperatorId },
+      });
+    }),
+
+  unassignTO: proc
+    .input(z.object({ programPlanId: z.string(), tourOperatorId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.crmProgramTourOperator.deleteMany({
+        where: { programPlanId: input.programPlanId, tourOperatorId: input.tourOperatorId },
+      });
+    }),
+
+  // Summary for to-assign page: all plans with their assigned TO count
+  listWithTOCount: proc.query(async ({ ctx }) => {
+    return ctx.db.crmProgramPlan.findMany({
+      where: { companyId: ctx.companyId },
+      include: {
+        market: { select: { name: true } },
+        _count: { select: { tourOperators: true, items: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
 });

@@ -209,7 +209,7 @@ export default function ExcProgramDetailPage() {
       infoForm.reset({
         name: plan.name,
         description: plan.description ?? "",
-        marketId: plan.marketId ?? "",
+        marketId: plan.marketId ?? "none",
         active: plan.active,
       });
       setItems(
@@ -342,7 +342,9 @@ export default function ExcProgramDetailPage() {
           <CardContent>
             <Form {...infoForm}>
               <form
-                onSubmit={infoForm.handleSubmit((v) => updateMutation.mutate({ id, data: v }))}
+                onSubmit={infoForm.handleSubmit((v) =>
+                updateMutation.mutate({ id, data: { ...v, marketId: v.marketId === "none" ? "" : v.marketId } })
+              )}
                 className="space-y-4"
               >
                 <FormField control={infoForm.control} name="name" render={({ field }) => (
@@ -370,7 +372,7 @@ export default function ExcProgramDetailPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">All markets</SelectItem>
+                        <SelectItem value="none">All markets</SelectItem>
                         {markets?.map((m) => (
                           <SelectItem key={m.id} value={m.id}>{m.name} ({m.code})</SelectItem>
                         ))}

@@ -5,7 +5,11 @@ import { addonRouter } from "./addon";
 import { bookingRouter } from "./booking";
 import { ageGroupRouter } from "./age-group";
 import { costSheetRouter } from "./cost-sheet";
+import { excursionTicketRouter } from "./excursion-ticket";
+import { excursionBreakdownRouter } from "./excursion-breakdown";
+import { excursionDispatchRouter } from "./excursion-dispatch";
 import { pickupLocationRouter } from "./pickup-location";
+import { pickupTimeSheetRouter } from "./pickup-time-sheet";
 import { programPlanRouter } from "./program-plan";
 import { customerRouter } from "./customer";
 import { excursionRouter } from "./excursion";
@@ -25,9 +29,13 @@ export const crmRouter = createTRPCRouter({
   program: programRouter,
   costSheet: costSheetRouter,
   pickupLocation: pickupLocationRouter,
+  pickupTimeSheet: pickupTimeSheetRouter,
   programPlan: programPlanRouter,
   addon: addonRouter,
   ageGroup: ageGroupRouter,
   sellingPrice: sellingPriceRouter,
   booking: bookingRouter,
+  excursionTicket: excursionTicketRouter,
+  excursionBreakdown: excursionBreakdownRouter,
+  excursionDispatch: excursionDispatchRouter,
 });
