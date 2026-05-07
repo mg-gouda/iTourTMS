@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iTourTMS — Travel Management System</title>
+  <meta name="description" content="The complete travel management ecosystem — 7 integrated modules for tour operators, travel agencies and hospitality groups." />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ NAVBAR ═══ -->
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <img src="logo.svg" class="logo-svg" alt="iTourTMS">
+    </a>
+
+    <div class="nav-links">
+      <a href="#modules" class="nav-link" data-i18n="nav.modules">Modules</a>
+      <a href="#why" class="nav-link" data-i18n="nav.why">Why iTourTMS</a>
+      <a href="#contact" class="nav-link" data-i18n="nav.contact">Contact</a>
+    </div>
+
+    <div class="nav-right">
+      <div class="lang-dropdown" id="lang-dropdown">
+        <button class="lang-dropdown-btn" id="lang-dropdown-btn" aria-expanded="false" aria-haspopup="listbox">
+          <span id="lang-flag">🇬🇧</span>
+          <span id="lang-code">EN</span>
+          <svg class="lang-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <ul class="lang-menu" id="lang-menu" role="listbox">
+          <li><button data-lang="en" role="option"><span>🇬🇧</span> English</button></li>
+          <li><button data-lang="ar" role="option"><span>🇸🇦</span> العربية</button></li>
+          <li><button data-lang="fr" role="option"><span>🇫🇷</span> Français</button></li>
+          <li><button data-lang="it" role="option"><span>🇮🇹</span> Italiano</button></li>
+          <li><button data-lang="de" role="option"><span>🇩🇪</span> Deutsch</button></li>
+          <li><button data-lang="ru" role="option"><span>🇷🇺</span> Русский</button></li>
+          <li><button data-lang="tr" role="option"><span>🇹🇷</span> Türkçe</button></li>
+          <li><button data-lang="es" role="option"><span>🇪🇸</span> Español</button></li>
+          <li><button data-lang="zh" role="option"><span>🇨🇳</span> 中文</button></li>
+        </ul>
+      </div>
+      <a href="#contact" class="btn-primary" data-i18n="nav.demo">Request Demo</a>
+    </div>
+
+    <button class="hamburger" id="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════ HERO ═══ -->
+<section class="hero" id="hero">
+  <canvas id="globe-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-badge" data-i18n="hero.badge">Travel Management System</div>
+    <h1 class="hero-headline">
+      <span data-i18n="hero.h1a">The Complete</span><br/>
+      <span class="gradient-text" data-i18n="hero.h1b">Travel Management</span><br/>
+      <span data-i18n="hero.h1c">Ecosystem</span>
+    </h1>
+    <p class="hero-sub" data-i18n="hero.sub">
+      7 integrated modules. One powerful platform. Built for tour operators, travel agencies, and hospitality groups worldwide.
+    </p>
+    <div class="hero-ctas">
+      <a href="#contact" class="btn-primary btn-lg" data-i18n="hero.cta1">Request a Demo</a>
+      <a href="#modules" class="btn-ghost btn-lg" data-i18n="hero.cta2">Explore Modules</a>
+    </div>
+  </div>
+  <div class="hero-scroll-hint">
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ STATS ═══ -->
+<section class="stats-bar">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item reveal">
+        <span class="stat-num" data-target="7">0</span>
+        <span class="stat-label" data-i18n="stat.modules">Integrated Modules</span>
+      </div>
+      <div class="stat-item reveal">
+        <span class="stat-num" data-target="137">0</span>
+        <span class="stat-label" data-i18n="stat.models">Data Models</span>
+      </div>
+      <div class="stat-item reveal">
+        <span class="stat-num" data-target="90">0</span>
+        <span class="stat-label" data-i18n="stat.routes">API Endpoints</span>
+      </div>
+      <div class="stat-item reveal">
+        <span class="stat-num" data-target="4">0</span>
+        <span class="stat-label" data-i18n="stat.langs">Languages Supported</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULES OVERVIEW ═══ -->
+<section class="section modules-overview" id="modules">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag" data-i18n="overview.tag">Platform Modules</div>
+      <h2 data-i18n="overview.title">Everything Your Travel Business Needs</h2>
+      <p data-i18n="overview.sub">From hotel contracting to customer bookings — one platform handles it all, with no integration headaches.</p>
+    </div>
+    <div class="modules-grid">
+      <a href="#mod-finance" class="mod-card reveal" data-color="#10b981">
+        <div class="mod-icon" style="--c:#10b981">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <h3 data-i18n="m1.name">Finance</h3>
+        <p data-i18n="m1.short">Full accounting, multi-currency, automated reconciliation</p>
+      </a>
+      <a href="#mod-contracting" class="mod-card reveal" data-color="#278ACC">
+        <div class="mod-icon" style="--c:#278ACC">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3 data-i18n="m2.name">Contracting</h3>
+        <p data-i18n="m2.short">Advanced hotel rate engine — SPO, BTC, EBD, seasons</p>
+      </a>
+      <a href="#mod-crm" class="mod-card reveal" data-color="#8b5cf6">
+        <div class="mod-icon" style="--c:#8b5cf6">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <h3 data-i18n="m3.name">CRM & Excursions</h3>
+        <p data-i18n="m3.short">Pipeline, excursion catalog, booking lifecycle, customer 360</p>
+      </a>
+      <a href="#mod-reservations" class="mod-card reveal" data-color="#f59e0b">
+        <div class="mod-icon" style="--c:#f59e0b">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <h3 data-i18n="m4.name">Reservations</h3>
+        <p data-i18n="m4.short">Room-level rate calc, markup engine, group bookings, vouchers</p>
+      </a>
+      <a href="#mod-traffic" class="mod-card reveal" data-color="#ef4444">
+        <div class="mod-icon" style="--c:#ef4444">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <h3 data-i18n="m5.name">Traffic</h3>
+        <p data-i18n="m5.short">Transfer ops, dispatch console, fleet & driver management</p>
+      </a>
+      <a href="#mod-b2c" class="mod-card reveal" data-color="#06b6d4">
+        <div class="mod-icon" style="--c:#06b6d4">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        </div>
+        <h3 data-i18n="m6.name">B2C Website</h3>
+        <p data-i18n="m6.short">Public booking portal with geo-IP market detection</p>
+      </a>
+      <a href="#mod-b2b" class="mod-card reveal" data-color="#001E72">
+        <div class="mod-icon" style="--c:#001E72">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+        </div>
+        <h3 data-i18n="m7.name">B2B Portal</h3>
+        <p data-i18n="m7.short">Partner portal, credit management, net rates, reports</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 1: FINANCE ═══ -->
+<section class="section mod-section" id="mod-finance" data-color="#10b981">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#10b981" data-i18n="m1.tag">Accounting Engine</div>
+        <h2 data-i18n="m1.name">Finance</h2>
+        <p class="mod-desc" data-i18n="m1.desc">Full double-entry bookkeeping with automated reconciliation, multi-currency support, and comprehensive financial reporting tailored for the travel industry.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#10b981"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m1.u1t">Double-Entry Bookkeeping</strong><br/><span data-i18n="m1.u1d">Odoo-inspired full accounting with chart of accounts, journals, and fiscal year management.</span></div></li>
+          <li><span class="usp-icon" style="--c:#10b981"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m1.u2t">Multi-Currency & Tax</strong><br/><span data-i18n="m1.u2d">Real-time currency rates, configurable tax groups, and fiscal positions for international operations.</span></div></li>
+          <li><span class="usp-icon" style="--c:#10b981"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m1.u3t">Automated Reconciliation</strong><br/><span data-i18n="m1.u3d">Bank statement import with smart matching against bookings and payments.</span></div></li>
+          <li><span class="usp-icon" style="--c:#10b981"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m1.u4t">Budget vs Actuals</strong><br/><span data-i18n="m1.u4d">P&L, Balance Sheet, Trial Balance, General Ledger, Aged Receivable/Payable reports.</span></div></li>
+        </ul>
+      </div>
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/finance</span></div>
+          <img src="./screenshots/finance.png" alt="Finance Module" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 2: CONTRACTING ═══ -->
+<section class="section mod-section mod-alt" id="mod-contracting" data-color="#278ACC">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/contracting/contracts</span></div>
+          <img src="./screenshots/contracting-contracts.png" alt="Contracting Module" loading="lazy" />
+        </div>
+      </div>
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#278ACC" data-i18n="m2.tag">Rate Engine</div>
+        <h2 data-i18n="m2.name">Contracting</h2>
+        <p class="mod-desc" data-i18n="m2.desc">Industry-leading hotel contracting engine with per-night SPO/BTC calculation, early bird discounts, and a live rate simulator that handles even the most complex pricing structures.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#278ACC"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m2.u1t">SPO & BTC Rate Engine</strong><br/><span data-i18n="m2.u1d">Per-night calculation splits stays between Special Promotion Offer and Back-to-Contract rates — the only system that gets this right.</span></div></li>
+          <li><span class="usp-icon" style="--c:#278ACC"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m2.u2t">Early Bird Discounts</strong><br/><span data-i18n="m2.u2d">EBD conditions apply exclusively to BTC nights, with advance booking days and book-by dates.</span></div></li>
+          <li><span class="usp-icon" style="--c:#278ACC"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m2.u3t">Multi-Season Pricing</strong><br/><span data-i18n="m2.u3d">Seasons, room-type supplements, meal-basis supplements, child policies, and special offers all in one contract.</span></div></li>
+          <li><span class="usp-icon" style="--c:#278ACC"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m2.u4t">Live Rate Simulator</strong><br/><span data-i18n="m2.u4d">Simulate any scenario — dates, rooms, occupancy, meal plan — and instantly see the buying and selling breakdown.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 3: CRM ═══ -->
+<section class="section mod-section" id="mod-crm" data-color="#8b5cf6">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#8b5cf6" data-i18n="m3.tag">CRM & Excursion Sales</div>
+        <h2 data-i18n="m3.name">CRM & Excursions</h2>
+        <p class="mod-desc" data-i18n="m3.desc">A full Odoo-inspired CRM with lead pipeline, excursion catalog management, cost sheets, selling prices, and complete booking lifecycle from enquiry to delivery.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#8b5cf6"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m3.u1t">Kanban Pipeline</strong><br/><span data-i18n="m3.u1d">Visualize leads and opportunities as they move through your sales funnel with drag-to-stage Kanban.</span></div></li>
+          <li><span class="usp-icon" style="--c:#8b5cf6"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m3.u2t">Excursion Catalog</strong><br/><span data-i18n="m3.u2d">Program builder, age groups, addons, cost sheets with margin tracking, and auto-computed selling prices.</span></div></li>
+          <li><span class="usp-icon" style="--c:#8b5cf6"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m3.u3t">Customer 360</strong><br/><span data-i18n="m3.u3d">Lifetime value tracking, activity timeline, opportunity history, and complete booking record per contact.</span></div></li>
+          <li><span class="usp-icon" style="--c:#8b5cf6"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m3.u4t">Dispatch Operations</strong><br/><span data-i18n="m3.u4d">Pick-up time sheets, excursion dispatch, breakdown reports, and booking voucher PDF export.</span></div></li>
+        </ul>
+      </div>
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/crm</span></div>
+          <img src="./screenshots/crm.png" alt="CRM Module" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 4: RESERVATIONS ═══ -->
+<section class="section mod-section mod-alt" id="mod-reservations" data-color="#f59e0b">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/reservations/bookings</span></div>
+          <img src="./screenshots/reservations-bookings.png" alt="Reservations Module" loading="lazy" />
+        </div>
+      </div>
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#f59e0b" data-i18n="m4.tag">Booking Engine</div>
+        <h2 data-i18n="m4.name">Reservations</h2>
+        <p class="mod-desc" data-i18n="m4.desc">Room-level hotel reservation system connected directly to the contracting engine, with real-time buying/selling rate calculation, markup rules, and automated hotel communication.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#f59e0b"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m4.u1t">Room-Level Rate Calculation</strong><br/><span data-i18n="m4.u1d">Every room gets a full buying breakdown — SPO nights, BTC nights, EBD, supplements — with one-click recalculation.</span></div></li>
+          <li><span class="usp-icon" style="--c:#f59e0b"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m4.u2t">Selling Markup Engine</strong><br/><span data-i18n="m4.u2d">Apply markup rules by hotel, destination, or market. See margin and markup amount per room, per booking.</span></div></li>
+          <li><span class="usp-icon" style="--c:#f59e0b"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m4.u3t">Group & Series Bookings</strong><br/><span data-i18n="m4.u3d">Multi-room group bookings with shared rooming list, cancellation deadlines, and deadline alerts.</span></div></li>
+          <li><span class="usp-icon" style="--c:#f59e0b"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m4.u4t">Hotel Communication</strong><br/><span data-i18n="m4.u4d">Auto-generates hotel rooming list PDF and sends .eml file — ready for one-click forwarding to the hotel.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 5: TRAFFIC ═══ -->
+<section class="section mod-section" id="mod-traffic" data-color="#ef4444">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#ef4444" data-i18n="m5.tag">Transfer Operations</div>
+        <h2 data-i18n="m5.name">Traffic</h2>
+        <p class="mod-desc" data-i18n="m5.desc">End-to-end transfer management from flight data to driver dispatch. Automatically creates transfer jobs when bookings are confirmed, then manages the entire fleet operation.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#ef4444"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m5.u1t">Auto Job Creation</strong><br/><span data-i18n="m5.u1d">Arrival and departure transfer jobs are automatically created from booking flight data — zero manual entry.</span></div></li>
+          <li><span class="usp-icon" style="--c:#ef4444"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m5.u2t">Dispatch Console</strong><br/><span data-i18n="m5.u2d">Real-time job board with driver assignment, vehicle allocation, and status tracking.</span></div></li>
+          <li><span class="usp-icon" style="--c:#ef4444"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m5.u3t">Fleet Management</strong><br/><span data-i18n="m5.u3d">Vehicles, vehicle types, drivers with performance tracking, and zone-based pricing.</span></div></li>
+          <li><span class="usp-icon" style="--c:#ef4444"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m5.u4t">Guest Booking Integration</strong><br/><span data-i18n="m5.u4d">Rep assignments, airport meet-and-greet, and partner price overrides all managed in one place.</span></div></li>
+        </ul>
+      </div>
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/traffic/jobs</span></div>
+          <img src="./screenshots/traffic-jobs.png" alt="Traffic Module" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 6: B2C WEBSITE ═══ -->
+<section class="section mod-section mod-alt" id="mod-b2c" data-color="#06b6d4">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">your-brand.com</span></div>
+          <img src="./screenshots/b2c-home.png" alt="B2C Website" loading="lazy" />
+        </div>
+      </div>
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#06b6d4" data-i18n="m6.tag">Public Booking Portal</div>
+        <h2 data-i18n="m6.name">B2C Website</h2>
+        <p class="mod-desc" data-i18n="m6.desc">A fully branded public website with real-time hotel availability, geo-IP market detection, multilingual support, and a 4-step booking flow — completely managed from the TMS dashboard.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#06b6d4"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m6.u1t">Geo-IP Market Detection</strong><br/><span data-i18n="m6.u1d">Automatically detects visitor's country, resolves their market, and shows only relevant prices and packages.</span></div></li>
+          <li><span class="usp-icon" style="--c:#06b6d4"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m6.u2t">Live Availability Engine</strong><br/><span data-i18n="m6.u2d">Queries published contracts in real-time, applies B2C markup tiers, and shows instant room availability.</span></div></li>
+          <li><span class="usp-icon" style="--c:#06b6d4"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m6.u3t">Online Booking Flow</strong><br/><span data-i18n="m6.u3d">4-step booking (Review → Guest Details → Payment → Confirmation) with email confirmation and my-bookings portal.</span></div></li>
+          <li><span class="usp-icon" style="--c:#06b6d4"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m6.u4t">CMS Dashboard</strong><br/><span data-i18n="m6.u4d">Manage branding, hero slides, pages, blog, FAQ, testimonials, and markup rules from the TMS admin panel.</span></div></li>
+        </ul>
+      </div>
+    </div>
+    <!-- B2C extra screenshots -->
+    <div class="extra-screens reveal">
+      <div class="extra-screen-item">
+        <div class="browser-frame small">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">Search Results</span></div>
+          <img src="./screenshots/b2c-search.png" alt="B2C Search" loading="lazy" />
+        </div>
+      </div>
+      <div class="extra-screen-item">
+        <div class="browser-frame small">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">Hotel Listings</span></div>
+          <img src="./screenshots/b2c-hotels.png" alt="B2C Hotels" loading="lazy" />
+        </div>
+      </div>
+      <div class="extra-screen-item">
+        <div class="browser-frame small">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">Contact Page</span></div>
+          <img src="./screenshots/b2c-contact.png" alt="B2C Contact" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ MODULE 7: B2B PORTAL ═══ -->
+<section class="section mod-section" id="mod-b2b" data-color="#001E72">
+  <div class="container">
+    <div class="mod-layout">
+      <div class="mod-text reveal">
+        <div class="mod-tag" style="--c:#001E72" data-i18n="m7.tag">Partner Portal</div>
+        <h2 data-i18n="m7.name">B2B Portal</h2>
+        <p class="mod-desc" data-i18n="m7.desc">A dedicated portal for tour operators and travel agents to search availability, make bookings at net rates, manage credit limits, and view their revenue reports.</p>
+        <ul class="usp-list">
+          <li><span class="usp-icon" style="--c:#001E72"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m7.u1t">Net Rate Search</strong><br/><span data-i18n="m7.u1d">Partners search and book at net buying rates — separate from B2C public prices, with their own markup rules.</span></div></li>
+          <li><span class="usp-icon" style="--c:#001E72"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m7.u2t">Credit Management</strong><br/><span data-i18n="m7.u2d">Set credit limits per partner, track usage, record payments, and flag overdue accounts automatically.</span></div></li>
+          <li><span class="usp-icon" style="--c:#001E72"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m7.u3t">Rate Sheets & Markup</strong><br/><span data-i18n="m7.u3d">Configure markup rules and rate sheets per partner, hotel, destination, or market.</span></div></li>
+          <li><span class="usp-icon" style="--c:#001E72"><i class="fa-solid fa-plane-departure"></i></span><div><strong data-i18n="m7.u4t">Partner Reports</strong><br/><span data-i18n="m7.u4d">Booking summaries, revenue analytics, margin reports, and partner statements with balance tracking.</span></div></li>
+        </ul>
+      </div>
+      <div class="mod-screen reveal">
+        <div class="browser-frame">
+          <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/b2b-portal</span></div>
+          <img src="./screenshots/b2b-portal.png" alt="B2B Portal" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ WHY CHOOSE US ═══ -->
+<section class="section why-section" id="why">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag" data-i18n="why.tag">Unique Selling Points</div>
+      <h2 data-i18n="why.title">Why Travel Businesses Choose iTourTMS</h2>
+      <p data-i18n="why.sub">Built from the ground up for the travel industry — not adapted from a generic ERP.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <div class="why-icon">🔗</div>
+        <h3 data-i18n="why.u1t">Truly All-in-One</h3>
+        <p data-i18n="why.u1d">All 7 modules share a single database. A booking in Reservations automatically creates a Traffic job, triggers Finance entries, and updates CRM — zero manual sync.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-icon">🧮</div>
+        <h3 data-i18n="why.u2t">Industry-Leading Rate Engine</h3>
+        <p data-i18n="why.u2d">The only system that correctly handles per-night BTC splitting. SPO, BTC, EBD, room supplements, meal supplements, child policies — all calculated with decimal-precise arithmetic.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-icon">🌐</div>
+        <h3 data-i18n="why.u3t">Multi-Channel in One System</h3>
+        <p data-i18n="why.u3d">Sell through your B2C website, B2B partner portal, or internal TMS — all from one platform with consistent pricing rules and real-time inventory.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-icon">🌍</div>
+        <h3 data-i18n="why.u4t">Built for International Operations</h3>
+        <p data-i18n="why.u4d">Multi-currency, multi-language, multi-market. Geo-IP detection shows customers prices in their market currency. RTL support for Arabic-speaking markets.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-icon">⚡</div>
+        <h3 data-i18n="why.u5t">Real-Time Everything</h3>
+        <p data-i18n="why.u5d">Live availability, instant rate calculation, immediate booking confirmation, real-time traffic dispatch — no batch jobs, no delays, no stale data.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-icon">🏗️</div>
+        <h3 data-i18n="why.u6t">Enterprise Architecture</h3>
+        <p data-i18n="why.u6d">137 data models, 90+ API endpoints, full REST API for external integrations, webhook dispatching, and PDF/Excel/Word export for every module.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ DASHBOARD SHOWCASE ═══ -->
+<section class="section dashboard-section">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag" data-i18n="dash.tag">The Platform</div>
+      <h2 data-i18n="dash.title">One Unified Dashboard</h2>
+      <p data-i18n="dash.sub">All modules accessible from a single, clean interface with collapsible sidebar, real-time notifications, and role-based access control.</p>
+    </div>
+    <div class="dashboard-screens reveal">
+      <div class="browser-frame big">
+        <div class="browser-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="browser-url">itour.app/dashboard</span></div>
+        <img src="./screenshots/dashboard.png" alt="Main Dashboard" loading="lazy" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ CONTACT ═══ -->
+<section class="section contact-section" id="contact">
+  <div class="container">
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <div class="section-tag" data-i18n="contact.tag">Get in Touch</div>
+        <h2 data-i18n="contact.title">Ready to Transform Your Travel Business?</h2>
+        <p data-i18n="contact.sub">Schedule a personalized demo and see how iTourTMS can streamline your operations from day one.</p>
+        <div class="contact-details">
+          <div class="contact-item">
+            <span class="contact-icon">✉</span>
+            <a href="mailto:mggouda@gmail.com">mggouda@gmail.com</a>
+          </div>
+          <div class="contact-item">
+            <span class="contact-icon">📅</span>
+            <a href="https://calendar.google.com/calendar/u/0/r/appointments" target="_blank" rel="noopener" data-i18n="contact.calendly">Book a Demo Call</a>
+          </div>
+        </div>
+        <a href="https://calendar.google.com/calendar/u/0/r/appointments" target="_blank" rel="noopener" class="btn-primary btn-lg calendly-btn" data-i18n="contact.bookBtn">📅 Book on Google Calendar</a>
+      </div>
+      <div class="contact-form-wrap reveal">
+        <form class="contact-form" action="https://formsubmit.co/mggouda@gmail.com" method="POST">
+          <input type="hidden" name="_subject" value="iTourTMS Demo Request" />
+          <input type="hidden" name="_autoresponse" value="Thank you for your interest in iTourTMS. We'll be in touch within 24 hours." />
+          <input type="hidden" name="_captcha" value="false" />
+          <input type="hidden" name="_template" value="table" />
+          <div class="form-row">
+            <div class="form-group">
+              <label data-i18n="form.name">Full Name *</label>
+              <input type="text" name="name" required data-i18n-ph="form.name_ph" placeholder="Your full name" />
+            </div>
+            <div class="form-group">
+              <label data-i18n="form.company">Company *</label>
+              <input type="text" name="company" required data-i18n-ph="form.company_ph" placeholder="Company name" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label data-i18n="form.email">Email *</label>
+              <input type="email" name="email" required data-i18n-ph="form.email_ph" placeholder="your@email.com" />
+            </div>
+            <div class="form-group">
+              <label data-i18n="form.phone">Phone</label>
+              <input type="tel" name="phone" data-i18n-ph="form.phone_ph" placeholder="+1 234 567 890" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="form.interest">Modules of Interest</label>
+            <select name="modules">
+              <option value="all" data-i18n="form.all">All Modules</option>
+              <option value="contracting" data-i18n="m2.name">Contracting</option>
+              <option value="reservations" data-i18n="m4.name">Reservations</option>
+              <option value="crm" data-i18n="m3.name">CRM & Excursions</option>
+              <option value="traffic" data-i18n="m5.name">Traffic</option>
+              <option value="finance" data-i18n="m1.name">Finance</option>
+              <option value="b2c" data-i18n="m6.name">B2C Website</option>
+              <option value="b2b" data-i18n="m7.name">B2B Portal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="form.message">Message</label>
+            <textarea name="message" rows="4" data-i18n-ph="form.message_ph" placeholder="Tell us about your business and what you're looking to achieve..."></textarea>
+          </div>
+          <button type="submit" class="btn-primary btn-lg w-full" data-i18n="form.submit">Send Demo Request →</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════ FOOTER ═══ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="logo.svg" class="footer-logo-svg" alt="iTourTMS">
+        <p data-i18n="footer.desc">The complete travel management ecosystem for modern tour operators and travel agencies.</p>
+      </div>
+      <div class="footer-links">
+        <h4 data-i18n="footer.modules">Modules</h4>
+        <a href="#mod-finance" data-i18n="m1.name">Finance</a>
+        <a href="#mod-contracting" data-i18n="m2.name">Contracting</a>
+        <a href="#mod-crm" data-i18n="m3.name">CRM & Excursions</a>
+        <a href="#mod-reservations" data-i18n="m4.name">Reservations</a>
+        <a href="#mod-traffic" data-i18n="m5.name">Traffic</a>
+        <a href="#mod-b2c" data-i18n="m6.name">B2C Website</a>
+        <a href="#mod-b2b" data-i18n="m7.name">B2B Portal</a>
+      </div>
+      <div class="footer-links">
+        <h4 data-i18n="footer.company">Company</h4>
+        <a href="#why" data-i18n="nav.why">Why iTourTMS</a>
+        <a href="#contact" data-i18n="nav.contact">Contact</a>
+        <a href="https://calendar.google.com/calendar/u/0/r/appointments" target="_blank" rel="noopener" data-i18n="contact.calendly">Book a Demo</a>
+        <a href="mailto:mggouda@gmail.com">mggouda@gmail.com</a>
+      </div>
+      <div class="footer-links">
+        <h4 data-i18n="footer.lang">Language</h4>
+        <button class="footer-lang-btn" data-lang="en">🇬🇧 English</button>
+        <button class="footer-lang-btn" data-lang="ar">🇸🇦 العربية</button>
+        <button class="footer-lang-btn" data-lang="fr">🇫🇷 Français</button>
+        <button class="footer-lang-btn" data-lang="it">🇮🇹 Italiano</button>
+        <button class="footer-lang-btn" data-lang="de">🇩🇪 Deutsch</button>
+        <button class="footer-lang-btn" data-lang="ru">🇷🇺 Русский</button>
+        <button class="footer-lang-btn" data-lang="tr">🇹🇷 Türkçe</button>
+        <button class="footer-lang-btn" data-lang="es">🇪🇸 Español</button>
+        <button class="footer-lang-btn" data-lang="zh">🇨🇳 中文</button>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 iTourTMS. <span data-i18n="footer.rights">All rights reserved.</span></p>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script src="i18n.js"></script>
+<script src="globe.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
