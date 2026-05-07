@@ -106,6 +106,51 @@ export default function TrafficJobDetailPage() {
         </TabsList>
 
         <TabsContent value="info" className="space-y-4">
+          {/* Excursion dispatch run stops */}
+          {job.dispatchRun && (
+            <Card>
+              <CardHeader><CardTitle>Excursion Pickup Sequence</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Excursion</span>
+                  <span className="font-medium">{job.dispatchRun.dispatch.excursion.name} ({job.dispatchRun.dispatch.excursion.code})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Run</span>
+                  <span className="font-medium">#{job.dispatchRun.runNumber}</span>
+                </div>
+                {job.dispatchRun.rep && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rep</span>
+                    <span className="font-medium">{job.dispatchRun.rep.user.name}</span>
+                  </div>
+                )}
+                {job.dispatchRun.dispatch.assemblyPointName && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Assembly Point</span>
+                    <span className="font-medium">{job.dispatchRun.dispatch.assemblyPointName}</span>
+                  </div>
+                )}
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Hotel Pickup Stops</p>
+                  <div className="space-y-1">
+                    {job.dispatchRun.stops.map((stop, idx) => (
+                      <div key={stop.hotel.id} className="flex items-center justify-between rounded border px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground font-bold">
+                            {idx + 1}
+                          </span>
+                          <span className="font-medium">{stop.hotel.name}</span>
+                          <span className="text-muted-foreground text-xs">({stop.hotel.code})</span>
+                        </div>
+                        <span className="text-sm font-medium">{stop.paxCount} pax</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader><CardTitle>Job Details</CardTitle></CardHeader>
@@ -185,6 +230,12 @@ export default function TrafficJobDetailPage() {
                 <InfoRow label="Dropoff Address" value={job.dropoffAddress ?? "—"} />
                 <InfoRow label="Price" value={job.currency ? `${job.currency.symbol}${Number(job.price).toFixed(2)}` : String(Number(job.price).toFixed(2))} />
                 <InfoRow label="Cost" value={String(Number(job.cost).toFixed(2))} />
+                {job.passengerNotes && !job.dispatchRun && (
+                  <div className="border-t pt-2 mt-2">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Notes</p>
+                    <p className="whitespace-pre-wrap text-xs">{job.passengerNotes}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

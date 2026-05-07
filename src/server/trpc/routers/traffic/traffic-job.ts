@@ -76,53 +76,74 @@ export const trafficJobRouter = createTRPCRouter({
   getById: proc
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.ttTrafficJob.findFirstOrThrow({
-        where: { id: input.id, companyId: ctx.companyId },
-        include: {
-          vehicleType: { select: { id: true, name: true, code: true } },
-          pickupAirport: { select: { id: true, code: true, name: true } },
-          pickupHotel: { select: { id: true, name: true, code: true } },
-          dropoffAirport: { select: { id: true, code: true, name: true } },
-          dropoffHotel: { select: { id: true, name: true, code: true } },
-          zone: { select: { id: true, name: true, code: true } },
-          partner: { select: { id: true, name: true } },
-          booking: {
-            select: {
-              id: true,
-              code: true,
-              arrivalFlightNo: true,
-              arrivalTime: true,
-              arrivalOriginApt: true,
-              arrivalDestApt: true,
-              arrivalTerminal: true,
-              departFlightNo: true,
-              departTime: true,
-              departOriginApt: true,
-              departDestApt: true,
-              departTerminal: true,
-              hotel: { select: { name: true } },
-              leadGuestName: true,
-              adults: true,
-              children: true,
-              infants: true,
+      const [job, dispatchRun] = await Promise.all([
+        ctx.db.ttTrafficJob.findFirstOrThrow({
+          where: { id: input.id, companyId: ctx.companyId },
+          include: {
+            vehicleType: { select: { id: true, name: true, code: true } },
+            pickupAirport: { select: { id: true, code: true, name: true } },
+            pickupHotel: { select: { id: true, name: true, code: true } },
+            dropoffAirport: { select: { id: true, code: true, name: true } },
+            dropoffHotel: { select: { id: true, name: true, code: true } },
+            zone: { select: { id: true, name: true, code: true } },
+            partner: { select: { id: true, name: true } },
+            booking: {
+              select: {
+                id: true,
+                code: true,
+                arrivalFlightNo: true,
+                arrivalTime: true,
+                arrivalOriginApt: true,
+                arrivalDestApt: true,
+                arrivalTerminal: true,
+                departFlightNo: true,
+                departTime: true,
+                departOriginApt: true,
+                departDestApt: true,
+                departTerminal: true,
+                hotel: { select: { name: true } },
+                leadGuestName: true,
+                adults: true,
+                children: true,
+                infants: true,
+              },
+            },
+            flight: true,
+            currency: { select: { id: true, code: true, symbol: true } },
+            createdBy: { select: { id: true, name: true } },
+            assignments: {
+              include: {
+                vehicle: { select: { id: true, plateNumber: true } },
+                driver: { include: { user: { select: { id: true, name: true } } } },
+                rep: { include: { user: { select: { id: true, name: true } } } },
+              },
+            },
+            statusLogs: { orderBy: { createdAt: "desc" } },
+            operationalCosts: {
+              include: { currency: { select: { id: true, code: true, symbol: true } } },
             },
           },
-          flight: true,
-          currency: { select: { id: true, code: true, symbol: true } },
-          createdBy: { select: { id: true, name: true } },
-          assignments: {
-            include: {
-              vehicle: { select: { id: true, plateNumber: true } },
-              driver: { include: { user: { select: { id: true, name: true } } } },
-              rep: { include: { user: { select: { id: true, name: true } } } },
+        }),
+        ctx.db.crmDispatchRun.findUnique({
+          where: { trafficJobId: input.id },
+          include: {
+            dispatch: {
+              select: {
+                excursion: { select: { id: true, name: true, code: true } },
+                assemblyPointName: true,
+                dispatchDate: true,
+              },
+            },
+            rep: { select: { id: true, user: { select: { name: true } } } },
+            stops: {
+              include: { hotel: { select: { id: true, name: true, code: true } } },
+              orderBy: { sequence: "asc" },
             },
           },
-          statusLogs: { orderBy: { createdAt: "desc" } },
-          operationalCosts: {
-            include: { currency: { select: { id: true, code: true, symbol: true } } },
-          },
-        },
-      });
+        }),
+      ]);
+
+      return { ...job, dispatchRun: dispatchRun ?? null };
     }),
 
   create: proc

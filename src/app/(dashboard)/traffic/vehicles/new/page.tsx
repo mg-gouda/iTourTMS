@@ -24,7 +24,7 @@ export default function NewVehiclePage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(vehicleCreateSchema),
-    defaultValues: { ownership: "OWNED", status: "ACTIVE", isActive: true },
+    defaultValues: { plateNumber: "", make: "", model: "", color: "", notes: "", ownership: "OWNED", status: "ACTIVE", isActive: true },
   });
 
   const { data: vehicleTypes } = trpc.traffic.vehicleType.list.useQuery();
@@ -61,7 +61,7 @@ export default function NewVehiclePage() {
                 </FormItem>
               )} />
               <FormField control={form.control} name="plateNumber" render={({ field }) => (
-                <FormItem><FormLabel>Plate Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Plate Number</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="make" render={({ field }) => (
                 <FormItem><FormLabel>Make</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
