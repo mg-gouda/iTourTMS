@@ -28,7 +28,7 @@ export function exportTransportRatesExcel(
         dateFrom: Date | string;
         dateTo: Date | string;
         isActive: boolean;
-        rates: { vehicleType: OpsVehicleType; rentEGP: number | string; tipEGP: number | string; repAllowEGP: number | string }[];
+        rates: { vehicleType: OpsVehicleType; rentEGP: number | string | { toString(): string }; tipEGP: number | string | { toString(): string }; repAllowEGP: number | string | { toString(): string } }[];
       }[];
     }[];
   }[]

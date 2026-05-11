@@ -49,10 +49,26 @@ export const hotelRouter = createTRPCRouter({
     .input(hotelCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { amenityIds, ...data } = input;
+
+      const partner = await ctx.db.partner.create({
+        data: {
+          companyId: ctx.companyId,
+          type: "supplier",
+          isCompany: true,
+          name: data.name,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          website: data.website ?? null,
+          city: data.city ?? null,
+          countryId: data.countryId ?? null,
+        },
+      });
+
       return ctx.db.hotel.create({
         data: {
           ...data,
           companyId: ctx.companyId,
+          partnerId: partner.id,
           amenities: amenityIds.length
             ? { connect: amenityIds.map((id) => ({ id })) }
             : undefined,
@@ -64,6 +80,25 @@ export const hotelRouter = createTRPCRouter({
     .input(z.object({ id: z.string(), data: hotelUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const { amenityIds, ...data } = input.data;
+
+      const hotel = await ctx.db.hotel.findUnique({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { partnerId: true },
+      });
+      if (hotel?.partnerId) {
+        await ctx.db.partner.update({
+          where: { id: hotel.partnerId },
+          data: {
+            ...(data.name !== undefined && { name: data.name }),
+            ...(data.email !== undefined && { email: data.email ?? null }),
+            ...(data.phone !== undefined && { phone: data.phone ?? null }),
+            ...(data.website !== undefined && { website: data.website ?? null }),
+            ...(data.city !== undefined && { city: data.city ?? null }),
+            ...(data.countryId !== undefined && { countryId: data.countryId ?? null }),
+          },
+        });
+      }
+
       return ctx.db.hotel.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: {
@@ -78,9 +113,15 @@ export const hotelRouter = createTRPCRouter({
   delete: proc
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.hotel.delete({
+      const hotel = await ctx.db.hotel.findUnique({
         where: { id: input.id, companyId: ctx.companyId },
+        select: { partnerId: true },
       });
+      await ctx.db.hotel.delete({ where: { id: input.id, companyId: ctx.companyId } });
+      if (hotel?.partnerId) {
+        await ctx.db.partner.delete({ where: { id: hotel.partnerId } });
+      }
+      return { success: true };
     }),
 
   // ── Hotel Code Auto-generation ──

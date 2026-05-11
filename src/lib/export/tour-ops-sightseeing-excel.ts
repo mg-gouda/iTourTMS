@@ -10,7 +10,7 @@ export function exportSightseeingRatesExcel(
       dateFrom: Date | string;
       dateTo: Date | string;
       isActive: boolean;
-      priceEGP: number | string;
+      priceEGP: number | string | { toString(): string };
     }[];
   }[]
 ): ArrayBuffer {

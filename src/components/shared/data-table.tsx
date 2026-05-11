@@ -169,6 +169,7 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: React.Dispatch<React.SetStateAction<RowSelectionState>>;
+  isLoading?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -181,6 +182,7 @@ export function DataTable<TData, TValue>({
   enableRowSelection = false,
   rowSelection: controlledRowSelection,
   onRowSelectionChange,
+  isLoading = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] =
@@ -244,7 +246,17 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {columns.map((_, j) => (
+                    <TableCell key={j}>
+                      <div className="h-4 bg-muted animate-pulse rounded" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}

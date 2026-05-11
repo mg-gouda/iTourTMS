@@ -739,8 +739,8 @@ export const contractRouter = createTRPCRouter({
             data: source.seasonSpos.map((spo) => ({
               contractId: newContract.id,
               spoType: spo.spoType,
-              dateFrom: dateDelta ? shiftDate(spo.dateFrom, dateDelta) : spo.dateFrom,
-              dateTo: dateDelta ? shiftDate(spo.dateTo, dateDelta) : spo.dateTo,
+              dateFrom: dateDelta && spo.dateFrom ? shiftDate(spo.dateFrom, dateDelta) : spo.dateFrom,
+              dateTo: dateDelta && spo.dateTo ? shiftDate(spo.dateTo, dateDelta) : spo.dateTo,
               basePp: spo.basePp,
               sglSup: spo.sglSup,
               thirdAdultRed: spo.thirdAdultRed,

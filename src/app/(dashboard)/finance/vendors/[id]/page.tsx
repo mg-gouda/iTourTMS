@@ -31,10 +31,11 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
   const { data: partner, isLoading } = trpc.finance.partner.getById.useQuery({ id });
   const { data: stats } = trpc.finance.partner.getStats.useQuery({ id });
-  const { data: bills = [] } = trpc.finance.move.list.useQuery({
-    moveType: "in_invoice",
+  const { data: billsData } = trpc.finance.move.list.useQuery({
+    moveType: "IN_INVOICE",
     partnerId: id,
   });
+  const bills = billsData?.items ?? [];
   const { data: paymentsData } = trpc.finance.payment.list.useQuery({
     partnerId: id,
     paymentType: "OUTBOUND",

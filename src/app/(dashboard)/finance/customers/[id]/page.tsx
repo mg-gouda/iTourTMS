@@ -33,10 +33,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
   const { data: partner, isLoading } = trpc.finance.partner.getById.useQuery({ id });
   const { data: stats } = trpc.finance.partner.getStats.useQuery({ id });
-  const { data: invoices = [] } = trpc.finance.move.list.useQuery({
-    moveType: "out_invoice",
+  const { data: invoicesData } = trpc.finance.move.list.useQuery({
+    moveType: "OUT_INVOICE",
     partnerId: id,
   });
+  const invoices = invoicesData?.items ?? [];
   const { data: paymentsData } = trpc.finance.payment.list.useQuery({
     partnerId: id,
   });

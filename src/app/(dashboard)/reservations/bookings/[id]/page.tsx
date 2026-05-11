@@ -88,6 +88,9 @@ export default function BookingDetailPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+
   const { data: booking, isLoading } = trpc.reservations.booking.getById.useQuery({ id });
   const { data: company } = trpc.settings.getCompanySettings.useQuery();
   const { data: hotelCredits, refetch: refetchCredits } = trpc.reservations.hotelCredit.getByBooking.useQuery(id);
@@ -96,9 +99,6 @@ export default function BookingDetailPage() {
       { bookingId: id },
       { enabled: cancelOpen, retry: false },
     );
-
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [issueCreditNote, setIssueCreditNote] = useState(false);
   const [creditNoteNotes, setCreditNoteNotes] = useState("");

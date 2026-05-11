@@ -552,6 +552,10 @@ model Partner {
   // CRM relations
   crmCustomers           CrmCustomer[]
 
+  // Back-relations from auto-linked records
+  hotel                  Hotel?        @relation("HotelPartner")
+  tourOperator           TourOperator? @relation("TourOperatorPartner")
+
   @@index([companyId])
   @@index([companyId, type])
   @@index([name])
@@ -1604,12 +1608,14 @@ model Hotel {
   active           Boolean    @default(true)
   featured         Boolean    @default(false)
   publicVisible    Boolean    @default(true)
+  partnerId        String?    @unique
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   state       CountryState? @relation(fields: [stateId], references: [id])
   country     Country       @relation(fields: [countryId], references: [id])
+  partner     Partner?      @relation("HotelPartner", fields: [partnerId], references: [id])
   destination Destination?  @relation(fields: [destinationId], references: [id])
   cityRel     City?         @relation(fields: [cityId], references: [id])
   zone        Zone?         @relation(fields: [zoneId], references: [id])
@@ -2268,10 +2274,12 @@ model TourOperator {
   creditUsed    Decimal  @default(0) @db.Decimal(12, 4)
   paymentTermDays Int    @default(30)
   commissionPct Decimal  @default(0) @db.Decimal(5, 2)
+  partnerId     String?  @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partner            Partner?               @relation("TourOperatorPartner", fields: [partnerId], references: [id])
   country            Country?               @relation("TOCountry", fields: [countryId], references: [id])
   market             Market?                @relation(fields: [marketId], references: [id])
   contractAssignments ContractTourOperator[]
