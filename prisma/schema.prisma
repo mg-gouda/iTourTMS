@@ -108,6 +108,16 @@ model Company {
   fiscalYears       FiscalYear[]
   recurringEntries  RecurringEntry[]
   budgets           Budget[]
+  analyticAccounts  AnalyticAccount[]
+  assets            AccountAsset[]
+  loans             AccountLoan[]
+  taxReturns        TaxReturn[]
+  lockDate          AccountLockDate?
+  auditTrail        AuditTrailEntry[]
+  workingFiles      WorkingFile[]
+  deferredRevenues  DeferredRevenue[]
+  deferredExpenses  DeferredExpense[]
+  unrealizedCurrencies UnrealizedCurrencyEntry[]
 
   // Contracting relations
   destinations     Destination[]
@@ -457,6 +467,7 @@ model Currency {
   ttTrafficJobs          TtTrafficJob[]         @relation("TtJobCurrency")
   ttGuestBookings        TtGuestBooking[]       @relation("TtGuestBookingCurrency")
   ttOperationalCosts     TtOperationalCost[]    @relation("TtOpCostCurrency")
+  unrealizedEntries      UnrealizedCurrencyEntry[]
 
   @@index([code])
 }
@@ -555,6 +566,11 @@ model Partner {
   // Back-relations from auto-linked records
   hotel                  Hotel?        @relation("HotelPartner")
   tourOperator           TourOperator? @relation("TourOperatorPartner")
+
+  // Finance new relations
+  analyticAccounts       AnalyticAccount[]
+  assets                 AccountAsset[]
+  loans                  AccountLoan[]
 
   @@index([companyId])
   @@index([companyId, type])
@@ -750,6 +766,47 @@ enum BudgetState {
   CANCELLED
 }
 
+enum AssetState {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum AssetMethod {
+  STRAIGHT_LINE
+  DEGRESSIVE
+  DEGRESSIVE_THEN_STRAIGHT_LINE
+}
+
+enum LoanType {
+  RECEIVED
+  GIVEN
+}
+
+enum LoanState {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum TaxReturnState {
+  DRAFT
+  CONFIRMED
+  FILED
+}
+
+enum WorkingFileState {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum DeferralState {
+  DRAFT
+  RUNNING
+  CLOSED
+}
+
 // ============================================================================
 // CONTRACTING MODULE — Enums
 // ============================================================================
@@ -899,6 +956,21 @@ model FinAccount {
   recurringEntryLines RecurringEntryLine[]
   budgetLines         BudgetLine[]
 
+  // Asset relations
+  assetAccounts           AccountAsset[] @relation("AssetAccount")
+  assetDepAccounts        AccountAsset[] @relation("AssetDepAccount")
+  assetAccumAccounts      AccountAsset[] @relation("AssetAccumAccount")
+
+  // Loan relations
+  loanAccounts            AccountLoan[]  @relation("LoanAccount")
+  loanInterestAccounts    AccountLoan[]  @relation("LoanInterestAccount")
+
+  // Deferred revenue/expense relations
+  deferredRevAccounts     DeferredRevenue[] @relation("DeferredRevAccount")
+  deferredRevTargets      DeferredRevenue[] @relation("DeferredRevTargetAccount")
+  deferredExpAccounts     DeferredExpense[] @relation("DeferredExpAccount")
+  deferredExpTargets      DeferredExpense[] @relation("DeferredExpTargetAccount")
+
   @@unique([code, companyId])
   @@index([companyId])
   @@index([companyId, accountType])
@@ -991,6 +1063,7 @@ model Tax {
   // Fiscal position relations
   fpTaxSrcMaps  FiscalPositionTaxMap[] @relation("FPTaxSrc")
   fpTaxDestMaps FiscalPositionTaxMap[] @relation("FPTaxDest")
+  taxReturnLines TaxReturnLine[]
 
   @@index([companyId])
   @@index([companyId, typeTaxUse])
@@ -1094,6 +1167,12 @@ model Move {
   paymentMove     Payment?        @relation("PaymentMove")
   exchangeReconciles PartialReconcile[] @relation("ExchangeMove")
   closingForYear     FiscalYear?        @relation("YearClosingMove")
+  assetLine          AccountAssetLine?
+  loanSchedule       LoanScheduleLine?
+  deferredRevSchedule DeferredRevenueSchedule?  @relation("DeferredRevMove")
+  deferredExpSchedule DeferredExpenseSchedule?  @relation("DeferredExpMove")
+  unrealizedAdj      UnrealizedCurrencyEntry?   @relation("UnrealizedAdjMove")
+  unrealizedRev      UnrealizedCurrencyEntry?   @relation("UnrealizedRevMove")
 
   @@index([companyId])
   @@index([companyId, moveType])
@@ -1119,26 +1198,31 @@ model MoveLineItem {
   quantity       Decimal     @default(1) @db.Decimal(12, 4)
   priceUnit      Decimal     @default(0) @db.Decimal(12, 4)
   discount       Decimal     @default(0) @db.Decimal(5, 2)
-  taxLineId      String?
-  dateMaturity   DateTime?   @db.Date
-  sequence       Int         @default(10)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  taxLineId         String?
+  analyticAccountId String?
+  dateMaturity      DateTime?   @db.Date
+  sequence          Int         @default(10)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  move      Move        @relation(fields: [moveId], references: [id], onDelete: Cascade)
-  account   FinAccount  @relation(fields: [accountId], references: [id])
-  partner   Partner?    @relation(fields: [partnerId], references: [id])
-  currency  Currency?   @relation(fields: [currencyId], references: [id])
-  taxLine   Tax?        @relation("TaxLineSource", fields: [taxLineId], references: [id])
-  taxes     Tax[]       @relation("MoveLineItemTaxes")
+  move            Move             @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  account         FinAccount       @relation(fields: [accountId], references: [id])
+  partner         Partner?         @relation(fields: [partnerId], references: [id])
+  currency        Currency?        @relation(fields: [currencyId], references: [id])
+  taxLine         Tax?             @relation("TaxLineSource", fields: [taxLineId], references: [id])
+  taxes           Tax[]            @relation("MoveLineItemTaxes")
+  analyticAccount AnalyticAccount? @relation(fields: [analyticAccountId], references: [id])
 
   debitReconciles    PartialReconcile[]  @relation("DebitReconcileLine")
   creditReconciles   PartialReconcile[]  @relation("CreditReconcileLine")
   bankStatementLine  BankStatementLine?
+  deferredRevenue    DeferredRevenue?
+  deferredExpense    DeferredExpense?    @relation("DeferredExpMoveLine")
 
   @@index([moveId])
   @@index([accountId])
   @@index([displayType])
+  @@index([analyticAccountId])
   @@map("fin_move_line_item")
 }
 
@@ -1380,6 +1464,8 @@ model FiscalPeriod {
 
   fiscalYear   FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
   lockedByUser User?      @relation("FiscalPeriodLockedBy", fields: [lockedBy], references: [id])
+  taxReturns   TaxReturn[]
+  workingFiles WorkingFile[]
 
   @@unique([fiscalYearId, number])
   @@unique([fiscalYearId, code])
@@ -1480,6 +1566,351 @@ model BudgetLine {
   @@unique([budgetId, accountId])
   @@index([budgetId])
   @@map("fin_budget_line")
+}
+
+// ── FINANCE MODULE — Analytic Accounting ──
+
+model AnalyticAccount {
+  id          String   @id @default(cuid())
+  companyId   String
+  code        String?
+  name        String
+  partnerId   String?
+  isActive    Boolean  @default(true)
+  balance     Decimal  @default(0) @db.Decimal(12, 4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partner      Partner?        @relation(fields: [partnerId], references: [id])
+  moveLineItems MoveLineItem[]
+
+  @@unique([code, companyId])
+  @@index([companyId])
+  @@map("fin_analytic_account")
+}
+
+// ── FINANCE MODULE — Fixed Assets ──
+
+model AccountAsset {
+  id                       String      @id @default(cuid())
+  companyId                String
+  name                     String
+  code                     String?
+  accountId                String
+  depreciationAccountId    String?
+  accumulationAccountId    String?
+  journalId                String?
+  partnerId                String?
+  state                    AssetState  @default(DRAFT)
+  method                   AssetMethod @default(STRAIGHT_LINE)
+  originalValue            Decimal     @db.Decimal(12, 4)
+  salvageValue             Decimal     @default(0) @db.Decimal(12, 4)
+  usefulLifeYears          Int         @default(5)
+  acquisitionDate          DateTime    @db.Date
+  firstDepreciationDate    DateTime?   @db.Date
+  netBookValue             Decimal     @default(0) @db.Decimal(12, 4)
+  accumulatedDepreciation  Decimal     @default(0) @db.Decimal(12, 4)
+  notes                    String?     @db.Text
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  company               Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account               FinAccount         @relation("AssetAccount", fields: [accountId], references: [id])
+  depreciationAccount   FinAccount?        @relation("AssetDepAccount", fields: [depreciationAccountId], references: [id])
+  accumulationAccount   FinAccount?        @relation("AssetAccumAccount", fields: [accumulationAccountId], references: [id])
+  partner               Partner?           @relation(fields: [partnerId], references: [id])
+  depreciationLines     AccountAssetLine[]
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_account_asset")
+}
+
+model AccountAssetLine {
+  id           String   @id @default(cuid())
+  assetId      String
+  name         String
+  date         DateTime @db.Date
+  depreciation Decimal  @db.Decimal(12, 4)
+  residual     Decimal  @db.Decimal(12, 4)
+  moveId       String?  @unique
+  isPosted     Boolean  @default(false)
+
+  asset AccountAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  move  Move?        @relation(fields: [moveId], references: [id])
+
+  @@index([assetId])
+  @@map("fin_account_asset_line")
+}
+
+// ── FINANCE MODULE — Loans ──
+
+model AccountLoan {
+  id                String    @id @default(cuid())
+  companyId         String
+  name              String
+  loanType          LoanType  @default(RECEIVED)
+  state             LoanState @default(DRAFT)
+  partnerId         String?
+  amount            Decimal   @db.Decimal(12, 4)
+  rate              Decimal   @db.Decimal(8, 6)
+  termMonths        Int       @default(12)
+  startDate         DateTime  @db.Date
+  accountId         String
+  interestAccountId String?
+  journalId         String?
+  outstanding       Decimal   @default(0) @db.Decimal(12, 4)
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partner         Partner?          @relation(fields: [partnerId], references: [id])
+  account         FinAccount        @relation("LoanAccount", fields: [accountId], references: [id])
+  interestAccount FinAccount?       @relation("LoanInterestAccount", fields: [interestAccountId], references: [id])
+  schedule        LoanScheduleLine[]
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_account_loan")
+}
+
+model LoanScheduleLine {
+  id        String   @id @default(cuid())
+  loanId    String
+  sequence  Int
+  dueDate   DateTime @db.Date
+  principal Decimal  @db.Decimal(12, 4)
+  interest  Decimal  @db.Decimal(12, 4)
+  total     Decimal  @db.Decimal(12, 4)
+  balance   Decimal  @db.Decimal(12, 4)
+  isPaid    Boolean  @default(false)
+  moveId    String?  @unique
+
+  loan AccountLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  move Move?       @relation(fields: [moveId], references: [id])
+
+  @@index([loanId])
+  @@map("fin_loan_schedule_line")
+}
+
+// ── FINANCE MODULE — Tax Returns ──
+
+model TaxReturn {
+  id           String         @id @default(cuid())
+  companyId    String
+  name         String
+  periodId     String?
+  dateFrom     DateTime       @db.Date
+  dateTo       DateTime       @db.Date
+  state        TaxReturnState @default(DRAFT)
+  totalTaxBase Decimal        @default(0) @db.Decimal(12, 4)
+  totalTax     Decimal        @default(0) @db.Decimal(12, 4)
+  totalDue     Decimal        @default(0) @db.Decimal(12, 4)
+  filedAt      DateTime?
+  filedBy      String?
+  notes        String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period  FiscalPeriod?    @relation(fields: [periodId], references: [id])
+  lines   TaxReturnLine[]
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_tax_return")
+}
+
+model TaxReturnLine {
+  id          String  @id @default(cuid())
+  taxReturnId String
+  taxId       String
+  taxName     String
+  taxBase     Decimal @db.Decimal(12, 4)
+  taxAmount   Decimal @db.Decimal(12, 4)
+
+  taxReturn TaxReturn @relation(fields: [taxReturnId], references: [id], onDelete: Cascade)
+  tax       Tax       @relation(fields: [taxId], references: [id])
+
+  @@index([taxReturnId])
+  @@map("fin_tax_return_line")
+}
+
+// ── FINANCE MODULE — Lock Dates ──
+
+model AccountLockDate {
+  id               String    @id @default(cuid())
+  companyId        String    @unique
+  taxLockDate      DateTime? @db.Date
+  saleLockDate     DateTime? @db.Date
+  purchaseLockDate DateTime? @db.Date
+  hardLockDate     DateTime? @db.Date
+  updatedAt        DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("fin_account_lock_date")
+}
+
+// ── FINANCE MODULE — Audit Trail ──
+
+model AuditTrailEntry {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String
+  userName   String
+  modelName  String
+  recordId   String
+  recordName String?
+  action     String
+  changes    Json?
+  createdAt  DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, modelName])
+  @@index([companyId, createdAt])
+  @@map("fin_audit_trail")
+}
+
+// ── FINANCE MODULE — Working Files ──
+
+model WorkingFile {
+  id          String           @id @default(cuid())
+  companyId   String
+  name        String
+  periodId    String?
+  state       WorkingFileState @default(DRAFT)
+  assignedTo  String?
+  dueDate     DateTime?        @db.Date
+  description String?          @db.Text
+  conclusion  String?          @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period  FiscalPeriod? @relation(fields: [periodId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_working_file")
+}
+
+// ── FINANCE MODULE — Deferred Revenues ──
+
+model DeferredRevenue {
+  id               String        @id @default(cuid())
+  companyId        String
+  name             String
+  moveLineId       String?       @unique
+  amount           Decimal       @db.Decimal(12, 4)
+  recognizedAmount Decimal       @default(0) @db.Decimal(12, 4)
+  startDate        DateTime      @db.Date
+  endDate          DateTime      @db.Date
+  accountId        String
+  revenueAccountId String
+  journalId        String?
+  state            DeferralState @default(DRAFT)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  company         Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  moveLine        MoveLineItem?              @relation(fields: [moveLineId], references: [id])
+  account         FinAccount                 @relation("DeferredRevAccount", fields: [accountId], references: [id])
+  revenueAccount  FinAccount                 @relation("DeferredRevTargetAccount", fields: [revenueAccountId], references: [id])
+  schedule        DeferredRevenueSchedule[]
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_deferred_revenue")
+}
+
+model DeferredRevenueSchedule {
+  id           String    @id @default(cuid())
+  deferredId   String
+  date         DateTime  @db.Date
+  amount       Decimal   @db.Decimal(12, 4)
+  isRecognized Boolean   @default(false)
+  moveId       String?   @unique
+
+  deferred DeferredRevenue @relation(fields: [deferredId], references: [id], onDelete: Cascade)
+  move     Move?           @relation("DeferredRevMove", fields: [moveId], references: [id])
+
+  @@index([deferredId])
+  @@map("fin_deferred_revenue_schedule")
+}
+
+// ── FINANCE MODULE — Deferred Expenses ──
+
+model DeferredExpense {
+  id               String        @id @default(cuid())
+  companyId        String
+  name             String
+  moveLineId       String?       @unique
+  amount           Decimal       @db.Decimal(12, 4)
+  amortizedAmount  Decimal       @default(0) @db.Decimal(12, 4)
+  startDate        DateTime      @db.Date
+  endDate          DateTime      @db.Date
+  accountId        String
+  expenseAccountId String
+  journalId        String?
+  state            DeferralState @default(DRAFT)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  company        Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  moveLine       MoveLineItem?              @relation("DeferredExpMoveLine", fields: [moveLineId], references: [id])
+  account        FinAccount                 @relation("DeferredExpAccount", fields: [accountId], references: [id])
+  expenseAccount FinAccount                 @relation("DeferredExpTargetAccount", fields: [expenseAccountId], references: [id])
+  schedule       DeferredExpenseSchedule[]
+
+  @@index([companyId])
+  @@index([companyId, state])
+  @@map("fin_deferred_expense")
+}
+
+model DeferredExpenseSchedule {
+  id          String   @id @default(cuid())
+  deferredId  String
+  date        DateTime @db.Date
+  amount      Decimal  @db.Decimal(12, 4)
+  isAmortized Boolean  @default(false)
+  moveId      String?  @unique
+
+  deferred DeferredExpense @relation(fields: [deferredId], references: [id], onDelete: Cascade)
+  move     Move?           @relation("DeferredExpMove", fields: [moveId], references: [id])
+
+  @@index([deferredId])
+  @@map("fin_deferred_expense_schedule")
+}
+
+// ── FINANCE MODULE — Unrealized Currency Gains/Losses ──
+
+model UnrealizedCurrencyEntry {
+  id               String   @id @default(cuid())
+  companyId        String
+  name             String
+  date             DateTime @db.Date
+  currencyId       String
+  gainLoss         Decimal  @db.Decimal(12, 4)
+  adjustmentMoveId String?  @unique
+  isReversed       Boolean  @default(false)
+  reversalMoveId   String?  @unique
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  currency       Currency  @relation(fields: [currencyId], references: [id])
+  adjustmentMove Move?     @relation("UnrealizedAdjMove", fields: [adjustmentMoveId], references: [id])
+  reversalMove   Move?     @relation("UnrealizedRevMove", fields: [reversalMoveId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, date])
+  @@map("fin_unrealized_currency")
 }
 
 // ============================================================================

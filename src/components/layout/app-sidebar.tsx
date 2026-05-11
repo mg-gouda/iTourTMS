@@ -65,6 +65,7 @@ const mainNav = [
 interface SubGroup {
   label: string;
   routes: { label: string; href: string }[];
+  divider?: boolean; // renders as a non-collapsible section separator
 }
 
 interface ModuleRouteConfig {
@@ -102,14 +103,75 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Batch Payments", href: "/finance/banking/batch-payments" },
         ],
       },
+      // ── ACCOUNTING ──
+      { label: "Accounting", divider: true, routes: [] },
       {
-        label: "Accounting",
+        label: "Transactions",
         routes: [
           { label: "Journal Entries", href: "/finance/accounting/journal-entries" },
-          { label: "Recurring Entries", href: "/finance/accounting/recurring-entries" },
-          { label: "Budgets", href: "/finance/accounting/budgets" },
+          { label: "Analytic Items", href: "/finance/accounting/analytic-items" },
         ],
       },
+      {
+        label: "Assets & Liabilities",
+        routes: [
+          { label: "Assets", href: "/finance/accounting/assets" },
+          { label: "Loans", href: "/finance/accounting/loans" },
+        ],
+      },
+      {
+        label: "Closing",
+        routes: [
+          { label: "Reconcile", href: "/finance/accounting/reconcile" },
+          { label: "Tax Returns", href: "/finance/accounting/tax-returns" },
+          { label: "Lock Dates", href: "/finance/accounting/lock-dates" },
+        ],
+      },
+      // ── REVIEW ──
+      { label: "Review", divider: true, routes: [] },
+      {
+        label: "Control",
+        routes: [
+          { label: "Journal Items", href: "/finance/review/journal-items" },
+          { label: "Journal Audit", href: "/finance/review/journal-audit" },
+        ],
+      },
+      {
+        label: "Audit",
+        routes: [
+          { label: "Working Files", href: "/finance/review/working-files" },
+        ],
+      },
+      {
+        label: "Regularization Entries",
+        routes: [
+          { label: "Unrealized Currencies", href: "/finance/review/unrealized-currencies" },
+          { label: "Deferred Revenues", href: "/finance/review/deferred-revenues" },
+          { label: "Deferred Expenses", href: "/finance/review/deferred-expenses" },
+        ],
+      },
+      {
+        label: "Purchases",
+        routes: [
+          { label: "Bill To Receive", href: "/finance/review/bill-to-receive" },
+          { label: "Billed Not Received", href: "/finance/review/billed-not-received" },
+        ],
+      },
+      {
+        label: "Sales",
+        routes: [
+          { label: "Invoices To Be Issued", href: "/finance/review/invoices-to-be-issued" },
+          { label: "Invoiced Not Delivered", href: "/finance/review/invoiced-not-delivered" },
+        ],
+      },
+      {
+        label: "Logs",
+        routes: [
+          { label: "Audit Trail", href: "/finance/review/audit-trail" },
+        ],
+      },
+      // ── CONFIGURATION ──
+      { label: "", divider: true, routes: [] },
       {
         label: "Configuration",
         routes: [
@@ -431,6 +493,16 @@ function CollapsibleSubGroup({
   moduleKey: string;
   pathname: string;
 }) {
+  if (group.divider) {
+    return (
+      <div className="px-2 pt-3 pb-0.5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35 select-none">
+          {group.label}
+        </p>
+      </div>
+    );
+  }
+
   const storageKey = `sidebar-${moduleKey}-${group.label}`;
   const hasActiveRoute = group.routes.some((r) => pathname === r.href);
 
@@ -521,7 +593,7 @@ function CollapsibleModule({
 
   const allHrefs = [
     ...config.topLevel.map((r) => r.href),
-    ...config.groups.flatMap((g) => g.routes.map((r) => r.href)),
+    ...config.groups.filter((g) => !g.divider).flatMap((g) => g.routes.map((r) => r.href)),
   ];
   const hasActiveRoute = allHrefs.some(
     (href) => pathname === href || pathname.startsWith(href + "/"),
