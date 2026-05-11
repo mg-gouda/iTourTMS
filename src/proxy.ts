@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server";
  * Only checks for the JWT session cookie to redirect unauthenticated users.
  * Actual JWT verification happens server-side in the auth callbacks / tRPC.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public API & auth routes
