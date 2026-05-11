@@ -177,6 +177,21 @@ model Company {
   b2bCreditTransactions B2bCreditTransaction[]
   hotelCreditNotes      HotelCreditNote[]
 
+  // Tour Operations relations
+  opsFiles             OpsFile[]
+  opsPackages          OpsPackage[]
+  opsQuotations        OpsQuotation[]
+  opsTransportDest     OpsTransportDestination[]
+  opsTransportRoutes   OpsTransportRoute[]
+  opsTransportSeasons  OpsTransportRateSeason[]
+  opsTransportRates    OpsTransportRate[]
+  opsSightseeingEntries OpsSightseeingEntry[]
+  opsSightseeingSeasons OpsSightseeingRateSeason[]
+  opsGuidanceRates     OpsGuidanceRate[]
+  opsGuidanceSeasons   OpsGuidanceRateSeason[]
+  opsMealRates         OpsMealRate[]
+  opsMealSeasons       OpsMealRateSeason[]
+
   // License
   license              License?
 
@@ -285,6 +300,9 @@ model User {
   b2bCreditTxCreated         B2bCreditTransaction[]  @relation("CreditTxCreator")
   hotelCreditNotesCreated    HotelCreditNote[]       @relation("HotelCreditCreatedBy")
   hotelCreditConsumptions    HotelCreditConsumption[] @relation("HotelCreditUsedBy")
+
+  // Tour Operations relations
+  opsFilesCreated      OpsFile[]  @relation("OpsFileCreatedBy")
 
   @@index([companyId])
   @@index([email])
@@ -485,32 +503,38 @@ model PartnerTitle {
 // ============================================================================
 
 model Partner {
-  id            String   @id @default(cuid())
-  companyId     String
-  type          String   @default("customer") // customer, supplier, tour_operator, corporate, individual
-  isCompany     Boolean  @default(false) // true = organization, false = individual
-  name          String
-  displayName   String?
-  titleId       String?
-  email         String?
-  phone         String?
-  mobile        String?
-  website       String?
-  taxId         String?
-  notes         String?  @db.Text
-  countryId     String?
-  stateId       String?
-  city          String?
-  street        String?
-  zip           String?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  companyId       String
+  type            String   @default("customer") // customer, supplier, tour_operator, corporate, individual
+  isCompany       Boolean  @default(false) // true = organization, false = individual
+  name            String
+  displayName     String?
+  titleId         String?
+  email           String?
+  phone           String?
+  mobile          String?
+  website         String?
+  taxId           String?
+  notes           String?  @db.Text
+  countryId       String?
+  stateId         String?
+  city            String?
+  street          String?
+  zip             String?
+  paymentTermId         String?
+  accountReceivableId   String?
+  accountPayableId      String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  title    PartnerTitle?  @relation(fields: [titleId], references: [id])
-  country  Country?       @relation(fields: [countryId], references: [id])
-  state    CountryState?  @relation(fields: [stateId], references: [id])
+  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title                PartnerTitle?  @relation(fields: [titleId], references: [id])
+  country              Country?       @relation(fields: [countryId], references: [id])
+  state                CountryState?  @relation(fields: [stateId], references: [id])
+  paymentTerm          PaymentTerm?   @relation(fields: [paymentTermId], references: [id])
+  accountReceivable    FinAccount?    @relation("PartnerReceivableAccount", fields: [accountReceivableId], references: [id])
+  accountPayable       FinAccount?    @relation("PartnerPayableAccount", fields: [accountPayableId], references: [id])
 
   moves              Move[]
   moveLineItems      MoveLineItem[]
@@ -836,6 +860,8 @@ model FinAccount {
   code        String
   name        String
   accountType AccountType
+  isGroup     Boolean     @default(false)
+  parentId    String?
   reconcile   Boolean     @default(false)
   deprecated  Boolean     @default(false)
   groupId     String?
@@ -844,6 +870,8 @@ model FinAccount {
   updatedAt   DateTime    @updatedAt
 
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent      FinAccount?   @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children    FinAccount[]  @relation("AccountHierarchy")
   group       AccountGroup? @relation(fields: [groupId], references: [id])
   currency    Currency?     @relation(fields: [currencyId], references: [id])
   tags        AccountTag[]
@@ -856,6 +884,10 @@ model FinAccount {
   journalLoss           Journal[] @relation("JournalLossAccount")
   taxRepartitionLines   TaxRepartitionLine[]
   moveLineItems         MoveLineItem[]
+
+  // Partner default accounts
+  partnerReceivables Partner[] @relation("PartnerReceivableAccount")
+  partnerPayables    Partner[] @relation("PartnerPayableAccount")
 
   // Fiscal position relations
   fpAccountSrcMaps  FiscalPositionAccountMap[] @relation("FPAccountSrc")
@@ -990,9 +1022,10 @@ model PaymentTerm {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lines   PaymentTermLine[]
-  moves   Move[]
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines    PaymentTermLine[]
+  moves    Move[]
+  partners Partner[]
 
   @@unique([name, companyId])
   @@index([companyId])
@@ -2251,6 +2284,7 @@ model TourOperator {
   partnerUsers        User[]   @relation("PartnerUser")
   crmProgramAssignments CrmProgramTourOperator[]
   excursionTickets   CrmExcursionTicket[]
+  opsFiles           OpsFile[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -4337,6 +4371,7 @@ model CrmCustomer {
   activities    CrmActivity[]
   opportunities CrmOpportunity[]
   bookings      CrmBooking[]
+  opsFiles      OpsFile[]
 
   @@index([companyId])
   @@index([companyId, email])
@@ -4360,7 +4395,9 @@ model CrmSupplier {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  costComponents CrmCostComponent[]
+  costComponents       CrmCostComponent[]
+  opsPackageComponents OpsPackageComponent[]
+  opsMealRates         OpsMealRate[]
 
   @@index([companyId])
   @@map("crm_supplier")
@@ -4966,4 +5003,444 @@ model HotelCreditConsumption {
   @@index([creditNoteId])
   @@index([bookingId])
   @@map("hotel_credit_consumption")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOUR OPERATIONS MODULE
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum OpsFileStatus {
+  DRAFT
+  QUOTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OpsComponentType {
+  ACCOMMODATION
+  TRANSFER
+  EXCURSION
+  FLIGHT
+  MEET_ASSIST
+  NILE_CRUISE
+  GUIDANCE
+  MEAL
+  PORTERAGE
+  TIPPING
+  FELUCCA
+  CARRIAGE
+  MISC
+}
+
+enum OpsQuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum OpsClientType {
+  B2C
+  TOUR_OPERATOR
+  TRAVEL_AGENT
+}
+
+enum OpsMarkupType {
+  PERCENTAGE
+  FIXED
+}
+
+enum OpsPackageSource {
+  TEMPLATE
+  FILE_SPECIFIC
+}
+
+enum OpsPricingBasis {
+  PER_PERSON
+  BULK
+}
+
+enum OpsVehicleType {
+  SEDAN
+  VAN_11
+  VAN_16
+  BUS_25
+  BUS_45
+}
+
+enum OpsGuideType {
+  LOCAL_GUIDE
+  TOUR_MANAGER
+  EGYPTOLOGIST
+  REP
+}
+
+enum OpsMealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  HALF_BOARD
+  FULL_BOARD
+}
+
+// ── OpsFile ──
+
+model OpsFile {
+  id             String        @id @default(cuid())
+  companyId      String
+  code           String
+  clientType     OpsClientType @default(B2C)
+  customerId     String?
+  tourOperatorId String?
+  guestName      String?
+  guestEmail     String?
+  guestPhone     String?
+  travelFrom     DateTime      @db.Date
+  travelTo       DateTime      @db.Date
+  adults         Int           @default(1)
+  children       Int           @default(0)
+  infants        Int           @default(0)
+  status         OpsFileStatus @default(DRAFT)
+  notes          String?       @db.Text
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer     CrmCustomer?  @relation(fields: [customerId], references: [id])
+  tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
+  createdBy    User          @relation("OpsFileCreatedBy", fields: [createdById], references: [id])
+
+  packages   OpsPackage[]
+  quotations OpsQuotation[]
+  pnl        OpsPnL?
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, travelFrom])
+  @@map("ops_file")
+}
+
+// ── OpsPackage ──
+
+model OpsPackage {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  description  String?  @db.Text
+  fileId       String?
+  isTemplate   Boolean  @default(false)
+  baseCurrency String   @default("USD")
+  totalCost    Decimal  @default(0) @db.Decimal(12, 2)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  file       OpsFile?     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  components OpsPackageComponent[]
+  quotations OpsQuotation[]
+
+  @@index([companyId])
+  @@index([companyId, isTemplate])
+  @@index([fileId])
+  @@map("ops_package")
+}
+
+// ── OpsPackageComponent ──
+
+model OpsPackageComponent {
+  id                  String           @id @default(cuid())
+  packageId           String
+  type                OpsComponentType
+  description         String
+  supplierId          String?
+  serviceDate         DateTime?        @db.Date
+  qty                 Decimal          @default(1)  @db.Decimal(10, 2)
+  unitCost            Decimal          @default(0)  @db.Decimal(12, 2)
+  currency            String           @default("USD")
+  exchangeRate        Decimal          @default(1)  @db.Decimal(10, 6)
+  totalCost           Decimal          @default(0)  @db.Decimal(12, 2)
+  pricingBasis        OpsPricingBasis  @default(PER_PERSON)
+  nights              Int              @default(1)
+  markupType          OpsMarkupType    @default(PERCENTAGE)
+  markupValue         Decimal          @default(0)  @db.Decimal(10, 2)
+  sellingPrice        Decimal          @default(0)  @db.Decimal(12, 2)
+  refModuleEntityId   String?
+  refModuleEntityType String?
+  notes               String?          @db.Text
+  sortOrder           Int              @default(0)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  package  OpsPackage   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  supplier CrmSupplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([packageId])
+  @@index([packageId, type])
+  @@map("ops_package_component")
+}
+
+// ── OpsQuotation ──
+
+model OpsQuotation {
+  id                  String             @id @default(cuid())
+  companyId           String
+  code                String
+  fileId              String
+  packageId           String
+  status              OpsQuotationStatus @default(DRAFT)
+  clientType          OpsClientType
+  validUntil          DateTime?          @db.Date
+  packageMarkupType   OpsMarkupType?
+  packageMarkupValue  Decimal?           @db.Decimal(10, 2)
+  totalCost           Decimal            @default(0) @db.Decimal(12, 2)
+  totalSelling        Decimal            @default(0) @db.Decimal(12, 2)
+  margin              Decimal            @default(0) @db.Decimal(12, 2)
+  marginPct           Decimal            @default(0) @db.Decimal(6, 2)
+  isFinal             Boolean            @default(false)
+  notes               String?            @db.Text
+  terms               String?            @db.Text
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  file    OpsFile    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  package OpsPackage @relation(fields: [packageId], references: [id])
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([fileId])
+  @@index([companyId, status])
+  @@map("ops_quotation")
+}
+
+// ── OpsPnL ──
+
+model OpsPnL {
+  id              String   @id @default(cuid())
+  fileId          String   @unique
+  budgetedCost    Decimal  @default(0) @db.Decimal(12, 2)
+  budgetedRevenue Decimal  @default(0) @db.Decimal(12, 2)
+  actualCost      Decimal  @default(0) @db.Decimal(12, 2)
+  actualRevenue   Decimal  @default(0) @db.Decimal(12, 2)
+  variance        Decimal  @default(0) @db.Decimal(12, 2)
+  status          String   @default("OPEN")
+  closedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  file OpsFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@map("ops_pnl")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOUR OPS MASTER DATA
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Transport ──
+
+model OpsTransportDestination {
+  id        String   @id @default(cuid())
+  companyId String
+  code      String   // CAI, HRG, LXR, ASW, RMF, SSH
+  nameEn    String
+  nameAr    String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  routes  OpsTransportRoute[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("ops_transport_destination")
+}
+
+model OpsTransportRoute {
+  id            String   @id @default(cuid())
+  companyId     String
+  destinationId String
+  nameEn        String
+  nameAr        String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destination OpsTransportDestination  @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  seasons     OpsTransportRateSeason[]
+
+  @@index([companyId])
+  @@index([destinationId])
+  @@map("ops_transport_route")
+}
+
+model OpsTransportRateSeason {
+  id        String   @id @default(cuid())
+  companyId String
+  routeId   String
+  name      String
+  dateFrom  DateTime @db.Date
+  dateTo    DateTime @db.Date
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  route   OpsTransportRoute  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  rates   OpsTransportRate[]
+
+  @@index([companyId])
+  @@index([routeId])
+  @@map("ops_transport_rate_season")
+}
+
+model OpsTransportRate {
+  id          String          @id @default(cuid())
+  companyId   String
+  seasonId    String
+  vehicleType OpsVehicleType
+  rentEGP     Decimal         @default(0) @db.Decimal(12, 2)
+  tipEGP      Decimal         @default(0) @db.Decimal(12, 2)
+  repAllowEGP Decimal         @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  company Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  season  OpsTransportRateSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, vehicleType])
+  @@index([companyId])
+  @@index([seasonId])
+  @@map("ops_transport_rate")
+}
+
+// ── Sightseeing ──
+
+model OpsSightseeingEntry {
+  id              String   @id @default(cuid())
+  companyId       String
+  destinationCode String
+  nameEn          String
+  nameAr          String?
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  seasons OpsSightseeingRateSeason[]
+
+  @@index([companyId])
+  @@index([companyId, destinationCode])
+  @@map("ops_sightseeing_entry")
+}
+
+model OpsSightseeingRateSeason {
+  id        String   @id @default(cuid())
+  companyId String
+  entryId   String
+  name      String
+  dateFrom  DateTime @db.Date
+  dateTo    DateTime @db.Date
+  isActive  Boolean  @default(true)
+  priceEGP  Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entry   OpsSightseeingEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([entryId])
+  @@map("ops_sightseeing_rate_season")
+}
+
+// ── Guidance ──
+
+model OpsGuidanceRate {
+  id              String       @id @default(cuid())
+  companyId       String
+  destinationCode String
+  guideType       OpsGuideType
+  currency        String       @default("EGP")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  company Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  seasons OpsGuidanceRateSeason[]
+
+  @@unique([companyId, destinationCode, guideType])
+  @@index([companyId])
+  @@map("ops_guidance_rate")
+}
+
+model OpsGuidanceRateSeason {
+  id           String   @id @default(cuid())
+  companyId    String
+  guidanceId   String
+  name         String
+  dateFrom     DateTime @db.Date
+  dateTo       DateTime @db.Date
+  isActive     Boolean  @default(true)
+  pricePerDay  Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  guidance OpsGuidanceRate @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([guidanceId])
+  @@map("ops_guidance_rate_season")
+}
+
+// ── Meals ──
+
+model OpsMealRate {
+  id              String      @id @default(cuid())
+  companyId       String
+  supplierId      String?
+  nameEn          String
+  destinationCode String?
+  mealType        OpsMealType
+  currency        String      @default("EGP")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier CrmSupplier?     @relation(fields: [supplierId], references: [id])
+  seasons  OpsMealRateSeason[]
+
+  @@index([companyId])
+  @@index([companyId, mealType])
+  @@map("ops_meal_rate")
+}
+
+model OpsMealRateSeason {
+  id          String   @id @default(cuid())
+  companyId   String
+  mealRateId  String
+  name        String
+  dateFrom    DateTime @db.Date
+  dateTo      DateTime @db.Date
+  isActive    Boolean  @default(true)
+  pricePerPax Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  mealRate OpsMealRate @relation(fields: [mealRateId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([mealRateId])
+  @@map("ops_meal_rate_season")
 }

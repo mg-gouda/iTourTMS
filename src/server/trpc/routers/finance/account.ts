@@ -142,6 +142,108 @@ export const accountRouter = createTRPCRouter({
       return ctx.db.accountTag.delete({ where: { id: input.id } });
     }),
 
+  // ── Tree (all accounts, no pagination) ──
+
+  listTree: financeProcedure.query(async ({ ctx }) => {
+    return ctx.db.finAccount.findMany({
+      where: { companyId: ctx.companyId, deprecated: false },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        accountType: true,
+        isGroup: true,
+        parentId: true,
+        reconcile: true,
+        deprecated: true,
+        group: { select: { name: true } },
+      },
+      orderBy: { code: "asc" },
+    });
+  }),
+
+  // ── Bulk Import ──
+
+  bulkImport: financeProcedure
+    .input(
+      z.object({
+        rows: z.array(
+          z.object({
+            code: z.string().min(1).max(20),
+            name: z.string().min(1).max(256),
+            accountType: z.string().min(1),
+            reconcile: z.boolean(),
+            deprecated: z.boolean(),
+            groupName: z.string(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Load ALL account groups for this company (for both name-match and range-match)
+      const allGroups = await ctx.db.accountGroup.findMany({
+        where: { companyId: ctx.companyId },
+        select: { id: true, name: true, codePrefixStart: true, codePrefixEnd: true },
+        orderBy: { codePrefixStart: "asc" },
+      });
+
+      const groupByName = new Map(allGroups.map((g) => [g.name.toLowerCase(), g.id]));
+
+      // Find best group for an account code by range (codePrefixStart ≤ code ≤ codePrefixEnd)
+      function resolveGroupByCode(code: string): string | null {
+        // Prefer the most specific (longest prefix) range that matches
+        let best: { id: string; prefixLen: number } | null = null;
+        for (const g of allGroups) {
+          if (code >= g.codePrefixStart && code <= g.codePrefixEnd) {
+            const len = g.codePrefixStart.length;
+            if (!best || len > best.prefixLen) best = { id: g.id, prefixLen: len };
+          }
+        }
+        return best?.id ?? null;
+      }
+
+      // Fetch existing codes to skip duplicates
+      const existingCodes = new Set(
+        (await ctx.db.finAccount.findMany({
+          where: { companyId: ctx.companyId },
+          select: { code: true },
+        })).map((a) => a.code),
+      );
+
+      let created = 0;
+      let skipped = 0;
+      const unknownGroups: string[] = [];
+
+      for (const row of input.rows) {
+        if (existingCodes.has(row.code)) { skipped++; continue; }
+
+        // 1. Explicit name from file  2. Range auto-match
+        let groupId: string | null = null;
+        if (row.groupName) {
+          groupId = groupByName.get(row.groupName.toLowerCase()) ?? null;
+          if (!groupId) unknownGroups.push(row.groupName);
+        }
+        if (!groupId) {
+          groupId = resolveGroupByCode(row.code);
+        }
+
+        await ctx.db.finAccount.create({
+          data: {
+            code: row.code,
+            name: row.name,
+            accountType: row.accountType as never,
+            reconcile: row.reconcile,
+            deprecated: row.deprecated,
+            groupId: groupId ?? undefined,
+            companyId: ctx.companyId,
+          },
+        });
+        created++;
+      }
+
+      return { created, skipped, unknownGroups: [...new Set(unknownGroups)] };
+    }),
+
   // ── Partner list for invoice/bill partner selection ──
 
   listPartners: financeProcedure

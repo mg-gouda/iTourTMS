@@ -36,9 +36,10 @@ type AccountFormValues = z.input<typeof accountSchema>;
 
 interface AccountFormProps {
   defaultValues?: Partial<AccountFormValues> & { id?: string };
+  onSuccess?: () => void;
 }
 
-export function AccountForm({ defaultValues }: AccountFormProps) {
+export function AccountForm({ defaultValues, onSuccess }: AccountFormProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const isEdit = !!defaultValues?.id;
@@ -49,6 +50,8 @@ export function AccountForm({ defaultValues }: AccountFormProps) {
       code: "",
       name: "",
       accountType: "ASSET_CURRENT",
+      isGroup: false,
+      parentId: null,
       reconcile: false,
       deprecated: false,
       groupId: null,
@@ -59,19 +62,29 @@ export function AccountForm({ defaultValues }: AccountFormProps) {
   });
 
   const { data: groups } = trpc.finance.account.listGroups.useQuery();
+  const { data: allAccounts } = trpc.finance.account.listTree.useQuery();
+
+  // For parent selector: only show group accounts (or all if no groups exist yet)
+  const parentCandidates = (allAccounts ?? []).filter(
+    (a) => a.isGroup && a.id !== defaultValues?.id,
+  );
+
+  const handleSuccess = () => {
+    utils.finance.account.listTree.invalidate();
+    utils.finance.account.list.invalidate();
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      router.push("/finance/configuration/chart-of-accounts");
+    }
+  };
 
   const createMutation = trpc.finance.account.create.useMutation({
-    onSuccess: () => {
-      utils.finance.account.list.invalidate();
-      router.push("/finance/configuration/chart-of-accounts");
-    },
+    onSuccess: handleSuccess,
   });
 
   const updateMutation = trpc.finance.account.update.useMutation({
-    onSuccess: () => {
-      utils.finance.account.list.invalidate();
-      router.push("/finance/configuration/chart-of-accounts");
-    },
+    onSuccess: handleSuccess,
   });
 
   function onSubmit(values: AccountFormValues) {
@@ -109,7 +122,7 @@ export function AccountForm({ defaultValues }: AccountFormProps) {
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Account Receivable" {...field} />
+                  <Input placeholder="Accounts Receivable" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -153,10 +166,39 @@ export function AccountForm({ defaultValues }: AccountFormProps) {
 
           <FormField
             control={form.control}
+            name="parentId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parent Account</FormLabel>
+                <Select
+                  onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                  value={field.value ?? "__none"}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="No parent (root)" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="__none">No parent (root)</SelectItem>
+                    {parentCandidates.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.code} — {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="groupId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Group</FormLabel>
+                <FormLabel>Account Group</FormLabel>
                 <Select
                   onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
                   defaultValue={field.value ?? "__none"}
@@ -181,7 +223,23 @@ export function AccountForm({ defaultValues }: AccountFormProps) {
           />
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-6">
+          <FormField
+            control={form.control}
+            name="isGroup"
+            render={({ field }) => (
+              <FormItem className="flex items-center gap-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="!mt-0">Is a Group Account</FormLabel>
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="reconcile"
@@ -222,9 +280,13 @@ export function AccountForm({ defaultValues }: AccountFormProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
-              router.push("/finance/configuration/chart-of-accounts")
-            }
+            onClick={() => {
+              if (onSuccess) {
+                onSuccess();
+              } else {
+                router.push("/finance/configuration/chart-of-accounts");
+              }
+            }}
           >
             Cancel
           </Button>

@@ -57,6 +57,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     dependencies: [],
     isAvailable: true,
   },
+  {
+    name: "tour-ops",
+    displayName: "Tour Operations",
+    description: "Tour file management, package builder, quotations, P&L tracking, cross-module dispatch",
+    icon: "FolderOpen",
+    dependencies: [],
+    isAvailable: true,
+  },
 ];
 
 export function getModule(name: string): ModuleDefinition | undefined {

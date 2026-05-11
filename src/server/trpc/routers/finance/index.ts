@@ -1,6 +1,7 @@
 import { createTRPCRouter } from "@/server/trpc";
 
 import { accountRouter } from "./account";
+import { partnerRouter } from "./partner";
 import { bankStatementRouter } from "./bank-statement";
 import { budgetRouter } from "./budget";
 import { batchPaymentRouter } from "./batch-payment";
@@ -18,6 +19,7 @@ import { taxRouter } from "./tax";
 
 export const financeRouter = createTRPCRouter({
   account: accountRouter,
+  partner: partnerRouter,
   bankStatement: bankStatementRouter,
   batchPayment: batchPaymentRouter,
   budget: budgetRouter,

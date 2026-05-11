@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   ChevronRight,
   FileText,
+  FolderOpen,
   Globe,
   Home,
   Landmark,
@@ -39,6 +40,7 @@ const iconMap: Record<string, React.ElementType> = {
   Bus,
   Globe,
   Briefcase,
+  FolderOpen,
 };
 
 interface InstalledModule {
@@ -77,6 +79,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
       {
         label: "Customers",
         routes: [
+          { label: "Customers", href: "/finance/customers" },
           { label: "Invoices", href: "/finance/customers/invoices" },
           { label: "Credit Notes", href: "/finance/customers/credit-notes" },
         ],
@@ -84,6 +87,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
       {
         label: "Vendors",
         routes: [
+          { label: "Vendors", href: "/finance/vendors" },
           { label: "Bills", href: "/finance/vendors/bills" },
           { label: "Refunds", href: "/finance/vendors/refunds" },
         ],
@@ -339,6 +343,47 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
           { label: "Booking Reports", href: "/b2b-portal/reports/bookings" },
           { label: "Revenue", href: "/b2b-portal/reports/revenue" },
           { label: "Statements", href: "/b2b-portal/reports/statements" },
+        ],
+      },
+    ],
+  },
+  "tour-ops": {
+    topLevel: [{ label: "Dashboard", href: "/tour-ops" }],
+    groups: [
+      {
+        label: "Files",
+        routes: [
+          { label: "Open Files", href: "/tour-ops/files" },
+          { label: "New File", href: "/tour-ops/files/new" },
+        ],
+      },
+      {
+        label: "Templates",
+        routes: [
+          { label: "Package Templates", href: "/tour-ops/templates" },
+          { label: "New Template", href: "/tour-ops/templates/new" },
+        ],
+      },
+      {
+        label: "Commercial",
+        routes: [
+          { label: "Quotations", href: "/tour-ops/quotations" },
+        ],
+      },
+      {
+        label: "Master Data",
+        routes: [
+          { label: "Transportation", href: "/tour-ops/master-data/transport" },
+          { label: "Sightseeing", href: "/tour-ops/master-data/sightseeing" },
+          { label: "Guidance", href: "/tour-ops/master-data/guidance" },
+          { label: "Meals", href: "/tour-ops/master-data/meals" },
+        ],
+      },
+      {
+        label: "Reports",
+        routes: [
+          { label: "P&L Reports", href: "/tour-ops/reports/pnl" },
+          { label: "Revenue Analytics", href: "/tour-ops/reports/revenue" },
         ],
       },
     ],

@@ -22,6 +22,7 @@ const MODULES = [
   { name: "traffic", displayName: "Traffic & Transport" },
   { name: "b2c-site", displayName: "B2C Website" },
   { name: "b2b-portal", displayName: "B2B Portal" },
+  { name: "tour-ops", displayName: "Tour Operations" },
 ];
 
 const SEQUENCES = [
@@ -32,6 +33,8 @@ const SEQUENCES = [
   { code: "voucher", prefix: "VCH", padding: 5 },
   { code: "lead", prefix: "LD", padding: 5 },
   { code: "traffic_job", prefix: "TJ", padding: 5 },
+  { code: "ops_file", prefix: "FI", padding: 5 },
+  { code: "ops_quotation", prefix: "QT", padding: 5 },
 ];
 
 async function main() {

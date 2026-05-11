@@ -12,6 +12,8 @@ export const accountSchema = z.object({
     "INCOME", "INCOME_OTHER", "EXPENSE", "EXPENSE_DEPRECIATION",
     "EXPENSE_DIRECT_COST", "OFF_BALANCE",
   ]),
+  isGroup: z.boolean().default(false),
+  parentId: z.string().nullish(),
   reconcile: z.boolean().default(false),
   deprecated: z.boolean().default(false),
   groupId: z.string().nullish(),

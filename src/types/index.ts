@@ -1,4 +1,4 @@
-export type ModuleName = "finance" | "contracting" | "crm" | "reservations" | "traffic" | "b2c-site" | "b2b-portal";
+export type ModuleName = "finance" | "contracting" | "crm" | "reservations" | "traffic" | "b2c-site" | "b2b-portal" | "tour-ops";
 
 export interface ModuleDefinition {
   name: ModuleName;

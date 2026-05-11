@@ -6,6 +6,7 @@ import { trafficRouter } from "@/server/trpc/routers/traffic";
 import { b2cSiteRouter } from "@/server/trpc/routers/b2c-site";
 import { b2bPortalRouter } from "@/server/trpc/routers/b2b-portal";
 import { crmRouter } from "@/server/trpc/routers/crm";
+import { tourOpsRouter } from "@/server/trpc/routers/tour-ops";
 import { apiIntegrationRouter } from "@/server/trpc/routers/shared/api-integration";
 import { settingsRouter } from "@/server/trpc/routers/shared/settings";
 import { setupRouter } from "@/server/trpc/routers/shared/setup";
@@ -27,6 +28,7 @@ export const appRouter = createTRPCRouter({
   crm: crmRouter,
   b2cSite: b2cSiteRouter,
   b2bPortal: b2bPortalRouter,
+  tourOps: tourOpsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -171,7 +171,7 @@ export function Topbar({ title = "Dashboard", user }: TopbarProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2 px-2">
                 <Avatar className="h-7 w-7">
-                  {user.image && <AvatarImage src={user.image} alt={user.name ?? ""} />}
+                  {user.image?.startsWith("/") && <AvatarImage src={user.image} alt={user.name ?? ""} />}
                   <AvatarFallback className="bg-primary/15 text-xs font-medium">
                     {initials}
                   </AvatarFallback>
