@@ -124,14 +124,42 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         ],
       },
       {
-        label: "Reports",
+        label: "Statement Reports",
         routes: [
-          { label: "Profit & Loss", href: "/finance/reports/profit-and-loss" },
           { label: "Balance Sheet", href: "/finance/reports/balance-sheet" },
+          { label: "Profit & Loss", href: "/finance/reports/profit-and-loss" },
+          { label: "Cash Flow Statement", href: "/finance/reports/cash-flow" },
+        ],
+      },
+      {
+        label: "Ledgers",
+        routes: [
           { label: "Trial Balance", href: "/finance/reports/trial-balance" },
           { label: "General Ledger", href: "/finance/reports/general-ledger" },
+        ],
+      },
+      {
+        label: "Partner Reports",
+        routes: [
+          { label: "Partner Ledger", href: "/finance/reports/partner-ledger" },
           { label: "Aged Receivable", href: "/finance/reports/aged-receivable" },
           { label: "Aged Payable", href: "/finance/reports/aged-payable" },
+        ],
+      },
+      {
+        label: "Taxes & Fiscal",
+        routes: [
+          { label: "Tax Report", href: "/finance/reports/tax-report" },
+          { label: "Fiscal Report", href: "/finance/reports/fiscal-report" },
+          { label: "1099 Report", href: "/finance/reports/1099" },
+        ],
+      },
+      {
+        label: "Management",
+        routes: [
+          { label: "Invoice Analysis", href: "/finance/reports/invoice-analysis" },
+          { label: "Analytic Report", href: "/finance/reports/analytic-report" },
+          { label: "Executive Summary", href: "/finance/reports/executive-summary" },
           { label: "Budget vs Actuals", href: "/finance/reports/budget-vs-actuals" },
         ],
       },

@@ -57,6 +57,22 @@ export const partnerRouter = createTRPCRouter({
       });
     }),
 
+  listAll: financeProcedure
+    .input(z.object({ search: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      return ctx.db.partner.findMany({
+        where: {
+          companyId: ctx.companyId,
+          isActive: true,
+          ...(input?.search ? {
+            name: { contains: input.search, mode: "insensitive" as const },
+          } : {}),
+        },
+        select: { id: true, name: true, type: true },
+        orderBy: { name: "asc" },
+      });
+    }),
+
   getById: financeProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
