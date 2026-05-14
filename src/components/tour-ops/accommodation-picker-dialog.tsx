@@ -55,15 +55,28 @@ export interface AccommodationRoomBreakdown {
   refHotelId: string;
 }
 
+// Contract-data mode — used by flat-table quotation calculator
+export interface ContractHotelData {
+  hotelId: string;
+  hotelName: string;
+  currency: string;
+  rateBasis: string; // "PER_ROOM" | "PER_PERSON"
+  sglRate: number | null;
+  dblRate: number | null;
+  tplRate: number | null;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   serviceDate?: string;
   // Standard mode (templates page)
   onSelect?: (data: AccommodationSelection) => void;
-  // Room-breakdown mode (quotation calculator)
+  // Room-breakdown mode (quotation calculator legacy)
   mode?: "standard" | "room-breakdown";
   onSelectRooms?: (data: AccommodationRoomBreakdown) => void;
+  // Contract-data mode (flat-table quotation calculator)
+  onSelectContractData?: (data: ContractHotelData) => void;
   title?: string;
 }
 
@@ -74,6 +87,7 @@ export function AccommodationPickerDialog({
   onSelect,
   mode = "standard",
   onSelectRooms,
+  onSelectContractData,
   title,
 }: Props) {
   const [tab, setTab] = useState<"contract" | "manual">("contract");
@@ -124,6 +138,20 @@ export function AccommodationPickerDialog({
 
   function handleContractSelect() {
     if (!selectedHotel || !rates) return;
+
+    if (onSelectContractData) {
+      onSelectContractData({
+        hotelId,
+        hotelName: selectedHotel.name,
+        currency: rates.currency,
+        rateBasis: rates.rateBasis,
+        sglRate: rates.rates.singleRate ?? null,
+        dblRate: rates.rates.doubleRate ?? null,
+        tplRate: rates.rates.tripleRate ?? null,
+      });
+      handleClose();
+      return;
+    }
 
     const roomLabel = selectedRoomType?.name ?? ROOM_BASIS_LABELS[roomBasis];
     const mealLabel = selectedMealBasis?.name ?? "";

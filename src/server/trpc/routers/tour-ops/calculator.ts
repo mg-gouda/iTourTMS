@@ -25,6 +25,152 @@ const generatedComponentSchema = z.object({
 });
 
 export const opsCalculatorRouter = createTRPCRouter({
+  saveState: proc
+    .input(z.object({ fileId: z.string().min(1), state: z.any() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.opsFile.updateMany({
+        where: { id: input.fileId, companyId: ctx.companyId },
+        data: { calculatorState: input.state },
+      });
+      return { ok: true };
+    }),
+
+  getState: proc
+    .input(z.object({ fileId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const file = await ctx.db.opsFile.findFirst({
+        where: { id: input.fileId, companyId: ctx.companyId },
+        select: { calculatorState: true, calculatorPosted: true },
+      });
+      return file ? { state: file.calculatorState, posted: file.calculatorPosted } : null;
+    }),
+
+  post: proc
+    .input(
+      z.object({
+        fileId: z.string().min(1),
+        state: z.any(),
+        components: z.array(generatedComponentSchema).min(1),
+        totalCostUSD: z.number().min(0),
+        totalSellingUSD: z.number().min(0),
+        pax: z.number().int().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { db, companyId } = ctx;
+
+      const file = await db.opsFile.findFirst({
+        where: { id: input.fileId, companyId },
+        select: { id: true, travelFrom: true, clientType: true },
+      });
+      if (!file) throw new TRPCError({ code: "NOT_FOUND" });
+
+      return db.$transaction(async (tx) => {
+        // 1. Save & lock calculator state
+        await tx.opsFile.update({
+          where: { id: input.fileId },
+          data: { calculatorState: input.state, calculatorPosted: true },
+        });
+
+        // 2. Create auto-named package
+        const dateLabel = new Date(file.travelFrom).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+        const pkg = await tx.opsPackage.create({
+          data: {
+            companyId,
+            fileId: input.fileId,
+            name: `Calculation — ${dateLabel}`,
+            baseCurrency: "USD",
+            totalCost: new Decimal(input.totalCostUSD).toDecimalPlaces(2).toNumber(),
+          },
+        });
+
+        // 3. Create package components
+        await tx.opsPackageComponent.createMany({
+          data: input.components.map((c, i) => {
+            const isNightsBased = c.type === "ACCOMMODATION" || c.type === "NILE_CRUISE";
+            const nightsFactor = isNightsBased ? Math.max(1, c.nights) : 1;
+            const totalCost =
+              c.pricingBasis === "BULK"
+                ? new Decimal(c.unitCost).times(nightsFactor).toDecimalPlaces(2).toNumber()
+                : new Decimal(c.qty).times(c.unitCost).times(nightsFactor).toDecimalPlaces(2).toNumber();
+
+            return {
+              packageId: pkg.id,
+              type: c.type,
+              description: c.description,
+              pricingBasis: c.pricingBasis,
+              nights: c.nights,
+              qty: c.qty,
+              unitCost: c.unitCost,
+              currency: "USD",
+              exchangeRate: 1,
+              totalCost,
+              markupType: "PERCENTAGE" as const,
+              markupValue: 0,
+              sellingPrice: totalCost,
+              notes: c.notes ?? null,
+              sortOrder: c.sortOrder ?? i,
+            };
+          }),
+        });
+
+        // 4. Generate quotation code
+        const seq = await tx.sequence.upsert({
+          where: { companyId_code: { companyId, code: "ops_quotation" } },
+          create: { companyId, code: "ops_quotation", prefix: "QT", separator: "-", padding: 5, nextNumber: 2 },
+          update: { nextNumber: { increment: 1 } },
+        });
+        const num = seq.nextNumber - 1;
+        const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+
+        // 5. Create quotation with calculator-computed totals
+        const totalCost = new Decimal(input.totalCostUSD).toDecimalPlaces(2).toNumber();
+        const totalSelling = new Decimal(input.totalSellingUSD).toDecimalPlaces(2).toNumber();
+        const margin = new Decimal(totalSelling).minus(totalCost).toDecimalPlaces(2).toNumber();
+        const marginPct =
+          totalCost > 0
+            ? new Decimal(margin).div(totalCost).times(100).toDecimalPlaces(2).toNumber()
+            : 0;
+
+        const quotation = await tx.opsQuotation.create({
+          data: {
+            companyId,
+            code,
+            fileId: input.fileId,
+            packageId: pkg.id,
+            clientType: file.clientType,
+            status: "DRAFT",
+            totalCost,
+            totalSelling,
+            margin,
+            marginPct,
+          },
+        });
+
+        // 6. Advance file status to QUOTED
+        await tx.opsFile.update({
+          where: { id: input.fileId },
+          data: { status: "QUOTED" },
+        });
+
+        return { quotationId: quotation.id, quotationCode: code };
+      });
+    }),
+
+  reopen: proc
+    .input(z.object({ fileId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.opsFile.updateMany({
+        where: { id: input.fileId, companyId: ctx.companyId },
+        data: { calculatorPosted: false },
+      });
+      return { ok: true };
+    }),
+
   generateComponents: proc
     .input(
       z.object({

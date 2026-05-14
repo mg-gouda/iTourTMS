@@ -17,13 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -187,29 +181,29 @@ export default function BookingReconciliationPage() {
           onChange={(e) => handleSearch(e.target.value)}
           className="w-64"
         />
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Payment Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Statuses</SelectItem>
-            <SelectItem value="UNPAID">Unpaid</SelectItem>
-            <SelectItem value="PARTIAL">Partial</SelectItem>
-            <SelectItem value="PAID">Paid</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Sources</SelectItem>
-            <SelectItem value="WEBSITE">Website (B2C)</SelectItem>
-            <SelectItem value="DIRECT">Direct</SelectItem>
-            <SelectItem value="B2B">B2B</SelectItem>
-            <SelectItem value="TOUR_OPERATOR">Tour Operator</SelectItem>
-          </SelectContent>
-        </Select>
+        <Combobox
+          options={[
+            { value: "ALL", label: "All Statuses" },
+            { value: "UNPAID", label: "Unpaid" },
+            { value: "PARTIAL", label: "Partial" },
+            { value: "PAID", label: "Paid" },
+          ]}
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          placeholder="Payment Status"
+        />
+        <Combobox
+          options={[
+            { value: "ALL", label: "All Sources" },
+            { value: "WEBSITE", label: "Website (B2C)" },
+            { value: "DIRECT", label: "Direct" },
+            { value: "B2B", label: "B2B" },
+            { value: "TOUR_OPERATOR", label: "Tour Operator" },
+          ]}
+          value={sourceFilter}
+          onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}
+          placeholder="Source"
+        />
       </div>
 
       {/* Bookings Table */}
@@ -390,16 +384,11 @@ export default function BookingReconciliationPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Method</Label>
-                <Select value={payMethod} onValueChange={setPayMethod}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                  value={payMethod}
+                  onValueChange={setPayMethod}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -414,16 +403,11 @@ export default function BookingReconciliationPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Direction</Label>
-              <Select value={payDirection} onValueChange={(v) => setPayDirection(v as "FROM_SOURCE" | "TO_HOTEL")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(BOOKING_PAYMENT_DIRECTION_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={Object.entries(BOOKING_PAYMENT_DIRECTION_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                value={payDirection}
+                onValueChange={(v) => setPayDirection(v as "FROM_SOURCE" | "TO_HOTEL")}
+              />
             </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="payIsRefund" checked={payIsRefund} onChange={(e) => setPayIsRefund(e.target.checked)} className="rounded" />

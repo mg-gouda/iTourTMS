@@ -16,13 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -134,20 +128,15 @@ export default function NewBudgetPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fiscal Year</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select fiscal year" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {fiscalYears?.map((fy: any) => (
-                        <SelectItem key={fy.id} value={fy.id}>
-                          {fy.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(fiscalYears ?? []).map((fy: any) => ({ value: fy.id, label: fy.name }))}
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      placeholder="Select fiscal year"
+                      searchPlaceholder="Search fiscal years..."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -197,21 +186,13 @@ export default function NewBudgetPage() {
                           control={form.control}
                           name={`lines.${lineIdx}.accountId`}
                           render={({ field: f }) => (
-                            <Select
+                            <Combobox
+                              options={((accounts as any) ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                              value={f.value ?? ""}
                               onValueChange={f.onChange}
-                              value={f.value}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Account" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(accounts as any)?.map((a: any) => (
-                                  <SelectItem key={a.id} value={a.id}>
-                                    {a.code} — {a.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              placeholder="Account"
+                              searchPlaceholder="Search accounts..."
+                            />
                           )}
                         />
                       </TableCell>

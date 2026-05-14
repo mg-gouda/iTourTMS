@@ -1,13 +1,12 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Bell, CheckCheck, LogOut, Search, User } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, LogOut, Search, User } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,15 +23,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import {
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
+import { moduleRoutes } from "@/components/layout/app-sidebar";
+import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 
 interface TopbarProps {
@@ -42,11 +41,25 @@ interface TopbarProps {
     email: string;
     image?: string | null;
   };
+  installedModules?: { name: string; displayName: string; icon: string }[];
 }
 
-export function Topbar({ title = "Dashboard", user }: TopbarProps) {
+export function Topbar({ title = "Dashboard", user, installedModules = [] }: TopbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === "collapsed";
   const utils = trpc.useUtils();
+
+  // Derive active module from pathname
+  const activeModuleName = installedModules.find((m) => {
+    const prefix = `/${m.name}`;
+    return pathname === prefix || pathname.startsWith(prefix + "/");
+  })?.name ?? null;
+
+  const activeModuleConfig = activeModuleName ? moduleRoutes[activeModuleName] : null;
+  // Only real groups (no dividers) shown in topbar
+  const topbarGroups = activeModuleConfig?.groups.filter((g) => !g.divider) ?? [];
   const { data: unreadCount } = trpc.notification.unreadCount.useQuery(
     undefined,
     { refetchInterval: 30_000 },
@@ -78,13 +91,57 @@ export function Topbar({ title = "Dashboard", user }: TopbarProps) {
     <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-sm">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbPage>{title}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+
+      {/* Module nav — only visible when sidebar is collapsed */}
+      {isCollapsed && topbarGroups.length > 0 ? (
+        <nav className="flex items-center gap-0.5">
+          {topbarGroups.map((group) => {
+            const isGroupActive = group.routes.some(
+              (r) => pathname === r.href || pathname.startsWith(r.href + "/"),
+            );
+            return (
+              <DropdownMenu key={group.label}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-8 gap-1 px-2.5 text-sm font-medium",
+                      isGroupActive && "bg-accent text-accent-foreground",
+                    )}
+                  >
+                    {group.label}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-44">
+                  {group.routes.map((route) => {
+                    const isActive = pathname === route.href || pathname.startsWith(route.href + "/");
+                    return (
+                      <DropdownMenuItem key={route.href} asChild>
+                        <Link
+                          href={route.href}
+                          className={cn(isActive && "bg-accent text-accent-foreground font-medium")}
+                        >
+                          {route.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })}
+        </nav>
+      ) : (
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbPage>{title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
 
       <div className="ml-auto flex items-center gap-2">
         {/* Search */}

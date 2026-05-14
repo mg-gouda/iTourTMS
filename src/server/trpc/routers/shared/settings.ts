@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { MODULE_REGISTRY } from "@/lib/constants/modules";
 
 export const settingsRouter = createTRPCRouter({
   getCompanySettings: protectedProcedure.query(async ({ ctx }) => {
@@ -120,4 +121,45 @@ export const settingsRouter = createTRPCRouter({
       status,
     };
   }),
+
+  // ── Module management ──
+
+  listModules: protectedProcedure.query(async ({ ctx }) => {
+    const companyId = ctx.user.companyId;
+    if (!companyId) return [];
+
+    const installed = await ctx.db.installedModule.findMany({
+      where: { companyId },
+      select: { name: true, isInstalled: true },
+    });
+
+    const installedMap = new Map(installed.map((m) => [m.name, m.isInstalled]));
+
+    return MODULE_REGISTRY.map((m) => ({
+      name: m.name,
+      displayName: m.displayName,
+      description: m.description,
+      icon: m.icon,
+      dependencies: m.dependencies,
+      isInstalled: installedMap.get(m.name) ?? false,
+    }));
+  }),
+
+  toggleModule: protectedProcedure
+    .input(z.object({ name: z.string(), enabled: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.user.companyId;
+      if (!companyId) throw new Error("No company");
+
+      await ctx.db.installedModule.upsert({
+        where: { name_companyId: { name: input.name, companyId } },
+        update: { isInstalled: input.enabled },
+        create: {
+          companyId,
+          name: input.name,
+          displayName: MODULE_REGISTRY.find((m) => m.name === input.name)?.displayName ?? input.name,
+          isInstalled: input.enabled,
+        },
+      });
+    }),
 });

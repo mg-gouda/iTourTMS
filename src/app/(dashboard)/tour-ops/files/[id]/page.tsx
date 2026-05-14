@@ -31,6 +31,9 @@ import {
   OPS_FILE_STATUS_LABELS,
   OPS_FILE_STATUS_TRANSITIONS,
   OPS_FILE_STATUS_VARIANTS,
+  OPS_FLIGHT_TICKET_STATUS_LABELS,
+  OPS_FLIGHT_TICKET_STATUS_VARIANTS,
+  OPS_FLIGHT_TYPE_LABELS,
   OPS_QUOTATION_STATUS_LABELS,
   OPS_QUOTATION_STATUS_VARIANTS,
 } from "@/lib/constants/tour-ops";
@@ -131,9 +134,9 @@ export default function OpsFileDetailPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="packages">Packages ({file.packages.length})</TabsTrigger>
-          <TabsTrigger value="quotations">Quotations ({file.quotations.length})</TabsTrigger>
           <TabsTrigger value="calculator">Calculator</TabsTrigger>
+          <TabsTrigger value="quotations">Quotations ({file.quotations.length})</TabsTrigger>
+          <TabsTrigger value="tickets">Flight Tickets</TabsTrigger>
           <TabsTrigger value="pnl">P&L</TabsTrigger>
         </TabsList>
 
@@ -188,57 +191,6 @@ export default function OpsFileDetailPage() {
               <CardHeader><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
               <CardContent><p className="text-sm whitespace-pre-line">{file.notes}</p></CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        {/* Packages Tab */}
-        <TabsContent value="packages" className="mt-4 space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">Tour packages for this file</p>
-            <Button size="sm" asChild>
-              <Link href={`/tour-ops/files/${id}/packages/new`}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Package
-              </Link>
-            </Button>
-          </div>
-          {file.packages.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
-                <p className="text-sm">No packages yet. Add a package or clone from a template.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            file.packages.map((pkg) => (
-              <Card key={pkg.id}>
-                <CardHeader className="flex flex-row items-center justify-between py-3">
-                  <div>
-                    <CardTitle className="text-sm">{pkg.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground">{pkg.components.length} components · {pkg.baseCurrency} {Number(pkg.totalCost).toLocaleString()} cost</p>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/tour-ops/templates/${pkg.id}`}>Edit</Link>
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="divide-y">
-                    {pkg.components.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between py-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[10px]">
-                            {OPS_COMPONENT_TYPE_LABELS[c.type as keyof typeof OPS_COMPONENT_TYPE_LABELS]}
-                          </Badge>
-                          <span>{c.description}</span>
-                        </div>
-                        <div className="text-right text-muted-foreground">
-                          <span className="font-medium text-foreground">${Number(c.sellingPrice).toLocaleString()}</span>
-                          {" "}/ cost ${Number(c.totalCost).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
           )}
         </TabsContent>
 
@@ -307,7 +259,13 @@ export default function OpsFileDetailPage() {
             packages={file.packages.map((p) => ({ id: p.id, name: p.name }))}
             defaultPax={file.adults + file.children}
             travelDate={new Date(file.travelFrom).toISOString().split("T")[0]}
+            onPostSuccess={() => setActiveTab("quotations")}
           />
+        </TabsContent>
+
+        {/* Flight Tickets Tab */}
+        <TabsContent value="tickets" className="mt-4">
+          <FlightTicketsTab fileId={id} />
         </TabsContent>
 
         {/* P&L Tab */}
@@ -315,6 +273,76 @@ export default function OpsFileDetailPage() {
           <PnLTab fileId={id} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function FlightTicketsTab({ fileId }: { fileId: string }) {
+  const { data, isLoading } = trpc.tourOps.flightTicket.list.useQuery({ opsFileId: fileId, pageSize: 100 });
+  const tickets = data?.items ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Flight tickets linked to this file, one per client</p>
+        <Button size="sm" asChild>
+          <Link href={`/tour-ops/flight-tickets/new?fileId=${fileId}`}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add Ticket
+          </Link>
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : tickets.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            No flight tickets yet.{" "}
+            <Link href={`/tour-ops/flight-tickets/new?fileId=${fileId}`} className="text-primary underline">
+              Add the first one
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="rounded-md border">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/30">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Code</th>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Client</th>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Route</th>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Departure</th>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Ticket #</th>
+                <th className="px-3 py-2 text-right font-medium text-muted-foreground">Revenue</th>
+                <th className="px-3 py-2 text-right font-medium text-muted-foreground">Profit</th>
+                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {tickets.map((t) => (
+                <tr key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => window.location.href = `/tour-ops/flight-tickets/${t.id}`}>
+                  <td className="px-3 py-2 font-mono text-xs">{t.code}</td>
+                  <td className="px-3 py-2">{(t as any).clientName ?? <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-3 py-2 text-xs">{OPS_FLIGHT_TYPE_LABELS[t.flightType]}</td>
+                  <td className="px-3 py-2 font-medium">{t.origin} → {t.destination}</td>
+                  <td className="px-3 py-2 text-xs">{format(new Date(t.departureDate), "dd MMM yyyy")}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{t.ticketNumber ?? "—"}</td>
+                  <td className="px-3 py-2 text-right text-xs">${Number(t.totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className={`px-3 py-2 text-right text-xs font-medium ${Number(t.profit) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    ${Number(t.profit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Badge variant={OPS_FLIGHT_TICKET_STATUS_VARIANTS[t.status] as "default" | "secondary" | "destructive" | "outline"}>
+                      {OPS_FLIGHT_TICKET_STATUS_LABELS[t.status]}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

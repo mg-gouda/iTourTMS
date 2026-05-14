@@ -15,13 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc";
 
 export function BankStatementImportDialog() {
@@ -90,18 +84,13 @@ export function BankStatementImportDialog() {
         <div className="space-y-4">
           <div>
             <Label>Journal</Label>
-            <Select onValueChange={setJournalId} value={journalId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select journal" />
-              </SelectTrigger>
-              <SelectContent>
-                {bankJournals.map((j: any) => (
-                  <SelectItem key={j.id} value={j.id}>
-                    {j.code} — {j.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={bankJournals.map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
+              value={journalId}
+              onValueChange={setJournalId}
+              placeholder="Select journal"
+              searchPlaceholder="Search journals..."
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

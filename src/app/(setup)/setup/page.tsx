@@ -16,8 +16,8 @@ export default async function SetupPage() {
     select: { id: true },
   });
 
-  // Fetch countries and currencies for the wizard
-  const [countries, currencies] = await Promise.all([
+  // Fetch countries, currencies, and COA templates for the wizard
+  const [countries, currencies, coaTemplates] = await Promise.all([
     db.country.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -28,12 +28,23 @@ export default async function SetupPage() {
       orderBy: { code: "asc" },
       select: { id: true, code: true, name: true, symbol: true },
     }),
+    db.coaTemplate.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        locale: true,
+        _count: { select: { groups: true, accounts: true } },
+      },
+    }),
   ]);
 
   return (
     <SetupWizard
       countries={countries}
       currencies={currencies}
+      coaTemplates={coaTemplates}
       existingLicenseId={activeLicense?.id ?? null}
     />
   );

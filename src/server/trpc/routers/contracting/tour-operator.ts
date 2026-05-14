@@ -76,11 +76,21 @@ export const tourOperatorRouter = createTRPCRouter({
   create: proc
     .input(tourOperatorCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.tourOperator.create({
-        data: {
-          ...input,
-          companyId: ctx.companyId,
-        },
+      return ctx.db.$transaction(async (tx) => {
+        const partner = await tx.partner.create({
+          data: {
+            companyId: ctx.companyId,
+            type: "customer",
+            isCompany: true,
+            name: input.name,
+            email: input.email || null,
+            phone: input.phone ?? null,
+            countryId: input.countryId ?? null,
+          },
+        });
+        return tx.tourOperator.create({
+          data: { ...input, companyId: ctx.companyId, partnerId: partner.id },
+        });
       });
     }),
 
@@ -88,6 +98,21 @@ export const tourOperatorRouter = createTRPCRouter({
   update: proc
     .input(z.object({ id: z.string(), data: tourOperatorUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
+      const to = await ctx.db.tourOperator.findFirst({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { partnerId: true },
+      });
+      if (to?.partnerId) {
+        await ctx.db.partner.update({
+          where: { id: to.partnerId },
+          data: {
+            ...(input.data.name !== undefined && { name: input.data.name }),
+            ...(input.data.email !== undefined && { email: input.data.email || null }),
+            ...(input.data.phone !== undefined && { phone: input.data.phone ?? null }),
+            ...(input.data.countryId !== undefined && { countryId: input.data.countryId ?? null }),
+          },
+        });
+      }
       return ctx.db.tourOperator.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: input.data,
@@ -98,9 +123,15 @@ export const tourOperatorRouter = createTRPCRouter({
   delete: proc
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.tourOperator.delete({
+      const to = await ctx.db.tourOperator.findFirst({
         where: { id: input.id, companyId: ctx.companyId },
+        select: { partnerId: true },
       });
+      await ctx.db.tourOperator.delete({ where: { id: input.id, companyId: ctx.companyId } });
+      if (to?.partnerId) {
+        await ctx.db.partner.delete({ where: { id: to.partnerId } });
+      }
+      return { success: true };
     }),
 
   // ── Contract Assignments ──

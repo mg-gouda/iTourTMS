@@ -7,6 +7,9 @@ import type {
   OpsVehicleType,
   OpsGuideType,
   OpsMealType,
+  OpsFlightType,
+  OpsFlightTicketStatus,
+  OpsPricingBasis,
 } from "@prisma/client";
 
 export const OPS_FILE_STATUS_LABELS: Record<OpsFileStatus, string> = {
@@ -126,6 +129,29 @@ export const OPS_MEAL_TYPE_LABELS: Record<OpsMealType, string> = {
   DINNER: "Dinner",
   HALF_BOARD: "Half Board",
   FULL_BOARD: "Full Board",
+};
+
+export const OPS_FLIGHT_TYPE_LABELS: Record<OpsFlightType, string> = {
+  ONE_WAY: "One Way",
+  RETURN: "Return",
+  MULTI_LEG: "Multiple Legs",
+};
+
+export const OPS_FLIGHT_TICKET_STATUS_LABELS: Record<OpsFlightTicketStatus, string> = {
+  DRAFT: "Draft",
+  POSTED: "Posted",
+  CANCELLED: "Cancelled",
+};
+
+export const OPS_FLIGHT_TICKET_STATUS_VARIANTS: Record<OpsFlightTicketStatus, string> = {
+  DRAFT: "secondary",
+  POSTED: "success",
+  CANCELLED: "destructive",
+};
+
+export const OPS_PRICING_BASIS_LABELS: Record<OpsPricingBasis, string> = {
+  PER_PERSON: "Per Person",
+  BULK: "Bulk",
 };
 
 export const OPS_DESTINATION_CODES = [

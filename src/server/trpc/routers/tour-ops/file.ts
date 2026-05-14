@@ -157,6 +157,24 @@ export const opsFileRouter = createTRPCRouter({
           message: `Cannot transition from ${file.status} to ${input.status}`,
         });
       }
+
+      if (input.status === "COMPLETED") {
+        const hasCollection = await ctx.db.payment.findFirst({
+          where: {
+            opsFileId: input.id,
+            companyId: ctx.companyId,
+            paymentType: "INBOUND",
+            state: "POSTED",
+          },
+        });
+        if (!hasCollection) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Cannot complete file: a posted collection (inbound payment) linked to this file is required. Please record the client payment in Finance first.",
+          });
+        }
+      }
+
       return ctx.db.opsFile.update({ where: { id: input.id }, data: { status: input.status as OpsFileStatus } });
     }),
 

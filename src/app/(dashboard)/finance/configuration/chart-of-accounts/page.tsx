@@ -9,6 +9,7 @@ import {
   FolderPlus,
   Pencil,
   Plus,
+  Save,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -310,10 +311,14 @@ function CategorySection({
 export default function ChartOfAccountsPage() {
   const utils = trpc.useUtils();
   const { data: flat = [], isLoading } = trpc.finance.account.listTree.useQuery();
+  const { data: groups = [] } = trpc.finance.account.listGroups.useQuery();
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
+  const [saveTemplateDialog, setSaveTemplateDialog] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDesc, setTemplateDesc] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const deleteMutation = trpc.finance.account.delete.useMutation({
@@ -327,7 +332,10 @@ export default function ChartOfAccountsPage() {
   const bulkImportMutation = trpc.finance.account.bulkImport.useMutation({
     onSuccess: (result) => {
       utils.finance.account.listTree.invalidate();
-      const parts = [`${result.created} account(s) imported`];
+      utils.finance.account.listGroups.invalidate();
+      const parts = [];
+      if (result.groupsCreated > 0) parts.push(`${result.groupsCreated} group(s) created`);
+      parts.push(`${result.created} account(s) imported`);
       if (result.skipped > 0) parts.push(`${result.skipped} skipped (duplicates)`);
       if (result.unknownGroups.length > 0)
         parts.push(`unknown groups: ${result.unknownGroups.join(", ")}`);
@@ -337,13 +345,23 @@ export default function ChartOfAccountsPage() {
     onSettled: () => setImporting(false),
   });
 
+  const saveTemplateMutation = trpc.finance.coaTemplate.saveFromCompany.useMutation({
+    onSuccess: (tpl) => {
+      toast.success(`Template "${tpl.name}" saved — ${tpl._count.accounts} accounts, ${tpl._count.groups} groups`);
+      setSaveTemplateDialog(false);
+      setTemplateName("");
+      setTemplateDesc("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
 
     setImporting(true);
-    const { rows, errors } = await parseChartOfAccountsFile(file);
+    const { groups: parsedGroups, rows, errors } = await parseChartOfAccountsFile(file);
 
     if (errors.length > 0) {
       toast.error(
@@ -365,7 +383,7 @@ export default function ChartOfAccountsPage() {
       setImporting(false);
       return;
     }
-    bulkImportMutation.mutate({ rows });
+    bulkImportMutation.mutate({ groups: parsedGroups, rows });
   }
 
   function handleDelete(id: string, name: string) {
@@ -390,10 +408,18 @@ export default function ChartOfAccountsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => downloadChartOfAccountsTemplate()}
+            onClick={() => downloadChartOfAccountsTemplate(groups as { name: string; codePrefixStart: string; codePrefixEnd: string }[])}
           >
             <Download className="mr-2 size-4" />
             Template
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSaveTemplateDialog(true)}
+          >
+            <Save className="mr-2 size-4" />
+            Save as Template
           </Button>
           <Button
             variant="outline"
@@ -489,6 +515,51 @@ export default function ChartOfAccountsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Save as Template dialog */}
+      <Dialog open={saveTemplateDialog} onOpenChange={(o) => { if (!o) setSaveTemplateDialog(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save Chart of Accounts as Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Template Name</label>
+              <Input
+                name="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g. Travel COA"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <Input
+                name="template-desc"
+                value={templateDesc}
+                onChange={(e) => setTemplateDesc(e.target.value)}
+                placeholder="e.g. Standard chart of accounts for Egyptian travel companies"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This saves all {flat.length} accounts and their groups as a reusable template for new companies.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setSaveTemplateDialog(false)}>Cancel</Button>
+              <Button
+                disabled={!templateName.trim() || saveTemplateMutation.isPending}
+                onClick={() => saveTemplateMutation.mutate({
+                  name: templateName.trim(),
+                  description: templateDesc.trim() || undefined,
+                  overwrite: false,
+                })}
+              >
+                {saveTemplateMutation.isPending ? "Saving…" : "Save Template"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -499,31 +570,70 @@ function AccountGroupsPanel() {
   const utils = trpc.useUtils();
   const { data: groups } = trpc.finance.account.listGroups.useQuery();
   const [name, setName] = useState("");
+  const [codeFrom, setCodeFrom] = useState("");
+  const [codeTo, setCodeTo] = useState("");
 
   const createMutation = trpc.finance.account.createGroup.useMutation({
-    onSuccess: () => { utils.finance.account.listGroups.invalidate(); setName(""); toast.success("Group created"); },
+    onSuccess: () => {
+      utils.finance.account.listGroups.invalidate();
+      setName(""); setCodeFrom(""); setCodeTo("");
+      toast.success("Group created");
+    },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.finance.account.deleteGroup.useMutation({
     onSuccess: () => { utils.finance.account.listGroups.invalidate(); toast.success("Group deleted"); },
     onError: (e) => toast.error(e.message),
   });
+  const relinkMutation = trpc.finance.account.relinkByRange.useMutation({
+    onSuccess: (r) => {
+      utils.finance.account.listTree.invalidate();
+      utils.finance.account.listGroups.invalidate();
+      toast.success(`Re-linked ${r.linked} account(s) · ${r.skipped} unmatched`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const canAdd = name.trim() && codeFrom.trim() && codeTo.trim();
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Account Groups</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex gap-2">
-          <Input name="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="New group name…" className="h-8 text-sm" />
-          <Button size="sm" disabled={!name.trim() || createMutation.isPending} onClick={() => createMutation.mutate({ name: name.trim(), codePrefixStart: name.trim().toUpperCase().replace(/\s+/g, "_"), codePrefixEnd: name.trim().toUpperCase().replace(/\s+/g, "_") })}>Add</Button>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Account Groups</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            disabled={relinkMutation.isPending}
+            onClick={() => relinkMutation.mutate({ force: false })}
+          >
+            {relinkMutation.isPending ? "Linking…" : "Re-link Unlinked"}
+          </Button>
         </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-[1fr_80px_80px_auto] gap-1.5 items-center">
+          <Input name="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name…" className="h-8 text-sm" />
+          <Input name="group-from" value={codeFrom} onChange={(e) => setCodeFrom(e.target.value)} placeholder="From" className="h-8 text-sm font-mono" />
+          <Input name="group-to" value={codeTo} onChange={(e) => setCodeTo(e.target.value)} placeholder="To" className="h-8 text-sm font-mono" />
+          <Button size="sm" className="h-8" disabled={!canAdd || createMutation.isPending}
+            onClick={() => createMutation.mutate({ name: name.trim(), codePrefixStart: codeFrom.trim(), codePrefixEnd: codeTo.trim() })}>
+            Add
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Code range (e.g. 1000 → 1999) is used to auto-assign accounts during import.
+        </p>
         {(groups ?? []).length === 0 ? (
           <p className="text-xs text-muted-foreground">No account groups.</p>
         ) : (
           <div className="space-y-1">
-            {(groups ?? []).map((g: { id: string; name: string; codePrefixStart: string }) => (
+            {(groups ?? []).map((g: { id: string; name: string; codePrefixStart: string; codePrefixEnd: string; _count: { accounts: number } }) => (
               <div key={g.id} className="flex items-center justify-between rounded border px-2 py-1 text-sm">
-                <span>{g.name} <span className="text-xs text-muted-foreground">({g.codePrefixStart})</span></span>
+                <span className="flex-1 truncate">{g.name}</span>
+                <span className="font-mono text-xs text-muted-foreground mx-2">{g.codePrefixStart} → {g.codePrefixEnd}</span>
+                <span className="text-xs text-muted-foreground mr-2">{g._count.accounts} accts</span>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: g.id })}><Trash2 className="h-3 w-3" /></Button>
               </div>
             ))}

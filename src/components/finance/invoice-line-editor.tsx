@@ -10,6 +10,7 @@ import {
   FormItem,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -183,23 +184,15 @@ export function InvoiceLineEditor({ accounts, taxes }: InvoiceLineEditorProps) {
                     name={`lineItems.${index}.accountId`}
                     render={({ field: f }) => (
                       <FormItem>
-                        <Select
-                          onValueChange={f.onChange}
-                          value={f.value ?? ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Account" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {accounts.map((a) => (
-                              <SelectItem key={a.id} value={a.id}>
-                                {a.code} — {a.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={accounts.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                            value={f.value ?? ""}
+                            onValueChange={f.onChange}
+                            placeholder="Account"
+                            searchPlaceholder="Search accounts..."
+                          />
+                        </FormControl>
                       </FormItem>
                     )}
                   />

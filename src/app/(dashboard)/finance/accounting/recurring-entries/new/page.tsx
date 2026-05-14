@@ -16,13 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -134,20 +128,15 @@ export default function NewRecurringEntryPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Journal</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select journal" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {journals?.map((j: any) => (
-                        <SelectItem key={j.id} value={j.id}>
-                          {j.code} — {j.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(journals ?? []).map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      placeholder="Select journal"
+                      searchPlaceholder="Search journals..."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -158,20 +147,15 @@ export default function NewRecurringEntryPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {currencies?.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.code} — {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(currencies ?? []).map((c: any) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      placeholder="Select currency"
+                      searchPlaceholder="Search currencies..."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -182,22 +166,13 @@ export default function NewRecurringEntryPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Frequency</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.entries(RECURRING_FREQUENCY_LABELS).map(
-                        ([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={Object.entries(RECURRING_FREQUENCY_LABELS).map(([key, label]) => ({ value: key, label }))}
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -298,18 +273,13 @@ export default function NewRecurringEntryPage() {
                         control={form.control}
                         name={`lineTemplates.${index}.accountId`}
                         render={({ field: f }) => (
-                          <Select onValueChange={f.onChange} value={f.value}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Account" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(accounts as any)?.map((a: any) => (
-                                <SelectItem key={a.id} value={a.id}>
-                                  {a.code} — {a.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={((accounts as any) ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                            value={f.value ?? ""}
+                            onValueChange={f.onChange}
+                            placeholder="Account"
+                            searchPlaceholder="Search accounts..."
+                          />
                         )}
                       />
                     </TableCell>

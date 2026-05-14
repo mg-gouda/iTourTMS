@@ -66,13 +66,22 @@ const STEPS = [
   { number: 5, title: "Admin" },
 ];
 
+interface CoaTemplateOption {
+  id: string;
+  name: string;
+  description: string | null;
+  locale: string;
+  _count: { groups: number; accounts: number };
+}
+
 interface SetupWizardProps {
   countries: { id: string; code: string; name: string }[];
   currencies: { id: string; code: string; name: string; symbol: string }[];
+  coaTemplates: CoaTemplateOption[];
   existingLicenseId?: string | null;
 }
 
-export function SetupWizard({ countries, currencies, existingLicenseId }: SetupWizardProps) {
+export function SetupWizard({ countries, currencies, coaTemplates, existingLicenseId }: SetupWizardProps) {
   const router = useRouter();
   // If license already activated, skip to step 2
   const [step, setStep] = useState(existingLicenseId ? 2 : 1);
@@ -99,6 +108,9 @@ export function SetupWizard({ countries, currencies, existingLicenseId }: SetupW
     "finance",
     "contracting",
   ]);
+
+  // Step 4: COA template
+  const [selectedCoaTemplateId, setSelectedCoaTemplateId] = useState<string>("");
 
   // Step 5: Admin
   const [adminName, setAdminName] = useState("");
@@ -201,6 +213,7 @@ export function SetupWizard({ countries, currencies, existingLicenseId }: SetupW
       },
       modules: selectedModules,
       moduleConfig: {},
+      coaTemplateId: selectedCoaTemplateId || undefined,
       admin: {
         name: adminName,
         email: adminEmail,
@@ -548,39 +561,54 @@ export function SetupWizard({ countries, currencies, existingLicenseId }: SetupW
                 <div className="space-y-3 rounded-lg border p-4">
                   <h3 className="flex items-center gap-2 font-semibold">
                     <Landmark className="h-4 w-4" />
-                    Finance
+                    Finance — Chart of Accounts
                   </h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>Chart of Accounts</Label>
-                      <Select defaultValue="standard">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="standard">Standard</SelectItem>
-                          <SelectItem value="ifrs">IFRS</SelectItem>
-                          <SelectItem value="custom">Custom</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose a pre-built chart of accounts template to install automatically, or skip to set up accounts manually later.
+                  </p>
+                  {coaTemplates.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No templates available. You can import your chart of accounts after setup.</p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        onClick={() => setSelectedCoaTemplateId("")}
+                        className={`rounded-lg border p-3 text-left transition-all ${
+                          !selectedCoaTemplateId
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "hover:border-primary/40"
+                        }`}
+                      >
+                        <p className="font-medium text-sm">Skip for now</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Import your chart of accounts manually after setup</p>
+                      </button>
+                      {coaTemplates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          onClick={() => setSelectedCoaTemplateId(tpl.id)}
+                          className={`rounded-lg border p-3 text-left transition-all ${
+                            selectedCoaTemplateId === tpl.id
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "hover:border-primary/40"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-sm">{tpl.name}</p>
+                            {selectedCoaTemplateId === tpl.id && (
+                              <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary mt-0.5">
+                                <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          {tpl.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {tpl._count.accounts} accounts · {tpl._count.groups} groups
+                          </p>
+                        </button>
+                      ))}
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>Default Tax Rate</Label>
-                      <Select defaultValue="14">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">No Tax (0%)</SelectItem>
-                          <SelectItem value="5">VAT 5%</SelectItem>
-                          <SelectItem value="10">VAT 10%</SelectItem>
-                          <SelectItem value="14">VAT 14%</SelectItem>
-                          <SelectItem value="15">VAT 15%</SelectItem>
-                          <SelectItem value="20">VAT 20%</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 

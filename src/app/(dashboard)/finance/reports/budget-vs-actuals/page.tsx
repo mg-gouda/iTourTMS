@@ -9,13 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -63,18 +57,13 @@ export default function BudgetVsActualsPage() {
 
       {/* Budget Selector */}
       <div className="max-w-sm">
-        <Select value={budgetId} onValueChange={setBudgetId}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a budget" />
-          </SelectTrigger>
-          <SelectContent>
-            {budgets?.map((b: any) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name} ({b.fiscalYear?.name})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          options={(budgets ?? []).map((b: any) => ({ value: b.id, label: `${b.name} (${b.fiscalYear?.name})` }))}
+          value={budgetId}
+          onValueChange={setBudgetId}
+          placeholder="Select a budget"
+          searchPlaceholder="Search budgets..."
+        />
       </div>
 
       {!budgetId && (

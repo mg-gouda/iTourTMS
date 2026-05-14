@@ -15,13 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { JOURNAL_TYPE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
 import { journalSchema } from "@/lib/validations/finance";
@@ -118,23 +112,14 @@ export function JournalForm({ defaultValues }: JournalFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Type</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {Object.entries(JOURNAL_TYPE_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={Object.entries(JOURNAL_TYPE_LABELS).map(([key, label]) => ({ value: key, label: label as string }))}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Select type"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -166,26 +151,18 @@ export function JournalForm({ defaultValues }: JournalFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Default Account</FormLabel>
-                <Select
-                  onValueChange={(v) =>
-                    field.onChange(v === "__none" ? null : v)
-                  }
-                  defaultValue={field.value ?? "__none"}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="__none">None</SelectItem>
-                    {accountItems.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.code} — {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      { value: "__none", label: "None" },
+                      ...accountItems.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+                    ]}
+                    value={field.value ?? "__none"}
+                    onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                    placeholder="None"
+                    searchPlaceholder="Search accounts..."
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -197,26 +174,18 @@ export function JournalForm({ defaultValues }: JournalFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Suspense Account</FormLabel>
-                <Select
-                  onValueChange={(v) =>
-                    field.onChange(v === "__none" ? null : v)
-                  }
-                  defaultValue={field.value ?? "__none"}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="__none">None</SelectItem>
-                    {accountItems.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.code} — {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      { value: "__none", label: "None" },
+                      ...accountItems.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+                    ]}
+                    value={field.value ?? "__none"}
+                    onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                    placeholder="None"
+                    searchPlaceholder="Search accounts..."
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

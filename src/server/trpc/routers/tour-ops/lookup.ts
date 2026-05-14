@@ -165,7 +165,6 @@ export const tourOpsLookupRouter = createTRPCRouter({
   transportRoutes: proc
     .input(z.object({ destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
-      const date = input.date ? new Date(input.date) : new Date();
       const dests = await ctx.db.opsTransportDestination.findMany({
         where: {
           companyId: ctx.companyId,
@@ -175,11 +174,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
           routes: {
             include: {
               seasons: {
-                where: {
-                  isActive: true,
-                  dateFrom: { lte: date },
-                  dateTo: { gte: date },
-                },
+                where: { isActive: true },
                 include: { rates: true },
                 orderBy: { dateFrom: "desc" },
                 take: 1,
@@ -196,7 +191,6 @@ export const tourOpsLookupRouter = createTRPCRouter({
   sightseeingEntries: proc
     .input(z.object({ destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
-      const date = input.date ? new Date(input.date) : new Date();
       return ctx.db.opsSightseeingEntry.findMany({
         where: {
           companyId: ctx.companyId,
@@ -204,11 +198,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
         },
         include: {
           seasons: {
-            where: {
-              isActive: true,
-              dateFrom: { lte: date },
-              dateTo: { gte: date },
-            },
+            where: { isActive: true },
             orderBy: { dateFrom: "desc" },
             take: 1,
           },
@@ -220,7 +210,6 @@ export const tourOpsLookupRouter = createTRPCRouter({
   guidanceRates: proc
     .input(z.object({ destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
-      const date = input.date ? new Date(input.date) : new Date();
       return ctx.db.opsGuidanceRate.findMany({
         where: {
           companyId: ctx.companyId,
@@ -228,11 +217,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
         },
         include: {
           seasons: {
-            where: {
-              isActive: true,
-              dateFrom: { lte: date },
-              dateTo: { gte: date },
-            },
+            where: { isActive: true },
             orderBy: { dateFrom: "desc" },
             take: 1,
           },
@@ -244,7 +229,6 @@ export const tourOpsLookupRouter = createTRPCRouter({
   mealRates: proc
     .input(z.object({ mealType: z.string().optional(), destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
-      const date = input.date ? new Date(input.date) : new Date();
       return ctx.db.opsMealRate.findMany({
         where: {
           companyId: ctx.companyId,
@@ -254,11 +238,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
         include: {
           supplier: { select: { id: true, name: true } },
           seasons: {
-            where: {
-              isActive: true,
-              dateFrom: { lte: date },
-              dateTo: { gte: date },
-            },
+            where: { isActive: true },
             orderBy: { dateFrom: "desc" },
             take: 1,
           },

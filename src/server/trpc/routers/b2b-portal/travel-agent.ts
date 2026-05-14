@@ -83,8 +83,21 @@ export const travelAgentRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.tourOperator.create({
-        data: { ...input, companyId: ctx.companyId, partnerType: "travel_agent" },
+      return ctx.db.$transaction(async (tx) => {
+        const partner = await tx.partner.create({
+          data: {
+            companyId: ctx.companyId,
+            type: "customer",
+            isCompany: true,
+            name: input.name,
+            email: input.email ?? null,
+            phone: input.phone ?? null,
+            countryId: input.countryId ?? null,
+          },
+        });
+        return tx.tourOperator.create({
+          data: { ...input, companyId: ctx.companyId, partnerType: "travel_agent", partnerId: partner.id },
+        });
       });
     }),
 
@@ -108,6 +121,21 @@ export const travelAgentRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const agent = await ctx.db.tourOperator.findFirst({
+        where: { id: input.id, companyId: ctx.companyId, partnerType: "travel_agent" },
+        select: { partnerId: true },
+      });
+      if (agent?.partnerId) {
+        await ctx.db.partner.update({
+          where: { id: agent.partnerId },
+          data: {
+            ...(input.data.name !== undefined && { name: input.data.name }),
+            ...(input.data.email !== undefined && { email: input.data.email ?? null }),
+            ...(input.data.phone !== undefined && { phone: input.data.phone ?? null }),
+            ...(input.data.countryId !== undefined && { countryId: input.data.countryId ?? null }),
+          },
+        });
+      }
       return ctx.db.tourOperator.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: input.data,
@@ -119,9 +147,14 @@ export const travelAgentRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const agent = await ctx.db.tourOperator.findFirst({
         where: { id: input.id, companyId: ctx.companyId, partnerType: "travel_agent" },
+        select: { partnerId: true },
       });
       if (!agent)
         throw new TRPCError({ code: "NOT_FOUND", message: "Travel agent not found" });
-      return ctx.db.tourOperator.delete({ where: { id: input.id } });
+      await ctx.db.tourOperator.delete({ where: { id: input.id } });
+      if (agent.partnerId) {
+        await ctx.db.partner.delete({ where: { id: agent.partnerId } });
+      }
+      return { success: true };
     }),
 });

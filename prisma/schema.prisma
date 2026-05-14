@@ -201,6 +201,7 @@ model Company {
   opsGuidanceSeasons   OpsGuidanceRateSeason[]
   opsMealRates         OpsMealRate[]
   opsMealSeasons       OpsMealRateSeason[]
+  opsFlightTickets     OpsFlightTicket[]
 
   // License
   license              License?
@@ -312,7 +313,8 @@ model User {
   hotelCreditConsumptions    HotelCreditConsumption[] @relation("HotelCreditUsedBy")
 
   // Tour Operations relations
-  opsFilesCreated      OpsFile[]  @relation("OpsFileCreatedBy")
+  opsFilesCreated         OpsFile[]          @relation("OpsFileCreatedBy")
+  flightTicketsCreated    OpsFlightTicket[]  @relation("FlightTicketCreatedBy")
 
   @@index([companyId])
   @@index([email])
@@ -1173,6 +1175,7 @@ model Move {
   deferredExpSchedule DeferredExpenseSchedule?  @relation("DeferredExpMove")
   unrealizedAdj      UnrealizedCurrencyEntry?   @relation("UnrealizedAdjMove")
   unrealizedRev      UnrealizedCurrencyEntry?   @relation("UnrealizedRevMove")
+  flightTicket       OpsFlightTicket?           @relation("FlightTicketMove")
 
   @@index([companyId])
   @@index([companyId, moveType])
@@ -1301,6 +1304,7 @@ model Payment {
   updatedAt   DateTime    @updatedAt
 
   batchPaymentId String?
+  opsFileId      String?
 
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   partner      Partner?      @relation(fields: [partnerId], references: [id])
@@ -1309,11 +1313,13 @@ model Payment {
   move         Move?         @relation("PaymentMove", fields: [moveId], references: [id])
   invoices     Move[]        @relation("PaymentInvoices")
   batchPayment BatchPayment? @relation("BatchPaymentPayments", fields: [batchPaymentId], references: [id])
+  opsFile      OpsFile?      @relation("OpsFilePayments", fields: [opsFileId], references: [id])
 
   @@index([companyId])
   @@index([companyId, state])
   @@index([partnerId])
   @@index([batchPaymentId])
+  @@index([opsFileId])
   @@map("fin_payment")
 }
 
@@ -5525,6 +5531,18 @@ enum OpsMealType {
   FULL_BOARD
 }
 
+enum OpsFlightType {
+  ONE_WAY
+  RETURN
+  MULTI_LEG
+}
+
+enum OpsFlightTicketStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
 // ── OpsFile ──
 
 model OpsFile {
@@ -5542,9 +5560,11 @@ model OpsFile {
   adults         Int           @default(1)
   children       Int           @default(0)
   infants        Int           @default(0)
-  status         OpsFileStatus @default(DRAFT)
-  notes          String?       @db.Text
-  createdById    String
+  status             OpsFileStatus @default(DRAFT)
+  notes              String?       @db.Text
+  calculatorState    Json?
+  calculatorPosted   Boolean       @default(false)
+  createdById        String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -5553,9 +5573,11 @@ model OpsFile {
   tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
   createdBy    User          @relation("OpsFileCreatedBy", fields: [createdById], references: [id])
 
-  packages   OpsPackage[]
-  quotations OpsQuotation[]
-  pnl        OpsPnL?
+  packages       OpsPackage[]
+  quotations     OpsQuotation[]
+  pnl            OpsPnL?
+  opsPayments    Payment[]         @relation("OpsFilePayments")
+  flightTickets  OpsFlightTicket[] @relation("OpsFileFlightTickets")
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -5678,6 +5700,78 @@ model OpsPnL {
 
   @@index([fileId])
   @@map("ops_pnl")
+}
+
+// ── OpsFlightTicket ──
+
+model OpsFlightTicket {
+  id                 String                @id @default(cuid())
+  companyId          String
+  code               String
+  opsFileId          String?
+  status             OpsFlightTicketStatus @default(DRAFT)
+  flightType         OpsFlightType         @default(ONE_WAY)
+  clientName         String?
+  issueDate          DateTime?             @db.Date
+  origin             String
+  destination        String
+  departureDate      DateTime              @db.Date
+  returnDate         DateTime?             @db.Date
+  airline            String?
+  flightNumber       String?
+  returnFlightNumber String?
+  ticketNumber       String?
+  takeOffTime        String?
+  terminal           String?
+  returnTakeOffTime  String?
+  returnTerminal     String?
+  returnAirline      String?
+  pricingBasis       OpsPricingBasis       @default(PER_PERSON)
+  pax                Int                   @default(1)
+  buyingRate         Decimal               @db.Decimal(12, 2)
+  sellingRate        Decimal               @db.Decimal(12, 2)
+  commissionType     OpsMarkupType         @default(PERCENTAGE)
+  commissionValue    Decimal               @default(0) @db.Decimal(10, 4)
+  commissionAmount   Decimal               @default(0) @db.Decimal(12, 2)
+  totalCost          Decimal               @default(0) @db.Decimal(12, 2)
+  totalRevenue       Decimal               @default(0) @db.Decimal(12, 2)
+  profit             Decimal               @default(0) @db.Decimal(12, 2)
+  marginPct          Decimal               @default(0) @db.Decimal(8, 4)
+  journalMoveId      String?               @unique
+  notes              String?               @db.Text
+  createdById        String
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  opsFile     OpsFile?         @relation("OpsFileFlightTickets", fields: [opsFileId], references: [id])
+  journalMove Move?            @relation("FlightTicketMove", fields: [journalMoveId], references: [id])
+  createdBy   User             @relation("FlightTicketCreatedBy", fields: [createdById], references: [id])
+  legs        OpsFlightLeg[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([opsFileId])
+  @@map("ops_flight_ticket")
+}
+
+model OpsFlightLeg {
+  id           String          @id @default(cuid())
+  ticketId     String
+  sequence     Int
+  origin       String
+  destination  String
+  date         DateTime        @db.Date
+  takeOffTime  String?
+  airline      String?
+  flightNumber String?
+  terminal     String?
+
+  ticket       OpsFlightTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ops_flight_leg")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -5882,4 +5976,51 @@ model OpsMealRateSeason {
   @@index([companyId])
   @@index([mealRateId])
   @@map("ops_meal_rate_season")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chart of Accounts Templates
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CoaTemplate {
+  id          String               @id @default(cuid())
+  name        String               @unique
+  description String?
+  locale      String               @default("en")
+  groups      CoaTemplateGroup[]
+  accounts    CoaTemplateAccount[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("coa_template")
+}
+
+model CoaTemplateGroup {
+  id              String      @id @default(cuid())
+  templateId      String
+  name            String
+  codePrefixStart String
+  codePrefixEnd   String
+
+  template CoaTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("coa_template_group")
+}
+
+model CoaTemplateAccount {
+  id          String   @id @default(cuid())
+  templateId  String
+  code        String
+  name        String
+  accountType String
+  reconcile   Boolean  @default(false)
+  deprecated  Boolean  @default(false)
+  groupName   String?
+
+  template CoaTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([templateId, code])
+  @@map("coa_template_account")
 }

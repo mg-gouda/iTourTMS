@@ -1,71 +1,80 @@
 import { ACCOUNT_TYPE_LABELS } from "@/lib/constants/finance";
 
-export async function downloadChartOfAccountsTemplate(): Promise<void> {
+export async function downloadChartOfAccountsTemplate(
+  existingGroups: { name: string; codePrefixStart: string; codePrefixEnd: string }[] = [],
+): Promise<void> {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
-  // ── Sheet 1: Accounts (the fillable template) ──
-  const header = ["Code", "Name", "Type", "Reconcile (Yes/No)", "Deprecated (Yes/No)", "Group Name"];
+  // ── Sheet 1: Groups (fill this first) ──
+  const groupsHeader = ["Group Name", "Code From", "Code To"];
+  const groupsExamples = existingGroups.length > 0
+    ? existingGroups.map((g) => [g.name, g.codePrefixStart, g.codePrefixEnd])
+    : [
+        ["Assets", "1000", "1999"],
+        ["Liabilities", "2000", "2999"],
+        ["Equity", "3000", "3999"],
+        ["Income", "4000", "4999"],
+        ["Expenses", "5000", "6999"],
+      ];
+  const groupsSheet = XLSX.utils.aoa_to_sheet([groupsHeader, ...groupsExamples]);
+  groupsSheet["!cols"] = [{ wch: 36 }, { wch: 14 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, groupsSheet, "Groups");
 
-  const exampleRows = [
-    ["1000", "Cash on Hand", "ASSET_CASH", "No", "No", ""],
-    ["1100", "Accounts Receivable", "ASSET_RECEIVABLE", "Yes", "No", "Trade Receivables"],
-    ["2000", "Accounts Payable", "LIABILITY_PAYABLE", "Yes", "No", ""],
-    ["3000", "Owner Equity", "EQUITY", "No", "No", ""],
-    ["4000", "Sales Revenue", "INCOME", "No", "No", ""],
-    ["5000", "Cost of Goods Sold", "EXPENSE_DIRECT_COST", "No", "No", ""],
+  // ── Sheet 2: Accounts ──
+  const accountsHeader = ["Code", "Name", "Type", "Reconcile (Yes/No)", "Deprecated (Yes/No)", "Group Name"];
+  const accountsExamples = [
+    ["1000", "Cash on Hand", "ASSET_CASH", "No", "No", "Assets"],
+    ["1100", "Accounts Receivable", "ASSET_RECEIVABLE", "Yes", "No", "Assets"],
+    ["2000", "Accounts Payable", "LIABILITY_PAYABLE", "Yes", "No", "Liabilities"],
+    ["3000", "Owner Equity", "EQUITY", "No", "No", "Equity"],
+    ["4000", "Sales Revenue", "INCOME", "No", "No", "Income"],
+    ["5000", "Cost of Goods Sold", "EXPENSE_DIRECT_COST", "No", "No", "Expenses"],
   ];
-
-  const accountsSheet = XLSX.utils.aoa_to_sheet([header, ...exampleRows]);
-
+  const accountsSheet = XLSX.utils.aoa_to_sheet([accountsHeader, ...accountsExamples]);
   accountsSheet["!cols"] = [
-    { wch: 12 },  // Code
-    { wch: 38 },  // Name
-    { wch: 26 },  // Type
-    { wch: 20 },  // Reconcile
-    { wch: 20 },  // Deprecated
-    { wch: 26 },  // Group Name
+    { wch: 12 }, { wch: 38 }, { wch: 26 }, { wch: 20 }, { wch: 20 }, { wch: 26 },
   ];
-
-  // Style header row (bold background)
-  const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "1E3A5F" } }, alignment: { horizontal: "center" } };
-  for (let c = 0; c < header.length; c++) {
-    const cell = XLSX.utils.encode_cell({ r: 0, c });
-    if (accountsSheet[cell]) {
-      accountsSheet[cell].s = headerStyle;
-    }
-  }
-
   XLSX.utils.book_append_sheet(wb, accountsSheet, "Accounts");
 
-  // ── Sheet 2: Account Types reference ──
+  // ── Sheet 3: Account Types reference ──
   const typesHeader = ["Type Code (use in Accounts sheet)", "Label"];
   const typesRows = Object.entries(ACCOUNT_TYPE_LABELS).map(([code, label]) => [code, label]);
-
   const typesSheet = XLSX.utils.aoa_to_sheet([typesHeader, ...typesRows]);
   typesSheet["!cols"] = [{ wch: 32 }, { wch: 28 }];
-
   XLSX.utils.book_append_sheet(wb, typesSheet, "Account Types Reference");
 
-  // ── Sheet 3: Instructions ──
+  // ── Sheet 4: Instructions ──
   const instructions = [
     ["Chart of Accounts — Import Instructions"],
     [""],
-    ["1. Fill in the 'Accounts' sheet. Do NOT change column headers."],
-    ["2. Code: unique account code, max 20 characters (required)."],
-    ["3. Name: account name, max 256 characters (required)."],
-    ["4. Type: must exactly match one of the codes in the 'Account Types Reference' sheet (required)."],
-    ["5. Reconcile: enter Yes or No (default: No)."],
-    ["6. Deprecated: enter Yes or No (default: No)."],
-    ["7. Group Name: optional. Must match an existing Account Group name exactly."],
-    ["8. Delete the example rows before uploading (rows 2-7), or leave them — duplicates are skipped."],
-    ["9. Save as .xlsx and upload using the 'Import Accounts' button."],
+    ["STEP 1 — Fill in the 'Groups' sheet:"],
+    ["  • Group Name: the group label (e.g. 'Assets', 'Liabilities')"],
+    ["  • Code From / Code To: numeric code range for auto-assignment (e.g. 1000 → 1999)"],
+    ["  • Groups are created first; accounts are then linked to them automatically."],
+    [""],
+    ["STEP 2 — Fill in the 'Accounts' sheet:"],
+    ["  • Code: unique account code, max 20 characters (required)."],
+    ["  • Name: account name, max 256 characters (required)."],
+    ["  • Type: must exactly match a code from the 'Account Types Reference' sheet (required)."],
+    ["  • Reconcile / Deprecated: enter Yes or No (default: No)."],
+    ["  • Group Name: optional. If provided, must match a Group Name exactly from the Groups sheet."],
+    ["    If left blank, the system auto-assigns based on the code range you defined in Groups."],
+    [""],
+    ["  • Delete the example rows before uploading, or leave them — duplicates are skipped."],
+    ["  • Save as .xlsx and upload using the 'Import' button on the Chart of Accounts page."],
   ];
   const instrSheet = XLSX.utils.aoa_to_sheet(instructions);
-  instrSheet["!cols"] = [{ wch: 72 }];
+  instrSheet["!cols"] = [{ wch: 80 }];
   XLSX.utils.book_append_sheet(wb, instrSheet, "Instructions");
 
   XLSX.writeFile(wb, "chart-of-accounts-template.xlsx");
+}
+
+export interface ParsedGroupRow {
+  name: string;
+  codePrefixStart: string;
+  codePrefixEnd: string;
 }
 
 export interface ParsedAccountRow {
@@ -93,15 +102,9 @@ function pick(r: Record<string, unknown>, ...keys: string[]): string {
 
 function resolveType(raw: string, validTypes: Set<string>): string | null {
   if (!raw) return null;
-
-  // 1. Exact match
   if (validTypes.has(raw)) return raw;
-
-  // 2. Case-insensitive exact match
   const upper = raw.toUpperCase();
   if (validTypes.has(upper)) return upper;
-
-  // 3. Code is embedded before "-" or " (" e.g. "ASSET_CURRENT-Prepayments"
   const separators = ["-", " (", " —", " –", ":"];
   for (const sep of separators) {
     const idx = raw.indexOf(sep);
@@ -110,37 +113,60 @@ function resolveType(raw: string, validTypes: Set<string>): string | null {
       if (validTypes.has(prefix)) return prefix;
     }
   }
-
-  // 4. Reverse lookup from human label e.g. "Prepayments" → "ASSET_PREPAYMENTS"
   const byLabel = LABEL_TO_TYPE[raw.toLowerCase()];
   if (byLabel) return byLabel;
-
   return null;
 }
 
-export async function parseChartOfAccountsFile(
-  file: File,
-): Promise<{ rows: ParsedAccountRow[]; errors: string[] }> {
+export async function parseChartOfAccountsFile(file: File): Promise<{
+  groups: ParsedGroupRow[];
+  rows: ParsedAccountRow[];
+  errors: string[];
+}> {
   const XLSX = await import("xlsx");
-
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array" });
 
-  const sheetName = wb.SheetNames[0];
-  if (!sheetName) return { rows: [], errors: ["No sheet found in file."] };
-
-  const sheet = wb.Sheets[sheetName];
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-
-  const validTypes = new Set(Object.keys(ACCOUNT_TYPE_LABELS));
-  const rows: ParsedAccountRow[] = [];
   const errors: string[] = [];
+  const groups: ParsedGroupRow[] = [];
+  const rows: ParsedAccountRow[] = [];
+
+  // ── Parse Groups sheet (optional) ──
+  const groupsSheetName = wb.SheetNames.find((n) =>
+    n.toLowerCase().includes("group"),
+  );
+  if (groupsSheetName) {
+    const gSheet = wb.Sheets[groupsSheetName]!;
+    const gRaw = XLSX.utils.sheet_to_json<Record<string, unknown>>(gSheet, { defval: "" });
+    for (const r of gRaw) {
+      const name = pick(r, "Group Name", "Name", "Group");
+      const from = pick(r, "Code From", "From", "Start", "codePrefixStart");
+      const to = pick(r, "Code To", "To", "End", "codePrefixEnd");
+      if (!name) continue;
+      // skip placeholder rows
+      if (name.startsWith("(")) continue;
+      groups.push({
+        name,
+        codePrefixStart: from || name.toUpperCase().replace(/\s+/g, "_"),
+        codePrefixEnd: to || name.toUpperCase().replace(/\s+/g, "_"),
+      });
+    }
+  }
+
+  // ── Parse Accounts sheet ──
+  const accountsSheetName = wb.SheetNames.find((n) =>
+    n.toLowerCase().includes("account") && !n.toLowerCase().includes("type"),
+  ) ?? wb.SheetNames[0];
+  if (!accountsSheetName) return { groups, rows, errors: ["No sheet found in file."] };
+
+  const sheet = wb.Sheets[accountsSheetName]!;
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+  const validTypes = new Set(Object.keys(ACCOUNT_TYPE_LABELS));
 
   for (let i = 0; i < raw.length; i++) {
     const r = raw[i]!;
-    const rowNum = i + 2; // 1-indexed + header
+    const rowNum = i + 2;
 
-    // Accept multiple common column header names
     const code = pick(r, "Code", "Account Code", "Acct Code", "No.", "No", "Num");
     const name = pick(r, "Name", "Account Name", "Description", "Title");
     const typeRaw = pick(r, "Type", "Account Type", "AccountType", "Type Code", "Category");
@@ -148,20 +174,15 @@ export async function parseChartOfAccountsFile(
     const deprecatedRaw = pick(r, "Deprecated (Yes/No)", "Deprecated", "Inactive").toLowerCase();
     const groupName = pick(r, "Group Name", "Group", "Account Group", "Section");
 
-    // Skip rows that are entirely empty or look like section headers
-    // (have code+name but no type and code is non-numeric / all-caps label)
     if (!code && !name) continue;
-    if (!typeRaw && code && name) {
-      // Likely a section/group header row — skip silently
-      continue;
-    }
+    if (!typeRaw && code && name) continue; // section header row
 
     if (!code) { errors.push(`Row ${rowNum}: Code is required.`); continue; }
     if (!name) { errors.push(`Row ${rowNum}: Name is required.`); continue; }
 
     const accountType = resolveType(typeRaw, validTypes);
     if (!accountType) {
-      errors.push(`Row ${rowNum}: Unrecognised type "${typeRaw}". Use a code from the Account Types Reference sheet.`);
+      errors.push(`Row ${rowNum}: Unrecognised type "${typeRaw}".`);
       continue;
     }
 
@@ -176,5 +197,5 @@ export async function parseChartOfAccountsFile(
     });
   }
 
-  return { rows, errors };
+  return { groups, rows, errors };
 }

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 import {
   Card,
@@ -441,14 +441,15 @@ function RecurringEditForm({
       </div>
       <div>
         <Label>Frequency</Label>
-        <Select value={frequency} onValueChange={setFrequency}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="MONTHLY">Monthly</SelectItem>
-            <SelectItem value="QUARTERLY">Quarterly</SelectItem>
-            <SelectItem value="YEARLY">Yearly</SelectItem>
-          </SelectContent>
-        </Select>
+        <Combobox
+          options={[
+            { value: "MONTHLY", label: "Monthly" },
+            { value: "QUARTERLY", label: "Quarterly" },
+            { value: "YEARLY", label: "Yearly" },
+          ]}
+          value={frequency}
+          onValueChange={setFrequency}
+        />
       </div>
       <div>
         <Label>Next Run Date</Label>

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Trash2, Calculator, Zap, Settings2, Database, Pencil, Hotel, Ship } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Plus, Trash2, Calculator, Zap, Settings2, Database, Pencil, Hotel, Ship, Lock, Unlock, CheckCircle2, Cloud, CloudOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,9 +22,10 @@ import {
   OPS_VEHICLE_TYPE_LABELS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { Combobox } from "@/components/ui/combobox";
 import {
   AccommodationPickerDialog,
-  type AccommodationRoomBreakdown,
+  type ContractHotelData,
 } from "@/components/tour-ops/accommodation-picker-dialog";
 
 // ── Row types ──
@@ -64,29 +64,30 @@ interface SightseeingRow {
 
 interface AccommodationRow {
   _id: string;
+  occupancy: "SGL" | "DBL" | "TPL";
   description: string;
-  nights: number;
+  contractData: ContractHotelData | null;
+  arrivalDate: string;
+  departureDate: string;
+  nights: number;    // auto-calc from dates
+  ratePRPN: number;  // per room per night
+  numRooms: number;
+  vatPct: number;
   currency: string;
-  sglRooms: number;
-  sglRate: number;
-  dblRooms: number;
-  dblRate: number;
-  tplRooms: number;
-  tplRate: number;
 }
 
 interface NileCruiseRow {
   _id: string;
+  occupancy: "SGL" | "DBL" | "TPL";
   description: string;
-  embarkationDay: string;
-  nights: number;
+  contractData: ContractHotelData | null;
+  embarkationDate: string;
+  disembarkationDate: string;
+  nights: number;    // auto-calc from dates
+  ratePRPN: number;  // per cabin per night
+  numCabins: number;
+  vatPct: number;
   currency: string;
-  sglRooms: number;
-  sglRate: number;
-  dblRooms: number;
-  dblRate: number;
-  tplRooms: number;
-  tplRate: number;
 }
 
 interface MealRow {
@@ -130,11 +131,28 @@ function mkTransportRow(): TransportRow {
 function mkSightseeingRow(totalPax: number): SightseeingRow {
   return { _id: uid(), mode: "predefined", description: "", destinationCode: "", entryId: "", pax: totalPax, entrancePriceEGP: 0, guideType: "", guidanceDays: 1, guidancePricePerDay: 0, policeTipEGP: 0, parkingEGP: 0, mealRateId: "", mealPax: 0, mealPricePerPax: 0 };
 }
+function calcNights(from: string, to: string): number {
+  if (!from || !to) return 0;
+  const diff = new Date(to).getTime() - new Date(from).getTime();
+  return Math.max(0, Math.round(diff / (1000 * 60 * 60 * 24)));
+}
+
+function computeRatePRPN(occupancy: "SGL" | "DBL" | "TPL", data: ContractHotelData): number {
+  const { rateBasis, sglRate, dblRate, tplRate } = data;
+  if (rateBasis === "PER_ROOM") {
+    return occupancy === "SGL" ? (sglRate ?? 0) : occupancy === "DBL" ? (dblRate ?? 0) : (tplRate ?? 0);
+  }
+  // PER_PERSON → convert to per-room cost
+  if (occupancy === "SGL") return sglRate ?? 0;
+  if (occupancy === "DBL") return (dblRate ?? 0) * 2;
+  return (tplRate ?? 0) * 3;
+}
+
 function mkAccommodationRow(): AccommodationRow {
-  return { _id: uid(), description: "", nights: 1, currency: "USD", sglRooms: 0, sglRate: 0, dblRooms: 1, dblRate: 0, tplRooms: 0, tplRate: 0 };
+  return { _id: uid(), occupancy: "DBL", description: "", contractData: null, arrivalDate: "", departureDate: "", nights: 0, ratePRPN: 0, numRooms: 1, vatPct: 0, currency: "USD" };
 }
 function mkNileCruiseRow(): NileCruiseRow {
-  return { _id: uid(), description: "", embarkationDay: "", nights: 4, currency: "USD", sglRooms: 0, sglRate: 0, dblRooms: 1, dblRate: 0, tplRooms: 0, tplRate: 0 };
+  return { _id: uid(), occupancy: "DBL", description: "", contractData: null, embarkationDate: "", disembarkationDate: "", nights: 0, ratePRPN: 0, numCabins: 1, vatPct: 0, currency: "USD" };
 }
 function mkMealRow(totalPax: number): MealRow {
   return { _id: uid(), mode: "predefined", mealRateId: "", description: "", pax: totalPax, pricePerPaxEGP: 0 };
@@ -142,6 +160,17 @@ function mkMealRow(totalPax: number): MealRow {
 function mkGuidanceRow(): GuidanceRow {
   return { _id: uid(), mode: "predefined", destinationCode: "", guideType: "", description: "", days: 1, pricePerDayEGP: 0 };
 }
+
+type CalcComponent = {
+  type: "ACCOMMODATION" | "NILE_CRUISE" | "TRANSFER" | "EXCURSION" | "GUIDANCE" | "MEAL" | "MISC";
+  description: string;
+  unitCost: number;
+  qty: number;
+  nights: number;
+  pricingBasis: "PER_PERSON" | "BULK";
+  notes?: string;
+  sortOrder: number;
+};
 
 // ── Mode toggle button ──
 function ModeToggle({ mode, onToggle }: { mode: "predefined" | "manual"; onToggle: () => void }) {
@@ -168,9 +197,10 @@ interface Props {
   packages: { id: string; name: string }[];
   defaultPax?: number;
   travelDate?: string;
+  onPostSuccess?: () => void;
 }
 
-export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDate }: Props) {
+export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDate, onPostSuccess }: Props) {
   const [g, setG] = useState<GlobalInputs>({ totalPax: defaultPax, roe: 50, marginPct: 0, vatPct: 0, foc: 0 });
 
   const [transportRows, setTransportRows] = useState<TransportRow[]>([]);
@@ -180,8 +210,8 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
   const [mealRows, setMealRows] = useState<MealRow[]>([]);
   const [guidanceRows, setGuidanceRows] = useState<GuidanceRow[]>([]);
 
-  const [targetPackageId, setTargetPackageId] = useState(packages[0]?.id ?? "");
-  const [replaceExisting, setReplaceExisting] = useState(false);
+  const [isPosted, setIsPosted] = useState(false);
+  const [postedQuotationCode, setPostedQuotationCode] = useState<string | null>(null);
 
   // Hotel picker state
   const [hotelPicker, setHotelPicker] = useState<{ rowId: string; type: "accommodation" | "nile_cruise" } | null>(null);
@@ -193,10 +223,139 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
   const { data: mealRates } = trpc.tourOps.lookup.mealRates.useQuery(queryOpts);
 
   const utils = trpc.useUtils();
-  const generateMutation = trpc.tourOps.calculator.generateComponents.useMutation({
-    onSuccess: () => { toast.success("Components added to package"); utils.tourOps.file.getById.invalidate({ id: fileId }); },
+
+  // ── Save / Load state ──
+  const { data: savedState } = trpc.tourOps.calculator.getState.useQuery({ fileId });
+  const saveMutation = trpc.tourOps.calculator.saveState.useMutation({
+    onSuccess: () => toast.success("Calculator saved"),
     onError: (e) => toast.error(e.message),
   });
+  const postMutation = trpc.tourOps.calculator.post.useMutation({
+    onSuccess: (data) => {
+      setIsPosted(true);
+      setPostedQuotationCode(data.quotationCode);
+      toast.success(`Calculation posted — Quotation ${data.quotationCode} created`);
+      utils.tourOps.file.getById.invalidate({ id: fileId });
+      onPostSuccess?.();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const reopenMutation = trpc.tourOps.calculator.reopen.useMutation({
+    onSuccess: () => {
+      setIsPosted(false);
+      toast.success("Calculator reopened for editing");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [stateLoaded, setStateLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether user has made any change after the initial hydration from DB
+  const userChangedAfterLoad = useRef(false);
+
+  useEffect(() => {
+    if (stateLoaded || !savedState) { setStateLoaded(true); return; }
+    if (savedState.posted) setIsPosted(true);
+    const s = savedState.state;
+    if (!s || typeof s !== "object") { setStateLoaded(true); return; }
+    const st = s as Record<string, unknown>;
+    if (st.g) setG(st.g as GlobalInputs);
+    if (Array.isArray(st.transportRows)) setTransportRows(st.transportRows as TransportRow[]);
+    if (Array.isArray(st.sightseeingRows)) setSightseeingRows(st.sightseeingRows as SightseeingRow[]);
+    if (Array.isArray(st.accommodationRows)) setAccommodationRows(st.accommodationRows as AccommodationRow[]);
+    if (Array.isArray(st.nileCruiseRows)) setNileCruiseRows(st.nileCruiseRows as NileCruiseRow[]);
+    if (Array.isArray(st.mealRows)) setMealRows(st.mealRows as MealRow[]);
+    if (Array.isArray(st.guidanceRows)) setGuidanceRows(st.guidanceRows as GuidanceRow[]);
+    setStateLoaded(true);
+  }, [savedState, stateLoaded]);
+
+  const doSave = useCallback((state: Record<string, unknown>) => {
+    setSaveStatus("saving");
+    saveMutation.mutate(
+      { fileId, state },
+      {
+        onSuccess: () => setSaveStatus("saved"),
+        onError: () => setSaveStatus("error"),
+      }
+    );
+  }, [fileId, saveMutation]);
+
+  // Auto-save 1.5 s after last user change (skip the initial hydration trigger)
+  useEffect(() => {
+    if (!stateLoaded || isPosted) return;
+    // The first firing of this effect after load is caused by the hydration
+    // state updates — skip it and just mark that we're ready to track changes.
+    if (!userChangedAfterLoad.current) {
+      userChangedAfterLoad.current = true;
+      return;
+    }
+    setSaveStatus("idle");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      doSave({ g, transportRows, sightseeingRows, accommodationRows, nileCruiseRows, mealRows, guidanceRows });
+    }, 1500);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g, transportRows, sightseeingRows, accommodationRows, nileCruiseRows, mealRows, guidanceRows]);
+
+  function buildComponents(): CalcComponent[] {
+    const components: CalcComponent[] = [];
+    let sort = 0;
+
+    for (const row of calc.transportCalcs) {
+      if (row.ppUSD <= 0) continue;
+      const route = getRoutesForDest(row.destinationCode).find((r) => r.id === row.routeId);
+      const vehicleLabel = OPS_VEHICLE_TYPE_LABELS[row.vehicleType as keyof typeof OPS_VEHICLE_TYPE_LABELS] ?? row.vehicleType;
+      const desc = row.mode === "manual"
+        ? (row.description || `Transfer — ${vehicleLabel}`)
+        : (route ? `${route.nameEn} — ${vehicleLabel}` : `Transfer — ${vehicleLabel}`);
+      components.push({ type: "TRANSFER", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `${row.numVehicles}× ${vehicleLabel}, ${row.numTransfers} transfer(s). Rent EGP ${row.rentEGP}, Tip ${row.tipEGP}, Rep ${row.repEGP}.`, sortOrder: sort++ });
+    }
+    for (const row of calc.sightseeingCalcs) {
+      if (row.ppUSD <= 0) continue;
+      const entry = getEntriesForDest(row.destinationCode).find((e) => e.id === row.entryId);
+      const desc = row.mode === "manual" ? (row.description || "Excursion") : (entry?.nameEn ?? "Excursion");
+      components.push({ type: "EXCURSION", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `Entrance EGP ${row.entrancePriceEGP} × ${row.pax} pax.`, sortOrder: sort++ });
+    }
+    for (const row of calc.accommodationCalcs) {
+      if (row.totalInclVAT <= 0) continue;
+      const unitCostUSD = row.currency === "EGP" ? (g.roe > 0 ? row.totalInclVAT / g.roe : 0) : row.totalInclVAT;
+      components.push({ type: "ACCOMMODATION", description: row.description || "Accommodation", unitCost: parseFloat(unitCostUSD.toFixed(4)), qty: 1, nights: row.nights, pricingBasis: "BULK", notes: `${row.nights}n. ${row.occupancy} × ${row.numRooms} rooms @ ${row.currency} ${row.ratePRPN}/rm/night. VAT ${row.vatPct}%.`, sortOrder: sort++ });
+    }
+    for (const row of calc.nileCruiseCalcs) {
+      if (row.totalInclVAT <= 0) continue;
+      const unitCostUSD = row.currency === "EGP" ? (g.roe > 0 ? row.totalInclVAT / g.roe : 0) : row.totalInclVAT;
+      components.push({ type: "NILE_CRUISE", description: row.description || "Nile Cruise", unitCost: parseFloat(unitCostUSD.toFixed(4)), qty: 1, nights: row.nights, pricingBasis: "BULK", notes: `${row.nights}n. ${row.occupancy} × ${row.numCabins} cabins @ ${row.currency} ${row.ratePRPN}/cabin/night.`, sortOrder: sort++ });
+    }
+    for (const row of calc.mealCalcs) {
+      if (row.ppUSD <= 0) continue;
+      const meal = mealRates?.find((m) => m.id === row.mealRateId);
+      const desc = row.mode === "manual" ? (row.description || "Meal") : ((meal?.nameEn ?? row.description) || "Meal");
+      components.push({ type: "MEAL", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `EGP ${row.pricePerPaxEGP}/pax × ${row.pax} pax.`, sortOrder: sort++ });
+    }
+    for (const row of calc.guidanceCalcs) {
+      if (row.ppUSD <= 0) continue;
+      const guideLabel = OPS_GUIDE_TYPE_LABELS[row.guideType as keyof typeof OPS_GUIDE_TYPE_LABELS] ?? row.guideType;
+      const desc = row.mode === "manual" ? (row.description || "Guidance") : (guideLabel ? `${guideLabel} — ${row.destinationCode}` : row.description || "Guidance");
+      components.push({ type: "GUIDANCE", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `${row.days} day(s) × EGP ${row.pricePerDayEGP}/day.`, sortOrder: sort++ });
+    }
+    return components;
+  }
+
+  function handlePost() {
+    const components = buildComponents();
+    if (components.length === 0) { toast.error("All rows have zero cost — nothing to post"); return; }
+    if (g.totalPax < 1) { toast.error("Total pax must be at least 1"); return; }
+    postMutation.mutate({
+      fileId,
+      state: { g, transportRows, sightseeingRows, accommodationRows, nileCruiseRows, mealRows, guidanceRows },
+      components,
+      totalCostUSD: parseFloat((calc.netPP * g.totalPax).toFixed(2)),
+      totalSellingUSD: parseFloat((calc.sellingInclVAT * g.totalPax).toFixed(2)),
+      pax: g.totalPax,
+    });
+  }
 
   // ── Lookup helpers ──
 
@@ -263,6 +422,40 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
   function updateNileCruiseRow(id: string, changes: Partial<NileCruiseRow>) {
     setNileCruiseRows((rows) => rows.map((r) => r._id === id ? { ...r, ...changes } : r));
   }
+
+  function handleAccommodationOccupancyChange(id: string, occupancy: "SGL" | "DBL" | "TPL") {
+    setAccommodationRows((rows) => rows.map((r) => {
+      if (r._id !== id) return r;
+      const updated = { ...r, occupancy };
+      if (r.contractData) updated.ratePRPN = computeRatePRPN(occupancy, r.contractData);
+      return updated;
+    }));
+  }
+  function handleNileCruiseOccupancyChange(id: string, occupancy: "SGL" | "DBL" | "TPL") {
+    setNileCruiseRows((rows) => rows.map((r) => {
+      if (r._id !== id) return r;
+      const updated = { ...r, occupancy };
+      if (r.contractData) updated.ratePRPN = computeRatePRPN(occupancy, r.contractData);
+      return updated;
+    }));
+  }
+
+  function handleAccommodationDateChange(id: string, field: "arrival" | "departure", value: string) {
+    setAccommodationRows((rows) => rows.map((r) => {
+      if (r._id !== id) return r;
+      const arrivalDate = field === "arrival" ? value : r.arrivalDate;
+      const departureDate = field === "departure" ? value : r.departureDate;
+      return { ...r, arrivalDate, departureDate, nights: calcNights(arrivalDate, departureDate) };
+    }));
+  }
+  function handleNileCruiseDateChange(id: string, field: "embarkation" | "disembarkation", value: string) {
+    setNileCruiseRows((rows) => rows.map((r) => {
+      if (r._id !== id) return r;
+      const embarkationDate = field === "embarkation" ? value : r.embarkationDate;
+      const disembarkationDate = field === "disembarkation" ? value : r.disembarkationDate;
+      return { ...r, embarkationDate, disembarkationDate, nights: calcNights(embarkationDate, disembarkationDate) };
+    }));
+  }
   function updateMealRow(id: string, changes: Partial<MealRow>) {
     setMealRows((rows) =>
       rows.map((r) => {
@@ -290,18 +483,19 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
 
   // ── Hotel picker apply ──
 
-  function handleHotelPickerApply(data: AccommodationRoomBreakdown) {
+  function handleContractDataSelect(data: ContractHotelData) {
     if (!hotelPicker) return;
-    const common = {
-      description: data.description,
-      currency: data.currency,
-      nights: data.nights,
-      sglRooms: data.sglRooms, sglRate: data.sglRate,
-      dblRooms: data.dblRooms, dblRate: data.dblRate,
-      tplRooms: data.tplRooms, tplRate: data.tplRate,
-    };
-    if (hotelPicker.type === "accommodation") updateAccommodationRow(hotelPicker.rowId, common);
-    else updateNileCruiseRow(hotelPicker.rowId, common);
+    if (hotelPicker.type === "accommodation") {
+      setAccommodationRows((rows) => rows.map((r) => {
+        if (r._id !== hotelPicker.rowId) return r;
+        return { ...r, description: data.hotelName, currency: data.currency, contractData: data, ratePRPN: computeRatePRPN(r.occupancy, data) };
+      }));
+    } else {
+      setNileCruiseRows((rows) => rows.map((r) => {
+        if (r._id !== hotelPicker.rowId) return r;
+        return { ...r, description: data.hotelName, currency: data.currency, contractData: data, ratePRPN: computeRatePRPN(r.occupancy, data) };
+      }));
+    }
     setHotelPicker(null);
   }
 
@@ -327,17 +521,31 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       return { ...row, entranceTotal, guidanceTotal, mealTotal, grandTotalEGP, ppEGP, ppUSD };
     });
 
-    function calcRoomRows<T extends AccommodationRow>(rows: T[]) {
+    function calcAccomRows(rows: AccommodationRow[]) {
       return rows.map((row) => {
-        const totalLocal = (row.sglRooms * row.sglRate + row.dblRooms * row.dblRate + row.tplRooms * row.tplRate) * row.nights;
-        const totalUSD = row.currency === "EGP" ? (roe > 0 ? totalLocal / roe : 0) : totalLocal;
-        const ppUSD = totalPax > 0 ? totalUSD / totalPax : 0;
-        return { ...row, totalLocal, totalUSD, ppUSD };
+        const totalExVAT = row.ratePRPN * row.numRooms * row.nights;
+        const totalInclVAT = totalExVAT * (1 + row.vatPct / 100);
+        const totalPerPerson = totalPax > 0 ? totalInclVAT / totalPax : 0;
+        const ppUSD = row.currency === "EGP"
+          ? (roe > 0 ? totalInclVAT / roe / Math.max(1, totalPax) : 0)
+          : totalPax > 0 ? totalInclVAT / totalPax : 0;
+        return { ...row, totalExVAT, totalInclVAT, totalPerPerson, ppUSD };
+      });
+    }
+    function calcCruiseRows(rows: NileCruiseRow[]) {
+      return rows.map((row) => {
+        const totalExVAT = row.ratePRPN * row.numCabins * row.nights;
+        const totalInclVAT = totalExVAT * (1 + row.vatPct / 100);
+        const totalPerPerson = totalPax > 0 ? totalInclVAT / totalPax : 0;
+        const ppUSD = row.currency === "EGP"
+          ? (roe > 0 ? totalInclVAT / roe / Math.max(1, totalPax) : 0)
+          : totalPax > 0 ? totalInclVAT / totalPax : 0;
+        return { ...row, totalExVAT, totalInclVAT, totalPerPerson, ppUSD };
       });
     }
 
-    const accommodationCalcs = calcRoomRows(accommodationRows);
-    const nileCruiseCalcs = calcRoomRows(nileCruiseRows) as (NileCruiseRow & { totalLocal: number; totalUSD: number; ppUSD: number })[];
+    const accommodationCalcs = calcAccomRows(accommodationRows);
+    const nileCruiseCalcs = calcCruiseRows(nileCruiseRows);
 
     const mealCalcs = mealRows.map((row) => {
       const totalEGP = row.pricePerPaxEGP * row.pax;
@@ -369,113 +577,45 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
     return { transportCalcs, sightseeingCalcs, accommodationCalcs, nileCruiseCalcs, mealCalcs, guidanceCalcs, transportPP, sightseeingPP, accommodationPP, nileCruisePP, mealsPP, guidancePP, netPP, sellingPP, sellingInclVAT, focAdjusted };
   }, [transportRows, sightseeingRows, accommodationRows, nileCruiseRows, mealRows, guidanceRows, g]);
 
-  // ── Generate Components ──
-
-  function handleGenerate() {
-    if (!targetPackageId) { toast.error("Select a target package first"); return; }
-
-    const components: Parameters<typeof generateMutation.mutate>[0]["components"] = [];
-    let sort = 0;
-
-    for (const row of calc.transportCalcs) {
-      if (row.ppUSD <= 0) continue;
-      const route = getRoutesForDest(row.destinationCode).find((r) => r.id === row.routeId);
-      const vehicleLabel = OPS_VEHICLE_TYPE_LABELS[row.vehicleType as keyof typeof OPS_VEHICLE_TYPE_LABELS] ?? row.vehicleType;
-      const desc = row.mode === "manual"
-        ? (row.description || `Transfer — ${vehicleLabel}`)
-        : (route ? `${route.nameEn} — ${vehicleLabel}` : `Transfer — ${vehicleLabel}`);
-      components.push({ type: "TRANSFER", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `${row.numVehicles}× ${vehicleLabel}, ${row.numTransfers} transfer(s). Rent EGP ${row.rentEGP}, Tip ${row.tipEGP}, Rep ${row.repEGP}.`, sortOrder: sort++ });
-    }
-
-    for (const row of calc.sightseeingCalcs) {
-      if (row.ppUSD <= 0) continue;
-      const entry = getEntriesForDest(row.destinationCode).find((e) => e.id === row.entryId);
-      const desc = row.mode === "manual" ? (row.description || "Excursion") : (entry?.nameEn ?? "Excursion");
-      components.push({ type: "EXCURSION", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `Entrance EGP ${row.entrancePriceEGP} × ${row.pax} pax. Guidance ${row.guidanceDays}d. Police EGP ${row.policeTipEGP}. Parking EGP ${row.parkingEGP}.`, sortOrder: sort++ });
-    }
-
-    for (const row of calc.accommodationCalcs) {
-      if (row.totalUSD <= 0) continue;
-      components.push({ type: "ACCOMMODATION", description: row.description || "Accommodation", unitCost: parseFloat(row.totalUSD.toFixed(4)), qty: 1, nights: 1, pricingBasis: "BULK", notes: `${row.nights} nights. SGL: ${row.sglRooms}×${row.currency} ${row.sglRate}/rm/night, DBL: ${row.dblRooms}×${row.currency} ${row.dblRate}/rm/night, TPL: ${row.tplRooms}×${row.currency} ${row.tplRate}/rm/night.`, sortOrder: sort++ });
-    }
-
-    for (const row of calc.nileCruiseCalcs) {
-      if (row.totalUSD <= 0) continue;
-      const embarkNote = row.embarkationDay ? ` Embarkation: ${row.embarkationDay}.` : "";
-      components.push({ type: "NILE_CRUISE", description: row.description || "Nile Cruise", unitCost: parseFloat(row.totalUSD.toFixed(4)), qty: 1, nights: row.nights, pricingBasis: "BULK", notes: `${row.nights} nights.${embarkNote} SGL: ${row.sglRooms}×${row.currency} ${row.sglRate}/cabin/night, DBL: ${row.dblRooms}×${row.currency} ${row.dblRate}/cabin/night, TPL: ${row.tplRooms}×${row.currency} ${row.tplRate}/cabin/night.`, sortOrder: sort++ });
-    }
-
-    for (const row of calc.mealCalcs) {
-      if (row.ppUSD <= 0) continue;
-      const meal = mealRates?.find((m) => m.id === row.mealRateId);
-      const desc = row.mode === "manual" ? (row.description || "Meal") : ((meal?.nameEn ?? row.description) || "Meal");
-      components.push({ type: "MEAL", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `EGP ${row.pricePerPaxEGP}/pax × ${row.pax} pax.`, sortOrder: sort++ });
-    }
-
-    for (const row of calc.guidanceCalcs) {
-      if (row.ppUSD <= 0) continue;
-      const guideLabel = OPS_GUIDE_TYPE_LABELS[row.guideType as keyof typeof OPS_GUIDE_TYPE_LABELS] ?? row.guideType;
-      const desc = row.mode === "manual" ? (row.description || "Guidance") : (guideLabel ? `${guideLabel} — ${row.destinationCode}` : row.description || "Guidance");
-      components.push({ type: "GUIDANCE", description: desc, unitCost: parseFloat(row.ppUSD.toFixed(4)), qty: g.totalPax, nights: 1, pricingBasis: "PER_PERSON", notes: `${row.days} day(s) × EGP ${row.pricePerDayEGP}/day.`, sortOrder: sort++ });
-    }
-
-    if (components.length === 0) { toast.error("All rows have zero cost — nothing to generate"); return; }
-    generateMutation.mutate({ packageId: targetPackageId, components, replaceExisting });
-  }
-
-  // ── Room card helper ──
-
-  function RoomCells({ sglRooms, sglRate, dblRooms, dblRate, tplRooms, tplRate, currency, onUpdate }: {
-    sglRooms: number; sglRate: number;
-    dblRooms: number; dblRate: number;
-    tplRooms: number; tplRate: number;
-    currency: string;
-    onUpdate: (changes: { sglRooms?: number; sglRate?: number; dblRooms?: number; dblRate?: number; tplRooms?: number; tplRate?: number }) => void;
-  }) {
-    return (
-      <div className="flex flex-wrap gap-3">
-        {(
-          [
-            { label: "SGL", rooms: sglRooms, rate: sglRate, rKey: "sglRooms" as const, rateKey: "sglRate" as const },
-            { label: "DBL", rooms: dblRooms, rate: dblRate, rKey: "dblRooms" as const, rateKey: "dblRate" as const },
-            { label: "TPL", rooms: tplRooms, rate: tplRate, rKey: "tplRooms" as const, rateKey: "tplRate" as const },
-          ]
-        ).map(({ label, rooms, rate, rKey, rateKey }) => (
-          <div key={label} className="flex items-center gap-1.5 rounded-md border px-2 py-1">
-            <span className="text-[10px] font-semibold text-muted-foreground w-7">{label}</span>
-            <Input
-              type="number" min={0} step={1}
-              className="h-6 w-12 text-center text-xs px-1"
-              value={rooms}
-              onChange={(e) => onUpdate({ [rKey]: parseInt(e.target.value) || 0 })}
-              title={`${label} rooms`}
-            />
-            <span className="text-[10px] text-muted-foreground">rms ×</span>
-            <Input
-              type="number" min={0} step="any"
-              className="h-6 w-20 text-right text-xs px-1"
-              value={rate}
-              onChange={(e) => onUpdate({ [rateKey]: parseFloat(e.target.value) || 0 })}
-              title={`${label} rate`}
-            />
-            <span className="text-[10px] text-muted-foreground">{currency}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   // ── Render ──
 
   return (
     <div className="space-y-6">
 
+      {/* ── Posted banner ── */}
+      {isPosted && (
+        <div className="flex items-center justify-between rounded-lg border border-green-300 bg-green-50 px-4 py-3 dark:border-green-800 dark:bg-green-950/30">
+          <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="font-medium">Calculation posted</span>
+            {postedQuotationCode && <span className="text-muted-foreground">— Quotation <span className="font-mono font-semibold">{postedQuotationCode}</span> created in Draft</span>}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => reopenMutation.mutate({ fileId })} disabled={reopenMutation.isPending}>
+            <Unlock className="mr-1.5 h-3.5 w-3.5" />
+            {reopenMutation.isPending ? "Reopening…" : "Reopen for Editing"}
+          </Button>
+        </div>
+      )}
+
+      {/* ── Editable sections (locked when posted) ── */}
+      <div className={isPosted ? "pointer-events-none select-none opacity-60" : ""}>
+
       {/* ── Global Inputs ── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Settings2 className="h-4 w-4" /> Global Inputs
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Settings2 className="h-4 w-4" /> Global Inputs
+            </CardTitle>
+            {!isPosted && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {saveStatus === "saving" && <><Cloud className="h-3.5 w-3.5 animate-pulse" /> Saving…</>}
+                {saveStatus === "saved"  && <><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> Saved</>}
+                {saveStatus === "error"  && <><CloudOff className="h-3.5 w-3.5 text-destructive" /> Save failed</>}
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
@@ -502,33 +642,32 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       {/* ── Section A: Transportation ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm">Section A — Transportation</CardTitle>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                <Database className="inline h-3 w-3 mr-0.5" /> Predefined from master data &nbsp;|&nbsp;
-                <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setTransportRows((r) => [...r, mkTransportRow()])}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Row
-            </Button>
+          <div>
+            <CardTitle className="text-sm">Section A — Transportation</CardTitle>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <Database className="inline h-3 w-3 mr-0.5" /> Predefined from master data &nbsp;|&nbsp;
+              <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
+            </p>
           </div>
         </CardHeader>
         <CardContent>
           {transportRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No transport rows. Add a row to start.</p>
+            <div className="py-6 text-center">
+              <button type="button" onClick={() => setTransportRows((r) => [...r, mkTransportRow()])} className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Add first row
+              </button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b text-muted-foreground">
                     <th className="w-7 px-1 py-1.5"></th>
-                    <th className="min-w-[140px] px-2 py-1.5 text-left">Route / Description</th>
                     <th className="min-w-[80px] px-2 py-1.5 text-left">Dest</th>
-                    <th className="min-w-[105px] px-2 py-1.5 text-left">Vehicle</th>
-                    <th className="min-w-[55px] px-2 py-1.5 text-right">Vehs</th>
-                    <th className="min-w-[55px] px-2 py-1.5 text-right">Xfers</th>
+                    <th className="min-w-[140px] px-2 py-1.5 text-left">Route / Description</th>
+                    <th className="min-w-[105px] px-2 py-1.5 text-left">Car Capacity</th>
+                    <th className="min-w-[70px] px-2 py-1.5 text-right">No. of Cars</th>
+                    <th className="min-w-[70px] px-2 py-1.5 text-right">No. of TRSF</th>
                     <th className="min-w-[82px] px-2 py-1.5 text-right">Rent EGP</th>
                     <th className="min-w-[82px] px-2 py-1.5 text-right">Tip EGP</th>
                     <th className="min-w-[82px] px-2 py-1.5 text-right">Rep EGP</th>
@@ -544,41 +683,42 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       <td className="px-1 py-1">
                         <ModeToggle mode={row.mode} onToggle={() => updateTransportRow(row._id, { mode: row.mode === "predefined" ? "manual" : "predefined", destinationCode: "", routeId: "" })} />
                       </td>
-                      {/* Route / Description cell */}
+                      {/* Dest cell — first */}
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.routeId} onValueChange={(v) => updateTransportRow(row._id, { routeId: v })} disabled={!row.destinationCode}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Route…" /></SelectTrigger>
-                            <SelectContent>
-                              {getRoutesForDest(row.destinationCode).map((r) => (
-                                <SelectItem key={r.id} value={r.id}>{r.nameEn}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={OPS_DESTINATION_CODES.map((d) => ({ value: d.code, label: d.label }))}
+                            value={row.destinationCode}
+                            onValueChange={(v) => v && updateTransportRow(row._id, { destinationCode: v, routeId: "" })}
+                            placeholder="Dest…"
+                            className="h-7 text-xs"
+                          />
+                        ) : <span className="text-muted-foreground text-[10px]">—</span>}
+                      </td>
+                      {/* Route / Description cell — second */}
+                      <td className="px-2 py-1">
+                        {row.mode === "predefined" ? (
+                          <Combobox
+                            options={getRoutesForDest(row.destinationCode).map((r) => ({ value: r.id, label: r.nameEn }))}
+                            value={row.routeId}
+                            onValueChange={(v) => v && updateTransportRow(row._id, { routeId: v })}
+                            placeholder="Route…"
+                            disabled={!row.destinationCode}
+                            className="h-7 text-xs"
+                          />
                         ) : (
                           <Input className="h-7 text-xs" value={row.description} onChange={(e) => updateTransportRow(row._id, { description: e.target.value })} placeholder="e.g. Airport → Hotel Cairo" />
                         )}
                       </td>
-                      {/* Dest cell */}
+                      {/* Car Capacity cell */}
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.destinationCode} onValueChange={(v) => updateTransportRow(row._id, { destinationCode: v, routeId: "" })}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Dest…" /></SelectTrigger>
-                            <SelectContent>
-                              {OPS_DESTINATION_CODES.map((d) => <SelectItem key={d.code} value={d.code}>{d.code}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        ) : <span className="text-muted-foreground text-[10px]">—</span>}
-                      </td>
-                      {/* Vehicle cell */}
-                      <td className="px-2 py-1">
-                        {row.mode === "predefined" ? (
-                          <Select value={row.vehicleType} onValueChange={(v) => updateTransportRow(row._id, { vehicleType: v })}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(OPS_VEHICLE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={Object.entries(OPS_VEHICLE_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                            value={row.vehicleType}
+                            onValueChange={(v) => v && updateTransportRow(row._id, { vehicleType: v })}
+                            className="h-7 text-xs"
+                          />
                         ) : <span className="text-muted-foreground text-[10px]">—</span>}
                       </td>
                       <td className="px-2 py-1">
@@ -600,9 +740,14 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{fmt(row.ppEGP, 0)}</td>
                       <td className="px-2 py-1.5 text-right font-mono font-semibold">{fmt(row.ppUSD)}</td>
                       <td className="px-2 py-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setTransportRows((rows) => rows.filter((r) => r._id !== row._id))}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setTransportRows((rows) => { const i = rows.findIndex((r) => r._id === row._id); const next = [...rows]; next.splice(i + 1, 0, mkTransportRow()); return next; })}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setTransportRows((rows) => rows.filter((r) => r._id !== row._id))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -625,22 +770,21 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       {/* ── Section B: Sightseeing ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm">Section B — Sightseeing & Excursions</CardTitle>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                <Database className="inline h-3 w-3 mr-0.5" /> Predefined attraction &nbsp;|&nbsp;
-                <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setSightseeingRows((r) => [...r, mkSightseeingRow(g.totalPax)])}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Row
-            </Button>
+          <div>
+            <CardTitle className="text-sm">Section B — Sightseeing & Excursions</CardTitle>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <Database className="inline h-3 w-3 mr-0.5" /> Predefined attraction &nbsp;|&nbsp;
+              <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
+            </p>
           </div>
         </CardHeader>
         <CardContent>
           {sightseeingRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No sightseeing rows. Add a row to start.</p>
+            <div className="py-6 text-center">
+              <button type="button" onClick={() => setSightseeingRows((r) => [...r, mkSightseeingRow(g.totalPax)])} className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Add first row
+              </button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -672,23 +816,26 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       {/* Dest */}
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.destinationCode} onValueChange={(v) => updateSightseeingRow(row._id, { destinationCode: v, entryId: "" })}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Dest…" /></SelectTrigger>
-                            <SelectContent>
-                              {OPS_DESTINATION_CODES.map((d) => <SelectItem key={d.code} value={d.code}>{d.code}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={OPS_DESTINATION_CODES.map((d) => ({ value: d.code, label: d.label }))}
+                            value={row.destinationCode}
+                            onValueChange={(v) => v && updateSightseeingRow(row._id, { destinationCode: v, entryId: "" })}
+                            placeholder="Dest…"
+                            className="h-7 text-xs"
+                          />
                         ) : <span className="text-muted-foreground text-[10px]">—</span>}
                       </td>
                       {/* Attraction / Description */}
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.entryId} onValueChange={(v) => updateSightseeingRow(row._id, { entryId: v })} disabled={!row.destinationCode}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Attraction…" /></SelectTrigger>
-                            <SelectContent>
-                              {getEntriesForDest(row.destinationCode).map((e) => <SelectItem key={e.id} value={e.id}>{e.nameEn}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={getEntriesForDest(row.destinationCode).map((e) => ({ value: e.id, label: e.nameEn }))}
+                            value={row.entryId}
+                            onValueChange={(v) => v && updateSightseeingRow(row._id, { entryId: v })}
+                            placeholder="Attraction…"
+                            disabled={!row.destinationCode}
+                            className="h-7 text-xs"
+                          />
                         ) : (
                           <Input className="h-7 text-xs" value={row.description} onChange={(e) => updateSightseeingRow(row._id, { description: e.target.value })} placeholder="e.g. Giza Pyramids complex" />
                         )}
@@ -700,13 +847,16 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                         <Input type="number" min={0} className="h-7 text-right text-xs" value={row.entrancePriceEGP} onChange={(e) => updateSightseeingRow(row._id, { entrancePriceEGP: parseFloat(e.target.value) || 0 })} />
                       </td>
                       <td className="px-2 py-1">
-                        <Select value={row.guideType || "__none__"} onValueChange={(v) => updateSightseeingRow(row._id, { guideType: v === "__none__" ? "" : v })}>
-                          <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="None" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
-                            {Object.entries(OPS_GUIDE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={[
+                            { value: "", label: "None" },
+                            ...Object.entries(OPS_GUIDE_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
+                          ]}
+                          value={row.guideType || ""}
+                          onValueChange={(v) => updateSightseeingRow(row._id, { guideType: v })}
+                          placeholder="None"
+                          className="h-7 text-xs"
+                        />
                       </td>
                       <td className="px-2 py-1">
                         <Input type="number" min={0} className="h-7 text-right text-xs" value={row.guidanceDays} onChange={(e) => updateSightseeingRow(row._id, { guidanceDays: parseInt(e.target.value) || 0 })} />
@@ -721,13 +871,16 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                         <Input type="number" min={0} className="h-7 text-right text-xs" value={row.parkingEGP} onChange={(e) => updateSightseeingRow(row._id, { parkingEGP: parseFloat(e.target.value) || 0 })} />
                       </td>
                       <td className="px-2 py-1">
-                        <Select value={row.mealRateId || "__none__"} onValueChange={(v) => updateSightseeingRow(row._id, { mealRateId: v === "__none__" ? "" : v })}>
-                          <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="None" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
-                            {(mealRates ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.nameEn}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={[
+                            { value: "", label: "None" },
+                            ...(mealRates ?? []).map((m) => ({ value: m.id, label: m.nameEn })),
+                          ]}
+                          value={row.mealRateId || ""}
+                          onValueChange={(v) => updateSightseeingRow(row._id, { mealRateId: v })}
+                          placeholder="None"
+                          className="h-7 text-xs"
+                        />
                       </td>
                       <td className="px-2 py-1">
                         <Input type="number" min={0} className="h-7 text-right text-xs" value={row.mealPax} onChange={(e) => updateSightseeingRow(row._id, { mealPax: parseInt(e.target.value) || 0 })} />
@@ -735,9 +888,14 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{fmt(row.grandTotalEGP, 0)}</td>
                       <td className="px-2 py-1.5 text-right font-mono font-semibold">{fmt(row.ppUSD)}</td>
                       <td className="px-2 py-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setSightseeingRows((rows) => rows.filter((r) => r._id !== row._id))}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setSightseeingRows((rows) => { const i = rows.findIndex((r) => r._id === row._id); const next = [...rows]; next.splice(i + 1, 0, mkSightseeingRow(g.totalPax)); return next; })}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setSightseeingRows((rows) => rows.filter((r) => r._id !== row._id))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -760,68 +918,134 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       {/* ── Section C: Accommodation ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Section C — Accommodation</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setAccommodationRows((r) => [...r, mkAccommodationRow()])}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Row
-            </Button>
-          </div>
+          <CardTitle className="text-sm">Section C — Accommodation</CardTitle>
         </CardHeader>
         <CardContent>
           {accommodationRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No accommodation rows. Add a row to start.</p>
+            <div className="py-6 text-center">
+              <button type="button" onClick={() => setAccommodationRows((r) => [...r, mkAccommodationRow()])} className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Add first row
+              </button>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {calc.accommodationCalcs.map((row) => (
-                <div key={row._id} className="rounded-md border p-3 space-y-2">
-                  {/* Row 1: hotel name + nights + currency + delete */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button" variant="outline" size="sm"
-                      className="h-7 shrink-0 gap-1 text-xs"
-                      onClick={() => setHotelPicker({ rowId: row._id, type: "accommodation" })}
-                    >
-                      <Hotel className="h-3 w-3" /> From Contract
-                    </Button>
-                    <Input
-                      className="h-7 flex-1 min-w-40 text-xs"
-                      value={row.description}
-                      onChange={(e) => updateAccommodationRow(row._id, { description: e.target.value })}
-                      placeholder="Hotel name…"
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-[10px] text-muted-foreground shrink-0">Nights</Label>
-                      <Input type="number" min={1} className="h-7 w-14 text-xs" value={row.nights} onChange={(e) => updateAccommodationRow(row._id, { nights: parseInt(e.target.value) || 1 })} />
-                    </div>
-                    <Select value={row.currency} onValueChange={(v) => updateAccommodationRow(row._id, { currency: v })}>
-                      <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["USD", "EGP", "EUR", "GBP"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setAccommodationRows((rows) => rows.filter((r) => r._id !== row._id))}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  {/* Row 2: room type breakdown */}
-                  <RoomCells
-                    sglRooms={row.sglRooms} sglRate={row.sglRate}
-                    dblRooms={row.dblRooms} dblRate={row.dblRate}
-                    tplRooms={row.tplRooms} tplRate={row.tplRate}
-                    currency={row.currency}
-                    onUpdate={(changes) => updateAccommodationRow(row._id, changes)}
-                  />
-                  {/* Row 3: totals */}
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-1">
-                    <span>Total {row.currency}: <span className="font-mono font-medium text-foreground">{fmt(row.totalLocal)}</span></span>
-                    {row.currency !== "USD" && <span>→ USD: <span className="font-mono font-medium text-foreground">{fmt(row.totalUSD)}</span></span>}
-                    <span className="ml-auto font-medium">PP $: <span className="font-mono text-primary">{fmt(row.ppUSD)}</span></span>
-                  </div>
-                </div>
-              ))}
-              <div className="flex justify-end text-xs font-semibold text-muted-foreground pt-1">
-                Accommodation PP $: <span className="ml-2 font-mono text-primary">{fmt(calc.accommodationPP)}</span>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="min-w-[80px] px-2 py-1.5 text-left">Occupancy</th>
+                    <th className="min-w-[200px] px-2 py-1.5 text-left">Accommodation</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-left">Arrival</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-left">Departure</th>
+                    <th className="min-w-[55px] px-2 py-1.5 text-right">Nights</th>
+                    <th className="min-w-[130px] px-2 py-1.5 text-right">Rate PRPN</th>
+                    <th className="min-w-[55px] px-2 py-1.5 text-right">Rooms</th>
+                    <th className="min-w-[58px] px-2 py-1.5 text-right">VAT %</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-right">Total incl. VAT</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-right">Total excl. VAT</th>
+                    <th className="min-w-[100px] px-2 py-1.5 text-right">Per Person</th>
+                    <th className="w-8 px-2 py-1.5"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {calc.accommodationCalcs.map((row) => (
+                    <tr key={row._id} className="hover:bg-muted/20">
+                      {/* Col 1: Occupancy */}
+                      <td className="px-2 py-1">
+                        <Select value={row.occupancy} onValueChange={(v) => handleAccommodationOccupancyChange(row._id, v as "SGL" | "DBL" | "TPL")}>
+                          <SelectTrigger className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DBL">DBL</SelectItem>
+                            <SelectItem value="SGL">SGL</SelectItem>
+                            <SelectItem value="TPL">TPL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      {/* Col 2: Accommodation name */}
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Pick from contract"
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-primary/40 bg-primary/5 text-primary hover:bg-primary/15 transition-colors"
+                            onClick={() => setHotelPicker({ rowId: row._id, type: "accommodation" })}
+                          >
+                            <Hotel className="h-3 w-3" />
+                          </button>
+                          <Input
+                            className="h-7 text-xs"
+                            value={row.description}
+                            onChange={(e) => updateAccommodationRow(row._id, { description: e.target.value, contractData: null })}
+                            placeholder="Hotel / property…"
+                          />
+                        </div>
+                      </td>
+                      {/* Col 3: Arrival Date */}
+                      <td className="px-2 py-1">
+                        <Input type="date" className="h-7 w-full text-xs" value={row.arrivalDate}
+                          onChange={(e) => handleAccommodationDateChange(row._id, "arrival", e.target.value)} />
+                      </td>
+                      {/* Col 4: Departure Date */}
+                      <td className="px-2 py-1">
+                        <Input type="date" className="h-7 w-full text-xs" value={row.departureDate}
+                          onChange={(e) => handleAccommodationDateChange(row._id, "departure", e.target.value)} />
+                      </td>
+                      {/* Col 5: Nights (auto-calc) */}
+                      <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{row.nights}</td>
+                      {/* Col 6: Rate PRPN */}
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <Input type="number" min={0} step="any" className="h-7 flex-1 text-right text-xs"
+                            value={row.ratePRPN}
+                            onChange={(e) => updateAccommodationRow(row._id, { ratePRPN: parseFloat(e.target.value) || 0 })} />
+                          <Select value={row.currency} onValueChange={(v) => updateAccommodationRow(row._id, { currency: v })}>
+                            <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["USD", "EGP", "EUR", "GBP"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </td>
+                      {/* Col 7: Number of rooms */}
+                      <td className="px-2 py-1">
+                        <Input type="number" min={0} step={1} className="h-7 w-full text-right text-xs"
+                          value={row.numRooms}
+                          onChange={(e) => updateAccommodationRow(row._id, { numRooms: parseInt(e.target.value) || 0 })} />
+                      </td>
+                      {/* Col 8: VAT % */}
+                      <td className="px-2 py-1">
+                        <Input type="number" min={0} step="any" className="h-7 w-full text-right text-xs"
+                          value={row.vatPct}
+                          onChange={(e) => updateAccommodationRow(row._id, { vatPct: parseFloat(e.target.value) || 0 })} />
+                      </td>
+                      {/* Col 9: Total incl. VAT */}
+                      <td className="px-2 py-1.5 text-right font-mono font-medium">{fmt(row.totalInclVAT)}</td>
+                      {/* Col 10: Total excl. VAT */}
+                      <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{fmt(row.totalExVAT)}</td>
+                      {/* Col 11: Per Person */}
+                      <td className="px-2 py-1.5 text-right font-mono font-semibold text-primary">{fmt(row.totalPerPerson)}</td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setAccommodationRows((rows) => { const i = rows.findIndex((r) => r._id === row._id); const next = [...rows]; next.splice(i + 1, 0, mkAccommodationRow()); return next; })}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setAccommodationRows((rows) => rows.filter((r) => r._id !== row._id))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                {accommodationRows.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t text-xs font-semibold">
+                      <td colSpan={11} className="px-2 pt-2 text-right text-muted-foreground">Accommodation PP $</td>
+                      <td className="px-2 pt-2 text-right font-mono text-primary">{fmt(calc.accommodationPP)}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
             </div>
           )}
         </CardContent>
@@ -830,77 +1054,134 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       {/* ── Section D: Nile Cruises ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Section D — Nile Cruises</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setNileCruiseRows((r) => [...r, mkNileCruiseRow()])}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Row
-            </Button>
-          </div>
+          <CardTitle className="text-sm">Section D — Nile Cruises</CardTitle>
         </CardHeader>
         <CardContent>
           {nileCruiseRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No Nile Cruise rows. Add a row to start.</p>
+            <div className="py-6 text-center">
+              <button type="button" onClick={() => setNileCruiseRows((r) => [...r, mkNileCruiseRow()])} className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Add first row
+              </button>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {calc.nileCruiseCalcs.map((row) => (
-                <div key={row._id} className="rounded-md border p-3 space-y-2">
-                  {/* Row 1: ship name + embarkation day + nights + currency + delete */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button" variant="outline" size="sm"
-                      className="h-7 shrink-0 gap-1 text-xs"
-                      onClick={() => setHotelPicker({ rowId: row._id, type: "nile_cruise" })}
-                    >
-                      <Ship className="h-3 w-3" /> From Contract
-                    </Button>
-                    <Input
-                      className="h-7 flex-1 min-w-40 text-xs"
-                      value={row.description}
-                      onChange={(e) => updateNileCruiseRow(row._id, { description: e.target.value })}
-                      placeholder="Cruise name / vessel…"
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-[10px] text-muted-foreground shrink-0">Embarkation</Label>
-                      <Input
-                        type="date"
-                        className="h-7 w-36 text-xs"
-                        value={row.embarkationDay}
-                        onChange={(e) => updateNileCruiseRow(row._id, { embarkationDay: e.target.value })}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-[10px] text-muted-foreground shrink-0">Nights</Label>
-                      <Input type="number" min={1} className="h-7 w-14 text-xs" value={row.nights} onChange={(e) => updateNileCruiseRow(row._id, { nights: parseInt(e.target.value) || 1 })} />
-                    </div>
-                    <Select value={row.currency} onValueChange={(v) => updateNileCruiseRow(row._id, { currency: v })}>
-                      <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["USD", "EGP", "EUR", "GBP"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0" onClick={() => setNileCruiseRows((rows) => rows.filter((r) => r._id !== row._id))}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  {/* Row 2: cabin type breakdown */}
-                  <RoomCells
-                    sglRooms={row.sglRooms} sglRate={row.sglRate}
-                    dblRooms={row.dblRooms} dblRate={row.dblRate}
-                    tplRooms={row.tplRooms} tplRate={row.tplRate}
-                    currency={row.currency}
-                    onUpdate={(changes) => updateNileCruiseRow(row._id, changes)}
-                  />
-                  {/* Row 3: totals */}
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-1">
-                    <span>Total {row.currency}: <span className="font-mono font-medium text-foreground">{fmt(row.totalLocal)}</span></span>
-                    {row.currency !== "USD" && <span>→ USD: <span className="font-mono font-medium text-foreground">{fmt(row.totalUSD)}</span></span>}
-                    <span className="ml-auto font-medium">PP $: <span className="font-mono text-primary">{fmt(row.ppUSD)}</span></span>
-                  </div>
-                </div>
-              ))}
-              <div className="flex justify-end text-xs font-semibold text-muted-foreground pt-1">
-                Nile Cruises PP $: <span className="ml-2 font-mono text-primary">{fmt(calc.nileCruisePP)}</span>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="min-w-[80px] px-2 py-1.5 text-left">Occupancy</th>
+                    <th className="min-w-[200px] px-2 py-1.5 text-left">Cruise / Vessel</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-left">Embarkation</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-left">Disembarkation</th>
+                    <th className="min-w-[55px] px-2 py-1.5 text-right">Nights</th>
+                    <th className="min-w-[130px] px-2 py-1.5 text-right">Rate PRPN</th>
+                    <th className="min-w-[60px] px-2 py-1.5 text-right">Cabins</th>
+                    <th className="min-w-[58px] px-2 py-1.5 text-right">VAT %</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-right">Total incl. VAT</th>
+                    <th className="min-w-[110px] px-2 py-1.5 text-right">Total excl. VAT</th>
+                    <th className="min-w-[100px] px-2 py-1.5 text-right">Per Person</th>
+                    <th className="w-8 px-2 py-1.5"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {calc.nileCruiseCalcs.map((row) => (
+                    <tr key={row._id} className="hover:bg-muted/20">
+                      {/* Col 1: Occupancy */}
+                      <td className="px-2 py-1">
+                        <Select value={row.occupancy} onValueChange={(v) => handleNileCruiseOccupancyChange(row._id, v as "SGL" | "DBL" | "TPL")}>
+                          <SelectTrigger className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DBL">DBL</SelectItem>
+                            <SelectItem value="SGL">SGL</SelectItem>
+                            <SelectItem value="TPL">TPL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      {/* Col 2: Cruise / vessel name */}
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Pick from contract"
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-primary/40 bg-primary/5 text-primary hover:bg-primary/15 transition-colors"
+                            onClick={() => setHotelPicker({ rowId: row._id, type: "nile_cruise" })}
+                          >
+                            <Ship className="h-3 w-3" />
+                          </button>
+                          <Input
+                            className="h-7 text-xs"
+                            value={row.description}
+                            onChange={(e) => updateNileCruiseRow(row._id, { description: e.target.value, contractData: null })}
+                            placeholder="Cruise name / vessel…"
+                          />
+                        </div>
+                      </td>
+                      {/* Col 3: Embarkation Date */}
+                      <td className="px-2 py-1">
+                        <Input type="date" className="h-7 w-full text-xs" value={row.embarkationDate}
+                          onChange={(e) => handleNileCruiseDateChange(row._id, "embarkation", e.target.value)} />
+                      </td>
+                      {/* Col 4: Disembarkation Date */}
+                      <td className="px-2 py-1">
+                        <Input type="date" className="h-7 w-full text-xs" value={row.disembarkationDate}
+                          onChange={(e) => handleNileCruiseDateChange(row._id, "disembarkation", e.target.value)} />
+                      </td>
+                      {/* Col 5: Nights (auto-calc) */}
+                      <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{row.nights}</td>
+                      {/* Col 6: Rate PRPN */}
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <Input type="number" min={0} step="any" className="h-7 flex-1 text-right text-xs"
+                            value={row.ratePRPN}
+                            onChange={(e) => updateNileCruiseRow(row._id, { ratePRPN: parseFloat(e.target.value) || 0 })} />
+                          <Select value={row.currency} onValueChange={(v) => updateNileCruiseRow(row._id, { currency: v })}>
+                            <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["USD", "EGP", "EUR", "GBP"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </td>
+                      {/* Col 7: Number of cabins */}
+                      <td className="px-2 py-1">
+                        <Input type="number" min={0} step={1} className="h-7 w-full text-right text-xs"
+                          value={row.numCabins}
+                          onChange={(e) => updateNileCruiseRow(row._id, { numCabins: parseInt(e.target.value) || 0 })} />
+                      </td>
+                      {/* Col 8: VAT % */}
+                      <td className="px-2 py-1">
+                        <Input type="number" min={0} step="any" className="h-7 w-full text-right text-xs"
+                          value={row.vatPct}
+                          onChange={(e) => updateNileCruiseRow(row._id, { vatPct: parseFloat(e.target.value) || 0 })} />
+                      </td>
+                      {/* Col 9: Total incl. VAT */}
+                      <td className="px-2 py-1.5 text-right font-mono font-medium">{fmt(row.totalInclVAT)}</td>
+                      {/* Col 10: Total excl. VAT */}
+                      <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{fmt(row.totalExVAT)}</td>
+                      {/* Col 11: Per Person */}
+                      <td className="px-2 py-1.5 text-right font-mono font-semibold text-primary">{fmt(row.totalPerPerson)}</td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setNileCruiseRows((rows) => { const i = rows.findIndex((r) => r._id === row._id); const next = [...rows]; next.splice(i + 1, 0, mkNileCruiseRow()); return next; })}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setNileCruiseRows((rows) => rows.filter((r) => r._id !== row._id))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                {nileCruiseRows.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t text-xs font-semibold">
+                      <td colSpan={11} className="px-2 pt-2 text-right text-muted-foreground">Nile Cruises PP $</td>
+                      <td className="px-2 pt-2 text-right font-mono text-primary">{fmt(calc.nileCruisePP)}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
             </div>
           )}
         </CardContent>
@@ -909,22 +1190,21 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       {/* ── Section E: Meals (standalone) ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm">Section E — Meals</CardTitle>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                <Database className="inline h-3 w-3 mr-0.5" /> From master data &nbsp;|&nbsp;
-                <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setMealRows((r) => [...r, mkMealRow(g.totalPax)])}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Row
-            </Button>
+          <div>
+            <CardTitle className="text-sm">Section E — Meals</CardTitle>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <Database className="inline h-3 w-3 mr-0.5" /> From master data &nbsp;|&nbsp;
+              <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
+            </p>
           </div>
         </CardHeader>
         <CardContent>
           {mealRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No meal rows. Add a row to start.</p>
+            <div className="py-6 text-center">
+              <button type="button" onClick={() => setMealRows((r) => [...r, mkMealRow(g.totalPax)])} className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Add first row
+              </button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -947,13 +1227,13 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       </td>
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.mealRateId || "__none__"} onValueChange={(v) => updateMealRow(row._id, { mealRateId: v === "__none__" ? "" : v })}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Select meal…" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">Select meal…</SelectItem>
-                              {(mealRates ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.nameEn}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={(mealRates ?? []).map((m) => ({ value: m.id, label: m.nameEn }))}
+                            value={row.mealRateId || ""}
+                            onValueChange={(v) => v && updateMealRow(row._id, { mealRateId: v })}
+                            placeholder="Select meal…"
+                            className="h-7 text-xs"
+                          />
                         ) : (
                           <Input className="h-7 text-xs" value={row.description} onChange={(e) => updateMealRow(row._id, { description: e.target.value })} placeholder="e.g. Welcome Dinner at Nile restaurant" />
                         )}
@@ -967,9 +1247,14 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{fmt(row.totalEGP, 0)}</td>
                       <td className="px-2 py-1.5 text-right font-mono font-semibold">{fmt(row.ppUSD)}</td>
                       <td className="px-2 py-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setMealRows((rows) => rows.filter((r) => r._id !== row._id))}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setMealRows((rows) => { const i = rows.findIndex((r) => r._id === row._id); const next = [...rows]; next.splice(i + 1, 0, mkMealRow(g.totalPax)); return next; })}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setMealRows((rows) => rows.filter((r) => r._id !== row._id))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -992,22 +1277,21 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       {/* ── Section F: Guidance (standalone) ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm">Section F — Tour Guidance</CardTitle>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                <Database className="inline h-3 w-3 mr-0.5" /> From master data &nbsp;|&nbsp;
-                <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setGuidanceRows((r) => [...r, mkGuidanceRow()])}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Row
-            </Button>
+          <div>
+            <CardTitle className="text-sm">Section F — Tour Guidance</CardTitle>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <Database className="inline h-3 w-3 mr-0.5" /> From master data &nbsp;|&nbsp;
+              <Pencil className="inline h-3 w-3 mr-0.5" /> Manual entry
+            </p>
           </div>
         </CardHeader>
         <CardContent>
           {guidanceRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No guidance rows. Add a row to start.</p>
+            <div className="py-6 text-center">
+              <button type="button" onClick={() => setGuidanceRows((r) => [...r, mkGuidanceRow()])} className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Add first row
+              </button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -1032,25 +1316,25 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       {/* Dest */}
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.destinationCode || "__none__"} onValueChange={(v) => updateGuidanceRow(row._id, { destinationCode: v === "__none__" ? "" : v, guideType: "" })}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Dest…" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">—</SelectItem>
-                              {OPS_DESTINATION_CODES.map((d) => <SelectItem key={d.code} value={d.code}>{d.code}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={OPS_DESTINATION_CODES.map((d) => ({ value: d.code, label: d.label }))}
+                            value={row.destinationCode || ""}
+                            onValueChange={(v) => v && updateGuidanceRow(row._id, { destinationCode: v, guideType: "" })}
+                            placeholder="Dest…"
+                            className="h-7 text-xs"
+                          />
                         ) : <span className="text-muted-foreground text-[10px]">—</span>}
                       </td>
                       {/* Guide Type / Description */}
                       <td className="px-2 py-1">
                         {row.mode === "predefined" ? (
-                          <Select value={row.guideType || "__none__"} onValueChange={(v) => updateGuidanceRow(row._id, { guideType: v === "__none__" ? "" : v })}>
-                            <SelectTrigger className="h-7 w-full text-xs"><SelectValue placeholder="Guide type…" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">—</SelectItem>
-                              {Object.entries(OPS_GUIDE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={Object.entries(OPS_GUIDE_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                            value={row.guideType || ""}
+                            onValueChange={(v) => v && updateGuidanceRow(row._id, { guideType: v })}
+                            placeholder="Guide type…"
+                            className="h-7 text-xs"
+                          />
                         ) : (
                           <Input className="h-7 text-xs" value={row.description} onChange={(e) => updateGuidanceRow(row._id, { description: e.target.value })} placeholder="e.g. Egyptologist full tour" />
                         )}
@@ -1064,9 +1348,14 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                       <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{fmt(row.totalEGP, 0)}</td>
                       <td className="px-2 py-1.5 text-right font-mono font-semibold">{fmt(row.ppUSD)}</td>
                       <td className="px-2 py-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setGuidanceRows((rows) => rows.filter((r) => r._id !== row._id))}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setGuidanceRows((rows) => { const i = rows.findIndex((r) => r._id === row._id); const next = [...rows]; next.splice(i + 1, 0, mkGuidanceRow()); return next; })}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setGuidanceRows((rows) => rows.filter((r) => r._id !== row._id))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1085,6 +1374,8 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
           )}
         </CardContent>
       </Card>
+
+      </div>{/* end locked sections */}
 
       {/* ── Summary ── */}
       <Card className="border-primary/40 bg-primary/5">
@@ -1150,56 +1441,43 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
         </CardContent>
       </Card>
 
-      {/* ── Generate Components ── */}
-      {packages.length > 0 && (
-        <Card>
+      {/* ── Post Calculation ── */}
+      {!isPosted && (
+        <Card className="border-primary/30">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Zap className="h-4 w-4" /> Generate Package Components
+              <Lock className="h-4 w-4" /> Post Calculation
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Convert calculator rows into package components. Accommodation and Nile Cruise are pushed as BULK totals; all others as PP$ per person.
+              Posting locks the calculator, creates a package from all cost rows, and generates a <strong>Draft Quotation</strong> with the final selling price. You can reopen later if revisions are needed.
             </p>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[200px] flex-1 space-y-1">
-                <Label className="text-xs">Target Package</Label>
-                <Select value={targetPackageId} onValueChange={setTargetPackageId}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select package…" /></SelectTrigger>
-                  <SelectContent>
-                    {packages.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                Cost: <span className="font-mono font-semibold text-foreground">${fmt(calc.netPP * g.totalPax)}</span>
+                &nbsp;·&nbsp;
+                Selling: <span className="font-mono font-semibold text-green-600">${fmt(calc.sellingInclVAT * g.totalPax)}</span>
+                &nbsp;·&nbsp;
+                Final PP $: <span className="font-mono font-bold text-primary">{fmt(calc.focAdjusted)}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="replace" checked={replaceExisting} onCheckedChange={(v) => setReplaceExisting(!!v)} />
-                <Label htmlFor="replace" className="cursor-pointer text-xs">Replace existing components</Label>
-              </div>
-              <Button size="sm" onClick={handleGenerate} disabled={!targetPackageId || generateMutation.isPending}>
-                <Zap className="mr-1 h-3.5 w-3.5" />
-                {generateMutation.isPending ? "Generating…" : "Generate"}
+              <Button onClick={handlePost} disabled={postMutation.isPending} className="shrink-0">
+                <Lock className="mr-1.5 h-3.5 w-3.5" />
+                {postMutation.isPending ? "Posting…" : "Post Calculation"}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {packages.length === 0 && (
-        <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-          Add a package to this file first to enable component generation.
-        </div>
-      )}
-
       {/* ── Hotel / Nile Cruise picker dialog ── */}
       {hotelPicker && (
         <AccommodationPickerDialog
           open={true}
-          mode="room-breakdown"
           title={hotelPicker.type === "nile_cruise" ? "Select Nile Cruise" : "Select Accommodation"}
           serviceDate={travelDate}
           onClose={() => setHotelPicker(null)}
-          onSelectRooms={handleHotelPickerApply}
+          onSelectContractData={handleContractDataSelect}
         />
       )}
     </div>

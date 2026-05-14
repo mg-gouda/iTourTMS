@@ -17,13 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -165,24 +159,16 @@ export function BankStatementForm({ defaultValues }: BankStatementFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Journal</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ""}
-                  disabled={!isDraft}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select journal" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {bankJournals.map((j: any) => (
-                      <SelectItem key={j.id} value={j.id}>
-                        {j.code} — {j.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={bankJournals.map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder="Select journal"
+                    searchPlaceholder="Search journals..."
+                    disabled={!isDraft}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

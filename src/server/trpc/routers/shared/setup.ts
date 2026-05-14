@@ -155,6 +155,8 @@ export const setupRouter = createTRPCRouter({
         modules: z.array(z.string()).min(1),
         // Step 3: Module config
         moduleConfig: z.record(z.string(), z.any()).optional(),
+        // COA template to apply after company creation
+        coaTemplateId: z.string().optional(),
         // Step 4: Admin
         admin: z.object({
           name: z.string().min(1),
@@ -260,7 +262,10 @@ export const setupRouter = createTRPCRouter({
           });
         }
 
-        // 7. Mark setup as complete
+        // 7. Apply COA template if selected (runs outside tx to avoid timeouts)
+        // We'll handle this post-transaction below
+
+        // 8. Mark setup as complete
         await tx.companySetup.create({
           data: {
             companyId: company.id,
@@ -276,6 +281,42 @@ export const setupRouter = createTRPCRouter({
           companyId: company.id,
           userId: adminUser.id,
         };
+      }).then(async (result) => {
+        // Apply COA template post-transaction (can be large, avoid tx timeout)
+        if (input.coaTemplateId) {
+          const tpl = await ctx.db.coaTemplate.findUnique({
+            where: { id: input.coaTemplateId },
+            include: { groups: true, accounts: { orderBy: { code: "asc" } } },
+          });
+          if (tpl) {
+            const groupIdMap = new Map<string, string>();
+            for (const g of tpl.groups) {
+              const created = await ctx.db.accountGroup.create({
+                data: {
+                  companyId: result.companyId,
+                  name: g.name,
+                  codePrefixStart: g.codePrefixStart,
+                  codePrefixEnd: g.codePrefixEnd,
+                },
+              });
+              groupIdMap.set(g.name, created.id);
+            }
+            const accountData = tpl.accounts.map((a) => ({
+              companyId: result.companyId,
+              code: a.code,
+              name: a.name,
+              accountType: a.accountType,
+              reconcile: a.reconcile,
+              deprecated: a.deprecated,
+              groupId: a.groupName ? (groupIdMap.get(a.groupName) ?? undefined) : undefined,
+            }));
+            // Insert in batches of 200 to avoid payload limits
+            for (let i = 0; i < accountData.length; i += 200) {
+              await ctx.db.finAccount.createMany({ data: accountData.slice(i, i + 200) as never[] });
+            }
+          }
+        }
+        return result;
       });
     }),
 });

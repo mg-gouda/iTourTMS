@@ -51,7 +51,19 @@ export default function TourOperatorDetailPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(updateSchema),
-    defaultValues: {},
+    defaultValues: {
+      name: "",
+      code: "",
+      contactPerson: "",
+      email: "",
+      phone: "",
+      countryId: "",
+      marketId: "",
+      creditLimit: 0,
+      paymentTermDays: 30,
+      commissionPct: 0,
+      active: true,
+    },
   });
 
   useEffect(() => {

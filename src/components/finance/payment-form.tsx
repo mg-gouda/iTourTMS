@@ -16,13 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Separator } from "@/components/ui/separator";
 import { MOVE_STATE_LABELS, PAYMENT_TYPE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
@@ -131,21 +125,18 @@ export function PaymentForm({ defaultValues }: PaymentFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Payment Type</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  disabled={!isDraft || isEdit}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="INBOUND">Customer Payment</SelectItem>
-                    <SelectItem value="OUTBOUND">Vendor Payment</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      { value: "INBOUND", label: "Customer Payment" },
+                      { value: "OUTBOUND", label: "Vendor Payment" },
+                    ]}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Select type"
+                    disabled={!isDraft || isEdit}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -203,24 +194,16 @@ export function PaymentForm({ defaultValues }: PaymentFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Journal</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ""}
-                  disabled={!isDraft || isEdit}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select journal" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {paymentJournals.map((j: any) => (
-                      <SelectItem key={j.id} value={j.id}>
-                        {j.code} — {j.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={paymentJournals.map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder="Select journal"
+                    searchPlaceholder="Search journals..."
+                    disabled={!isDraft || isEdit}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -232,24 +215,16 @@ export function PaymentForm({ defaultValues }: PaymentFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Currency</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ""}
-                  disabled={!isDraft || isEdit}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {(currencies ?? []).map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.code} — {c.name} ({c.symbol})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={(currencies ?? []).map((c: any) => ({ value: c.id, label: `${c.code} — ${c.name} (${c.symbol})` }))}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder="Select currency"
+                    searchPlaceholder="Search currencies..."
+                    disabled={!isDraft || isEdit}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

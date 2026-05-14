@@ -9,13 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -237,37 +231,29 @@ export function BatchPaymentForm({ defaultValues }: BatchPaymentFormProps) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <Label>Payment Type</Label>
-              <Select
+              <Combobox
+                options={[
+                  { value: "INBOUND", label: "Customer Payment" },
+                  { value: "OUTBOUND", label: "Vendor Payment" },
+                ]}
+                value={paymentType}
                 onValueChange={(v) => {
                   setPaymentType(v as "INBOUND" | "OUTBOUND");
                   setSelectedInvoices([]);
                 }}
-                value={paymentType}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INBOUND">Customer Payment</SelectItem>
-                  <SelectItem value="OUTBOUND">Vendor Payment</SelectItem>
-                </SelectContent>
-              </Select>
+                placeholder="Select type"
+              />
             </div>
 
             <div>
               <Label>Journal</Label>
-              <Select onValueChange={setJournalId} value={journalId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select journal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bankJournals.map((j: any) => (
-                    <SelectItem key={j.id} value={j.id}>
-                      {j.code} — {j.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={bankJournals.map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
+                value={journalId}
+                onValueChange={setJournalId}
+                placeholder="Select journal"
+                searchPlaceholder="Search journals..."
+              />
             </div>
 
             <div>

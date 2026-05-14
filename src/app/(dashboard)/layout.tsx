@@ -80,6 +80,7 @@ export default async function DashboardLayout({
             email: session.user.email,
             image: session.user.image,
           }}
+          installedModules={modulesWithIcons}
         />
         {licenseExpiryWarning && (
             <div className="border-b border-yellow-300 bg-yellow-50 px-4 py-2 text-center text-sm font-medium text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">

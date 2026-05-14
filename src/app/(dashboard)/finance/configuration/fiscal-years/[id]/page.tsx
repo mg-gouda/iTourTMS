@@ -17,13 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -316,40 +310,24 @@ export default function FiscalYearDetailPage() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Retained Earnings Account</Label>
-              <Select
+              <Combobox
+                options={equityAccounts.map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
                 value={retainedEarningsAccountId}
                 onValueChange={setRetainedEarningsAccountId}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select equity account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {equityAccounts.map((a: any) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.code} — {a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select equity account"
+                searchPlaceholder="Search accounts..."
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label>Closing Journal</Label>
-              <Select
+              <Combobox
+                options={generalJournals.map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
                 value={closingJournalId}
                 onValueChange={setClosingJournalId}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select journal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {generalJournals.map((j: any) => (
-                    <SelectItem key={j.id} value={j.id}>
-                      {j.code} — {j.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select journal"
+                searchPlaceholder="Search journals..."
+              />
             </div>
           </div>
 

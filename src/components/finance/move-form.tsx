@@ -22,13 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { MOVE_TYPE_LABELS } from "@/lib/constants/finance";
@@ -219,27 +213,22 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
                   <FormLabel>
                     {moveType.startsWith("OUT_") ? "Customer" : "Vendor"}
                   </FormLabel>
-                  <Select
-                    onValueChange={(v) =>
-                      field.onChange(v === "__none" ? null : v)
-                    }
-                    value={field.value ?? "__none"}
-                    disabled={!isDraft}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select partner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__none">None</SelectItem>
-                      {(partners ?? []).map((p: { id: string; name: string; type: string }) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} ({p.type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={[
+                        { value: "__none", label: "None" },
+                        ...(partners ?? []).map((p: { id: string; name: string; type: string }) => ({
+                          value: p.id,
+                          label: `${p.name} (${p.type})`,
+                        })),
+                      ]}
+                      value={field.value ?? "__none"}
+                      onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                      placeholder="Select partner"
+                      searchPlaceholder="Search partners..."
+                      disabled={!isDraft}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -277,24 +266,16 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Journal</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ""}
-                  disabled={!isDraft}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select journal" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredJournals.map((j: any) => (
-                      <SelectItem key={j.id} value={j.id}>
-                        {j.code} — {j.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={filteredJournals.map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder="Select journal"
+                    searchPlaceholder="Search journals..."
+                    disabled={!isDraft}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -306,24 +287,16 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Currency</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ""}
-                  disabled={!isDraft}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {(currencies ?? []).map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.code} — {c.name} ({c.symbol})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={(currencies ?? []).map((c: any) => ({ value: c.id, label: `${c.code} — ${c.name} (${c.symbol})` }))}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder="Select currency"
+                    searchPlaceholder="Search currencies..."
+                    disabled={!isDraft}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -337,27 +310,19 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Payment Terms</FormLabel>
-                    <Select
-                      onValueChange={(v) =>
-                        field.onChange(v === "__none" ? null : v)
-                      }
-                      value={field.value ?? "__none"}
-                      disabled={!isDraft}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="None" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="__none">None</SelectItem>
-                        {(paymentTerms ?? []).map((pt: any) => (
-                          <SelectItem key={pt.id} value={pt.id}>
-                            {pt.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          { value: "__none", label: "None" },
+                          ...(paymentTerms ?? []).map((pt: any) => ({ value: pt.id, label: pt.name })),
+                        ]}
+                        value={field.value ?? "__none"}
+                        onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                        placeholder="None"
+                        searchPlaceholder="Search payment terms..."
+                        disabled={!isDraft}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -398,27 +363,19 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fiscal Position</FormLabel>
-                    <Select
-                      onValueChange={(v) =>
-                        field.onChange(v === "__none" ? null : v)
-                      }
-                      value={field.value ?? "__none"}
-                      disabled={!isDraft}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="None" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="__none">None</SelectItem>
-                        {(fiscalPositions ?? []).map((fp: any) => (
-                          <SelectItem key={fp.id} value={fp.id}>
-                            {fp.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          { value: "__none", label: "None" },
+                          ...(fiscalPositions ?? []).map((fp: any) => ({ value: fp.id, label: fp.name })),
+                        ]}
+                        value={field.value ?? "__none"}
+                        onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                        placeholder="None"
+                        searchPlaceholder="Search fiscal positions..."
+                        disabled={!isDraft}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

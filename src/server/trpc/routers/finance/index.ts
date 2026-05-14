@@ -27,6 +27,7 @@ import { deferredRevenueRouter } from "./deferred-revenue";
 import { deferredExpenseRouter } from "./deferred-expense";
 import { unrealizedCurrencyRouter } from "./unrealized-currency";
 import { reviewRouter } from "./review";
+import { coaTemplateRouter } from "./coa-template";
 
 export const financeRouter = createTRPCRouter({
   account: accountRouter,
@@ -56,4 +57,5 @@ export const financeRouter = createTRPCRouter({
   deferredExpense: deferredExpenseRouter,
   unrealizedCurrency: unrealizedCurrencyRouter,
   review: reviewRouter,
+  coaTemplate: coaTemplateRouter,
 });

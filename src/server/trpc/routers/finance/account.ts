@@ -162,11 +162,64 @@ export const accountRouter = createTRPCRouter({
     });
   }),
 
+  // ── Relink accounts to groups by code range ──
+
+  relinkByRange: financeProcedure
+    .input(z.object({ force: z.boolean().default(false) }))
+    .mutation(async ({ ctx, input }) => {
+      const allGroups = await ctx.db.accountGroup.findMany({
+        where: { companyId: ctx.companyId },
+        select: { id: true, codePrefixStart: true, codePrefixEnd: true },
+        orderBy: { codePrefixStart: "asc" },
+      });
+
+      function resolveGroupByCode(code: string): string | null {
+        let best: { id: string; prefixLen: number } | null = null;
+        for (const g of allGroups) {
+          if (code >= g.codePrefixStart && code <= g.codePrefixEnd) {
+            const len = g.codePrefixStart.length;
+            if (!best || len > best.prefixLen) best = { id: g.id, prefixLen: len };
+          }
+        }
+        return best?.id ?? null;
+      }
+
+      const accounts = await ctx.db.finAccount.findMany({
+        where: {
+          companyId: ctx.companyId,
+          ...(input.force ? {} : { groupId: null }),
+        },
+        select: { id: true, code: true },
+      });
+
+      let linked = 0;
+      let skipped = 0;
+
+      for (const account of accounts) {
+        const groupId = resolveGroupByCode(account.code);
+        if (groupId) {
+          await ctx.db.finAccount.update({ where: { id: account.id }, data: { groupId } });
+          linked++;
+        } else {
+          skipped++;
+        }
+      }
+
+      return { linked, skipped };
+    }),
+
   // ── Bulk Import ──
 
   bulkImport: financeProcedure
     .input(
       z.object({
+        groups: z.array(
+          z.object({
+            name: z.string().min(1),
+            codePrefixStart: z.string().min(1),
+            codePrefixEnd: z.string().min(1),
+          }),
+        ).default([]),
         rows: z.array(
           z.object({
             code: z.string().min(1).max(20),
@@ -180,7 +233,21 @@ export const accountRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Load ALL account groups for this company (for both name-match and range-match)
+      // ── Step 1: upsert groups from the import file ──
+      let groupsCreated = 0;
+      for (const g of input.groups) {
+        const existing = await ctx.db.accountGroup.findFirst({
+          where: { companyId: ctx.companyId, name: g.name },
+        });
+        if (!existing) {
+          await ctx.db.accountGroup.create({
+            data: { companyId: ctx.companyId, name: g.name, codePrefixStart: g.codePrefixStart, codePrefixEnd: g.codePrefixEnd },
+          });
+          groupsCreated++;
+        }
+      }
+
+      // ── Step 2: load all groups (including just-created ones) ──
       const allGroups = await ctx.db.accountGroup.findMany({
         where: { companyId: ctx.companyId },
         select: { id: true, name: true, codePrefixStart: true, codePrefixEnd: true },
@@ -241,7 +308,7 @@ export const accountRouter = createTRPCRouter({
         created++;
       }
 
-      return { created, skipped, unknownGroups: [...new Set(unknownGroups)] };
+      return { groupsCreated, created, skipped, unknownGroups: [...new Set(unknownGroups)] };
     }),
 
   // ── Partner list for invoice/bill partner selection ──

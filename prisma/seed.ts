@@ -498,19 +498,46 @@ export async function seedFinance(companyId: string) {
   console.log(`    ✓ ${accounts.length} accounts seeded`);
 
   // ── Journals ──
-  const journals = [
-    { code: "SAJ", name: "Sales Journal", type: "SALE", defaultAccountId: accountMap["1100"] },
-    { code: "EXJ", name: "Purchase Journal", type: "PURCHASE", defaultAccountId: accountMap["2100"] },
-    { code: "BNK1", name: "Bank", type: "BANK", defaultAccountId: accountMap["1200"] },
-    { code: "CSH1", name: "Cash", type: "CASH", defaultAccountId: accountMap["1210"] },
-    { code: "MISC", name: "Miscellaneous Operations", type: "GENERAL" },
-    { code: "EXCH", name: "Exchange Difference", type: "GENERAL", defaultAccountId: accountMap["4920"] },
+  const journals: Array<{
+    code: string;
+    name: string;
+    type: string;
+    sequencePrefix?: string;
+    defaultAccountId?: string;
+    suspenseAccountId?: string;
+    profitAccountId?: string;
+    lossAccountId?: string;
+  }> = [
+    // ── Transactional journals ──
+    { code: "SAJ",    name: "Sales Journal",           type: "SALE",     sequencePrefix: "SAJ",    defaultAccountId: accountMap["1100"] },
+    { code: "EXJ",    name: "Purchase Journal",         type: "PURCHASE", sequencePrefix: "EXJ",    defaultAccountId: accountMap["2100"] },
+    { code: "BNK1",   name: "Bank",                     type: "BANK",     sequencePrefix: "BNK1",   defaultAccountId: accountMap["1200"] },
+    { code: "CSH1",   name: "Cash",                     type: "CASH",     sequencePrefix: "CSH1",   defaultAccountId: accountMap["1210"] },
+    // ── General journals ──
+    //   Code  Name                      Seq prefix  Default account              Suspense account          Profit/Loss accounts
+    { code: "MISC",   name: "Miscellaneous Operations", type: "GENERAL", sequencePrefix: "MISC",   defaultAccountId: accountMap["6900"] },
+    { code: "EXCH",   name: "Exchange Difference",      type: "GENERAL", sequencePrefix: "EXCH",   defaultAccountId: accountMap["4920"],  profitAccountId: accountMap["4920"], lossAccountId: accountMap["6800"] },
+    { code: "CABA",   name: "Cash Basis Taxes",         type: "GENERAL", sequencePrefix: "CABA",   defaultAccountId: accountMap["2400"],  suspenseAccountId: accountMap["2400"] },
+    { code: "STVAL",  name: "Inventory Valuation",      type: "GENERAL", sequencePrefix: "STVAL",  defaultAccountId: accountMap["5000"],  suspenseAccountId: accountMap["1400"] },
+    { code: "TAXAD",  name: "Tax Adjustments",          type: "GENERAL", sequencePrefix: "TAXAD",  defaultAccountId: accountMap["2400"],  suspenseAccountId: accountMap["2410"] },
+    { code: "TAXR",   name: "Tax Returns",              type: "GENERAL", sequencePrefix: "TAXR",   defaultAccountId: accountMap["2410"],  suspenseAccountId: accountMap["2400"] },
+    { code: "PAYSL",  name: "Salaries",                 type: "GENERAL", sequencePrefix: "PAYSL",  defaultAccountId: accountMap["6000"],  suspenseAccountId: accountMap["2300"] },
+    { code: "IFRS16", name: "IFRS 16",                  type: "GENERAL", sequencePrefix: "IFRS16", defaultAccountId: accountMap["2700"],  suspenseAccountId: accountMap["1800"] },
   ];
 
   for (const j of journals) {
     await prisma.journal.upsert({
       where: { code_companyId: { code: j.code, companyId } },
-      update: {},
+      // Update key fields on re-seed; only touch suspense/profit/loss when explicitly set
+      // (BNK1/CSH1 suspense is handled separately below)
+      update: {
+        name: j.name,
+        sequencePrefix: j.sequencePrefix ?? null,
+        defaultAccountId: j.defaultAccountId ?? null,
+        ...(j.suspenseAccountId !== undefined && { suspenseAccountId: j.suspenseAccountId }),
+        ...(j.profitAccountId   !== undefined && { profitAccountId:   j.profitAccountId   }),
+        ...(j.lossAccountId     !== undefined && { lossAccountId:     j.lossAccountId     }),
+      },
       create: { ...j, companyId } as any,
     });
   }
@@ -1575,6 +1602,16 @@ export async function seedContracting(companyId: string) {
   }
 
   console.log("  ✓ Contracting seed completed");
+
+  // ── COA Templates ──────────────────────────────────────────────────────────
+  console.log("\n📋 Seeding COA templates...");
+  const existingTravelCoa = await prisma.coaTemplate.findUnique({ where: { name: "Travel COA" } });
+  if (existingTravelCoa) {
+    console.log("  ✓ Travel COA template already exists, skipping");
+  } else {
+    const { seedCoaTemplates } = await import("./seed-coa-templates");
+    await seedCoaTemplates(prisma as unknown as import("@prisma/client").PrismaClient);
+  }
 }
 
 // Only run main() when executed directly (not when imported)

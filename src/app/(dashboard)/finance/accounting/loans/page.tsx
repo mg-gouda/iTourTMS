@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -99,19 +99,23 @@ export default function LoansPage() {
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5"><Label>Loan Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="grid gap-1.5"><Label>Type</Label>
-              <Select value={form.loanType} onValueChange={(v) => setForm({ ...form, loanType: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="RECEIVED">Loan Received</SelectItem>
-                  <SelectItem value="GIVEN">Loan Given</SelectItem>
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={[
+                  { value: "RECEIVED", label: "Loan Received" },
+                  { value: "GIVEN", label: "Loan Given" },
+                ]}
+                value={form.loanType}
+                onValueChange={(v) => setForm({ ...form, loanType: v })}
+              />
             </div>
             <div className="grid gap-1.5"><Label>Liability / Asset Account</Label>
-              <Select value={form.accountId} onValueChange={(v) => setForm({ ...form, accountId: v })}>
-                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                <SelectContent>{(accounts?.items ?? []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <Combobox
+                options={(accounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                value={form.accountId}
+                onValueChange={(v) => setForm({ ...form, accountId: v })}
+                placeholder="Select account"
+                searchPlaceholder="Search accounts..."
+              />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="grid gap-1.5"><Label>Amount</Label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>

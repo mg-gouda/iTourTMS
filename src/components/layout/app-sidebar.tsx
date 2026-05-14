@@ -55,25 +55,25 @@ interface AppSidebarProps {
 }
 
 const mainNav = [
-  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Dashboard", href: "/dashboard", icon: Home },
 ];
 
 // ---------------------------------------------------------------------------
 // Module routes — grouped into collapsible sub-sections
 // ---------------------------------------------------------------------------
 
-interface SubGroup {
+export interface SubGroup {
   label: string;
   routes: { label: string; href: string }[];
   divider?: boolean; // renders as a non-collapsible section separator
 }
 
-interface ModuleRouteConfig {
+export interface ModuleRouteConfig {
   topLevel: { label: string; href: string }[];
   groups: SubGroup[];
 }
 
-const moduleRoutes: Record<string, ModuleRouteConfig> = {
+export const moduleRoutes: Record<string, ModuleRouteConfig> = {
   finance: {
     topLevel: [{ label: "Dashboard", href: "/finance" }],
     groups: [
@@ -445,6 +445,7 @@ const moduleRoutes: Record<string, ModuleRouteConfig> = {
         routes: [
           { label: "Open Files", href: "/tour-ops/files" },
           { label: "New File", href: "/tour-ops/files/new" },
+          { label: "Flight Ticket Files", href: "/tour-ops/flight-tickets" },
         ],
       },
       {

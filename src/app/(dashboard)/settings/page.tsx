@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Briefcase, Bus, CalendarCheck, CheckCircle2, FileText, FolderOpen, Globe, Landmark, type LucideIcon, Users, XCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 import { ApiIntegrationsTab } from "./_components/api-integrations-tab";
 import { ImageUpload } from "@/components/shared/image-upload";
@@ -100,6 +102,7 @@ export default function SettingsPage() {
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="contracting">Contracting</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="modules">Modules</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
@@ -120,6 +123,10 @@ export default function SettingsPage() {
 
         <TabsContent value="integrations" className="mt-4">
           <IntegrationsSettings data={data} onSaved={refresh} />
+        </TabsContent>
+
+        <TabsContent value="modules" className="mt-4">
+          <ModulesSettings />
         </TabsContent>
       </Tabs>
     </div>
@@ -550,6 +557,93 @@ function HotelCodePrefixSection({
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// Modules Settings Tab
+// ---------------------------------------------------------------------------
+
+const moduleIconMap: Record<string, LucideIcon> = {
+  Landmark, FileText, Users, CalendarCheck, Bus, Globe, Briefcase, FolderOpen,
+};
+
+function ModulesSettings() {
+  const utils = trpc.useUtils();
+  const { data: modules, isLoading } = trpc.settings.listModules.useQuery();
+  const toggleMutation = trpc.settings.toggleModule.useMutation({
+    onSuccess: (_, vars) => {
+      utils.settings.listModules.invalidate();
+      toast.success(`${vars.name} ${vars.enabled ? "activated" : "deactivated"}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">Loading...</CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <Card>
+        <CardHeader>
+          <CardTitle>Module Management</CardTitle>
+          <CardDescription>
+            Activate or deactivate modules for your company. Deactivating a module hides it from the sidebar and dashboard — data is preserved.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {(modules ?? []).map((mod) => {
+              const Icon = moduleIconMap[mod.icon] ?? FileText;
+              const deps = mod.dependencies as string[];
+              const depsMissing = deps.filter(
+                (d) => !modules?.find((m) => m.name === d)?.isInstalled,
+              );
+
+              return (
+                <div key={mod.name} className="flex items-center gap-4 px-6 py-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <Icon className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{mod.displayName}</p>
+                      {mod.isInstalled ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                          <CheckCircle2 className="h-3 w-3" /> Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <XCircle className="h-3 w-3" /> Inactive
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{mod.description}</p>
+                    {depsMissing.length > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        Requires: {depsMissing.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                  <Switch
+                    checked={mod.isInstalled}
+                    disabled={toggleMutation.isPending}
+                    onCheckedChange={(checked) =>
+                      toggleMutation.mutate({ name: mod.name, enabled: checked })
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Integrations Settings Tab

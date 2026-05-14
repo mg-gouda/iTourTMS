@@ -12,9 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
@@ -46,16 +44,23 @@ interface Props {
   isSaving?: boolean;
 }
 
-// Accounts that make sense per partner type
 const RECEIVABLE_TYPES = ["ASSET_RECEIVABLE"];
 const PAYABLE_TYPES = ["LIABILITY_PAYABLE"];
+
+const TITLE_OPTIONS = [
+  { value: "", label: "— None —" },
+  { value: "mr", label: "Mr." },
+  { value: "mrs", label: "Mrs." },
+  { value: "ms", label: "Ms." },
+  { value: "dr", label: "Dr." },
+  { value: "prof", label: "Prof." },
+];
 
 export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
   const { data: countries = [] } = trpc.setup.getCountries.useQuery();
   const { data: paymentTerms = [] } = trpc.finance.paymentTerm.list.useQuery();
   const { data: allAccounts = [] } = trpc.finance.account.listTree.useQuery();
 
-  // Filter accounts by type relevance
   const receivableAccounts = allAccounts.filter((a) => RECEIVABLE_TYPES.includes(a.accountType));
   const payableAccounts = allAccounts.filter((a) => PAYABLE_TYPES.includes(a.accountType));
 
@@ -82,19 +87,14 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
     },
   });
 
-  // Auto-select the first matching account when accounts load and no value is set yet
   useEffect(() => {
     if (type === "customer" && receivableAccounts.length > 0) {
       const current = form.getValues("accountReceivableId");
-      if (!current) {
-        form.setValue("accountReceivableId", receivableAccounts[0]!.id);
-      }
+      if (!current) form.setValue("accountReceivableId", receivableAccounts[0]!.id);
     }
     if (type === "supplier" && payableAccounts.length > 0) {
       const current = form.getValues("accountPayableId");
-      if (!current) {
-        form.setValue("accountPayableId", payableAccounts[0]!.id);
-      }
+      if (!current) form.setValue("accountPayableId", payableAccounts[0]!.id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receivableAccounts.length, payableAccounts.length]);
@@ -106,9 +106,28 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
 
   const isCompany = form.watch("isCompany");
 
+  const countryOptions = [
+    { value: "", label: "— No country —" },
+    ...countries.map((c) => ({ value: c.id, label: c.name })),
+  ];
+
+  const receivableOptions = [
+    { value: "", label: "— None —" },
+    ...receivableAccounts.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+  ];
+
+  const payableOptions = [
+    { value: "", label: "— None —" },
+    ...payableAccounts.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+  ];
+
+  const paymentTermOptions = [
+    { value: "", label: "— Immediate payment —" },
+    ...(paymentTerms as { id: string; name: string }[]).map((pt) => ({ value: pt.id, label: pt.name })),
+  ];
+
   return (
     <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
-      {/* Individual / Company toggle */}
       <div className="flex gap-2">
         <button
           type="button"
@@ -143,31 +162,20 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
           <TabsTrigger value="notes">Internal Notes</TabsTrigger>
         </TabsList>
 
-        {/* ── Contact Information ── */}
         <TabsContent value="contact">
           <Card>
             <CardContent className="pt-6 space-y-4">
               <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
-                {/* Name + Title row */}
                 {!isCompany && (
                   <div className="space-y-1.5">
                     <Label>Title</Label>
-                    <Select
-                      value={form.watch("titleId") || "NONE"}
-                      onValueChange={(v) => form.setValue("titleId", v === "NONE" ? "" : v)}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue placeholder="Title" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NONE">—</SelectItem>
-                        <SelectItem value="mr">Mr.</SelectItem>
-                        <SelectItem value="mrs">Mrs.</SelectItem>
-                        <SelectItem value="ms">Ms.</SelectItem>
-                        <SelectItem value="dr">Dr.</SelectItem>
-                        <SelectItem value="prof">Prof.</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={TITLE_OPTIONS}
+                      value={form.watch("titleId") ?? ""}
+                      onValueChange={(v) => form.setValue("titleId", v)}
+                      placeholder="Title"
+                      className="w-28"
+                    />
                   </div>
                 )}
                 {isCompany && <div />}
@@ -211,7 +219,6 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
                 <Input {...form.register("taxId")} placeholder="e.g. 123-456-789" className="max-w-xs" />
               </div>
 
-              {/* Address */}
               <div className="pt-2 border-t">
                 <p className="text-sm font-medium mb-3 text-muted-foreground">Address</p>
                 <div className="space-y-3">
@@ -231,20 +238,13 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
                   </div>
                   <div className="space-y-1.5 max-w-xs">
                     <Label>Country</Label>
-                    <Select
-                      value={form.watch("countryId") || "NONE"}
-                      onValueChange={(v) => form.setValue("countryId", v === "NONE" ? "" : v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NONE">— No country —</SelectItem>
-                        {countries.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={countryOptions}
+                      value={form.watch("countryId") ?? ""}
+                      onValueChange={(v) => form.setValue("countryId", v)}
+                      placeholder="Select country"
+                      searchPlaceholder="Search countries..."
+                    />
                   </div>
                 </div>
               </div>
@@ -252,35 +252,24 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
           </Card>
         </TabsContent>
 
-        {/* ── Accounting ── */}
         <TabsContent value="accounting">
           <Card>
             <CardContent className="pt-6 space-y-6">
-
-              {/* Account receivable / payable */}
               {type === "customer" ? (
                 <div className="space-y-1.5">
                   <Label>
                     Account Receivable
                     <span className="ml-1 text-xs text-muted-foreground">(auto-selected)</span>
                   </Label>
-                  <Select
-                    value={form.watch("accountReceivableId") || "__none"}
-                    onValueChange={(v) => form.setValue("accountReceivableId", v === "__none" ? "" : v)}
-                  >
-                    <SelectTrigger className="max-w-sm">
-                      <SelectValue placeholder="Select account…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">— None —</SelectItem>
-                      {receivableAccounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          <span className="font-mono text-xs text-muted-foreground mr-2">{a.code}</span>
-                          {a.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="max-w-sm">
+                    <Combobox
+                      options={receivableOptions}
+                      value={form.watch("accountReceivableId") ?? ""}
+                      onValueChange={(v) => form.setValue("accountReceivableId", v)}
+                      placeholder="Select account…"
+                      searchPlaceholder="Search accounts..."
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground flex items-start gap-1">
                     <Info className="size-3 mt-0.5 shrink-0" />
                     Receivable account used for customer invoices. Defaults to the first
@@ -293,23 +282,15 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
                     Account Payable
                     <span className="ml-1 text-xs text-muted-foreground">(auto-selected)</span>
                   </Label>
-                  <Select
-                    value={form.watch("accountPayableId") || "__none"}
-                    onValueChange={(v) => form.setValue("accountPayableId", v === "__none" ? "" : v)}
-                  >
-                    <SelectTrigger className="max-w-sm">
-                      <SelectValue placeholder="Select account…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">— None —</SelectItem>
-                      {payableAccounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          <span className="font-mono text-xs text-muted-foreground mr-2">{a.code}</span>
-                          {a.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="max-w-sm">
+                    <Combobox
+                      options={payableOptions}
+                      value={form.watch("accountPayableId") ?? ""}
+                      onValueChange={(v) => form.setValue("accountPayableId", v)}
+                      placeholder="Select account…"
+                      searchPlaceholder="Search accounts..."
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground flex items-start gap-1">
                     <Info className="size-3 mt-0.5 shrink-0" />
                     Payable account used for vendor bills. Defaults to the first
@@ -318,33 +299,23 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
                 </div>
               )}
 
-              {/* Payment Terms */}
               <div className="space-y-1.5 max-w-sm">
                 <Label>Payment Terms</Label>
-                <Select
-                  value={form.watch("paymentTermId") || "NONE"}
-                  onValueChange={(v) => form.setValue("paymentTermId", v === "NONE" ? "" : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Immediate payment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NONE">— Immediate payment —</SelectItem>
-                    {(paymentTerms as { id: string; name: string }[]).map((pt) => (
-                      <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={paymentTermOptions}
+                  value={form.watch("paymentTermId") ?? ""}
+                  onValueChange={(v) => form.setValue("paymentTermId", v)}
+                  placeholder="Immediate payment"
+                  searchPlaceholder="Search payment terms..."
+                />
                 <p className="text-xs text-muted-foreground">
                   Default payment terms applied to {type === "customer" ? "invoices" : "bills"}.
                 </p>
               </div>
-
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ── Notes ── */}
         <TabsContent value="notes">
           <Card>
             <CardContent className="pt-6">

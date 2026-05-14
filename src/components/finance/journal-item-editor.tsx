@@ -10,13 +10,7 @@ import {
   FormItem,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -84,23 +78,15 @@ export function JournalItemEditor({ accounts, partners }: JournalItemEditorProps
                   name={`lineItems.${index}.accountId`}
                   render={({ field: f }) => (
                     <FormItem>
-                      <Select
-                        onValueChange={f.onChange}
-                        value={f.value ?? ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Account" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {accounts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.code} — {a.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={accounts.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                          value={f.value ?? ""}
+                          onValueChange={f.onChange}
+                          placeholder="Account"
+                          searchPlaceholder="Search accounts..."
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />
@@ -111,26 +97,18 @@ export function JournalItemEditor({ accounts, partners }: JournalItemEditorProps
                   name={`lineItems.${index}.partnerId`}
                   render={({ field: f }) => (
                     <FormItem>
-                      <Select
-                        onValueChange={(v) =>
-                          f.onChange(v === "__none" ? null : v)
-                        }
-                        value={f.value ?? "__none"}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="None" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="__none">None</SelectItem>
-                          {partners.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={[
+                            { value: "__none", label: "None" },
+                            ...partners.map((p) => ({ value: p.id, label: p.name })),
+                          ]}
+                          value={f.value ?? "__none"}
+                          onValueChange={(v) => f.onChange(v === "__none" ? null : v)}
+                          placeholder="None"
+                          searchPlaceholder="Search partners..."
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

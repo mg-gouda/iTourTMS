@@ -16,15 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   ACCOUNT_TYPE_CATEGORIES,
   ACCOUNT_TYPE_LABELS,
@@ -135,30 +127,17 @@ export function AccountForm({ defaultValues, onSuccess }: AccountFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Type</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {Object.entries(ACCOUNT_TYPE_CATEGORIES).map(
-                      ([category, types]) => (
-                        <SelectGroup key={category}>
-                          <SelectLabel>{category}</SelectLabel>
-                          {types.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {ACCOUNT_TYPE_LABELS[type]}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ),
+                <FormControl>
+                  <Combobox
+                    options={Object.entries(ACCOUNT_TYPE_CATEGORIES).flatMap(([category, types]) =>
+                      types.map((type) => ({ value: type, label: ACCOUNT_TYPE_LABELS[type] as string, group: category }))
                     )}
-                  </SelectContent>
-                </Select>
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Select type"
+                    searchPlaceholder="Search account types..."
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -170,24 +149,18 @@ export function AccountForm({ defaultValues, onSuccess }: AccountFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Parent Account</FormLabel>
-                <Select
-                  onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
-                  value={field.value ?? "__none"}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="No parent (root)" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="__none">No parent (root)</SelectItem>
-                    {parentCandidates.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.code} — {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      { value: "__none", label: "No parent (root)" },
+                      ...parentCandidates.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+                    ]}
+                    value={field.value ?? "__none"}
+                    onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                    placeholder="No parent (root)"
+                    searchPlaceholder="Search accounts..."
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -199,24 +172,18 @@ export function AccountForm({ defaultValues, onSuccess }: AccountFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Account Group</FormLabel>
-                <Select
-                  onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
-                  defaultValue={field.value ?? "__none"}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="No group" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="__none">No group</SelectItem>
-                    {groups?.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.codePrefixStart}-{g.codePrefixEnd} {g.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      { value: "__none", label: "No group" },
+                      ...(groups ?? []).map((g) => ({ value: g.id, label: `${g.codePrefixStart}-${g.codePrefixEnd} ${g.name}` })),
+                    ]}
+                    value={field.value ?? "__none"}
+                    onValueChange={(v) => field.onChange(v === "__none" ? null : v)}
+                    placeholder="No group"
+                    searchPlaceholder="Search groups..."
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

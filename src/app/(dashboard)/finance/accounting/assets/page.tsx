@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -101,10 +101,13 @@ export default function AssetsPage() {
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5"><Label>Asset Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="grid gap-1.5"><Label>Asset Account</Label>
-              <Select value={form.accountId} onValueChange={(v) => setForm({ ...form, accountId: v })}>
-                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                <SelectContent>{(accounts?.items ?? []).map((a: any) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <Combobox
+                options={(accounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                value={form.accountId}
+                onValueChange={(v) => setForm({ ...form, accountId: v })}
+                placeholder="Select account"
+                searchPlaceholder="Search accounts..."
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5"><Label>Original Value</Label><Input type="number" value={form.originalValue} onChange={(e) => setForm({ ...form, originalValue: e.target.value })} /></div>
@@ -115,14 +118,15 @@ export default function AssetsPage() {
               <div className="grid gap-1.5"><Label>Acquisition Date</Label><Input type="date" value={form.acquisitionDate} onChange={(e) => setForm({ ...form, acquisitionDate: e.target.value })} /></div>
             </div>
             <div className="grid gap-1.5"><Label>Depreciation Method</Label>
-              <Select value={form.method} onValueChange={(v) => setForm({ ...form, method: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="STRAIGHT_LINE">Straight Line</SelectItem>
-                  <SelectItem value="DEGRESSIVE">Degressive (DB)</SelectItem>
-                  <SelectItem value="DEGRESSIVE_THEN_STRAIGHT_LINE">Degressive then Straight Line</SelectItem>
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={[
+                  { value: "STRAIGHT_LINE", label: "Straight Line" },
+                  { value: "DEGRESSIVE", label: "Degressive (DB)" },
+                  { value: "DEGRESSIVE_THEN_STRAIGHT_LINE", label: "Degressive then Straight Line" },
+                ]}
+                value={form.method}
+                onValueChange={(v) => setForm({ ...form, method: v })}
+              />
             </div>
           </div>
           <DialogFooter>
