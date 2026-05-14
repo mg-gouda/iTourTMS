@@ -10,6 +10,7 @@ import type {
   OpsFlightType,
   OpsFlightTicketStatus,
   OpsPricingBasis,
+  OpsFlightTxType,
 } from "@prisma/client";
 
 export const OPS_FILE_STATUS_LABELS: Record<OpsFileStatus, string> = {
@@ -152,6 +153,22 @@ export const OPS_FLIGHT_TICKET_STATUS_VARIANTS: Record<OpsFlightTicketStatus, st
 export const OPS_PRICING_BASIS_LABELS: Record<OpsPricingBasis, string> = {
   PER_PERSON: "Per Person",
   BULK: "Bulk",
+};
+
+export const OPS_FLIGHT_TX_TYPE_LABELS: Record<OpsFlightTxType, string> = {
+  ISSUE: "Issue",
+  REISSUE: "Reissue",
+  REFUND: "Refund",
+  VOID: "Void",
+  REVALIDATE: "Revalidate",
+};
+
+export const OPS_FLIGHT_TX_TYPE_VARIANTS: Record<OpsFlightTxType, string> = {
+  ISSUE: "default",
+  REISSUE: "secondary",
+  REFUND: "destructive",
+  VOID: "outline",
+  REVALIDATE: "secondary",
 };
 
 export const OPS_DESTINATION_CODES = [
