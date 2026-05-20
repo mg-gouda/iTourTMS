@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { TT_JOB_STATUS_LABELS, TT_JOB_STATUS_VARIANTS, TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type Job = {
   id: string;
@@ -50,17 +52,26 @@ type Job = {
   _count: { assignments: number };
 };
 
-const columns: ColumnDef<Job>[] = [
-  { accessorKey: "code", header: "Code", cell: ({ row }) => <span className="font-mono">{row.original.code}</span> },
+export default function TrafficJobsPage() {
+  const t = useTranslations("traffic");
+  const tCommon = useTranslations("common");
+  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+
+  const columns: ColumnDef<Job>[] = [
+  { accessorKey: "code", header: tCommon("code"), cell: ({ row }) => <span className="font-mono">{row.original.code}</span> },
   {
     id: "serviceType",
-    header: "Service",
+    header: t("serviceType"),
     accessorFn: (row) => row.serviceType,
     cell: ({ row }) => TT_SERVICE_TYPE_LABELS[row.original.serviceType] ?? row.original.serviceType,
   },
   {
     id: "status",
-    header: "Status",
+    header: tCommon("status"),
     accessorFn: (row) => row.status,
     cell: ({ row }) => (
       <Badge variant={(TT_JOB_STATUS_VARIANTS[row.original.status] ?? "secondary") as never}>
@@ -70,28 +81,28 @@ const columns: ColumnDef<Job>[] = [
   },
   {
     id: "serviceDate",
-    header: "Date",
+    header: tCommon("date"),
     accessorFn: (row) => row.serviceDate,
     cell: ({ row }) => new Date(row.original.serviceDate).toLocaleDateString(),
   },
-  { accessorKey: "pickupTime", header: "Pickup" },
-  { id: "pax", header: "Pax", accessorFn: (row) => row.paxCount },
-  { id: "passenger", header: "Lead Passenger", accessorFn: (row) => row.leadPassenger ?? "—" },
-  { id: "vehicle", header: "Vehicle Type", accessorFn: (row) => row.vehicleType?.name ?? "—" },
-  { id: "partner", header: "Partner", accessorFn: (row) => row.partner?.name ?? "—" },
+  { accessorKey: "pickupTime", header: t("pickup") },
+  { id: "pax", header: t("passengers"), accessorFn: (row) => row.paxCount },
+  { id: "passenger", header: t("leadPassenger"), accessorFn: (row) => row.leadPassenger ?? "—" },
+  { id: "vehicle", header: t("vehicleType"), accessorFn: (row) => row.vehicleType?.name ?? "—" },
+  { id: "partner", header: t("route"), accessorFn: (row) => row.partner?.name ?? "—" },
   {
     id: "pickup",
-    header: "Pickup",
+    header: t("pickup"),
     accessorFn: (row) => row.pickupAirport?.code ?? row.pickupHotel?.name ?? "—",
   },
   {
     id: "dropoff",
-    header: "Dropoff",
+    header: t("dropoff"),
     accessorFn: (row) => row.dropoffAirport?.code ?? row.dropoffHotel?.name ?? "—",
   },
   {
     id: "booking",
-    header: "Booking",
+    header: t("bookingLink"),
     accessorFn: (row) => row.booking?.code ?? "",
     cell: ({ row }) => {
       const b = row.original.booking;
@@ -106,7 +117,7 @@ const columns: ColumnDef<Job>[] = [
   },
   {
     id: "arrFlight",
-    header: "Arr Flight",
+    header: t("arrivalFlight"),
     accessorFn: (row) => row.booking?.arrivalFlightNo ?? "",
     cell: ({ row }) => {
       const b = row.original.booking;
@@ -129,7 +140,7 @@ const columns: ColumnDef<Job>[] = [
   },
   {
     id: "depFlight",
-    header: "Dep Flight",
+    header: t("departureFlight"),
     accessorFn: (row) => row.booking?.departFlightNo ?? "",
     cell: ({ row }) => {
       const b = row.original.booking;
@@ -155,14 +166,7 @@ const columns: ColumnDef<Job>[] = [
       return <span className="text-muted-foreground">—</span>;
     },
   },
-];
-
-export default function TrafficJobsPage() {
-  const router = useRouter();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  ];
 
   const { data: jobs, isLoading } = trpc.traffic.trafficJob.list.useQuery(
     {
@@ -174,11 +178,12 @@ export default function TrafficJobsPage() {
   );
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <PermissionGuard permission="traffic:job:read">
+      <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Traffic Jobs</h1>
-          <p className="text-muted-foreground">Manage transport jobs and assignments</p>
+          <h1 className="text-2xl font-bold">{t("trafficJobs")}</h1>
+          <p className="text-muted-foreground">{t("manageJobs")}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -189,12 +194,12 @@ export default function TrafficJobsPage() {
               await exportTrafficJobsToExcel((jobs ?? []) as unknown as Parameters<typeof exportTrafficJobsToExcel>[0]);
             }}
           >
-            Export Excel
+            {tCommon("exportExcel")}
           </Button>
           <Button asChild>
             <Link href="/traffic/jobs/new">
               <Plus className="mr-2 h-4 w-4" />
-              New Job
+              {t("newTrafficJob")}
             </Link>
           </Button>
         </div>
@@ -203,19 +208,19 @@ export default function TrafficJobsPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">From</Label>
+          <Label className="text-xs text-muted-foreground">{tCommon("from")}</Label>
           <Input type="date" className="w-[150px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">To</Label>
+          <Label className="text-xs text-muted-foreground">{tCommon("to")}</Label>
           <Input type="date" className="w-[150px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder={tCommon("status")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="all">{tCommon("allStatuses")}</SelectItem>
             {Object.entries(TT_JOB_STATUS_LABELS).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}
@@ -223,10 +228,10 @@ export default function TrafficJobsPage() {
         </Select>
         <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Service Type" />
+            <SelectValue placeholder={t("serviceType")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Services</SelectItem>
+            <SelectItem value="all">{tCommon("allServices")}</SelectItem>
             {Object.entries(TT_SERVICE_TYPE_LABELS).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}
@@ -234,7 +239,7 @@ export default function TrafficJobsPage() {
         </Select>
         {(dateFrom || dateTo || statusFilter !== "all" || serviceTypeFilter !== "all") && (
           <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); setStatusFilter("all"); setServiceTypeFilter("all"); }}>
-            Clear
+            {tCommon("clear")}
           </Button>
         )}
       </div>
@@ -253,5 +258,6 @@ export default function TrafficJobsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

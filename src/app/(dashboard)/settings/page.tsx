@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Briefcase, Bus, CalendarCheck, CheckCircle2, FileText, FolderOpen, Globe, Landmark, type LucideIcon, Users, XCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
@@ -80,6 +81,7 @@ export default function SettingsPage() {
   // multiple parallel fetches of the same endpoint.
   const { data, isLoading } = trpc.settings.getCompanySettings.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("admin");
 
   const refresh = () => {
     utils.settings.getCompanySettings.invalidate();
@@ -89,20 +91,20 @@ export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("settings")}</h1>
         <p className="text-muted-foreground">
-          Manage your company settings and configuration
+          {t("companyInfoDesc")}
         </p>
       </div>
 
       <Tabs defaultValue="general">
         <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="license">License</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="contracting">Contracting</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="modules">Modules</TabsTrigger>
+          <TabsTrigger value="general">{t("generalTab")}</TabsTrigger>
+          <TabsTrigger value="license">{t("licenseTab")}</TabsTrigger>
+          <TabsTrigger value="branding">{t("brandingTab")}</TabsTrigger>
+          <TabsTrigger value="contracting">{t("contractingTab")}</TabsTrigger>
+          <TabsTrigger value="integrations">{t("integrationsTab")}</TabsTrigger>
+          <TabsTrigger value="modules">{t("modulesTab")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
@@ -171,8 +173,10 @@ function GeneralSettings({
   isLoading: boolean;
   onSaved: () => void;
 }) {
+  const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const updateMutation = trpc.settings.updateCompanySettings.useMutation({
-    onSuccess: () => { toast.success("Settings saved"); onSaved(); },
+    onSuccess: () => { toast.success(tc("saved")); onSaved(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -223,9 +227,9 @@ function GeneralSettings({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Company Information</CardTitle>
+        <CardTitle>{t("companyInfo")}</CardTitle>
         <CardDescription>
-          Basic company details and configuration
+          {t("companyInfoDesc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -245,35 +249,35 @@ function GeneralSettings({
           }}
         >
           <div className="space-y-1.5">
-            <Label>Company Name</Label>
+            <Label>{t("companyName")}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Legal Name</Label>
+            <Label>{t("legalName")}</Label>
             <Input
               value={form.legalName}
               onChange={(e) => setForm({ ...form, legalName: e.target.value })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Tax ID</Label>
+            <Label>{t("taxId")}</Label>
             <Input
               value={form.taxId}
               onChange={(e) => setForm({ ...form, taxId: e.target.value })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Phone</Label>
+            <Label>{t("phone")}</Label>
             <Input
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <Label>{t("email")}</Label>
             <Input
               type="email"
               value={form.email}
@@ -281,14 +285,14 @@ function GeneralSettings({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Website</Label>
+            <Label>{t("website")}</Label>
             <Input
               value={form.website}
               onChange={(e) => setForm({ ...form, website: e.target.value })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Timezone</Label>
+            <Label>{t("timezone")}</Label>
             <Combobox
               options={timezoneOptions}
               value={form.timezone}
@@ -298,7 +302,7 @@ function GeneralSettings({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Country</Label>
+            <Label>{t("country")}</Label>
             <Input
               value={data?.country?.name ?? "—"}
               disabled
@@ -306,7 +310,7 @@ function GeneralSettings({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Base Currency</Label>
+            <Label>{t("baseCurrency")}</Label>
             <Input
               value={data?.baseCurrency ? `${data.baseCurrency.code} — ${data.baseCurrency.name}` : "—"}
               disabled
@@ -314,7 +318,7 @@ function GeneralSettings({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Fiscal Year</Label>
+            <Label>{t("fiscalYear")}</Label>
             <Input
               value={`Month ${data?.fiscalYearStart} — Month ${data?.fiscalYearEnd}`}
               disabled
@@ -323,7 +327,7 @@ function GeneralSettings({
           </div>
           <div className="col-span-full flex justify-end">
             <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isPending ? tc("saving") : t("saveChanges")}
             </Button>
           </div>
         </form>

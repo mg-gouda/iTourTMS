@@ -7,7 +7,7 @@ import {
   bankStatementImportSchema,
   bankStatementUpdateSchema,
 } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   buildStatementMoveLines,
   computeBalanceEnd,
@@ -16,10 +16,10 @@ import {
 import { validateBalance } from "@/server/services/finance/move-engine";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const bankStatementRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:bankStatement:read")
     .input(
       z
         .object({
@@ -65,7 +65,7 @@ export const bankStatementRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  getById: financeProcedure
+  getById: p("finance:bankStatement:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const statement = await ctx.db.bankStatement.findFirst({
@@ -100,7 +100,7 @@ export const bankStatementRouter = createTRPCRouter({
       return statement;
     }),
 
-  create: financeProcedure
+  create: p("finance:bankStatement:create")
     .input(bankStatementCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { lines, ...data } = input;
@@ -124,7 +124,7 @@ export const bankStatementRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:bankStatement:update")
     .input(
       z.object({ id: z.string() }).merge(bankStatementUpdateSchema),
     )
@@ -178,7 +178,7 @@ export const bankStatementRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:bankStatement:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const statement = await ctx.db.bankStatement.findFirst({
@@ -202,7 +202,7 @@ export const bankStatementRouter = createTRPCRouter({
       return ctx.db.bankStatement.delete({ where: { id: input.id } });
     }),
 
-  validate: financeProcedure
+  validate: p("finance:bankStatement:validate")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const statement = await ctx.db.bankStatement.findFirst({
@@ -380,7 +380,7 @@ export const bankStatementRouter = createTRPCRouter({
       });
     }),
 
-  import: financeProcedure
+  import: p("finance:bankStatement:create")
     .input(bankStatementImportSchema)
     .mutation(async ({ ctx, input }) => {
       // Parse CSV content

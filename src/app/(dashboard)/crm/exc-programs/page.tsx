@@ -17,8 +17,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatOperatingDays } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 export default function ExcProgramsPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const { data: plans, isLoading } = trpc.crm.programPlan.list.useQuery();
 
@@ -31,17 +35,19 @@ export default function ExcProgramsPage() {
   });
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+
+    <PermissionGuard permission="crm:excursion:read">
+      <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Excursion Programs</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("excursionPrograms")}</h1>
           <p className="text-sm text-muted-foreground">
             Schedule which excursions run, for which market, on which days of the week
           </p>
         </div>
         <Button asChild>
           <Link href="/crm/exc-programs/new">
-            <Plus className="mr-2 h-4 w-4" /> New Program
+            <Plus className="mr-2 h-4 w-4" /> {t("program")}
           </Link>
         </Button>
       </div>
@@ -68,10 +74,10 @@ export default function ExcProgramsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>{tc("name")}</TableHead>
                 <TableHead>Market</TableHead>
-                <TableHead className="text-center">Excursions</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="text-center">{t("excursions")}</TableHead>
+                <TableHead>{tc("status")}</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -96,11 +102,11 @@ export default function ExcProgramsPage() {
                   <TableCell>
                     {plan.active ? (
                       <span className="flex items-center gap-1 text-xs text-green-600">
-                        <CheckCircle2 className="h-3 w-3" /> Active
+                        <CheckCircle2 className="h-3 w-3" /> {tc("active")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <XCircle className="h-3 w-3" /> Inactive
+                        <XCircle className="h-3 w-3" /> {tc("inactive")}
                       </span>
                     )}
                   </TableCell>
@@ -111,12 +117,12 @@ export default function ExcProgramsPage() {
                       className="text-destructive hover:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm("Delete this program?")) {
+                        if (confirm(tc("confirmDelete"))) {
                           deleteMutation.mutate({ id: plan.id });
                         }
                       }}
                     >
-                      Delete
+                      {tc("delete")}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -126,5 +132,9 @@ export default function ExcProgramsPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

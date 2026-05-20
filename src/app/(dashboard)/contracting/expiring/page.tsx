@@ -5,6 +5,7 @@ import { differenceInDays, format } from "date-fns";
 import { AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -19,19 +20,7 @@ import {
 } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-
-type TimeframeOption = {
-  label: string;
-  days: number;
-  includeExpired: boolean;
-};
-
-const TIMEFRAMES: TimeframeOption[] = [
-  { label: "30 Days", days: 30, includeExpired: false },
-  { label: "60 Days", days: 60, includeExpired: false },
-  { label: "90 Days", days: 90, includeExpired: false },
-  { label: "Expired", days: 365, includeExpired: true },
-];
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type ExpiringRow = {
   id: string;
@@ -48,87 +37,103 @@ function getDaysLeft(validTo: string | Date): number {
   return differenceInDays(new Date(validTo), new Date());
 }
 
-const columns: ColumnDef<ExpiringRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Contract" />
-    ),
-    cell: ({ row }) => (
-      <div>
-        <span className="font-medium">{row.original.name}</span>
-        <span className="ml-2 font-mono text-xs text-muted-foreground">
-          {row.original.code}
-        </span>
-      </div>
-    ),
-  },
-  {
-    id: "hotel",
-    header: "Hotel",
-    cell: ({ row }) => row.original.hotel?.name ?? "—",
-  },
-  {
-    id: "validTo",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Expires" />
-    ),
-    cell: ({ row }) => format(new Date(row.original.validTo), "dd MMM yyyy"),
-  },
-  {
-    id: "daysLeft",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Days Left" />
-    ),
-    cell: ({ row }) => {
-      const days = getDaysLeft(row.original.validTo);
-      return (
-        <span
-          className={cn(
-            "font-mono text-sm font-medium",
-            days < 0 && "text-destructive",
-            days >= 0 && days <= 30 && "text-orange-600 dark:text-orange-400",
-            days > 30 && days <= 60 && "text-amber-600 dark:text-amber-400",
-            days > 60 && "text-muted-foreground",
-          )}
-        >
-          {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d`}
-        </span>
-      );
-    },
-    sortingFn: (rowA, rowB) => {
-      const a = getDaysLeft(rowA.original.validTo);
-      const b = getDaysLeft(rowB.original.validTo);
-      return a - b;
-    },
-  },
-  {
-    id: "currency",
-    header: "Currency",
-    cell: ({ row }) => row.original.baseCurrency?.code ?? "—",
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge
-        variant={
-          (CONTRACT_STATUS_VARIANTS[row.original.status] as
-            | "default"
-            | "secondary"
-            | "outline"
-            | "destructive") ?? "secondary"
-        }
-      >
-        {CONTRACT_STATUS_LABELS[row.original.status] ?? row.original.status}
-      </Badge>
-    ),
-  },
-];
-
 export default function ExpiringContractsPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
+
+  type TimeframeOption = {
+    label: string;
+    days: number;
+    includeExpired: boolean;
+  };
+
+  const TIMEFRAMES: TimeframeOption[] = [
+    { label: "30 " + tc("days"), days: 30, includeExpired: false },
+    { label: "60 " + tc("days"), days: 60, includeExpired: false },
+    { label: "90 " + tc("days"), days: 90, includeExpired: false },
+    { label: t("expiredLabel"), days: 365, includeExpired: true },
+  ];
+
   const [timeframe, setTimeframe] = useState<TimeframeOption>(TIMEFRAMES[1]); // 60 days default
+
+  const columns: ColumnDef<ExpiringRow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("contract")} />
+      ),
+      cell: ({ row }) => (
+        <div>
+          <span className="font-medium">{row.original.name}</span>
+          <span className="ml-2 font-mono text-xs text-muted-foreground">
+            {row.original.code}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "hotel",
+      header: t("hotel"),
+      cell: ({ row }) => row.original.hotel?.name ?? "—",
+    },
+    {
+      id: "validTo",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("expiresColumn")} />
+      ),
+      cell: ({ row }) => format(new Date(row.original.validTo), "dd MMM yyyy"),
+    },
+    {
+      id: "daysLeft",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("daysLeft")} />
+      ),
+      cell: ({ row }) => {
+        const days = getDaysLeft(row.original.validTo);
+        return (
+          <span
+            className={cn(
+              "font-mono text-sm font-medium",
+              days < 0 && "text-destructive",
+              days >= 0 && days <= 30 && "text-orange-600 dark:text-orange-400",
+              days > 30 && days <= 60 && "text-amber-600 dark:text-amber-400",
+              days > 60 && "text-muted-foreground",
+            )}
+          >
+            {days < 0 ? t("daysOverdue", { days: Math.abs(days) }) : `${days}${t("daysSuffix")}`}
+          </span>
+        );
+      },
+      sortingFn: (rowA, rowB) => {
+        const a = getDaysLeft(rowA.original.validTo);
+        const b = getDaysLeft(rowB.original.validTo);
+        return a - b;
+      },
+    },
+    {
+      id: "currency",
+      header: tc("currency"),
+      cell: ({ row }) => row.original.baseCurrency?.code ?? "—",
+    },
+    {
+      accessorKey: "status",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge
+          variant={
+            (CONTRACT_STATUS_VARIANTS[row.original.status] as
+              | "default"
+              | "secondary"
+              | "outline"
+              | "destructive") ?? "secondary"
+          }
+        >
+          {CONTRACT_STATUS_LABELS[row.original.status] ?? row.original.status}
+        </Badge>
+      ),
+    },
+  ];
 
   const { data, isLoading } = trpc.contracting.contract.listExpiring.useQuery({
     days: timeframe.days,
@@ -142,12 +147,11 @@ export default function ExpiringContractsPage() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-6 w-6 text-amber-500" />
             <h1 className="text-2xl font-bold tracking-tight">
-              Expiring Contracts
+              {t("expiringContracts")}
             </h1>
           </div>
           <p className="text-muted-foreground">
-            Contracts expiring soon or already expired — take action before it's
-            too late
+            {t("expiringContractsDesc")}
           </p>
         </div>
       </div>
@@ -191,7 +195,7 @@ export default function ExpiringContractsPage() {
           columns={columns}
           data={(data as ExpiringRow[]) ?? []}
           searchKey="name"
-          searchPlaceholder="Search expiring contracts..."
+          searchPlaceholder={t("searchExpiring")}
           onRowClick={(row) =>
             router.push(`/contracting/contracts/${row.id}`)
           }

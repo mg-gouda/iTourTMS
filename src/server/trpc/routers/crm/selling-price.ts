@@ -1,11 +1,13 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { sellingPriceBulkSaveSchema } from "@/lib/validations/crm";
 
+const p = (code: string) => modulePermissionProcedure("crm", code);
+
 export const sellingPriceRouter = createTRPCRouter({
-  listByCostSheet: moduleProcedure("crm")
+  listByCostSheet: p("crm:excursion:read")
     .input(z.object({ costSheetId: z.string() }))
     .query(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findUnique({
@@ -22,7 +24,7 @@ export const sellingPriceRouter = createTRPCRouter({
       });
     }),
 
-  save: moduleProcedure("crm")
+  save: p("crm:excursion:update")
     .input(sellingPriceBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findUnique({

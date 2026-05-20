@@ -37,8 +37,12 @@ import {
 } from "@/lib/constants/reservations";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 export default function BookingReconciliationPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "UNPAID" | "PARTIAL" | "PAID">("ALL");
   const [sourceFilter, setSourceFilter] = useState<"ALL" | "WEBSITE" | "DIRECT" | "B2B" | "TOUR_OPERATOR">("ALL");
   const [search, setSearch] = useState("");
@@ -127,11 +131,12 @@ export default function BookingReconciliationPage() {
   const totalOutstanding = bookings?.reduce((s, b) => s + Number(b.balanceDue), 0) ?? 0;
 
   return (
+    <PermissionGuard permission="finance:reconciliation:read">
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Booking Reconciliation</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("bookingReconciliation")}</h1>
         <p className="text-muted-foreground">
-          Track and manage payments for all bookings
+          {t("bookingReconciliationDesc")}
         </p>
       </div>
 
@@ -139,7 +144,7 @@ export default function BookingReconciliationPage() {
       <div className="grid gap-4 sm:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("booking")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{totalBookings}</p>
@@ -147,7 +152,7 @@ export default function BookingReconciliationPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Selling</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("totalSelling")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{totalSelling.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -155,7 +160,7 @@ export default function BookingReconciliationPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("totalPaid")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">{totalPaid.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -163,7 +168,7 @@ export default function BookingReconciliationPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("outstanding")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className={`text-2xl font-bold ${totalOutstanding > 0 ? "text-destructive" : "text-green-600"}`}>
@@ -208,9 +213,9 @@ export default function BookingReconciliationPage() {
 
       {/* Bookings Table */}
       {isLoading ? (
-        <p className="py-10 text-center text-muted-foreground">Loading...</p>
+        <p className="py-10 text-center text-muted-foreground">{tc("loading")}</p>
       ) : !bookings || bookings.length === 0 ? (
-        <p className="py-10 text-center text-muted-foreground">No bookings found.</p>
+        <p className="py-10 text-center text-muted-foreground">{tc("noResults")}</p>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -288,7 +293,7 @@ export default function BookingReconciliationPage() {
                       <TableRow key={`${b.id}-payments`}>
                         <TableCell colSpan={11} className="bg-muted/30 p-0">
                           <div className="px-8 py-3">
-                            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Payment History</p>
+                            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{t("paymentHistory")}</p>
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="text-xs text-muted-foreground">
@@ -339,7 +344,7 @@ export default function BookingReconciliationPage() {
                     {isExpanded && b.payments.length === 0 && (
                       <TableRow key={`${b.id}-empty`}>
                         <TableCell colSpan={11} className="bg-muted/30 text-center text-sm text-muted-foreground py-3">
-                          No payments recorded yet.
+                          {t("noPaymentsRecorded")}
                         </TableCell>
                       </TableRow>
                     )}
@@ -442,5 +447,6 @@ export default function BookingReconciliationPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

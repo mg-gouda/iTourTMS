@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OPS_COMPONENT_TYPE_LABELS } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -28,7 +29,9 @@ export default function TemplatesPage() {
   });
 
   return (
-    <div className="space-y-4 p-6">
+
+    <PermissionGuard permission="tour-ops:package:read">
+      <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Package Templates</h1>
@@ -99,5 +102,9 @@ export default function TemplatesPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

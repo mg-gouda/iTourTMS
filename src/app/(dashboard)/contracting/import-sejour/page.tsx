@@ -31,6 +31,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -292,6 +294,8 @@ function ContractPreviewRow({ contract }: { contract: ParsedContract }) {
 // ---------------------------------------------------------------------------
 
 export default function ImportSejourPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const [step, setStep] = useState<Step>("upload");
   const [files, setFiles] = useState<File[]>([]);
   const [preview, setPreview] = useState<ParsedContract[]>([]);
@@ -398,16 +402,18 @@ export default function ImportSejourPage() {
   }, [files]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="contracting:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <div className="flex items-center gap-2">
           <Upload className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">
-            Import Sejour Contracts
+            {t("importSejourTitle")}
           </h1>
         </div>
         <p className="text-muted-foreground">
-          Import hotel contracts from Sejour PDF exports
+          {t("importSejourDesc")}
         </p>
       </div>
 
@@ -415,7 +421,7 @@ export default function ImportSejourPage() {
       {step === "upload" && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: Upload PDF Files</CardTitle>
+            <CardTitle>{t("step1UploadPdf")}</CardTitle>
             <CardDescription>
               Upload one or more Sejour contract PDF files. Files should be from
               the Sejour &quot;Hotel Contract Information&quot; export.
@@ -440,7 +446,7 @@ export default function ImportSejourPage() {
                 onClick={() => inputRef.current?.click()}
                 disabled={loading}
               >
-                Browse Files
+                {t("browseFiles")}
               </Button>
               <input
                 ref={inputRef}
@@ -495,7 +501,7 @@ export default function ImportSejourPage() {
                     Parsing...
                   </>
                 ) : (
-                  "Parse & Preview"
+                  t("parsePreview")
                 )}
               </Button>
             </div>
@@ -523,7 +529,7 @@ export default function ImportSejourPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Step 2: Preview Parsed Contracts</CardTitle>
+              <CardTitle>{t("step2UploadPdf")}</CardTitle>
               <CardDescription>
                 Review the parsed data below. Click a row to expand details.
                 Rows with errors will be skipped during import.
@@ -586,14 +592,14 @@ export default function ImportSejourPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
+                  {tc("loading")}
                 </>
               ) : (
-                "Import All"
+                t("importAll")
               )}
             </Button>
             <Button variant="outline" onClick={reset}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </div>
@@ -622,7 +628,7 @@ export default function ImportSejourPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                Import Complete
+                {t("importComplete")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -682,9 +688,9 @@ export default function ImportSejourPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={reset}>Import More</Button>
+                <Button onClick={reset}>{t("importMore")}</Button>
                 <Button variant="outline" asChild>
-                  <Link href="/contracting/contracts">View All Contracts</Link>
+                  <Link href="/contracting/contracts">{t("contracts")}</Link>
                 </Button>
               </div>
             </CardContent>
@@ -692,5 +698,9 @@ export default function ImportSejourPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

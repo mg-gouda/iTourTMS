@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalendarDays, Lock, Unlock, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { TT_JOB_STATUS_LABELS, TT_JOB_STATUS_VARIANTS, TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function DispatchConsolePage() {
+  const t = useTranslations("traffic");
+  const tCommon = useTranslations("common");
   const utils = trpc.useUtils();
   const today = new Date().toISOString().split("T")[0];
   const [dateStr, setDateStr] = useState(today);
@@ -24,19 +28,19 @@ export default function DispatchConsolePage() {
   const { data, isLoading } = trpc.traffic.dispatch.getDailyDispatch.useQuery({ date });
 
   const lockMutation = trpc.traffic.dispatch.lockDispatch.useMutation({
-    onSuccess: () => { utils.traffic.dispatch.invalidate(); toast.success("Dispatch locked"); },
+    onSuccess: () => { utils.traffic.dispatch.invalidate(); toast.success(t("dispatchLocked")); },
     onError: (err) => toast.error(err.message),
   });
 
   const unlockMutation = trpc.traffic.dispatch.unlockDispatch.useMutation({
-    onSuccess: () => { utils.traffic.dispatch.invalidate(); toast.success("Dispatch unlocked"); },
+    onSuccess: () => { utils.traffic.dispatch.invalidate(); toast.success(t("dispatchUnlocked")); },
     onError: (err) => toast.error(err.message),
   });
 
   return (
     <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Dispatch Console</h1><p className="text-muted-foreground">Daily dispatch management</p></div>
+        <div><h1 className="text-2xl font-bold">{t("dispatchConsole")}</h1><p className="text-muted-foreground">{t("dailyDispatch")}</p></div>
         <div className="flex items-center gap-3">
           <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className="w-[180px]" />
           <Button
@@ -67,10 +71,10 @@ export default function DispatchConsolePage() {
               pdf.save(`dispatch-${dateStr}.pdf`);
             }}
           >
-            Export PDF
+            {tCommon("export")} PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => lockMutation.mutate({ date })}><Lock className="mr-2 h-4 w-4" />Lock</Button>
-          <Button variant="outline" size="sm" onClick={() => unlockMutation.mutate({ date })}><Unlock className="mr-2 h-4 w-4" />Unlock</Button>
+          <Button variant="outline" size="sm" onClick={() => lockMutation.mutate({ date })}><Lock className="mr-2 h-4 w-4" />{t("lock")}</Button>
+          <Button variant="outline" size="sm" onClick={() => unlockMutation.mutate({ date })}><Unlock className="mr-2 h-4 w-4" />{t("unlock")}</Button>
         </div>
       </div>
 
@@ -79,15 +83,15 @@ export default function DispatchConsolePage() {
       ) : (
         <div className="space-y-6">
           <div className="flex gap-4">
-            <Badge variant="outline" className="text-sm">Total: {data?.total ?? 0}</Badge>
-            <Badge variant="outline" className="text-sm">Arrivals: {data?.arrivals.length ?? 0}</Badge>
-            <Badge variant="outline" className="text-sm">Departures: {data?.departures.length ?? 0}</Badge>
-            <Badge variant="outline" className="text-sm">Others: {data?.others.length ?? 0}</Badge>
+            <Badge variant="outline" className="text-sm">{tCommon("total")}: {data?.total ?? 0}</Badge>
+            <Badge variant="outline" className="text-sm">{t("arrivals")}: {data?.arrivals.length ?? 0}</Badge>
+            <Badge variant="outline" className="text-sm">{t("departures")}: {data?.departures.length ?? 0}</Badge>
+            <Badge variant="outline" className="text-sm">{t("otherServices")}: {data?.others.length ?? 0}</Badge>
           </div>
 
-          <DispatchSection title="Arrivals" jobs={data?.arrivals ?? []} date={date} />
-          <DispatchSection title="Departures" jobs={data?.departures ?? []} date={date} />
-          <DispatchSection title="Other Services" jobs={data?.others ?? []} date={date} />
+          <DispatchSection title={t("arrivals")} jobs={data?.arrivals ?? []} date={date} />
+          <DispatchSection title={t("departures")} jobs={data?.departures ?? []} date={date} />
+          <DispatchSection title={t("otherServices")} jobs={data?.others ?? []} date={date} />
         </div>
       )}
     </div>
@@ -95,6 +99,8 @@ export default function DispatchConsolePage() {
 }
 
 function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; date: Date }) {
+  const t = useTranslations("traffic");
+  const tCommon = useTranslations("common");
   const utils = trpc.useUtils();
   const [assignJobId, setAssignJobId] = useState<string | null>(null);
   const [vehicleId, setVehicleId] = useState("");
@@ -107,7 +113,7 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
 
   const assignMutation = trpc.traffic.dispatch.bulkAssign.useMutation({
     onSuccess: () => {
-      toast.success("Job assigned");
+      toast.success(t("jobAssigned"));
       utils.traffic.dispatch.getDailyDispatch.invalidate({ date });
       setAssignJobId(null);
       setVehicleId("");
@@ -119,7 +125,8 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
 
   if (jobs.length === 0) return null;
   return (
-    <>
+    <PermissionGuard permission="traffic:dispatch:read">
+      <>
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="h-4 w-4" />{title} ({jobs.length})</CardTitle></CardHeader>
         <CardContent>
@@ -139,7 +146,7 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
                     </div>
                   ) : (
                     <Button variant="outline" size="sm" onClick={() => setAssignJobId(job.id)}>
-                      <UserPlus className="mr-1 h-3 w-3" /> Assign
+                      <UserPlus className="mr-1 h-3 w-3" /> {t("assignDriver")}
                     </Button>
                   )}
                   <Badge variant={(TT_JOB_STATUS_VARIANTS[job.status] ?? "secondary") as never}>
@@ -156,13 +163,13 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
       <Dialog open={!!assignJobId} onOpenChange={(open) => { if (!open) setAssignJobId(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Resources</DialogTitle>
+            <DialogTitle>{t("assignResources")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Vehicle</Label>
+              <Label>{t("vehicles")}</Label>
               <Select value={vehicleId} onValueChange={setVehicleId}>
-                <SelectTrigger><SelectValue placeholder="Select vehicle..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tCommon("select")} /></SelectTrigger>
                 <SelectContent>
                   {(vehicles ?? []).map((v: { id: string; plateNumber: string; vehicleType?: { name: string } }) => (
                     <SelectItem key={v.id} value={v.id}>{v.plateNumber} {v.vehicleType?.name ? `(${v.vehicleType.name})` : ""}</SelectItem>
@@ -171,9 +178,9 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
               </Select>
             </div>
             <div>
-              <Label>Driver</Label>
+              <Label>{t("driver")}</Label>
               <Select value={driverId} onValueChange={setDriverId}>
-                <SelectTrigger><SelectValue placeholder="Select driver..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tCommon("select")} /></SelectTrigger>
                 <SelectContent>
                   {(drivers ?? []).map((d: { id: string; user?: { id: string; name: string | null } | null }) => (
                     <SelectItem key={d.id} value={d.id}>{d.user?.name ?? d.id}</SelectItem>
@@ -182,11 +189,11 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
               </Select>
             </div>
             <div>
-              <Label>Rep (optional)</Label>
+              <Label>{t("rep")} ({tCommon("optional")})</Label>
               <Select value={repId || "__none"} onValueChange={(v) => setRepId(v === "__none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="No rep" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("noRep")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">No rep</SelectItem>
+                  <SelectItem value="__none">{t("noRep")}</SelectItem>
                   {(reps ?? []).map((r: { id: string; user?: { id: string; name: string | null } | null }) => (
                     <SelectItem key={r.id} value={r.id}>{r.user?.name ?? r.id}</SelectItem>
                   ))}
@@ -208,11 +215,12 @@ function DispatchSection({ title, jobs, date }: { title: string; jobs: any[]; da
                 });
               }}
             >
-              {assignMutation.isPending ? "Assigning..." : "Assign"}
+              {assignMutation.isPending ? tCommon("saving") : t("assignDriver")}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
     </>
+    </PermissionGuard>
   );
 }

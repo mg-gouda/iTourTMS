@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const dispatchRouter = createTRPCRouter({
-  getDailyDispatch: proc
+  getDailyDispatch: p("traffic:dispatch:read")
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -45,7 +45,7 @@ export const dispatchRouter = createTRPCRouter({
       return { arrivals, departures, others, total: jobs.length };
     }),
 
-  getAvailableVehicles: proc
+  getAvailableVehicles: p("traffic:dispatch:read")
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -79,7 +79,7 @@ export const dispatchRouter = createTRPCRouter({
       });
     }),
 
-  getAvailableDrivers: proc
+  getAvailableDrivers: p("traffic:dispatch:read")
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -112,7 +112,7 @@ export const dispatchRouter = createTRPCRouter({
       });
     }),
 
-  getAvailableReps: proc
+  getAvailableReps: p("traffic:dispatch:read")
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -144,7 +144,7 @@ export const dispatchRouter = createTRPCRouter({
       });
     }),
 
-  bulkAssign: proc
+  bulkAssign: p("traffic:dispatch:import")
     .input(z.object({
       assignments: z.array(z.object({
         jobId: z.string(),
@@ -175,7 +175,7 @@ export const dispatchRouter = createTRPCRouter({
       return results;
     }),
 
-  lockDispatch: proc
+  lockDispatch: p("traffic:dispatch:update")
     .input(z.object({ date: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -193,7 +193,7 @@ export const dispatchRouter = createTRPCRouter({
       });
     }),
 
-  unlockDispatch: proc
+  unlockDispatch: p("traffic:dispatch:update")
     .input(z.object({ date: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);

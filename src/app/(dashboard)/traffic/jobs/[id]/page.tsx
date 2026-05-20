@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,11 +22,14 @@ import {
   TT_COST_TYPE_LABELS,
 } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function TrafficJobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
 
   const { data: job, isLoading } = trpc.traffic.trafficJob.getById.useQuery({ id });
   const [nextStatus, setNextStatus] = useState("");
@@ -56,7 +60,7 @@ export default function TrafficJobDetailPage() {
     );
   }
 
-  if (!job) return <p>Job not found.</p>;
+  if (!job) return <p>{t("trafficJob")} not found.</p>;
 
   const allowedTransitions = TT_JOB_STATUS_TRANSITIONS[job.status] ?? [];
 
@@ -64,7 +68,7 @@ export default function TrafficJobDetailPage() {
     <div className="animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Job {job.code}</h1>
+          <h1 className="text-2xl font-bold">{t("trafficJob")} {job.code}</h1>
           <p className="text-muted-foreground">
             {TT_SERVICE_TYPE_LABELS[job.serviceType]} &middot; {new Date(job.serviceDate).toLocaleDateString()}
           </p>
@@ -77,7 +81,7 @@ export default function TrafficJobDetailPage() {
             <div className="flex gap-2">
               <Select value={nextStatus} onValueChange={setNextStatus}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Change status" />
+                  <SelectValue placeholder={t("changeStatus")} />
                 </SelectTrigger>
                 <SelectContent>
                   {allowedTransitions.map((s) => (
@@ -90,7 +94,7 @@ export default function TrafficJobDetailPage() {
                 disabled={!nextStatus || updateStatusMutation.isPending}
                 onClick={() => updateStatusMutation.mutate({ id, status: nextStatus as never })}
               >
-                Update
+                {tc("save")}
               </Button>
             </div>
           )}
@@ -99,20 +103,20 @@ export default function TrafficJobDetailPage() {
 
       <Tabs defaultValue="info">
         <TabsList>
-          <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments ({job.assignments.length})</TabsTrigger>
-          <TabsTrigger value="status-log">Status Log ({job.statusLogs.length})</TabsTrigger>
-          <TabsTrigger value="costs">Costs ({job.operationalCosts.length})</TabsTrigger>
+          <TabsTrigger value="info">{t("jobDetails")}</TabsTrigger>
+          <TabsTrigger value="assignments">{t("assignResources")} ({job.assignments.length})</TabsTrigger>
+          <TabsTrigger value="status-log">{tc("status")} Log ({job.statusLogs.length})</TabsTrigger>
+          <TabsTrigger value="costs">{t("addOperationalCost")} ({job.operationalCosts.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="space-y-4">
           {/* Excursion dispatch run stops */}
           {job.dispatchRun && (
             <Card>
-              <CardHeader><CardTitle>Excursion Pickup Sequence</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("excursionPickupSequence")}</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Excursion</span>
+                  <span className="text-muted-foreground">{t("excursionPickupSequence").split(" ")[0]}</span>
                   <span className="font-medium">{job.dispatchRun.dispatch.excursion.name} ({job.dispatchRun.dispatch.excursion.code})</span>
                 </div>
                 <div className="flex justify-between">
@@ -121,18 +125,18 @@ export default function TrafficJobDetailPage() {
                 </div>
                 {job.dispatchRun.rep && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rep</span>
+                    <span className="text-muted-foreground">{t("rep")}</span>
                     <span className="font-medium">{job.dispatchRun.rep.user.name}</span>
                   </div>
                 )}
                 {job.dispatchRun.dispatch.assemblyPointName && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Assembly Point</span>
+                    <span className="text-muted-foreground">{t("assemblyPoint")}</span>
                     <span className="font-medium">{job.dispatchRun.dispatch.assemblyPointName}</span>
                   </div>
                 )}
                 <div className="mt-3">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Hotel Pickup Stops</p>
+                  <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("hotelPickupStops")}</p>
                   <div className="space-y-1">
                     {job.dispatchRun.stops.map((stop, idx) => (
                       <div key={stop.hotel.id} className="flex items-center justify-between rounded border px-3 py-2">
@@ -153,86 +157,86 @@ export default function TrafficJobDetailPage() {
           )}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>Job Details</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("jobDetails")}</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <InfoRow label="Service Type" value={TT_SERVICE_TYPE_LABELS[job.serviceType]} />
-                <InfoRow label="Date" value={new Date(job.serviceDate).toLocaleDateString()} />
-                <InfoRow label="Pickup Time" value={job.pickupTime ?? "—"} />
-                <InfoRow label="Dropoff Time" value={job.dropoffTime ?? "—"} />
-                <InfoRow label="Vehicle Type" value={job.vehicleType?.name ?? "—"} />
-                <InfoRow label="Zone" value={job.zone?.name ?? "—"} />
+                <InfoRow label={t("serviceType")} value={TT_SERVICE_TYPE_LABELS[job.serviceType]} />
+                <InfoRow label={tc("date")} value={new Date(job.serviceDate).toLocaleDateString()} />
+                <InfoRow label={t("pickupTime")} value={job.pickupTime ?? "—"} />
+                <InfoRow label={t("dropoffTime")} value={job.dropoffTime ?? "—"} />
+                <InfoRow label={t("vehicleType")} value={job.vehicleType?.name ?? "—"} />
+                <InfoRow label={t("zone")} value={job.zone?.name ?? "—"} />
 
                 {/* Booking flight info */}
                 {job.booking?.arrivalFlightNo ? (
                   <>
                     <div className="border-t pt-2 mt-2">
-                      <span className="text-xs font-semibold uppercase text-muted-foreground">Arrival Flight</span>
+                      <span className="text-xs font-semibold uppercase text-muted-foreground">{t("arrivalFlight")}</span>
                     </div>
-                    <InfoRow label="Flight No" value={job.booking.arrivalFlightNo} />
-                    <InfoRow label="Time" value={job.booking.arrivalTime ?? "—"} />
-                    <InfoRow label="Route" value={
+                    <InfoRow label={t("flightNo")} value={job.booking.arrivalFlightNo} />
+                    <InfoRow label={t("arrivalTime")} value={job.booking.arrivalTime ?? "—"} />
+                    <InfoRow label={t("route")} value={
                       job.booking.arrivalOriginApt && job.booking.arrivalDestApt
                         ? `${job.booking.arrivalOriginApt} → ${job.booking.arrivalDestApt}`
                         : job.booking.arrivalOriginApt ?? job.booking.arrivalDestApt ?? "—"
                     } />
-                    <InfoRow label="Terminal" value={job.booking.arrivalTerminal ?? "—"} />
+                    <InfoRow label={t("terminal")} value={job.booking.arrivalTerminal ?? "—"} />
                   </>
                 ) : null}
 
                 {job.booking?.departFlightNo ? (
                   <>
                     <div className="border-t pt-2 mt-2">
-                      <span className="text-xs font-semibold uppercase text-muted-foreground">Departure Flight</span>
+                      <span className="text-xs font-semibold uppercase text-muted-foreground">{t("departureFlight")}</span>
                     </div>
-                    <InfoRow label="Flight No" value={job.booking.departFlightNo} />
-                    <InfoRow label="Time" value={job.booking.departTime ?? "—"} />
-                    <InfoRow label="Route" value={
+                    <InfoRow label={t("flightNo")} value={job.booking.departFlightNo} />
+                    <InfoRow label={t("departureTime")} value={job.booking.departTime ?? "—"} />
+                    <InfoRow label={t("route")} value={
                       job.booking.departOriginApt && job.booking.departDestApt
                         ? `${job.booking.departOriginApt} → ${job.booking.departDestApt}`
                         : job.booking.departOriginApt ?? job.booking.departDestApt ?? "—"
                     } />
-                    <InfoRow label="Terminal" value={job.booking.departTerminal ?? "—"} />
+                    <InfoRow label={t("terminal")} value={job.booking.departTerminal ?? "—"} />
                   </>
                 ) : null}
 
                 {/* Fallback to standalone flight when no booking flights */}
                 {!job.booking?.arrivalFlightNo && !job.booking?.departFlightNo && (
-                  <InfoRow label="Flight" value={job.flight?.flightNumber ?? "—"} />
+                  <InfoRow label={t("flights")} value={job.flight?.flightNumber ?? "—"} />
                 )}
 
-                <InfoRow label="Booking" value={job.booking?.code ?? "—"} />
+                <InfoRow label={t("bookingDetails")} value={job.booking?.code ?? "—"} />
                 {job.booking && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Booking Link</span>
+                    <span className="text-muted-foreground">{t("bookingLink")}</span>
                     <Link href={`/reservations/bookings/${job.booking.id}`} className="font-medium text-primary hover:underline">
                       {job.booking.code}
                     </Link>
                   </div>
                 )}
                 {job.booking?.hotel && (
-                  <InfoRow label="Booking Hotel" value={job.booking.hotel.name} />
+                  <InfoRow label={t("bookingHotel")} value={job.booking.hotel.name} />
                 )}
-                <InfoRow label="Partner" value={job.partner?.name ?? "—"} />
-                <InfoRow label="Created By" value={job.createdBy?.name ?? "—"} />
+                <InfoRow label={t("partnerOverrides")} value={job.partner?.name ?? "—"} />
+                <InfoRow label={t("createdBy")} value={job.createdBy?.name ?? "—"} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Passenger & Locations</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("passengerLocations")}</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <InfoRow label="Passengers" value={String(job.paxCount)} />
-                <InfoRow label="Lead Passenger" value={job.leadPassenger ?? "—"} />
-                <InfoRow label="Phone" value={job.passengerPhone ?? "—"} />
-                <InfoRow label="Pickup Airport" value={job.pickupAirport ? `${job.pickupAirport.code} - ${job.pickupAirport.name}` : "—"} />
-                <InfoRow label="Pickup Hotel" value={job.pickupHotel?.name ?? "—"} />
-                <InfoRow label="Pickup Address" value={job.pickupAddress ?? "—"} />
-                <InfoRow label="Dropoff Airport" value={job.dropoffAirport ? `${job.dropoffAirport.code} - ${job.dropoffAirport.name}` : "—"} />
-                <InfoRow label="Dropoff Hotel" value={job.dropoffHotel?.name ?? "—"} />
-                <InfoRow label="Dropoff Address" value={job.dropoffAddress ?? "—"} />
-                <InfoRow label="Price" value={job.currency ? `${job.currency.symbol}${Number(job.price).toFixed(2)}` : String(Number(job.price).toFixed(2))} />
-                <InfoRow label="Cost" value={String(Number(job.cost).toFixed(2))} />
+                <InfoRow label={t("passengers")} value={String(job.paxCount)} />
+                <InfoRow label={t("leadPassenger")} value={job.leadPassenger ?? "—"} />
+                <InfoRow label={tc("phone")} value={job.passengerPhone ?? "—"} />
+                <InfoRow label={t("pickupAirport")} value={job.pickupAirport ? `${job.pickupAirport.code} - ${job.pickupAirport.name}` : "—"} />
+                <InfoRow label={t("pickup")} value={job.pickupHotel?.name ?? "—"} />
+                <InfoRow label={t("pickupAddress")} value={job.pickupAddress ?? "—"} />
+                <InfoRow label={t("dropoffAirport")} value={job.dropoffAirport ? `${job.dropoffAirport.code} - ${job.dropoffAirport.name}` : "—"} />
+                <InfoRow label={t("dropoff")} value={job.dropoffHotel?.name ?? "—"} />
+                <InfoRow label={t("dropoffAddress")} value={job.dropoffAddress ?? "—"} />
+                <InfoRow label={tc("amount")} value={job.currency ? `${job.currency.symbol}${Number(job.price).toFixed(2)}` : String(Number(job.price).toFixed(2))} />
+                <InfoRow label={tc("total")} value={String(Number(job.cost).toFixed(2))} />
                 {job.passengerNotes && !job.dispatchRun && (
                   <div className="border-t pt-2 mt-2">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Notes</p>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">{tc("notes")}</p>
                     <p className="whitespace-pre-wrap text-xs">{job.passengerNotes}</p>
                   </div>
                 )}
@@ -245,15 +249,15 @@ export default function TrafficJobDetailPage() {
           <Card>
             <CardContent className="pt-6">
               {job.assignments.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-4">No assignments yet.</p>
+                <p className="text-center text-sm text-muted-foreground py-4">{t("noAssignments")}</p>
               ) : (
                 <div className="space-y-3">
                   {job.assignments.map((a) => (
                     <div key={a.id} className="flex items-center justify-between rounded-md border p-3">
                       <div className="space-y-1">
-                        <p className="text-sm"><strong>Vehicle:</strong> {a.vehicle?.plateNumber ?? "—"}</p>
-                        <p className="text-sm"><strong>Driver:</strong> {a.driver?.user.name ?? "—"}</p>
-                        <p className="text-sm"><strong>Rep:</strong> {a.rep?.user.name ?? "—"}</p>
+                        <p className="text-sm"><strong>{t("vehicle")}:</strong> {a.vehicle?.plateNumber ?? "—"}</p>
+                        <p className="text-sm"><strong>{t("driver")}:</strong> {a.driver?.user.name ?? "—"}</p>
+                        <p className="text-sm"><strong>{t("rep")}:</strong> {a.rep?.user.name ?? "—"}</p>
                       </div>
                       <Badge variant="outline">{a.status}</Badge>
                     </div>
@@ -268,7 +272,7 @@ export default function TrafficJobDetailPage() {
           <Card>
             <CardContent className="pt-6">
               {job.statusLogs.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-4">No status changes yet.</p>
+                <p className="text-center text-sm text-muted-foreground py-4">{t("noStatusChanges")}</p>
               ) : (
                 <div className="space-y-2">
                   {job.statusLogs.map((log) => (
@@ -293,14 +297,14 @@ export default function TrafficJobDetailPage() {
 
               {/* Existing Costs */}
               {job.operationalCosts.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-4">No costs recorded.</p>
+                <p className="text-center text-sm text-muted-foreground py-4">{t("noCosts")}</p>
               ) : (
                 <div className="space-y-2">
                   {job.operationalCosts.map((c) => (
                     <CostRow key={c.id} cost={c} />
                   ))}
                   <div className="flex justify-end border-t pt-2 text-sm font-bold">
-                    Total: {job.operationalCosts.reduce((sum, c) => sum + Number(c.amount), 0).toFixed(2)}
+                    {tc("total")}: {job.operationalCosts.reduce((sum, c) => sum + Number(c.amount), 0).toFixed(2)}
                   </div>
                 </div>
               )}
@@ -310,14 +314,14 @@ export default function TrafficJobDetailPage() {
       </Tabs>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={() => router.back()}>Back</Button>
+        <Button variant="outline" onClick={() => router.back()}>{tc("back")}</Button>
         <Button
           variant="destructive"
           onClick={() => {
-            if (confirm("Delete this job?")) deleteMutation.mutate({ id });
+            if (confirm(tc("confirmDelete"))) deleteMutation.mutate({ id });
           }}
         >
-          Delete
+          {tc("delete")}
         </Button>
       </div>
     </div>
@@ -335,13 +339,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) {
   const utils = trpc.useUtils();
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
   const [costType, setCostType] = useState("DRIVER_FEE");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
 
   const createMutation = trpc.traffic.operationalCost.create.useMutation({
     onSuccess: () => {
-      toast.success("Cost added");
+      toast.success(tc("created"));
       utils.traffic.trafficJob.getById.invalidate({ id: jobId });
       setAmount("");
       setNotes("");
@@ -351,10 +357,10 @@ function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) 
 
   return (
     <div className="rounded-md border p-3 space-y-3">
-      <p className="text-sm font-medium">Add Operational Cost</p>
+      <p className="text-sm font-medium">{t("addOperationalCost")}</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <Label className="text-xs">Type</Label>
+          <Label className="text-xs">{tc("type")}</Label>
           <Select value={costType} onValueChange={setCostType}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -365,12 +371,12 @@ function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) 
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Amount</Label>
+          <Label className="text-xs">{tc("amount")}</Label>
           <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs" placeholder="0.00" />
         </div>
         <div>
-          <Label className="text-xs">Notes</Label>
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-xs" placeholder="Optional" />
+          <Label className="text-xs">{tc("notes")}</Label>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-xs" placeholder={tc("optional")} />
         </div>
         <div className="flex items-end">
           <Button
@@ -387,7 +393,7 @@ function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) 
               });
             }}
           >
-            {createMutation.isPending ? "Adding..." : "Add"}
+            {createMutation.isPending ? tc("saving") : tc("add")}
           </Button>
         </div>
       </div>
@@ -406,7 +412,9 @@ function CostRow({ cost }: { cost: { id: string; costType: string; amount: unkno
   });
 
   return (
-    <div className="flex items-center justify-between rounded-md border p-3 text-sm">
+
+    <PermissionGuard permission="traffic:job:read">
+      <div className="flex items-center justify-between rounded-md border p-3 text-sm">
       <div className="flex items-center gap-3">
         <Badge variant="outline">{TT_COST_TYPE_LABELS[cost.costType] ?? cost.costType}</Badge>
         {cost.notes && <span className="text-muted-foreground">{cost.notes}</span>}
@@ -418,5 +426,9 @@ function CostRow({ cost }: { cost: { id: string; costType: string; amount: unkno
         </Button>
       </div>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

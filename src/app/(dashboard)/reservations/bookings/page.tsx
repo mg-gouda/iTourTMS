@@ -6,6 +6,7 @@ import { Plus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -30,6 +31,8 @@ import {
 } from "@/lib/constants/reservations";
 import { trpc } from "@/lib/trpc";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
+
 type BookingRow = {
   id: string;
   code: string;
@@ -48,11 +51,14 @@ type BookingRow = {
   _count: { rooms: number; payments: number };
 };
 
-const columns: ColumnDef<BookingRow>[] = [
+function useColumns() {
+  const t = useTranslations("reservations");
+  const tCommon = useTranslations("common");
+  const columns: ColumnDef<BookingRow>[] = [
   {
     accessorKey: "code",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Code" />
+      <DataTableColumnHeader column={column} title={t("bookingCode")} />
     ),
     cell: ({ row }) => (
       <span className="font-mono font-medium">{row.original.code}</span>
@@ -61,36 +67,36 @@ const columns: ColumnDef<BookingRow>[] = [
   {
     id: "hotel",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Hotel" />
+      <DataTableColumnHeader column={column} title={t("hotel")} />
     ),
     accessorFn: (row) => row.hotel.name,
     cell: ({ row }) => row.original.hotel.name,
   },
   {
     accessorKey: "leadGuestName",
-    header: "Guest",
+    header: t("guestName"),
     cell: ({ row }) => row.original.leadGuestName ?? "—",
   },
   {
     accessorKey: "checkIn",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Check-in" />
+      <DataTableColumnHeader column={column} title={t("checkIn")} />
     ),
     cell: ({ row }) => format(new Date(row.original.checkIn), "dd MMM yyyy"),
   },
   {
     accessorKey: "nights",
-    header: "Nights",
+    header: t("nights"),
     cell: ({ row }) => row.original.nights,
   },
   {
     id: "rooms",
-    header: "Rooms",
+    header: t("rooms"),
     cell: ({ row }) => row.original._count.rooms,
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: tCommon("status"),
     cell: ({ row }) => (
       <Badge
         variant={
@@ -124,7 +130,7 @@ const columns: ColumnDef<BookingRow>[] = [
   },
   {
     id: "selling",
-    header: () => <div className="text-right">Selling</div>,
+    header: () => <div className="text-right">{t("selling")}</div>,
     cell: ({ row }) => (
       <div className="text-right font-mono">
         {row.original.currency.symbol}
@@ -136,17 +142,22 @@ const columns: ColumnDef<BookingRow>[] = [
   },
   {
     accessorKey: "source",
-    header: "Source",
+    header: tCommon("type"),
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground">
         {BOOKING_SOURCE_LABELS[row.original.source] ?? row.original.source}
       </span>
     ),
   },
-];
+  ];
+  return columns;
+}
 
 export default function BookingsPage() {
   const router = useRouter();
+  const t = useTranslations("reservations");
+  const tCommon = useTranslations("common");
+  const columns = useColumns();
   const { data, isLoading } = trpc.reservations.booking.list.useQuery();
 
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -186,7 +197,7 @@ export default function BookingsPage() {
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Statuses</SelectItem>
+          <SelectItem value="ALL">{t("allStatuses")}</SelectItem>
           {Object.entries(BOOKING_STATUS_LABELS).map(([k, v]) => (
             <SelectItem key={k} value={k}>
               {v}
@@ -200,7 +211,7 @@ export default function BookingsPage() {
           <SelectValue placeholder="Source" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Sources</SelectItem>
+          <SelectItem value="ALL">{t("allSources")}</SelectItem>
           {Object.entries(BOOKING_SOURCE_LABELS).map(([k, v]) => (
             <SelectItem key={k} value={k}>
               {v}
@@ -214,7 +225,7 @@ export default function BookingsPage() {
           <SelectValue placeholder="Hotel" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Hotels</SelectItem>
+          <SelectItem value="ALL">{t("allHotels")}</SelectItem>
           {hotels.map((h) => (
             <SelectItem key={h.id} value={h.id}>
               {h.name}
@@ -226,19 +237,20 @@ export default function BookingsPage() {
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters}>
           <X className="mr-1 h-3 w-3" />
-          Clear
+          {tCommon("clear")}
         </Button>
       )}
     </div>
   );
 
   return (
+    <PermissionGuard permission="reservations:booking:read">
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Bookings</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("bookings")}</h1>
           <p className="text-muted-foreground">
-            Manage hotel reservations and booking lifecycle
+            {t("manageBookings")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -267,12 +279,12 @@ export default function BookingsPage() {
           </Button>
           <Button variant="outline" asChild>
             <Link href="/reservations/bookings/new-group">
-              <Users className="mr-2 size-4" /> New Group Booking
+              <Users className="mr-2 size-4" /> {t("newGroupBooking")}
             </Link>
           </Button>
           <Button asChild>
             <Link href="/reservations/bookings/new">
-              <Plus className="mr-2 size-4" /> New Booking
+              <Plus className="mr-2 size-4" /> {t("newBooking")}
             </Link>
           </Button>
         </div>
@@ -297,5 +309,6 @@ export default function BookingsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

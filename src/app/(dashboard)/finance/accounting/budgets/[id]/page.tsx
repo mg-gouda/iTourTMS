@@ -4,6 +4,7 @@ import { Check, RotateCcw, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
   BUDGET_AMOUNT_KEYS,
 } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const stateVariant: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   DRAFT: "secondary",
@@ -47,6 +49,8 @@ function fmtAmount(val: any): string {
 }
 
 export default function BudgetDetailPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -77,14 +81,14 @@ export default function BudgetDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Loading...
+        {tc("loading")}
       </div>
     );
   }
   if (!budget) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Budget not found
+        {t("budgetNotFound")}
       </div>
     );
   }
@@ -94,6 +98,7 @@ export default function BudgetDetailPage() {
   const isCancelled = budget.state === "CANCELLED";
 
   return (
+    <PermissionGuard permission="finance:budget:read">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -107,7 +112,7 @@ export default function BudgetDetailPage() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Fiscal Year: {budget.fiscalYear?.name ?? "—"}
+            {t("fiscalYears")}: {budget.fiscalYear?.name ?? "—"}
           </p>
         </div>
 
@@ -118,7 +123,7 @@ export default function BudgetDetailPage() {
               disabled={approveMutation.isPending}
             >
               <Check className="mr-2 h-4 w-4" />
-              Approve
+              {tc("approve")}
             </Button>
           )}
           {(isDraft || isApproved) && (
@@ -128,7 +133,7 @@ export default function BudgetDetailPage() {
               disabled={cancelMutation.isPending}
             >
               <X className="mr-2 h-4 w-4" />
-              Cancel
+              {tc("cancel")}
             </Button>
           )}
           {isCancelled && (
@@ -138,13 +143,13 @@ export default function BudgetDetailPage() {
               disabled={resetMutation.isPending}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Reset to Draft
+              {t("resetToDraft")}
             </Button>
           )}
           {(isApproved || isDraft) && (
             <Button variant="outline" asChild>
               <Link href={`/finance/reports/budget-vs-actuals?budgetId=${id}`}>
-                View Report
+                {t("viewReport")}
               </Link>
             </Button>
           )}
@@ -154,7 +159,7 @@ export default function BudgetDetailPage() {
               onClick={() => setDeleteDialogOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {tc("delete")}
             </Button>
           )}
         </div>
@@ -163,16 +168,16 @@ export default function BudgetDetailPage() {
       {/* Summary Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Budget Summary</CardTitle>
+          <CardTitle>{t("budgetSummary")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <span className="text-muted-foreground">Total Lines</span>
+              <span className="text-muted-foreground">{t("totalLines")}</span>
               <p className="text-lg font-medium">{budget.lines.length}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Annual Total</span>
+              <span className="text-muted-foreground">{t("annualTotal")}</span>
               <p className="text-lg font-medium font-mono">
                 {budget.lines
                   .reduce((s: number, l: any) => s + Number(l.annualAmount ?? 0), 0)
@@ -180,7 +185,7 @@ export default function BudgetDetailPage() {
               </p>
             </div>
             <div>
-              <span className="text-muted-foreground">Period</span>
+              <span className="text-muted-foreground">{t("period")}</span>
               <p className="text-lg font-medium">
                 {budget.fiscalYear
                   ? `${new Date(budget.fiscalYear.dateFrom).toLocaleDateString()} — ${new Date(budget.fiscalYear.dateTo).toLocaleDateString()}`
@@ -194,7 +199,7 @@ export default function BudgetDetailPage() {
       {/* Budget Lines Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Budget Lines</CardTitle>
+          <CardTitle>{t("budgetLines")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -202,7 +207,7 @@ export default function BudgetDetailPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="sticky left-0 z-10 min-w-[200px] bg-background">
-                    Account
+                    {t("accountName")}
                   </TableHead>
                   {BUDGET_MONTH_LABELS.map((m) => (
                     <TableHead key={m} className="min-w-[90px] text-right">
@@ -210,7 +215,7 @@ export default function BudgetDetailPage() {
                     </TableHead>
                   ))}
                   <TableHead className="min-w-[100px] text-right font-semibold">
-                    Annual
+                    {t("annualTotal")}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -235,7 +240,7 @@ export default function BudgetDetailPage() {
                 {/* Totals Row */}
                 <TableRow className="font-medium border-t-2">
                   <TableCell className="sticky left-0 z-10 bg-background">
-                    Total
+                    {tc("total")}
                   </TableCell>
                   {BUDGET_AMOUNT_KEYS.map((key) => (
                     <TableCell key={key} className="text-right font-mono">
@@ -267,10 +272,9 @@ export default function BudgetDetailPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Budget</DialogTitle>
+            <DialogTitle>{t("deleteBudget")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{budget.name}&quot;? This
-              action cannot be undone.
+              {tc("confirmDelete")} &quot;{budget.name}&quot;? {tc("confirmDeleteDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -278,18 +282,19 @@ export default function BudgetDetailPage() {
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteMutation.mutate({ id })}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? tc("deleting") : tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

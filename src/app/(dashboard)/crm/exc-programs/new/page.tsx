@@ -30,10 +30,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { programPlanCreateSchema } from "@/lib/validations/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type FormValues = z.input<typeof programPlanCreateSchema>;
 
 export default function NewExcProgramPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: markets } = trpc.crm.programPlan.listMarkets.useQuery();
@@ -57,27 +61,29 @@ export default function NewExcProgramPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+
+    <PermissionGuard permission="crm:excursion:read">
+      <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/crm/exc-programs"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">New Excursion Program</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("excursionPrograms")}</h1>
           <p className="text-sm text-muted-foreground">Define a scheduled program with its excursions and operating rules</p>
         </div>
       </div>
 
       <Card className="max-w-xl">
         <CardHeader>
-          <CardTitle className="text-base">Program Details</CardTitle>
+          <CardTitle className="text-base">{t("program")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Program Name</FormLabel>
+                  <FormLabel>{tc("name")}</FormLabel>
                   <FormControl><Input placeholder="e.g. Summer Hurghada Package" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -85,7 +91,7 @@ export default function NewExcProgramPage() {
 
               <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>{tc("description")}</FormLabel>
                   <FormControl><Textarea rows={3} placeholder="Optional description..." {...field} /></FormControl>
                 </FormItem>
               )} />
@@ -112,7 +118,7 @@ export default function NewExcProgramPage() {
               <FormField control={form.control} name="active" render={({ field }) => (
                 <FormItem className="flex items-center gap-2 space-y-0">
                   <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                  <FormLabel>Active</FormLabel>
+                  <FormLabel>{tc("active")}</FormLabel>
                 </FormItem>
               )} />
 
@@ -122,10 +128,10 @@ export default function NewExcProgramPage() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating…" : "Create & Add Excursions"}
+                  {createMutation.isPending ? tc("creating") : t("excursionPrograms")}
                 </Button>
                 <Button variant="ghost" type="button" asChild>
-                  <Link href="/crm/exc-programs">Cancel</Link>
+                  <Link href="/crm/exc-programs">{tc("cancel")}</Link>
                 </Button>
               </div>
             </form>
@@ -133,5 +139,9 @@ export default function NewExcProgramPage() {
         </CardContent>
       </Card>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

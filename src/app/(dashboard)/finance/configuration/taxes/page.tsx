@@ -22,6 +22,7 @@ import {
   TAX_USE_LABELS,
 } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type Tax = {
   id: string;
@@ -125,6 +126,7 @@ export default function TaxesPage() {
   const { data, isLoading } = trpc.finance.tax.list.useQuery();
 
   return (
+    <PermissionGuard permission="finance:tax:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -157,5 +159,6 @@ export default function TaxesPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

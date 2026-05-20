@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { hotelCreateSchema, hotelUpdateSchema, hotelImageCreateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const hotelRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:hotel:read").query(async ({ ctx }) => {
     return ctx.db.hotel.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -20,7 +20,7 @@ export const hotelRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("contracting:hotel:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.hotel.findFirstOrThrow({
@@ -45,7 +45,7 @@ export const hotelRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:hotel:create")
     .input(hotelCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { amenityIds, ...data } = input;
@@ -76,7 +76,7 @@ export const hotelRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("contracting:hotel:update")
     .input(z.object({ id: z.string(), data: hotelUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const { amenityIds, ...data } = input.data;
@@ -110,7 +110,7 @@ export const hotelRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("contracting:hotel:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const hotel = await ctx.db.hotel.findUnique({
@@ -126,7 +126,7 @@ export const hotelRouter = createTRPCRouter({
 
   // ── Hotel Code Auto-generation ──
 
-  getNextHotelCode: proc
+  getNextHotelCode: p("contracting:hotel:read")
     .input(z.object({ zoneId: z.string() }))
     .query(async ({ ctx, input }) => {
       const zone = await ctx.db.zone.findFirstOrThrow({
@@ -147,14 +147,14 @@ export const hotelRouter = createTRPCRouter({
 
   // ── Amenities (company-level) ──
 
-  listAmenities: proc.query(async ({ ctx }) => {
+  listAmenities: p("contracting:hotel:read").query(async ({ ctx }) => {
     return ctx.db.hotelAmenity.findMany({
       where: { companyId: ctx.companyId },
       orderBy: { name: "asc" },
     });
   }),
 
-  createAmenity: proc
+  createAmenity: p("contracting:hotel:create")
     .input(z.object({ name: z.string().min(1), icon: z.string().nullish(), category: z.string().nullish() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.hotelAmenity.create({
@@ -162,7 +162,7 @@ export const hotelRouter = createTRPCRouter({
       });
     }),
 
-  deleteAmenity: proc
+  deleteAmenity: p("contracting:hotel:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.hotelAmenity.delete({
@@ -172,7 +172,7 @@ export const hotelRouter = createTRPCRouter({
 
   // ── Images ──
 
-  addImage: proc
+  addImage: p("contracting:hotel:create")
     .input(hotelImageCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Verify hotel belongs to company
@@ -189,7 +189,7 @@ export const hotelRouter = createTRPCRouter({
       return ctx.db.hotelImage.create({ data: input });
     }),
 
-  updateImage: proc
+  updateImage: p("contracting:hotel:update")
     .input(z.object({
       id: z.string(),
       hotelId: z.string(),
@@ -214,7 +214,7 @@ export const hotelRouter = createTRPCRouter({
       });
     }),
 
-  deleteImage: proc
+  deleteImage: p("contracting:hotel:delete")
     .input(z.object({ id: z.string(), hotelId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({

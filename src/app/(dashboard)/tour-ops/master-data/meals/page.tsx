@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { OPS_DESTINATION_CODES, OPS_MEAL_TYPE_LABELS } from "@/lib/constants/tour-ops";
 import type { OpsMealType } from "@prisma/client";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type RateDialog = { open: boolean; id?: string; nameEn: string; supplierId: string; destinationCode: string; mealType: string; currency: string };
 const emptyDialog = (): RateDialog => ({ open: false, nameEn: "", supplierId: "", destinationCode: "", mealType: "", currency: "EGP" });
@@ -112,7 +113,8 @@ export default function MealsMasterDataPage() {
             {items.map((rate) => {
               const activeSeason = rate.seasons.find((s) => s.isActive);
               return (
-                <div key={rate.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
+                <PermissionGuard permission="tour-ops:component:read">
+                  <div key={rate.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-sm">{rate.nameEn}</span>
                     {rate.supplier && <span className="text-xs text-muted-foreground">{rate.supplier.name}</span>}
@@ -142,6 +144,7 @@ export default function MealsMasterDataPage() {
                     </Button>
                   </div>
                 </div>
+                </PermissionGuard>
               );
             })}
           </div>

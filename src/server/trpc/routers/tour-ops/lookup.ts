@@ -1,12 +1,11 @@
 import { z } from "zod";
-import { createTRPCRouter } from "@/server/trpc";
-import { moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const tourOpsLookupRouter = createTRPCRouter({
   // List tour operators or travel agents (partnerType filter)
-  tourOperators: proc
+  tourOperators: p("tour-ops:file:read")
     .input(z.object({ partnerType: z.enum(["tour_operator", "travel_agent"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.tourOperator.findMany({
@@ -21,7 +20,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
     }),
 
   // List hotels that have at least one POSTED or PUBLISHED contract
-  hotels: proc.query(async ({ ctx }) => {
+  hotels: p("tour-ops:file:read").query(async ({ ctx }) => {
     const hotels = await ctx.db.hotel.findMany({
       where: {
         companyId: ctx.companyId,
@@ -42,7 +41,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
 
   // Given a hotel, return its room types and meal bases from active contracts,
   // plus the base rates for the season overlapping serviceDate.
-  hotelRates: proc
+  hotelRates: p("tour-ops:file:read")
     .input(
       z.object({
         hotelId: z.string(),
@@ -162,7 +161,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
 
   // ── Master Data Lookups ──
 
-  transportRoutes: proc
+  transportRoutes: p("tour-ops:file:read")
     .input(z.object({ destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       const dests = await ctx.db.opsTransportDestination.findMany({
@@ -188,7 +187,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
       return dests;
     }),
 
-  sightseeingEntries: proc
+  sightseeingEntries: p("tour-ops:file:read")
     .input(z.object({ destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsSightseeingEntry.findMany({
@@ -207,7 +206,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
       });
     }),
 
-  guidanceRates: proc
+  guidanceRates: p("tour-ops:file:read")
     .input(z.object({ destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsGuidanceRate.findMany({
@@ -226,7 +225,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
       });
     }),
 
-  mealRates: proc
+  mealRates: p("tour-ops:file:read")
     .input(z.object({ mealType: z.string().optional(), destinationCode: z.string().optional(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsMealRate.findMany({
@@ -247,7 +246,7 @@ export const tourOpsLookupRouter = createTRPCRouter({
       });
     }),
 
-  suppliers: proc
+  suppliers: p("tour-ops:file:read")
     .input(z.object({ type: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmSupplier.findMany({

@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { mealBasisCreateSchema, mealBasisUpdateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const mealBasisRouter = createTRPCRouter({
-  list: proc
+  list: p("contracting:mealBasis:read")
     .input(z.object({ hotelId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -18,7 +18,7 @@ export const mealBasisRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:mealBasis:create")
     .input(mealBasisCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -27,7 +27,7 @@ export const mealBasisRouter = createTRPCRouter({
       return ctx.db.hotelMealBasis.create({ data: input });
     }),
 
-  update: proc
+  update: p("contracting:mealBasis:update")
     .input(z.object({ id: z.string(), hotelId: z.string(), data: mealBasisUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -39,7 +39,7 @@ export const mealBasisRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("contracting:mealBasis:delete")
     .input(z.object({ id: z.string(), hotelId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({

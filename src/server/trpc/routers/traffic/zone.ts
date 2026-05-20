@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { ttZoneCreateSchema, ttZoneUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const zoneRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("traffic:zone:read").query(async ({ ctx }) => {
     return ctx.db.ttZone.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -23,7 +23,7 @@ export const zoneRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("traffic:zone:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttZone.findFirstOrThrow({
@@ -37,7 +37,7 @@ export const zoneRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:zone:create")
     .input(ttZoneCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttZone.create({
@@ -45,7 +45,7 @@ export const zoneRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:zone:update")
     .input(z.object({ id: z.string(), data: ttZoneUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttZone.update({
@@ -54,7 +54,7 @@ export const zoneRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:zone:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttZone.delete({

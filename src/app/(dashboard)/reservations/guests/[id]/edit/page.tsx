@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { trpc } from "@/lib/trpc";
 import { guestUpdateSchema } from "@/lib/validations/reservations";
 
@@ -101,7 +102,8 @@ export default function EditGuestPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <PermissionGuard permission="reservations:guest:read">
+      <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Edit Guest</h1>
         <p className="text-muted-foreground">
@@ -401,6 +403,7 @@ export default function EditGuestPage() {
           </div>
         </form>
       </Form>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const BOOKING_STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending",
@@ -143,6 +145,8 @@ export default function ReservationsPage() {
   const router = useRouter();
   const { data: rawData, isLoading } = trpc.b2bPortal.reservation.list.useQuery({});
   const { data: operators } = trpc.b2bPortal.tourOperator.list.useQuery();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
 
   const [operatorFilter, setOperatorFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -212,10 +216,12 @@ export default function ReservationsPage() {
   );
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:reservation:read">
+      <div className="space-y-4 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Reservations</h1>
-        <p className="text-muted-foreground">View and manage partner reservations</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("reservations")}</h1>
+        <p className="text-muted-foreground">{t("reservationsDesc")}</p>
       </div>
 
       {isLoading ? (
@@ -249,5 +255,9 @@ export default function ReservationsPage() {
         />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

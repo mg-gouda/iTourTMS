@@ -1,10 +1,12 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { contactInquiryReplySchema } from "@/lib/validations/b2c-site";
 
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
+
 export const contactInquiryRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: p("b2c-site:inquiry:read")
     .input(
       z
         .object({
@@ -23,14 +25,14 @@ export const contactInquiryRouter = createTRPCRouter({
       });
     }),
 
-  getById: protectedProcedure
+  getById: p("b2c-site:inquiry:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
       return ctx.db.contactInquiry.findFirst({ where: { id: input.id, companyId } });
     }),
 
-  markRead: protectedProcedure
+  markRead: p("b2c-site:inquiry:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -41,7 +43,7 @@ export const contactInquiryRouter = createTRPCRouter({
       });
     }),
 
-  reply: protectedProcedure
+  reply: p("b2c-site:inquiry:manage")
     .input(contactInquiryReplySchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -56,7 +58,7 @@ export const contactInquiryRouter = createTRPCRouter({
       });
     }),
 
-  delete: protectedProcedure
+  delete: p("b2c-site:inquiry:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;

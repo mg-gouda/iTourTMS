@@ -2,8 +2,10 @@ import type { PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { bookingCreateSchema, bookingItemSchema, bookingUpdateSchema } from "@/lib/validations/crm";
+
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 async function recalcCustomerLifetimeValue(
   db: PrismaClient,
@@ -21,7 +23,7 @@ async function recalcCustomerLifetimeValue(
 }
 
 export const bookingRouter = createTRPCRouter({
-  list: moduleProcedure("crm").query(async ({ ctx }) => {
+  list: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.crmBooking.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -34,7 +36,7 @@ export const bookingRouter = createTRPCRouter({
     });
   }),
 
-  getById: moduleProcedure("crm")
+  getById: p("crm:booking:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const booking = await ctx.db.crmBooking.findUnique({
@@ -60,7 +62,7 @@ export const bookingRouter = createTRPCRouter({
       return booking;
     }),
 
-  create: moduleProcedure("crm")
+  create: p("crm:booking:create")
     .input(bookingCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const seq = await ctx.db.sequence.upsert({
@@ -114,7 +116,7 @@ export const bookingRouter = createTRPCRouter({
       return booking;
     }),
 
-  update: moduleProcedure("crm")
+  update: p("crm:booking:update")
     .input(z.object({ id: z.string(), data: bookingUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.crmBooking.findUnique({ where: { id: input.id } });
@@ -137,7 +139,7 @@ export const bookingRouter = createTRPCRouter({
       return updated;
     }),
 
-  updateWithItems: moduleProcedure("crm")
+  updateWithItems: p("crm:booking:update")
     .input(z.object({
       id: z.string(),
       data: bookingUpdateSchema,
@@ -186,7 +188,7 @@ export const bookingRouter = createTRPCRouter({
       return updated;
     }),
 
-  delete: moduleProcedure("crm")
+  delete: p("crm:booking:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.crmBooking.findUnique({ where: { id: input.id } });
@@ -198,7 +200,7 @@ export const bookingRouter = createTRPCRouter({
       return deleted;
     }),
 
-  clone: moduleProcedure("crm")
+  clone: p("crm:booking:create")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const source = await ctx.db.crmBooking.findUnique({
@@ -252,7 +254,7 @@ export const bookingRouter = createTRPCRouter({
       });
     }),
 
-  dashboard: moduleProcedure("crm").query(async ({ ctx }) => {
+  dashboard: p("crm:booking:read").query(async ({ ctx }) => {
     const [total, confirmed, draft, upcoming, recentBookings, revenueAgg, costAgg] = await Promise.all([
       ctx.db.crmBooking.count({ where: { companyId: ctx.companyId } }),
       ctx.db.crmBooking.count({ where: { companyId: ctx.companyId, status: "CONFIRMED" } }),
@@ -283,7 +285,7 @@ export const bookingRouter = createTRPCRouter({
     return { total, confirmed, draft, upcoming, recentBookings, totalRevenue, totalCost };
   }),
 
-  alerts: moduleProcedure("crm").query(async ({ ctx }) => {
+  alerts: p("crm:booking:read").query(async ({ ctx }) => {
     const now = new Date();
     const weekFromNow = new Date();
     weekFromNow.setDate(weekFromNow.getDate() + 7);
@@ -322,7 +324,7 @@ export const bookingRouter = createTRPCRouter({
     return { upcomingBookings, overdueActivities };
   }),
 
-  getExcursionPricing: moduleProcedure("crm")
+  getExcursionPricing: p("crm:booking:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       const excursion = await ctx.db.crmExcursion.findUnique({
@@ -350,7 +352,7 @@ export const bookingRouter = createTRPCRouter({
 
   // ── Status transitions with validation ──
 
-  transition: moduleProcedure("crm")
+  transition: p("crm:booking:update")
     .input(
       z.object({
         id: z.string(),

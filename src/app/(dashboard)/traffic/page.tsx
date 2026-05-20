@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bus, Car, Clock, CheckCircle, Users, CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -8,43 +9,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TT_JOB_STATUS_LABELS, TT_JOB_STATUS_VARIANTS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function TrafficDashboardPage() {
+  const t = useTranslations("traffic");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.traffic.trafficJob.dashboard.useQuery();
 
   return (
     <div className="animate-fade-in space-y-6">
       <div className="page-header">
-        <h1 className="text-2xl font-bold">Traffic & Transport</h1>
-        <p className="text-muted-foreground">Fleet management, dispatch, and transport operations</p>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("dailyDispatch")}</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Today's Jobs"
+          title={t("trafficJobs")}
           value={data?.todayJobs}
           icon={CalendarDays}
           loading={isLoading}
           color="text-blue-600"
         />
         <KpiCard
-          title="Pending Jobs"
+          title={t("pending")}
           value={data?.pendingJobs}
           icon={Clock}
           loading={isLoading}
           color="text-amber-600"
         />
         <KpiCard
-          title="Active Vehicles"
+          title={t("vehicles")}
           value={data?.vehicleCount}
           icon={Car}
           loading={isLoading}
           color="text-green-600"
         />
         <KpiCard
-          title="Active Drivers"
+          title={t("drivers")}
           value={data?.driverCount}
           icon={Users}
           loading={isLoading}
@@ -58,7 +62,7 @@ export default function TrafficDashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Bus className="h-4 w-4" />
-              Overview
+              {t("jobStatistics")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -71,15 +75,15 @@ export default function TrafficDashboardPage() {
             ) : (
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total Jobs</span>
+                  <span className="text-sm text-muted-foreground">{t("trafficJobs")}</span>
                   <span className="font-medium">{data?.totalJobs ?? 0}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Completed</span>
+                  <span className="text-sm text-muted-foreground">{t("completed")}</span>
                   <span className="font-medium">{data?.completedJobs ?? 0}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Completion Rate</span>
+                  <span className="text-sm text-muted-foreground">{t("jobStatistics")}</span>
                   <span className="font-medium">
                     {data?.totalJobs
                       ? `${Math.round(((data.completedJobs ?? 0) / data.totalJobs) * 100)}%`
@@ -96,7 +100,7 @@ export default function TrafficDashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CheckCircle className="h-4 w-4" />
-              Recent Jobs
+              {t("trafficJobs")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -127,7 +131,7 @@ export default function TrafficDashboardPage() {
                 ))}
                 {(!data?.recentJobs || data.recentJobs.length === 0) && (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    No jobs yet. Create your first traffic job.
+                    {tCommon("noData")}
                   </p>
                 )}
               </div>
@@ -153,7 +157,8 @@ function KpiCard({
   color: string;
 }) {
   return (
-    <Card>
+    <PermissionGuard permission="traffic:read">
+      <Card>
       <CardContent className="flex items-center gap-4 p-6">
         <div className={`rounded-lg bg-muted p-3 ${color}`}>
           <Icon className="h-5 w-5" />
@@ -168,5 +173,6 @@ function KpiCard({
         </div>
       </CardContent>
     </Card>
+    </PermissionGuard>
   );
 }

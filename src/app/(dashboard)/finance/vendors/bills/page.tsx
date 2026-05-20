@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MOVE_STATE_LABELS, PAYMENT_STATE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type MoveRow = {
   id: string;
@@ -121,29 +123,32 @@ const columns: ColumnDef<MoveRow, unknown>[] = [
 
 export default function VendorBillsPage() {
   const router = useRouter();
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.finance.move.list.useQuery({
     moveType: "IN_INVOICE",
   });
 
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vendor Bills</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("vendorBillsTitle")}</h1>
           <p className="text-muted-foreground">
-            Manage vendor bills and expenses.
+            {t("vendorBillsDesc")}
           </p>
         </div>
         <Button asChild>
           <Link href="/finance/vendors/bills/new">
             <Plus className="mr-2 size-4" />
-            New Bill
+            {t("newBill")}
           </Link>
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-10 text-center">Loading...</div>
+        <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
       ) : (
         <DataTable
           columns={columns}
@@ -156,5 +161,6 @@ export default function VendorBillsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

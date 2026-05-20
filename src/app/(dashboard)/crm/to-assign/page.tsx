@@ -10,8 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 export default function ToAssignPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const { data: plans, isLoading: plansLoading } = trpc.crm.programPlan.listWithTOCount.useQuery();
@@ -54,9 +58,11 @@ export default function ToAssignPage() {
   const isMutating = assignMutation.isPending || unassignMutation.isPending;
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+
+    <PermissionGuard permission="crm:booking:read">
+      <div className="flex flex-1 flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">TO Assign</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("toAssign")}</h1>
         <p className="text-sm text-muted-foreground">
           Assign tour operators to excursion programs
         </p>
@@ -66,7 +72,7 @@ export default function ToAssignPage() {
         {/* ── Left: Programs list ── */}
         <div className="col-span-2 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Programs
+            {t("programs")}
           </p>
           {plansLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -186,7 +192,7 @@ export default function ToAssignPage() {
                           to.assigned && "text-destructive hover:text-destructive border-destructive/30 hover:border-destructive",
                         )}
                       >
-                        {to.assigned ? "Remove" : "Assign"}
+                        {to.assigned ? tc("remove") : tc("add")}
                       </Button>
                     </div>
                   ))
@@ -197,5 +203,9 @@ export default function ToAssignPage() {
         </div>
       </div>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -2,12 +2,12 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const travelAgentRouter = createTRPCRouter({
-  list: proc
+  list: p("b2b-portal:travelAgent:read")
     .input(
       z
         .object({
@@ -45,7 +45,7 @@ export const travelAgentRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("b2b-portal:travelAgent:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const record = await ctx.db.tourOperator.findFirst({
@@ -66,7 +66,7 @@ export const travelAgentRouter = createTRPCRouter({
       return record;
     }),
 
-  create: proc
+  create: p("b2b-portal:travelAgent:create")
     .input(
       z.object({
         name: z.string().min(1),
@@ -101,7 +101,7 @@ export const travelAgentRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("b2b-portal:travelAgent:update")
     .input(
       z.object({
         id: z.string(),
@@ -142,7 +142,7 @@ export const travelAgentRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("b2b-portal:travelAgent:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const agent = await ctx.db.tourOperator.findFirst({

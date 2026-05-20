@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { opportunityCreateSchema, opportunityUpdateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const opportunityRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("crm:opportunity:read").query(async ({ ctx }) => {
     return ctx.db.crmOpportunity.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -19,7 +19,7 @@ export const opportunityRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("crm:opportunity:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmOpportunity.findFirstOrThrow({
@@ -48,7 +48,7 @@ export const opportunityRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:opportunity:create")
     .input(opportunityCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmOpportunity.create({
@@ -67,7 +67,7 @@ export const opportunityRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:opportunity:update")
     .input(z.object({ id: z.string(), data: opportunityUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
@@ -92,7 +92,7 @@ export const opportunityRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:opportunity:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmOpportunity.delete({

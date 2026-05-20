@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 import { z } from "zod";
 
 import { moveCreateSchema, moveUpdateSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   computeInvoiceLines,
   computeMoveTotals,
@@ -18,7 +18,7 @@ import { getRate } from "@/server/services/finance/currency-service";
 import { applyFiscalPosition } from "@/server/services/finance/fiscal-position";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 /** Map MoveType to sequence code */
 function getSequenceCode(moveType: string): string {
@@ -62,7 +62,7 @@ async function getCounterpartAccountId(
 }
 
 export const moveRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:move:read")
     .input(
       z.object({
         moveType: z.enum(["ENTRY", "OUT_INVOICE", "OUT_REFUND", "IN_INVOICE", "IN_REFUND"]).optional(),
@@ -111,7 +111,7 @@ export const moveRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  getById: financeProcedure
+  getById: p("finance:move:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const move = await ctx.db.move.findFirst({
@@ -142,7 +142,7 @@ export const moveRouter = createTRPCRouter({
       return move;
     }),
 
-  create: financeProcedure
+  create: p("finance:move:create")
     .input(moveCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { lineItems: inputLines, ...moveData } = input;
@@ -354,7 +354,7 @@ export const moveRouter = createTRPCRouter({
       }
     }),
 
-  update: financeProcedure
+  update: p("finance:move:update")
     .input(z.object({ id: z.string() }).merge(moveUpdateSchema))
     .mutation(async ({ ctx, input }) => {
       const { id, lineItems: inputLines, ...moveData } = input;
@@ -544,7 +544,7 @@ export const moveRouter = createTRPCRouter({
       }
     }),
 
-  delete: financeProcedure
+  delete: p("finance:move:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const move = await ctx.db.move.findFirst({
@@ -565,7 +565,7 @@ export const moveRouter = createTRPCRouter({
       return ctx.db.move.delete({ where: { id: input.id } });
     }),
 
-  confirm: financeProcedure
+  confirm: p("finance:move:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const move = await ctx.db.move.findFirst({
@@ -622,7 +622,7 @@ export const moveRouter = createTRPCRouter({
       });
     }),
 
-  cancel: financeProcedure
+  cancel: p("finance:move:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const move = await ctx.db.move.findFirst({
@@ -727,7 +727,7 @@ export const moveRouter = createTRPCRouter({
       return reversal;
     }),
 
-  resetDraft: financeProcedure
+  resetDraft: p("finance:move:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const move = await ctx.db.move.findFirst({
@@ -756,7 +756,7 @@ export const moveRouter = createTRPCRouter({
       });
     }),
 
-  createCreditNote: financeProcedure
+  createCreditNote: p("finance:move:create")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const move = await ctx.db.move.findFirst({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -39,6 +40,7 @@ import { trpc } from "@/lib/trpc";
 import { formatSeasonLabel } from "@/lib/utils";
 import type { AppRouter } from "@/server/trpc/router";
 import type { inferRouterOutputs } from "@trpc/server";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -942,6 +944,7 @@ function CancellationPoliciesSection({ a, b }: { a: ContractFull; b: ContractFul
 // ---------------------------------------------------------------------------
 
 export default function ContractComparePage() {
+  const t = useTranslations("contracting");
   const router = useRouter();
   const searchParams = useSearchParams();
   const idA = searchParams.get("a") ?? "";
@@ -955,7 +958,7 @@ export default function ContractComparePage() {
   if (!idA || !idB) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        Missing contract IDs. Please provide both &quot;a&quot; and &quot;b&quot; query parameters.
+        {t("missingContractIds")}
       </div>
     );
   }
@@ -963,7 +966,7 @@ export default function ContractComparePage() {
   if (error) {
     return (
       <div className="p-8 text-center text-destructive">
-        Error loading contracts: {error.message}
+        {t("errorLoadingContracts")} {error.message}
       </div>
     );
   }
@@ -988,7 +991,9 @@ export default function ContractComparePage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+
+    <PermissionGuard permission="contracting:contract:read">
+      <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -996,7 +1001,7 @@ export default function ContractComparePage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Contract Comparison</h1>
+            <h1 className="text-2xl font-bold">{t("contractComparison")}</h1>
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
                 {contractA.name}{" "}
@@ -1012,7 +1017,7 @@ export default function ContractComparePage() {
         </div>
         <Button variant="outline" onClick={handleSwap}>
           <ArrowLeftRight className="mr-2 h-4 w-4" />
-          Swap A / B
+          {t("swapAB")}
         </Button>
       </div>
 
@@ -1020,15 +1025,15 @@ export default function ContractComparePage() {
       <div className="flex items-center gap-4 text-sm">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-full bg-red-500" />
-          Removed from A
+          {t("removedFromA")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-full bg-green-500" />
-          Added in B
+          {t("addedInB")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-full bg-amber-500" />
-          Changed (A → B)
+          {t("changedAB")}
         </span>
       </div>
 
@@ -1045,5 +1050,9 @@ export default function ContractComparePage() {
       <ChildPoliciesSection a={contractA} b={contractB} />
       <CancellationPoliciesSection a={contractA} b={contractB} />
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

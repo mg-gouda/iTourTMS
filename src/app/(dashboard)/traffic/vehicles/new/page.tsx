@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { TT_VEHICLE_OWNERSHIP_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
 import { vehicleCreateSchema } from "@/lib/validations/traffic";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof vehicleCreateSchema>;
 
@@ -39,7 +40,9 @@ export default function NewVehiclePage() {
   });
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:vehicle:read">
+      <div className="animate-fade-in space-y-6">
       <div className="page-header">
         <h1 className="text-2xl font-bold">New Vehicle</h1>
       </div>
@@ -99,5 +102,9 @@ export default function NewVehiclePage() {
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

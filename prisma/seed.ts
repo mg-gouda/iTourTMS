@@ -316,6 +316,16 @@ async function main() {
   await prisma.airport.createMany({ data: airportData, skipDuplicates: true });
   console.log(`  ✓ ${airportData.length} airports seeded`);
 
+  // ── Permissions (global — must exist before any setup wizard runs) ──
+  console.log("\n🔐 Seeding permissions...");
+  const { ALL_PERMISSIONS } = await import("../src/lib/constants/permissions");
+  let permSeeded = 0;
+  for (const perm of ALL_PERMISSIONS) {
+    await prisma.permission.upsert({ where: { code: perm.code }, update: {}, create: perm });
+    permSeeded++;
+  }
+  console.log(`  ✓ ${permSeeded} permissions seeded`);
+
   console.log("\nSeed completed successfully!");
 }
 

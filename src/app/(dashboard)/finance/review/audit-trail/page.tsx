@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type AuditRow = {
   id: string;
@@ -68,6 +69,7 @@ export default function AuditTrailPage() {
   const { data, isLoading } = trpc.finance.auditTrail.list.useQuery({ pageSize: 100 });
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Audit Trail</h1>
@@ -84,5 +86,6 @@ export default function AuditTrailPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

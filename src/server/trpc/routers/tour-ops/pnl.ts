@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsPnlRouter = createTRPCRouter({
-  getByFileId: tourOpsProcedure
+  getByFileId: p("tour-ops:pnl:read")
     .input(z.object({ fileId: z.string() }))
     .query(async ({ ctx, input }) => {
       const file = await ctx.db.opsFile.findFirst({
@@ -16,7 +16,7 @@ export const opsPnlRouter = createTRPCRouter({
       return file.pnl;
     }),
 
-  recalculate: tourOpsProcedure
+  recalculate: p("tour-ops:pnl:update")
     .input(
       z.object({
         fileId: z.string(),
@@ -49,7 +49,7 @@ export const opsPnlRouter = createTRPCRouter({
       });
     }),
 
-  close: tourOpsProcedure
+  close: p("tour-ops:pnl:manage")
     .input(z.object({ fileId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const pnl = await ctx.db.opsPnL.findUnique({ where: { fileId: input.fileId } });

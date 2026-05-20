@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 const generatedComponentSchema = z.object({
   type: z.enum([
@@ -25,7 +25,7 @@ const generatedComponentSchema = z.object({
 });
 
 export const opsCalculatorRouter = createTRPCRouter({
-  saveState: proc
+  saveState: p("tour-ops:quotation:update")
     .input(z.object({ fileId: z.string().min(1), state: z.any() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.opsFile.updateMany({
@@ -35,7 +35,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       return { ok: true };
     }),
 
-  getState: proc
+  getState: p("tour-ops:quotation:read")
     .input(z.object({ fileId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       const file = await ctx.db.opsFile.findFirst({
@@ -45,7 +45,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       return file ? { state: file.calculatorState, posted: file.calculatorPosted } : null;
     }),
 
-  post: proc
+  post: p("tour-ops:quotation:confirm")
     .input(
       z.object({
         fileId: z.string().min(1),
@@ -161,7 +161,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       });
     }),
 
-  reopen: proc
+  reopen: p("tour-ops:quotation:manage")
     .input(z.object({ fileId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.opsFile.updateMany({
@@ -171,7 +171,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       return { ok: true };
     }),
 
-  generateComponents: proc
+  generateComponents: p("tour-ops:quotation:create")
     .input(
       z.object({
         packageId: z.string().min(1),

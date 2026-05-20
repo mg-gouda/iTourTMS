@@ -1,23 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TT_JOB_STATUS_LABELS, TT_JOB_STATUS_VARIANTS, TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function DailyDispatchReportPage() {
   const today = new Date().toISOString().split("T")[0];
   const [dateStr, setDateStr] = useState(today);
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
 
   const { data, isLoading } = trpc.traffic.reports.dailyDispatch.useQuery({ date: new Date(dateStr) });
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:report:read">
+      <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Daily Dispatch Report</h1></div>
+        <div><h1 className="text-2xl font-bold">{t("dailyDispatchReport")}</h1></div>
         <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className="w-[180px]" />
       </div>
       {isLoading ? <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div> : (
@@ -37,9 +43,13 @@ export default function DailyDispatchReportPage() {
               </div>
             </div>
           ))}
-          {data?.length === 0 && <p className="py-8 text-center text-muted-foreground">No jobs for this date.</p>}
+          {data?.length === 0 && <p className="py-8 text-center text-muted-foreground">{t("noJobsForDate")}</p>}
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

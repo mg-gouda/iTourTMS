@@ -1,7 +1,9 @@
 "use client";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { BarChart3, Calendar, FileBarChart, Gift, Clock, Layers } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import {
   Card,
@@ -11,54 +13,57 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const reports = [
-  {
-    title: "Contract Summary",
-    description: "Aggregated view of all contracts grouped by hotel, status, or currency",
-    href: "/contracting/reports/contract-summary",
-    icon: FileBarChart,
-  },
-  {
-    title: "Rate Comparison",
-    description: "Compare base rates across contracts for the same hotel",
-    href: "/contracting/reports/rate-comparison",
-    icon: BarChart3,
-  },
-  {
-    title: "Season Coverage",
-    description: "Visualize date coverage by contract seasons across the year",
-    href: "/contracting/reports/season-coverage",
-    icon: Calendar,
-  },
-  {
-    title: "Seasonal Offers",
-    description: "Overview of special offers and promotions across all contracts",
-    href: "/contracting/reports/seasonal-offers",
-    icon: Gift,
-  },
-  {
-    title: "EBD Conditions",
-    description: "Early booking discount conditions and deadlines by contract",
-    href: "/contracting/reports/ebd-conditions",
-    icon: Clock,
-  },
-  {
-    title: "Allotment Utilization",
-    description: "Room allotment usage and availability across contracts",
-    href: "/contracting/reports/allotment-utilization",
-    icon: Layers,
-  },
-];
-
 export default function ReportsPage() {
+  const t = useTranslations("contracting");
+
+  const reports = [
+    {
+      title: t("contractSummary"),
+      description: "Aggregated view of all contracts grouped by hotel, status, or currency",
+      href: "/contracting/reports/contract-summary",
+      icon: FileBarChart,
+    },
+    {
+      title: t("rateComparison"),
+      description: "Compare base rates across contracts for the same hotel",
+      href: "/contracting/reports/rate-comparison",
+      icon: BarChart3,
+    },
+    {
+      title: t("seasonCoverage"),
+      description: "Visualize date coverage by contract seasons across the year",
+      href: "/contracting/reports/season-coverage",
+      icon: Calendar,
+    },
+    {
+      title: t("seasonalOffers"),
+      description: "Overview of special offers and promotions across all contracts",
+      href: "/contracting/reports/seasonal-offers",
+      icon: Gift,
+    },
+    {
+      title: t("ebdConditions"),
+      description: "Early booking discount conditions and deadlines by contract",
+      href: "/contracting/reports/ebd-conditions",
+      icon: Clock,
+    },
+    {
+      title: t("allotmentUtilization"),
+      description: "Room allotment usage and availability across contracts",
+      href: "/contracting/reports/allotment-utilization",
+      icon: Layers,
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <PermissionGuard permission="contracting:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <h1 className="text-2xl font-bold tracking-tight">
-          Contracting Reports
+          {t("contractReports")}
         </h1>
         <p className="text-muted-foreground">
-          Analytical reports for contract rates, coverage, and performance
+          {t("contractReportsDesc")}
         </p>
       </div>
 
@@ -82,5 +87,6 @@ export default function ReportsPage() {
         ))}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -19,10 +20,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { marketCreateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof marketCreateSchema>;
 
 export default function NewMarketPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: countries } = trpc.setup.getCountries.useQuery();
@@ -71,11 +75,12 @@ export default function NewMarketPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:market:read">
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Market</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newMarket")}</h1>
         <p className="text-muted-foreground">
-          Define a geographic market segment for contract availability
+          {t("manageMarkets")}
         </p>
       </div>
 
@@ -165,18 +170,19 @@ export default function NewMarketPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Market"}
+              {createMutation.isPending ? tc("creating") : t("newMarket")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/contracting/markets")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

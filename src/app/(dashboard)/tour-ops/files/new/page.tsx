@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { OPS_CLIENT_TYPE_LABELS } from "@/lib/constants/tour-ops";
 import { opsFileCreateSchema } from "@/lib/validations/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof opsFileCreateSchema>;
 
@@ -74,7 +75,9 @@ export default function NewOpsFilePage() {
   const selectedPartner = partners?.find((p) => p.id === form.watch("tourOperatorId"));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
+
+    <PermissionGuard permission="tour-ops:file:read">
+      <div className="mx-auto max-w-2xl space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">New File</h1>
         <p className="text-sm text-muted-foreground">Open a new tour operations file</p>
@@ -278,5 +281,9 @@ export default function NewOpsFilePage() {
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

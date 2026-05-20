@@ -1,14 +1,15 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Decimal } from "decimal.js";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { opsQuotationCreateSchema, opsQuotationUpdateSchema } from "@/lib/validations/tour-ops";
 import type { OpsQuotationStatus } from "@prisma/client";
+import type { db as dbType } from "@/server/db";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 async function recalcQuotationTotals(
-  db: Parameters<Parameters<typeof tourOpsProcedure.mutation>[0]>[0]["ctx"]["db"],
+  db: typeof dbType,
   quotationId: string,
   packageMarkupType?: string | null,
   packageMarkupValue?: number | null
@@ -48,7 +49,7 @@ async function recalcQuotationTotals(
 }
 
 export const opsQuotationRouter = createTRPCRouter({
-  list: tourOpsProcedure
+  list: p("tour-ops:quotation:read")
     .input(
       z.object({
         fileId: z.string().optional(),
@@ -79,7 +80,7 @@ export const opsQuotationRouter = createTRPCRouter({
       return { items, total };
     }),
 
-  getById: tourOpsProcedure
+  getById: p("tour-ops:quotation:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const quotation = await ctx.db.opsQuotation.findFirst({
@@ -100,7 +101,7 @@ export const opsQuotationRouter = createTRPCRouter({
       return quotation;
     }),
 
-  create: tourOpsProcedure
+  create: p("tour-ops:quotation:create")
     .input(opsQuotationCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { companyId, db } = ctx;
@@ -133,7 +134,7 @@ export const opsQuotationRouter = createTRPCRouter({
       return db.opsQuotation.findUnique({ where: { id: quotation.id } });
     }),
 
-  update: tourOpsProcedure
+  update: p("tour-ops:quotation:update")
     .input(z.object({ id: z.string(), data: opsQuotationUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.opsQuotation.findFirst({
@@ -155,7 +156,7 @@ export const opsQuotationRouter = createTRPCRouter({
       return ctx.db.opsQuotation.findUnique({ where: { id: input.id } });
     }),
 
-  updateStatus: tourOpsProcedure
+  updateStatus: p("tour-ops:quotation:update")
     .input(z.object({ id: z.string(), status: z.enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"]) }))
     .mutation(async ({ ctx, input }) => {
       const q = await ctx.db.opsQuotation.findFirst({
@@ -177,7 +178,7 @@ export const opsQuotationRouter = createTRPCRouter({
       return ctx.db.opsQuotation.update({ where: { id: input.id }, data: { status: input.status } });
     }),
 
-  finalize: tourOpsProcedure
+  finalize: p("tour-ops:quotation:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const q = await ctx.db.opsQuotation.findFirst({
@@ -212,7 +213,7 @@ export const opsQuotationRouter = createTRPCRouter({
       });
     }),
 
-  delete: tourOpsProcedure
+  delete: p("tour-ops:quotation:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const q = await ctx.db.opsQuotation.findFirst({

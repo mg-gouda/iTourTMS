@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const reportsRouter = createTRPCRouter({
-  dailyDispatch: proc
+  dailyDispatch: p("traffic:report:read")
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -38,7 +38,7 @@ export const reportsRouter = createTRPCRouter({
       });
     }),
 
-  jobStats: proc
+  jobStats: p("traffic:report:read")
     .input(z.object({
       dateFrom: z.coerce.date(),
       dateTo: z.coerce.date(),
@@ -65,7 +65,7 @@ export const reportsRouter = createTRPCRouter({
       return { byStatus: jobs, byServiceType };
     }),
 
-  driverPerformance: proc
+  driverPerformance: p("traffic:report:read")
     .input(z.object({
       dateFrom: z.coerce.date(),
       dateTo: z.coerce.date(),
@@ -100,7 +100,7 @@ export const reportsRouter = createTRPCRouter({
       return Array.from(driverMap.entries()).map(([id, data]) => ({ id, ...data }));
     }),
 
-  revenueByService: proc
+  revenueByService: p("traffic:report:read")
     .input(z.object({
       dateFrom: z.coerce.date(),
       dateTo: z.coerce.date(),

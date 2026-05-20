@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -26,6 +27,7 @@ import {
   CRM_LEAD_STATUS_VARIANTS,
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type LeadRow = {
   id: string;
@@ -39,54 +41,56 @@ type LeadRow = {
   createdAt: Date;
 };
 
-const columns: ColumnDef<LeadRow>[] = [
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => <span className="font-mono text-xs">{row.original.code}</span>,
-  },
-  {
-    id: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-    accessorFn: (row) => `${row.firstName} ${row.lastName}`,
-    cell: ({ row }) => (
-      <span className="font-medium">
-        {row.original.firstName} {row.original.lastName}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => row.original.email ?? "—",
-  },
-  {
-    accessorKey: "source",
-    header: "Source",
-    cell: ({ row }) => CRM_LEAD_SOURCE_LABELS[row.original.source] ?? row.original.source,
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={CRM_LEAD_STATUS_VARIANTS[row.original.status] as "default"}>
-        {CRM_LEAD_STATUS_LABELS[row.original.status]}
-      </Badge>
-    ),
-  },
-  {
-    id: "assignedTo",
-    header: "Assigned To",
-    accessorFn: (row) => row.assignedTo?.name ?? "",
-    cell: ({ row }) => row.original.assignedTo?.name ?? "—",
-  },
-];
-
 export default function LeadsPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.crm.lead.list.useQuery();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+
+  const columns: ColumnDef<LeadRow>[] = [
+    {
+      accessorKey: "code",
+      header: tc("code"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.code}</span>,
+    },
+    {
+      id: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("name")} />,
+      accessorFn: (row) => `${row.firstName} ${row.lastName}`,
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {row.original.firstName} {row.original.lastName}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: tc("email"),
+      cell: ({ row }) => row.original.email ?? "—",
+    },
+    {
+      accessorKey: "source",
+      header: t("source"),
+      cell: ({ row }) => CRM_LEAD_SOURCE_LABELS[row.original.source] ?? row.original.source,
+    },
+    {
+      accessorKey: "status",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={CRM_LEAD_STATUS_VARIANTS[row.original.status] as "default"}>
+          {CRM_LEAD_STATUS_LABELS[row.original.status]}
+        </Badge>
+      ),
+    },
+    {
+      id: "assignedTo",
+      header: t("assignedTo"),
+      accessorFn: (row) => row.assignedTo?.name ?? "",
+      cell: ({ row }) => row.original.assignedTo?.name ?? "—",
+    },
+  ];
 
   const filtered = useMemo(() => {
     let rows = (data ?? []) as LeadRow[];
@@ -99,10 +103,10 @@ export default function LeadsPage() {
     <>
       <Select value={statusFilter} onValueChange={setStatusFilter}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="All Statuses" />
+          <SelectValue placeholder={t("allStatuses")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Statuses</SelectItem>
+          <SelectItem value="all">{t("allStatuses")}</SelectItem>
           {Object.entries(CRM_LEAD_STATUS_LABELS).map(([v, l]) => (
             <SelectItem key={v} value={v}>{l}</SelectItem>
           ))}
@@ -110,10 +114,10 @@ export default function LeadsPage() {
       </Select>
       <Select value={sourceFilter} onValueChange={setSourceFilter}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="All Sources" />
+          <SelectValue placeholder={t("allSources")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Sources</SelectItem>
+          <SelectItem value="all">{t("allSources")}</SelectItem>
           {Object.entries(CRM_LEAD_SOURCE_LABELS).map(([v, l]) => (
             <SelectItem key={v} value={v}>{l}</SelectItem>
           ))}
@@ -123,11 +127,13 @@ export default function LeadsPage() {
   );
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="crm:lead:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
-          <p className="text-muted-foreground">Manage your sales leads</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("leads")}</h1>
+          <p className="text-muted-foreground">{t("manageSalesLeads")}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -138,11 +144,11 @@ export default function LeadsPage() {
             }}
             disabled={!data?.length}
           >
-            Export Excel
+            {t("exportExcel")}
           </Button>
           <Button asChild>
             <Link href="/crm/leads/new">
-              <Plus className="mr-2 size-4" /> New Lead
+              <Plus className="mr-2 size-4" /> {t("newLead")}
             </Link>
           </Button>
         </div>
@@ -169,11 +175,15 @@ export default function LeadsPage() {
           columns={columns}
           data={filtered}
           searchKey="name"
-          searchPlaceholder="Search leads..."
+          searchPlaceholder={t("searchLeads")}
           toolbar={filterToolbar}
           onRowClick={(row) => router.push(`/crm/leads/${row.id}`)}
         />
       )}
     </div>
+
+
+    </PermissionGuard>
+
   );
 }

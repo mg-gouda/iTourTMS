@@ -2,12 +2,12 @@ import { z } from "zod";
 
 import { paymentTermSchema } from "@/lib/validations/finance";
 import { computePaymentTermDueDates } from "@/server/services/finance/payment-term-calculator";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const paymentTermRouter = createTRPCRouter({
-  list: financeProcedure.query(async ({ ctx }) => {
+  list: p("finance:paymentTerm:read").query(async ({ ctx }) => {
     return ctx.db.paymentTerm.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -17,7 +17,7 @@ export const paymentTermRouter = createTRPCRouter({
     });
   }),
 
-  getById: financeProcedure
+  getById: p("finance:paymentTerm:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.paymentTerm.findFirstOrThrow({
@@ -28,7 +28,7 @@ export const paymentTermRouter = createTRPCRouter({
       });
     }),
 
-  create: financeProcedure
+  create: p("finance:paymentTerm:create")
     .input(paymentTermSchema)
     .mutation(async ({ ctx, input }) => {
       const { lines, ...data } = input;
@@ -51,7 +51,7 @@ export const paymentTermRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:paymentTerm:update")
     .input(z.object({ id: z.string() }).merge(paymentTermSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, lines, ...data } = input;
@@ -77,13 +77,13 @@ export const paymentTermRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:paymentTerm:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.paymentTerm.delete({ where: { id: input.id } });
     }),
 
-  computeDueDates: financeProcedure
+  computeDueDates: p("finance:paymentTerm:read")
     .input(
       z.object({
         paymentTermId: z.string(),

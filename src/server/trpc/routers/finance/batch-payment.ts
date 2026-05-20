@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 import { z } from "zod";
 
 import { batchPaymentCreateSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   buildPaymentMoveLines,
   updateMovePaymentState,
@@ -11,7 +11,7 @@ import {
 import { validateBalance } from "@/server/services/finance/move-engine";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 /** Get the default receivable/payable account based on payment type */
 async function getCounterpartAccountId(
@@ -38,7 +38,7 @@ async function getCounterpartAccountId(
 }
 
 export const batchPaymentRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:payment:read")
     .input(
       z
         .object({
@@ -76,7 +76,7 @@ export const batchPaymentRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  getById: financeProcedure
+  getById: p("finance:payment:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const batch = await ctx.db.batchPayment.findFirst({
@@ -113,7 +113,7 @@ export const batchPaymentRouter = createTRPCRouter({
       return batch;
     }),
 
-  create: financeProcedure
+  create: p("finance:payment:create")
     .input(batchPaymentCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Fetch selected invoices to compute totals and create individual payments
@@ -207,7 +207,7 @@ export const batchPaymentRouter = createTRPCRouter({
       });
     }),
 
-  confirm: financeProcedure
+  confirm: p("finance:payment:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const batch = await ctx.db.batchPayment.findFirst({
@@ -443,7 +443,7 @@ export const batchPaymentRouter = createTRPCRouter({
       });
     }),
 
-  cancel: financeProcedure
+  cancel: p("finance:payment:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const batch = await ctx.db.batchPayment.findFirst({
@@ -526,7 +526,7 @@ export const batchPaymentRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:payment:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const batch = await ctx.db.batchPayment.findFirst({

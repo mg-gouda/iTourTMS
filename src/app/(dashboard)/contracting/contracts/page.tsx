@@ -6,6 +6,7 @@ import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -27,6 +28,7 @@ import {
   RATE_BASIS_LABELS,
 } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type ContractRow = {
   id: string;
@@ -44,73 +46,9 @@ type ContractRow = {
   _count: { seasons: number; roomTypes: number; mealBases: number };
 };
 
-const columns: ColumnDef<ContractRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
-    ),
-  },
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => (
-      <span className="font-mono">{row.original.code}</span>
-    ),
-  },
-  {
-    id: "hotel",
-    header: "Hotel",
-    cell: ({ row }) => row.original.hotel?.name ?? "—",
-  },
-  {
-    id: "period",
-    header: "Period",
-    cell: ({ row }) => {
-      const from = format(new Date(row.original.validFrom), "dd MMM yyyy");
-      const to = format(new Date(row.original.validTo), "dd MMM yyyy");
-      return `${from} — ${to}`;
-    },
-  },
-  {
-    id: "currency",
-    header: "Currency",
-    cell: ({ row }) => row.original.baseCurrency?.code ?? "—",
-  },
-  {
-    accessorKey: "rateBasis",
-    header: "Rate Basis",
-    cell: ({ row }) =>
-      RATE_BASIS_LABELS[row.original.rateBasis] ?? row.original.rateBasis,
-  },
-  {
-    id: "seasons",
-    header: "Seasons",
-    cell: ({ row }) => row.original._count.seasons,
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge
-        variant={
-          (CONTRACT_STATUS_VARIANTS[row.original.status] as
-            | "default"
-            | "secondary"
-            | "outline"
-            | "destructive") ?? "secondary"
-        }
-      >
-        {CONTRACT_STATUS_LABELS[row.original.status] ?? row.original.status}
-      </Badge>
-    ),
-  },
-];
-
 export default function ContractsPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.contracting.contract.list.useQuery();
 
@@ -120,6 +58,72 @@ export default function ContractsPage() {
   const [cityFilter, setCityFilter] = useState("ALL");
   const [seasonFilter, setSeasonFilter] = useState("ALL");
   const [marketFilter, setMarketFilter] = useState("ALL");
+
+  const columns: ColumnDef<ContractRow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={tc("name")} />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "code",
+      header: tc("code"),
+      cell: ({ row }) => (
+        <span className="font-mono">{row.original.code}</span>
+      ),
+    },
+    {
+      id: "hotel",
+      header: t("hotel"),
+      cell: ({ row }) => row.original.hotel?.name ?? "—",
+    },
+    {
+      id: "period",
+      header: t("period"),
+      cell: ({ row }) => {
+        const from = format(new Date(row.original.validFrom), "dd MMM yyyy");
+        const to = format(new Date(row.original.validTo), "dd MMM yyyy");
+        return `${from} — ${to}`;
+      },
+    },
+    {
+      id: "currency",
+      header: tc("currency"),
+      cell: ({ row }) => row.original.baseCurrency?.code ?? "—",
+    },
+    {
+      accessorKey: "rateBasis",
+      header: t("rateBasisCol"),
+      cell: ({ row }) =>
+        RATE_BASIS_LABELS[row.original.rateBasis] ?? row.original.rateBasis,
+    },
+    {
+      id: "seasons",
+      header: t("seasonsCol"),
+      cell: ({ row }) => row.original._count.seasons,
+    },
+    {
+      accessorKey: "status",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge
+          variant={
+            (CONTRACT_STATUS_VARIANTS[row.original.status] as
+              | "default"
+              | "secondary"
+              | "outline"
+              | "destructive") ?? "secondary"
+          }
+        >
+          {CONTRACT_STATUS_LABELS[row.original.status] ?? row.original.status}
+        </Badge>
+      ),
+    },
+  ];
 
   // Derive unique hotels, currencies, cities, seasons, and markets from data
   const { hotels, currencies, cities, seasons, markets } = useMemo(() => {
@@ -193,10 +197,10 @@ export default function ContractsPage() {
     <div className="flex items-center gap-2">
       <Select value={statusFilter} onValueChange={setStatusFilter}>
         <SelectTrigger className="h-9 w-[130px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={tc("status")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Status</SelectItem>
+          <SelectItem value="ALL">{t("allStatus")}</SelectItem>
           {Object.entries(CONTRACT_STATUS_LABELS).map(([value, label]) => (
             <SelectItem key={value} value={value}>
               {label}
@@ -207,10 +211,10 @@ export default function ContractsPage() {
 
       <Select value={hotelFilter} onValueChange={setHotelFilter}>
         <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Hotel" />
+          <SelectValue placeholder={t("hotel")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Hotels</SelectItem>
+          <SelectItem value="ALL">{t("allHotels")}</SelectItem>
           {hotels.map(([id, name]) => (
             <SelectItem key={id} value={id}>
               {name}
@@ -221,10 +225,10 @@ export default function ContractsPage() {
 
       <Select value={cityFilter} onValueChange={setCityFilter}>
         <SelectTrigger className="h-9 w-[140px]">
-          <SelectValue placeholder="City" />
+          <SelectValue placeholder={t("city")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Cities</SelectItem>
+          <SelectItem value="ALL">{t("allCities")}</SelectItem>
           {cities.map((city) => (
             <SelectItem key={city} value={city}>
               {city}
@@ -235,10 +239,10 @@ export default function ContractsPage() {
 
       <Select value={seasonFilter} onValueChange={setSeasonFilter}>
         <SelectTrigger className="h-9 w-[120px]">
-          <SelectValue placeholder="Season" />
+          <SelectValue placeholder={t("season")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Seasons</SelectItem>
+          <SelectItem value="ALL">{t("allSeasons")}</SelectItem>
           {seasons.map((s) => (
             <SelectItem key={s} value={s}>
               {s}
@@ -249,10 +253,10 @@ export default function ContractsPage() {
 
       <Select value={currencyFilter} onValueChange={setCurrencyFilter}>
         <SelectTrigger className="h-9 w-[120px]">
-          <SelectValue placeholder="Currency" />
+          <SelectValue placeholder={tc("currency")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Currencies</SelectItem>
+          <SelectItem value="ALL">{t("allCurrencies")}</SelectItem>
           {currencies.map((code) => (
             <SelectItem key={code} value={code}>
               {code}
@@ -263,10 +267,10 @@ export default function ContractsPage() {
 
       <Select value={marketFilter} onValueChange={setMarketFilter}>
         <SelectTrigger className="h-9 w-[140px]">
-          <SelectValue placeholder="Market" />
+          <SelectValue placeholder={t("market")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Markets</SelectItem>
+          <SelectItem value="ALL">{t("allMarkets")}</SelectItem>
           {markets.map(([id, name]) => (
             <SelectItem key={id} value={id}>
               {name}
@@ -278,7 +282,7 @@ export default function ContractsPage() {
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters}>
           <X className="mr-1 h-3 w-3" />
-          Clear
+          {tc("clear")}
         </Button>
       )}
     </div>
@@ -288,14 +292,14 @@ export default function ContractsPage() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Contracts</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("contracts")}</h1>
           <p className="text-muted-foreground">
-            Manage hotel contracts, seasons, and base rates
+            {t("manageContracts")}
           </p>
         </div>
         <Button asChild>
           <Link href="/contracting/contracts/new">
-            <Plus className="mr-2 size-4" /> New Contract
+            <Plus className="mr-2 size-4" /> {t("newContract")}
           </Link>
         </Button>
       </div>
@@ -322,7 +326,7 @@ export default function ContractsPage() {
           columns={columns}
           data={filteredData}
           searchKey="name"
-          searchPlaceholder="Search contracts..."
+          searchPlaceholder={t("searchContracts")}
           toolbar={filterToolbar}
           onRowClick={(row) =>
             router.push(`/contracting/contracts/${row.id}`)

@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { roomTypeCreateSchema, roomTypeUpdateSchema, occupancyCreateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const roomTypeRouter = createTRPCRouter({
-  list: proc
+  list: p("contracting:roomType:read")
     .input(z.object({ hotelId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -21,7 +21,7 @@ export const roomTypeRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:roomType:create")
     .input(roomTypeCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -64,7 +64,7 @@ export const roomTypeRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("contracting:roomType:update")
     .input(z.object({ id: z.string(), hotelId: z.string(), data: roomTypeUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -76,7 +76,7 @@ export const roomTypeRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("contracting:roomType:delete")
     .input(z.object({ id: z.string(), hotelId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -89,7 +89,7 @@ export const roomTypeRouter = createTRPCRouter({
 
   // ── Occupancy Table ──
 
-  listOccupancy: proc
+  listOccupancy: p("contracting:roomType:read")
     .input(z.object({ roomTypeId: z.string(), hotelId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -101,7 +101,7 @@ export const roomTypeRouter = createTRPCRouter({
       });
     }),
 
-  createOccupancy: proc
+  createOccupancy: p("contracting:roomType:create")
     .input(occupancyCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Verify room type belongs to company's hotel
@@ -115,7 +115,7 @@ export const roomTypeRouter = createTRPCRouter({
       return ctx.db.roomTypeOccupancy.create({ data: input });
     }),
 
-  deleteOccupancy: proc
+  deleteOccupancy: p("contracting:roomType:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const occ = await ctx.db.roomTypeOccupancy.findFirstOrThrow({

@@ -23,6 +23,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type PartnerRow = {
   id: string;
@@ -50,67 +52,10 @@ const TRANSACTION_TYPE_VARIANTS: Record<string, string> = {
   REFUND: "outline",
 };
 
-const transactionColumns: ColumnDef<TransactionRow>[] = [
-  {
-    id: "date",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
-    accessorFn: (row) => new Date(row.createdAt).getTime(),
-    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => (
-      <Badge variant={(TRANSACTION_TYPE_VARIANTS[row.original.type] ?? "secondary") as "default"}>
-        {row.original.type}
-      </Badge>
-    ),
-  },
-  {
-    id: "amount",
-    header: "Amount",
-    cell: ({ row }) => {
-      const val = Number(row.original.amount ?? 0);
-      return (
-        <span className={val >= 0 ? "text-green-600" : "text-red-600"}>
-          ${Math.abs(val).toLocaleString()}
-        </span>
-      );
-    },
-  },
-  {
-    id: "runningBalance",
-    header: "Balance",
-    cell: ({ row }) => `$${Number(row.original.runningBalance ?? 0).toLocaleString()}`,
-  },
-  {
-    accessorKey: "reference",
-    header: "Reference",
-    cell: ({ row }) => row.original.reference ?? "—",
-  },
-  {
-    id: "booking",
-    header: "Booking",
-    cell: ({ row }) =>
-      row.original.booking ? (
-        <span className="font-mono text-xs">{row.original.booking.code}</span>
-      ) : (
-        "—"
-      ),
-  },
-  {
-    accessorKey: "notes",
-    header: "Notes",
-    cell: ({ row }) => (
-      <span className="max-w-[200px] truncate block text-sm text-muted-foreground">
-        {row.original.notes ?? "—"}
-      </span>
-    ),
-  },
-];
-
 export default function CreditManagementPage() {
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
   const { data: partners, isLoading: partnersLoading } = trpc.b2bPortal.tourOperator.list.useQuery();
 
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
@@ -119,6 +64,65 @@ export default function CreditManagementPage() {
   const [paymentForm, setPaymentForm] = useState({ amount: 0, reference: "", notes: "" });
   const [adjustmentForm, setAdjustmentForm] = useState({ amount: 0, notes: "" });
 
+  const transactionColumns: ColumnDef<TransactionRow>[] = [
+    {
+      id: "date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("date")} />,
+      accessorFn: (row) => new Date(row.createdAt).getTime(),
+      cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+    },
+    {
+      accessorKey: "type",
+      header: tc("type"),
+      cell: ({ row }) => (
+        <Badge variant={(TRANSACTION_TYPE_VARIANTS[row.original.type] ?? "secondary") as "default"}>
+          {row.original.type}
+        </Badge>
+      ),
+    },
+    {
+      id: "amount",
+      header: tc("amount"),
+      cell: ({ row }) => {
+        const val = Number(row.original.amount ?? 0);
+        return (
+          <span className={val >= 0 ? "text-green-600" : "text-red-600"}>
+            ${Math.abs(val).toLocaleString()}
+          </span>
+        );
+      },
+    },
+    {
+      id: "runningBalance",
+      header: t("balance"),
+      cell: ({ row }) => `$${Number(row.original.runningBalance ?? 0).toLocaleString()}`,
+    },
+    {
+      accessorKey: "reference",
+      header: tc("reference"),
+      cell: ({ row }) => row.original.reference ?? "—",
+    },
+    {
+      id: "booking",
+      header: "Booking",
+      cell: ({ row }) =>
+        row.original.booking ? (
+          <span className="font-mono text-xs">{row.original.booking.code}</span>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      accessorKey: "notes",
+      header: tc("notes"),
+      cell: ({ row }) => (
+        <span className="max-w-[200px] truncate block text-sm text-muted-foreground">
+          {row.original.notes ?? "—"}
+        </span>
+      ),
+    },
+  ];
+
   const { data: transactions, isLoading: txLoading } = trpc.b2bPortal.credit.listTransactions.useQuery(
     { tourOperatorId: selectedPartnerId! },
     { enabled: !!selectedPartnerId }
@@ -126,7 +130,7 @@ export default function CreditManagementPage() {
 
   const paymentMutation = trpc.b2bPortal.credit.recordPayment.useMutation({
     onSuccess: () => {
-      toast.success("Payment recorded");
+      toast.success(tc("saved"));
       utils.b2bPortal.credit.listTransactions.invalidate();
       utils.b2bPortal.tourOperator.list.invalidate();
       setPaymentDialogOpen(false);
@@ -137,7 +141,7 @@ export default function CreditManagementPage() {
 
   const adjustmentMutation = trpc.b2bPortal.credit.adjustment.useMutation({
     onSuccess: () => {
-      toast.success("Adjustment recorded");
+      toast.success(tc("saved"));
       utils.b2bPortal.credit.listTransactions.invalidate();
       utils.b2bPortal.tourOperator.list.invalidate();
       setAdjustmentDialogOpen(false);
@@ -164,15 +168,16 @@ export default function CreditManagementPage() {
   }
 
   return (
+    <PermissionGuard permission="b2b-portal:credit:read">
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Credit Management</h1>
-        <p className="text-muted-foreground">Partner credit limits, balances, and payment tracking</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("creditManagement")}</h1>
+        <p className="text-muted-foreground">{t("creditLimit")}, {t("balance")}</p>
       </div>
 
       {/* Partner Credit Overview */}
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Partner Credit Overview</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("partnerCreditOverview")}</h2>
         {partnersLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -185,7 +190,7 @@ export default function CreditManagementPage() {
         ) : !partners?.length ? (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              No partners found. Add tour operators first.
+              {t("noPartnersFound")}
             </CardContent>
           </Card>
         ) : (
@@ -209,23 +214,23 @@ export default function CreditManagementPage() {
                   <CardContent>
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Credit Limit</span>
+                        <span className="text-muted-foreground">{t("creditLimit")}</span>
                         <span className="font-medium">${limit.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Used</span>
+                        <span className="text-muted-foreground">{t("creditUsed")}</span>
                         <span className="font-medium">${used.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Available</span>
+                        <span className="text-muted-foreground">{t("creditAvailable")}</span>
                         <span className={`font-bold ${getCreditColor(limit, used)}`}>
                           ${available.toLocaleString()}
                         </span>
                       </div>
                       {partner.paymentTermDays && (
                         <div className="flex justify-between text-sm pt-1 border-t">
-                          <span className="text-muted-foreground">Payment Terms</span>
-                          <span>{partner.paymentTermDays} days</span>
+                          <span className="text-muted-foreground">{t("paymentTerms")}</span>
+                          <span>{partner.paymentTermDays} {tc("days")}</span>
                         </div>
                       )}
                     </div>
@@ -242,14 +247,14 @@ export default function CreditManagementPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Transactions — {(partners as PartnerRow[])?.find((p) => p.id === selectedPartnerId)?.name}
+              {tc("reference")} — {(partners as PartnerRow[])?.find((p) => p.id === selectedPartnerId)?.name}
             </h2>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => { setPaymentForm({ amount: 0, reference: "", notes: "" }); setPaymentDialogOpen(true); }}>
-                <DollarSign className="mr-1 h-4 w-4" /> Record Payment
+                <DollarSign className="mr-1 h-4 w-4" /> {t("recordPayment")}
               </Button>
               <Button size="sm" variant="outline" onClick={() => { setAdjustmentForm({ amount: 0, notes: "" }); setAdjustmentDialogOpen(true); }}>
-                <SlidersHorizontal className="mr-1 h-4 w-4" /> Adjustment
+                <SlidersHorizontal className="mr-1 h-4 w-4" /> {t("adjustment")}
               </Button>
             </div>
           </div>
@@ -274,7 +279,7 @@ export default function CreditManagementPage() {
               columns={transactionColumns}
               data={(transactions ?? []) as TransactionRow[]}
               searchKey="reference"
-              searchPlaceholder="Search transactions..."
+              searchPlaceholder={`${tc("search")}...`}
             />
           )}
         </div>
@@ -284,7 +289,7 @@ export default function CreditManagementPage() {
       <Dialog open={paymentDialogOpen} onOpenChange={(open) => { if (!open) setPaymentDialogOpen(false); else setPaymentDialogOpen(true); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle>{t("recordPayment")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -299,15 +304,15 @@ export default function CreditManagementPage() {
             className="space-y-4"
           >
             <div>
-              <Label>Amount</Label>
+              <Label>{tc("amount")}</Label>
               <Input type="number" step="0.01" min="0.01" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: parseFloat(e.target.value) || 0 })} required />
             </div>
             <div>
-              <Label>Reference</Label>
+              <Label>{tc("reference")}</Label>
               <Input value={paymentForm.reference} onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })} placeholder="e.g. Bank transfer ref" />
             </div>
             <div>
-              <Label>Notes</Label>
+              <Label>{tc("notes")}</Label>
               <Textarea value={paymentForm.notes} onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })} />
             </div>
             {paymentMutation.error && (
@@ -315,9 +320,9 @@ export default function CreditManagementPage() {
             )}
             <div className="flex gap-2">
               <Button type="submit" disabled={paymentMutation.isPending}>
-                {paymentMutation.isPending ? "Recording..." : "Record Payment"}
+                {paymentMutation.isPending ? t("recordingPayment") : t("recordPayment")}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setPaymentDialogOpen(false)}>{tc("cancel")}</Button>
             </div>
           </form>
         </DialogContent>
@@ -327,7 +332,7 @@ export default function CreditManagementPage() {
       <Dialog open={adjustmentDialogOpen} onOpenChange={(open) => { if (!open) setAdjustmentDialogOpen(false); else setAdjustmentDialogOpen(true); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Credit Adjustment</DialogTitle>
+            <DialogTitle>{t("creditAdjustment")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -341,11 +346,11 @@ export default function CreditManagementPage() {
             className="space-y-4"
           >
             <div>
-              <Label>Amount (negative to reduce)</Label>
+              <Label>{t("amountNegativeToReduce")}</Label>
               <Input type="number" step="0.01" value={adjustmentForm.amount} onChange={(e) => setAdjustmentForm({ ...adjustmentForm, amount: parseFloat(e.target.value) || 0 })} required />
             </div>
             <div>
-              <Label>Notes</Label>
+              <Label>{tc("notes")}</Label>
               <Textarea value={adjustmentForm.notes} onChange={(e) => setAdjustmentForm({ ...adjustmentForm, notes: e.target.value })} />
             </div>
             {adjustmentMutation.error && (
@@ -353,13 +358,14 @@ export default function CreditManagementPage() {
             )}
             <div className="flex gap-2">
               <Button type="submit" disabled={adjustmentMutation.isPending}>
-                {adjustmentMutation.isPending ? "Saving..." : "Apply Adjustment"}
+                {adjustmentMutation.isPending ? t("applyingAdjustment") : t("applyAdjustment")}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setAdjustmentDialogOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setAdjustmentDialogOpen(false)}>{tc("cancel")}</Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 const paginationInput = z.object({ page: z.number().default(1), pageSize: z.number().default(50) });
 
 export const reviewRouter = createTRPCRouter({
   // CONTROL — Journal Items (granular move line view)
-  journalItems: financeProcedure
+  journalItems: p("finance:auditTrail:read")
     .input(z.object({
       journalId: z.string().optional(),
       accountId: z.string().optional(),
@@ -51,7 +51,7 @@ export const reviewRouter = createTRPCRouter({
     }),
 
   // CONTROL — Journal Audit (move-level audit view with state transitions)
-  journalAudit: financeProcedure
+  journalAudit: p("finance:auditTrail:read")
     .input(z.object({
       journalId: z.string().optional(),
       dateFrom: z.string().optional(),
@@ -86,7 +86,7 @@ export const reviewRouter = createTRPCRouter({
     }),
 
   // PURCHASES — Bill To Receive (vendor bills in DRAFT)
-  billToReceive: financeProcedure
+  billToReceive: p("finance:auditTrail:read")
     .input(paginationInput)
     .query(async ({ ctx, input }) => {
       const { page, pageSize } = input;
@@ -107,7 +107,7 @@ export const reviewRouter = createTRPCRouter({
     }),
 
   // PURCHASES — Billed Not Received (posted vendor bills with outstanding amount)
-  billedNotReceived: financeProcedure
+  billedNotReceived: p("finance:auditTrail:read")
     .input(paginationInput)
     .query(async ({ ctx, input }) => {
       const { page, pageSize } = input;
@@ -135,7 +135,7 @@ export const reviewRouter = createTRPCRouter({
     }),
 
   // SALES — Invoices To Be Issued (out invoices in DRAFT)
-  invoicesToBeIssued: financeProcedure
+  invoicesToBeIssued: p("finance:auditTrail:read")
     .input(paginationInput)
     .query(async ({ ctx, input }) => {
       const { page, pageSize } = input;
@@ -156,7 +156,7 @@ export const reviewRouter = createTRPCRouter({
     }),
 
   // SALES — Invoiced Not Delivered (posted out invoices with outstanding amount)
-  invoicedNotDelivered: financeProcedure
+  invoicedNotDelivered: p("finance:auditTrail:read")
     .input(paginationInput)
     .query(async ({ ctx, input }) => {
       const { page, pageSize } = input;
@@ -184,7 +184,7 @@ export const reviewRouter = createTRPCRouter({
     }),
 
   // Summary counts for dashboard badges
-  counts: financeProcedure.query(async ({ ctx }) => {
+  counts: p("finance:auditTrail:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId;
     const [billToReceive, billedNotReceived, invoicesToBeIssued, invoicedNotDelivered] = await Promise.all([
       ctx.db.move.count({ where: { companyId, moveType: "IN_INVOICE", state: "DRAFT" } }),

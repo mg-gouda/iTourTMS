@@ -26,12 +26,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { CRM_LEAD_SOURCE_LABELS } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { leadCreateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type FormValues = z.input<typeof leadCreateSchema>;
 
 const SOURCE_OPTIONS = Object.entries(CRM_LEAD_SOURCE_LABELS);
 
 export default function NewLeadPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: users } = trpc.user.list.useQuery();
@@ -62,10 +66,12 @@ export default function NewLeadPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+
+    <PermissionGuard permission="crm:lead:read">
+      <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Lead</h1>
-        <p className="text-muted-foreground">Add a new sales lead to the pipeline</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newLead")}</h1>
+        <p className="text-muted-foreground">{t("manageSalesLeads")}</p>
       </div>
 
       <Form {...form}>
@@ -76,7 +82,7 @@ export default function NewLeadPage() {
               name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>First Name</FormLabel>
+                  <FormLabel>{t("firstName")}</FormLabel>
                   <FormControl>
                     <Input placeholder="John" {...field} />
                   </FormControl>
@@ -89,7 +95,7 @@ export default function NewLeadPage() {
               name="lastName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name</FormLabel>
+                  <FormLabel>{t("lastName")}</FormLabel>
                   <FormControl>
                     <Input placeholder="Doe" {...field} />
                   </FormControl>
@@ -104,7 +110,7 @@ export default function NewLeadPage() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{tc("email")}</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="john@example.com" {...field} />
                 </FormControl>
@@ -118,7 +124,7 @@ export default function NewLeadPage() {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone</FormLabel>
+                <FormLabel>{tc("phone")}</FormLabel>
                 <FormControl>
                   <Input placeholder="+1 234 567 890" {...field} />
                 </FormControl>
@@ -132,11 +138,11 @@ export default function NewLeadPage() {
             name="source"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Source</FormLabel>
+                <FormLabel>{t("source")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select source" />
+                      <SelectValue placeholder={tc("select")} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -157,11 +163,11 @@ export default function NewLeadPage() {
             name="assignedToId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Assigned To</FormLabel>
+                <FormLabel>{t("assignedTo")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value ?? ""}>
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select user" />
+                      <SelectValue placeholder={tc("select")} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -182,7 +188,7 @@ export default function NewLeadPage() {
             name="notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Notes</FormLabel>
+                <FormLabel>{tc("notes")}</FormLabel>
                 <FormControl>
                   <Textarea placeholder="Additional notes..." {...field} />
                 </FormControl>
@@ -197,14 +203,18 @@ export default function NewLeadPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Lead"}
+              {createMutation.isPending ? tc("creating") : t("newLead")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.push("/crm/leads")}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

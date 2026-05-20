@@ -4,13 +4,13 @@ import {
   specialMealCreateSchema,
   specialMealUpdateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const specialMealRouter = createTRPCRouter({
   // ── List by contract ──
-  listByContract: proc
+  listByContract: p("contracting:mealBasis:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -24,7 +24,7 @@ export const specialMealRouter = createTRPCRouter({
     }),
 
   // ── Get by ID ──
-  getById: proc
+  getById: p("contracting:mealBasis:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const meal = await ctx.db.contractSpecialMeal.findFirstOrThrow({
@@ -40,7 +40,7 @@ export const specialMealRouter = createTRPCRouter({
     }),
 
   // ── Create ──
-  create: proc
+  create: p("contracting:mealBasis:create")
     .input(specialMealCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -66,7 +66,7 @@ export const specialMealRouter = createTRPCRouter({
     }),
 
   // ── Update ──
-  update: proc
+  update: p("contracting:mealBasis:update")
     .input(z.object({ id: z.string(), data: specialMealUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.contractSpecialMeal.findFirstOrThrow({
@@ -88,7 +88,7 @@ export const specialMealRouter = createTRPCRouter({
     }),
 
   // ── Delete ──
-  delete: proc
+  delete: p("contracting:mealBasis:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.contractSpecialMeal.findFirstOrThrow({

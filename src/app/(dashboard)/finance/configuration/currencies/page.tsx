@@ -16,8 +16,12 @@ import {
 } from "@/components/ui/table";
 import { CurrencyRatePanel } from "@/components/finance/currency-rate-panel";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 export default function CurrenciesPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const [selectedCurrencyId, setSelectedCurrencyId] = useState<string | null>(
     null,
@@ -39,32 +43,33 @@ export default function CurrenciesPage() {
   const selectedCurrency = currencies?.find((c) => c.id === selectedCurrencyId);
 
   return (
+    <PermissionGuard permission="finance:settings:manage">
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Currencies</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("currencies")}</h1>
         <p className="text-muted-foreground">
-          Manage currencies and exchange rates for multi-currency transactions.
+          {t("currenciesDesc")}
         </p>
       </div>
 
       {isLoading ? (
         <div className="py-10 text-center text-muted-foreground">
-          Loading...
+          {tc("loading")}
         </div>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Available Currencies</CardTitle>
+            <CardTitle>{t("availableCurrencies")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-20">Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="w-20">Symbol</TableHead>
-                  <TableHead className="w-24">Decimals</TableHead>
-                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead className="w-20">{tc("code")}</TableHead>
+                  <TableHead>{tc("name")}</TableHead>
+                  <TableHead className="w-20">{t("symbol")}</TableHead>
+                  <TableHead className="w-24">{t("decimals")}</TableHead>
+                  <TableHead className="w-24">{tc("status")}</TableHead>
                   <TableHead className="w-28"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -89,7 +94,7 @@ export default function CurrenciesPage() {
                       <Badge
                         variant={c.isActive ? "default" : "secondary"}
                       >
-                        {c.isActive ? "Active" : "Inactive"}
+                        {c.isActive ? tc("active") : tc("inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -102,7 +107,7 @@ export default function CurrenciesPage() {
                             toggleMutation.mutate({ id: c.id, isActive: !c.isActive });
                           }}
                         >
-                          {c.isActive ? "Deactivate" : "Activate"}
+                          {c.isActive ? t("deactivate") : t("activate")}
                         </Button>
                       )}
                     </TableCell>
@@ -119,7 +124,7 @@ export default function CurrenciesPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              Rate Management — {selectedCurrency.code}
+              {t("rateManagement")} — {selectedCurrency.code}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -136,12 +141,12 @@ export default function CurrenciesPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              {selectedCurrency.code} is the base currency. Exchange rates are
-              not needed for the base currency.
+              {t("baseCurrencyNote", { code: selectedCurrency.code })}
             </p>
           </CardContent>
         </Card>
       )}
     </div>
+    </PermissionGuard>
   );
 }

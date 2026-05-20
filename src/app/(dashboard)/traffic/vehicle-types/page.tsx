@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function VehicleTypesPage() {
   const utils = trpc.useUtils();
@@ -54,7 +55,9 @@ export default function VehicleTypesPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:vehicle:read">
+      <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Vehicle Types</h1>
@@ -116,5 +119,9 @@ export default function VehicleTypesPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

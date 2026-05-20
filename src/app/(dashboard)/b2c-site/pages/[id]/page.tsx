@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function B2cPageEditorPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   const isNew = id === "new";
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
 
   const { data, isLoading } = trpc.b2cSite.page.getById.useQuery(
     { id },
@@ -53,7 +57,7 @@ export default function B2cPageEditorPage() {
 
   const createMutation = trpc.b2cSite.page.create.useMutation({
     onSuccess: () => {
-      toast.success("Page created");
+      toast.success(tc("created"));
       utils.b2cSite.page.list.invalidate();
       router.push("/b2c-site/pages");
     },
@@ -62,7 +66,7 @@ export default function B2cPageEditorPage() {
 
   const updateMutation = trpc.b2cSite.page.update.useMutation({
     onSuccess: () => {
-      toast.success("Page updated");
+      toast.success(tc("updated"));
       utils.b2cSite.page.list.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -70,7 +74,7 @@ export default function B2cPageEditorPage() {
 
   const handleSave = () => {
     if (!form.title || !form.slug || !form.content) {
-      toast.error("Title, slug, and content are required");
+      toast.error(tc("required"));
       return;
     }
     if (isNew) {
@@ -91,21 +95,23 @@ export default function B2cPageEditorPage() {
     title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
   if (!isNew && isLoading) {
-    return <div className="py-10 text-center text-muted-foreground">Loading...</div>;
+    return <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>;
   }
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:page:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">
-          {isNew ? "New Page" : "Edit Page"}
+          {isNew ? t("newPage") : t("page")}
         </h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/b2c-site/pages")}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
-            {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+            {createMutation.isPending || updateMutation.isPending ? tc("saving") : tc("save")}
           </Button>
         </div>
       </div>
@@ -114,7 +120,7 @@ export default function B2cPageEditorPage() {
         <CardContent className="grid gap-4 p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Title *</Label>
+              <Label>{tc("name")} *</Label>
               <Input
                 value={form.title}
                 onChange={(e) => {
@@ -127,7 +133,7 @@ export default function B2cPageEditorPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Slug *</Label>
+              <Label>{t("slug")} *</Label>
               <Input
                 value={form.slug}
                 onChange={(e) => setForm({ ...form, slug: e.target.value })}
@@ -136,7 +142,7 @@ export default function B2cPageEditorPage() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Excerpt</Label>
+            <Label>{t("excerpt")}</Label>
             <Textarea
               value={form.excerpt}
               onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
@@ -144,7 +150,7 @@ export default function B2cPageEditorPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Content * (HTML)</Label>
+            <Label>{t("pageContent")} * (HTML)</Label>
             <Textarea
               value={form.content}
               onChange={(e) => setForm({ ...form, content: e.target.value })}
@@ -153,17 +159,21 @@ export default function B2cPageEditorPage() {
             />
           </div>
           <div className="max-w-xs space-y-1.5">
-            <Label>Status</Label>
+            <Label>{tc("status")}</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as "DRAFT" | "PUBLISHED" })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="PUBLISHED">Published</SelectItem>
+                <SelectItem value="DRAFT">{tc("draft")}</SelectItem>
+                <SelectItem value="PUBLISHED">{tc("published")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

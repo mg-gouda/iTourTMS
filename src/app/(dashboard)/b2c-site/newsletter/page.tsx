@@ -2,14 +2,18 @@
 
 import { format } from "date-fns";
 import { Download } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function NewsletterPage() {
   const { data: subscribers, isLoading } =
     trpc.b2cSite.newsletter.listSubscribers.useQuery();
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
 
   const { data: csvData, refetch: exportCsv } =
     trpc.b2cSite.newsletter.exportCsv.useQuery(undefined, { enabled: false });
@@ -30,30 +34,32 @@ export default function NewsletterPage() {
   const activeCount = subscribers?.filter((s) => s.active).length ?? 0;
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:newsletter:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Newsletter Subscribers</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("newsletter")}</h1>
           <p className="text-muted-foreground">
-            {activeCount} active subscriber{activeCount !== 1 ? "s" : ""}
+            {activeCount} {t("activeSubscribers", { count: activeCount })}
           </p>
         </div>
         <Button variant="outline" onClick={handleExport}>
           <Download className="mr-1.5 h-4 w-4" />
-          Export CSV
+          {t("exportCsv")}
         </Button>
       </div>
 
       {isLoading ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            Loading...
+            {tc("loading")}
           </CardContent>
         </Card>
       ) : !subscribers?.length ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No subscribers yet.
+            {t("noSubscribers")}
           </CardContent>
         </Card>
       ) : (
@@ -62,9 +68,9 @@ export default function NewsletterPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-2 text-left font-medium">Email</th>
-                  <th className="px-4 py-2 text-left font-medium">Subscribed</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
+                  <th className="px-4 py-2 text-left font-medium">{tc("email")}</th>
+                  <th className="px-4 py-2 text-left font-medium">{t("subscribed")}</th>
+                  <th className="px-4 py-2 text-left font-medium">{tc("status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,7 +88,7 @@ export default function NewsletterPage() {
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
-                        {sub.active ? "Active" : "Unsubscribed"}
+                        {sub.active ? t("active") : t("unsubscribed")}
                       </span>
                     </td>
                   </tr>
@@ -93,5 +99,9 @@ export default function NewsletterPage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

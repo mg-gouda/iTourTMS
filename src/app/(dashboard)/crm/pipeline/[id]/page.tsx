@@ -46,11 +46,15 @@ import {
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { activityCreateSchema, opportunityUpdateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type OppFormValues = z.input<typeof opportunityUpdateSchema>;
 type ActivityFormValues = z.input<typeof activityCreateSchema>;
 
 export default function OpportunityDetailPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -137,10 +141,12 @@ export default function OpportunityDetailPage() {
     );
   }
 
-  if (!opp) return <p>Opportunity not found</p>;
+  if (!opp) return <p>{t("opportunity")} not found</p>;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="crm:opportunity:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -151,34 +157,34 @@ export default function OpportunityDetailPage() {
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             {opp.value && <span>${Number(opp.value).toLocaleString()}</span>}
-            {opp.probability != null && <span>{opp.probability}% probability</span>}
-            {opp.lead && <span>Lead: {opp.lead.code}</span>}
-            {opp.customer && <span>Customer: {opp.customer.firstName} {opp.customer.lastName}</span>}
+            {opp.probability != null && <span>{opp.probability}% {t("probability").toLowerCase()}</span>}
+            {opp.lead && <span>{t("lead")}: {opp.lead.code}</span>}
+            {opp.customer && <span>{t("customer")}: {opp.customer.firstName} {opp.customer.lastName}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="outline">
             <Link href={`/crm/bookings/new?opportunityId=${id}${opp.customerId ? `&customerId=${opp.customerId}` : ""}`}>
-              <CalendarCheck className="mr-1 h-4 w-4" /> Create Booking
+              <CalendarCheck className="mr-1 h-4 w-4" /> {t("createBooking")}
             </Link>
           </Button>
           <Button
             variant="destructive"
             size="sm"
             onClick={() => {
-              if (confirm("Delete this opportunity?")) deleteMutation.mutate({ id });
+              if (confirm(tc("confirmDelete"))) deleteMutation.mutate({ id });
             }}
           >
-            Delete
+            {tc("delete")}
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings ({opp.bookings?.length ?? 0})</TabsTrigger>
-          <TabsTrigger value="activities">Activities ({opp.activities?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="details">{t("details")}</TabsTrigger>
+          <TabsTrigger value="bookings">{t("bookings")} ({opp.bookings?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="activities">{t("activities")} ({opp.activities?.length ?? 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
@@ -187,13 +193,13 @@ export default function OpportunityDetailPage() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField control={form.control} name="title" render={({ field }) => (
-                    <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>{tc("name")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="stage" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Stage</FormLabel>
+                        <FormLabel>{t("stage")}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
@@ -207,7 +213,7 @@ export default function OpportunityDetailPage() {
                     )} />
                     <FormField control={form.control} name="probability" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Probability (%)</FormLabel>
+                        <FormLabel>{t("probability")} (%)</FormLabel>
                         <FormControl>
                           <Input type="number" min={0} max={100} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} />
                         </FormControl>
@@ -219,7 +225,7 @@ export default function OpportunityDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="value" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Value ($)</FormLabel>
+                        <FormLabel>{t("expectedValue")} ($)</FormLabel>
                         <FormControl>
                           <Input type="number" min={0} step="0.01" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} />
                         </FormControl>
@@ -227,15 +233,15 @@ export default function OpportunityDetailPage() {
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="expectedCloseDate" render={({ field }) => (
-                      <FormItem><FormLabel>Expected Close</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{t("expectedClose")}</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
                     )} />
                   </div>
 
                   <FormField control={form.control} name="ownerId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Owner</FormLabel>
+                      <FormLabel>{t("owner")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select owner" /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder={tc("select")} /></SelectTrigger></FormControl>
                         <SelectContent>
                           {(users ?? []).map((u) => (
                             <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>
@@ -247,12 +253,12 @@ export default function OpportunityDetailPage() {
                   )} />
 
                   <FormField control={form.control} name="notes" render={({ field }) => (
-                    <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                    <FormItem><FormLabel>{tc("notes")}</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
                   )} />
 
                   {updateMutation.error && <p className="text-sm text-destructive">{updateMutation.error.message}</p>}
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateMutation.isPending ? tc("saving") : t("saveChanges")}
                   </Button>
                 </form>
               </Form>
@@ -262,17 +268,17 @@ export default function OpportunityDetailPage() {
 
         <TabsContent value="bookings" className="mt-4">
           {(opp.bookings?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">No bookings linked to this opportunity yet</p>
+            <p className="text-sm text-muted-foreground">{t("noBookings")}</p>
           ) : (
             <div className="overflow-hidden rounded border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Code</th>
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Travel Date</th>
-                    <th className="px-3 py-1.5 text-center text-xs font-medium">Items</th>
-                    <th className="px-3 py-1.5 text-right text-xs font-medium">Total</th>
-                    <th className="px-3 py-1.5 text-center text-xs font-medium">Status</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{tc("code")}</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{t("travelDate")}</th>
+                    <th className="px-3 py-1.5 text-center text-xs font-medium">{t("bookingItems")}</th>
+                    <th className="px-3 py-1.5 text-right text-xs font-medium">{tc("total")}</th>
+                    <th className="px-3 py-1.5 text-center text-xs font-medium">{tc("status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -304,15 +310,15 @@ export default function OpportunityDetailPage() {
             <div className="flex justify-end">
               <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Add Activity</Button>
+                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> {t("addActivity")}</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>New Activity</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{t("newActivity")}</DialogTitle></DialogHeader>
                   <Form {...activityForm}>
                     <form onSubmit={activityForm.handleSubmit((v) => createActivityMutation.mutate(v))} className="space-y-4">
                       <FormField control={activityForm.control} name="type" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Type</FormLabel>
+                          <FormLabel>{tc("type")}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent>
@@ -324,16 +330,16 @@ export default function OpportunityDetailPage() {
                         </FormItem>
                       )} />
                       <FormField control={activityForm.control} name="subject" render={({ field }) => (
-                        <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t("subject")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={activityForm.control} name="description" render={({ field }) => (
-                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{tc("description")}</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
                       )} />
                       <FormField control={activityForm.control} name="dueDate" render={({ field }) => (
-                        <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{t("dueDate")}</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
                       )} />
                       <Button type="submit" disabled={createActivityMutation.isPending}>
-                        {createActivityMutation.isPending ? "Adding..." : "Add Activity"}
+                        {createActivityMutation.isPending ? tc("add") + "..." : t("addActivity")}
                       </Button>
                     </form>
                   </Form>
@@ -342,7 +348,7 @@ export default function OpportunityDetailPage() {
             </div>
 
             {(opp.activities?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No activities yet</p>
+              <p className="text-sm text-muted-foreground">{t("noActivities")}</p>
             ) : (
               <div className="space-y-2">
                 {opp.activities.map((act) => (
@@ -363,7 +369,7 @@ export default function OpportunityDetailPage() {
                               Due {new Date(act.dueDate).toLocaleDateString()}
                             </Badge>
                           )}
-                          {act.completedAt && <Badge variant="default" className="text-xs">Completed</Badge>}
+                          {act.completedAt && <Badge variant="default" className="text-xs">{tc("completed")}</Badge>}
                           <span className="text-xs text-muted-foreground">{new Date(act.createdAt).toLocaleDateString()}</span>
                           {editingActivityId === act.id ? (
                             <>
@@ -408,5 +414,9 @@ export default function OpportunityDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

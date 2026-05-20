@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Eye, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
@@ -9,42 +10,47 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function BlogPostsListPage() {
   const { data: posts, isLoading } = trpc.b2cSite.blogPost.list.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
 
   const deleteMutation = trpc.b2cSite.blogPost.delete.useMutation({
-    onSuccess: () => { toast.success("Post deleted"); utils.b2cSite.blogPost.list.invalidate(); },
+    onSuccess: () => { toast.success(tc("deleted")); utils.b2cSite.blogPost.list.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
 
   const publishMutation = trpc.b2cSite.blogPost.publish.useMutation({
-    onSuccess: () => { toast.success("Published"); utils.b2cSite.blogPost.list.invalidate(); },
+    onSuccess: () => { toast.success(tc("published")); utils.b2cSite.blogPost.list.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
 
   const unpublishMutation = trpc.b2cSite.blogPost.unpublish.useMutation({
-    onSuccess: () => { toast.success("Unpublished"); utils.b2cSite.blogPost.list.invalidate(); },
+    onSuccess: () => { toast.success(t("blogUnpublished")); utils.b2cSite.blogPost.list.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:blog:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Blog Posts</h1>
-          <p className="text-muted-foreground">Manage travel guides and articles</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("blog")}</h1>
+          <p className="text-muted-foreground">{t("blogDesc")}</p>
         </div>
         <Link href="/b2c-site/blog/new">
-          <Button><Plus className="mr-1.5 h-4 w-4" />New Post</Button>
+          <Button><Plus className="mr-1.5 h-4 w-4" />{t("newBlogPost")}</Button>
         </Link>
       </div>
 
       {isLoading ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">Loading...</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{tc("loading")}</CardContent></Card>
       ) : !posts?.length ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">No blog posts yet.</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{t("noBlogPosts")}</CardContent></Card>
       ) : (
         <div className="grid gap-3">
           {posts.map((post) => (
@@ -86,5 +92,9 @@ export default function BlogPostsListPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

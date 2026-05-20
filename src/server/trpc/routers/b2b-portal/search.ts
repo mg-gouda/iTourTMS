@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { searchAvailability } from "@/server/services/b2c/availability";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const searchRouter = createTRPCRouter({
-  availability: proc
+  availability: p("b2b-portal:reservation:read")
     .input(
       z.object({
         destinationId: z.string().optional(),

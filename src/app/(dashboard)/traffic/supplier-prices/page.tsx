@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/shared/data-table";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type SupplierPrice = {
   id: string;
@@ -90,7 +91,9 @@ export default function SupplierPricesPage() {
   ];
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:pricing:read">
+      <div className="animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
         <div className="page-header">
           <h1 className="text-2xl font-bold">Supplier Trip Prices</h1>
@@ -180,5 +183,9 @@ export default function SupplierPricesPage() {
         <DataTable columns={columns} data={(data ?? []) as SupplierPrice[]} />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

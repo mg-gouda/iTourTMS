@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { ImageUploader } from "@/components/shared/image-uploader";
@@ -54,10 +55,13 @@ import {
 import { STAR_RATING_LABELS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import { destinationUpdateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof destinationUpdateSchema>;
 
 export default function DestinationDetailPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -118,6 +122,7 @@ export default function DestinationDetailPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:destination:read">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -130,18 +135,18 @@ export default function DestinationDetailPage() {
         </div>
         <div className="flex gap-2">
           <Badge variant={data.active ? "default" : "secondary"}>
-            {data.active ? "Active" : "Inactive"}
+            {data.active ? tc("active") : tc("inactive")}
           </Badge>
           {!editing && (
             <>
               <Button variant="outline" onClick={() => setEditing(true)}>
-                Edit
+                {tc("edit")}
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => setDeleteOpen(true)}
               >
-                Delete
+                {tc("delete")}
               </Button>
             </>
           )}
@@ -152,7 +157,7 @@ export default function DestinationDetailPage() {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Edit Destination</CardTitle>
+            <CardTitle>{t("editDestination")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -275,14 +280,14 @@ export default function DestinationDetailPage() {
 
                 <div className="flex gap-2">
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Saving..." : "Save"}
+                    {updateMutation.isPending ? tc("saving") : tc("save")}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setEditing(false)}
                   >
-                    Cancel
+                    {tc("cancel")}
                   </Button>
                 </div>
               </form>
@@ -293,7 +298,7 @@ export default function DestinationDetailPage() {
         /* Read-only details */
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{tc("details")}</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-4 text-sm">
@@ -328,17 +333,17 @@ export default function DestinationDetailPage() {
       {data.hotels && data.hotels.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Hotels in this Destination</CardTitle>
+            <CardTitle>{t("hotelsInDestination")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Star Rating</TableHead>
-                  <TableHead>City</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{tc("name")}</TableHead>
+                  <TableHead>{tc("code")}</TableHead>
+                  <TableHead>{t("starRating")}</TableHead>
+                  <TableHead>{t("city")}</TableHead>
+                  <TableHead>{tc("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -358,7 +363,7 @@ export default function DestinationDetailPage() {
                       <Badge
                         variant={h.active ? "default" : "secondary"}
                       >
-                        {h.active ? "Active" : "Inactive"}
+                        {h.active ? tc("active") : tc("inactive")}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -373,10 +378,9 @@ export default function DestinationDetailPage() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Destination</DialogTitle>
+            <DialogTitle>{tc("confirmDelete")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{data.name}&quot;? This
-              action cannot be undone.
+              {tc("confirmDeleteDesc")}
             </DialogDescription>
           </DialogHeader>
           {deleteMutation.error && (
@@ -386,19 +390,20 @@ export default function DestinationDetailPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate({ id })}
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? tc("deleting") : tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }
 

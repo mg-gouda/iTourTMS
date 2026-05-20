@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { driverCreateSchema, driverUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const driverRouter = createTRPCRouter({
-  listCompanyUsers: proc.query(async ({ ctx }) => {
+  listCompanyUsers: p("traffic:driver:read").query(async ({ ctx }) => {
     return ctx.db.user.findMany({
       where: { companyId: ctx.companyId, isActive: true },
       select: { id: true, name: true, email: true },
@@ -14,7 +14,7 @@ export const driverRouter = createTRPCRouter({
     });
   }),
 
-  list: proc.query(async ({ ctx }) => {
+  list: p("traffic:driver:read").query(async ({ ctx }) => {
     return ctx.db.ttDriver.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -25,7 +25,7 @@ export const driverRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("traffic:driver:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttDriver.findFirstOrThrow({
@@ -50,7 +50,7 @@ export const driverRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:driver:create")
     .input(driverCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.ttDriver.findFirst({
@@ -64,7 +64,7 @@ export const driverRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:driver:update")
     .input(z.object({ id: z.string(), data: driverUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttDriver.update({
@@ -73,7 +73,7 @@ export const driverRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:driver:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttDriver.delete({
@@ -81,7 +81,7 @@ export const driverRouter = createTRPCRouter({
       });
     }),
 
-  assignVehicle: proc
+  assignVehicle: p("traffic:driver:update")
     .input(z.object({ driverId: z.string(), vehicleId: z.string(), isPrimary: z.boolean().default(false) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttDriverVehicle.create({
@@ -94,7 +94,7 @@ export const driverRouter = createTRPCRouter({
       });
     }),
 
-  unassignVehicle: proc
+  unassignVehicle: p("traffic:driver:update")
     .input(z.object({ driverId: z.string(), vehicleId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttDriverVehicle.delete({

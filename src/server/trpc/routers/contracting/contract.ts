@@ -8,12 +8,12 @@ import {
 } from "@/lib/validations/contracting";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const contractRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:contract:read").query(async ({ ctx }) => {
     return ctx.db.contract.findMany({
       where: { companyId: ctx.companyId, isTemplate: false },
       include: {
@@ -29,7 +29,7 @@ export const contractRouter = createTRPCRouter({
     });
   }),
 
-  listTemplates: proc.query(async ({ ctx }) => {
+  listTemplates: p("contracting:contract:read").query(async ({ ctx }) => {
     return ctx.db.contract.findMany({
       where: { companyId: ctx.companyId, isTemplate: true },
       include: {
@@ -42,7 +42,7 @@ export const contractRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("contracting:contract:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.contract.findFirstOrThrow({
@@ -84,7 +84,7 @@ export const contractRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:contract:create")
     .input(contractCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Verify hotel belongs to company
@@ -167,7 +167,7 @@ export const contractRouter = createTRPCRouter({
       return contract;
     }),
 
-  update: proc
+  update: p("contracting:contract:update")
     .input(z.object({ id: z.string(), data: contractUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -202,7 +202,7 @@ export const contractRouter = createTRPCRouter({
       return updated;
     }),
 
-  delete: proc
+  delete: p("contracting:contract:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -228,7 +228,7 @@ export const contractRouter = createTRPCRouter({
       return ctx.db.contract.delete({ where: { id: input.id } });
     }),
 
-  post: proc
+  post: p("contracting:contract:post")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -271,7 +271,7 @@ export const contractRouter = createTRPCRouter({
       return posted;
     }),
 
-  publish: proc
+  publish: p("contracting:contract:publish")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -314,7 +314,7 @@ export const contractRouter = createTRPCRouter({
       return published;
     }),
 
-  resetToDraft: proc
+  resetToDraft: p("contracting:contract:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -344,7 +344,7 @@ export const contractRouter = createTRPCRouter({
       return reset;
     }),
 
-  clone: proc
+  clone: p("contracting:contract:create")
     .input(contractCloneSchema)
     .mutation(async ({ ctx, input }) => {
       const { adjustRate, averageRates, shiftDate, calculateDateShift } =
@@ -802,7 +802,7 @@ export const contractRouter = createTRPCRouter({
       });
     }),
 
-  saveAsTemplate: proc
+  saveAsTemplate: p("contracting:contract:create")
     .input(
       z.object({
         contractId: z.string(),
@@ -1122,7 +1122,7 @@ export const contractRouter = createTRPCRouter({
       });
     }),
 
-  getVersionHistory: proc
+  getVersionHistory: p("contracting:contract:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify access
@@ -1191,7 +1191,7 @@ export const contractRouter = createTRPCRouter({
       return results.sort((a, b) => a.version - b.version);
     }),
 
-  getForExport: proc
+  getForExport: p("contracting:contract:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.contract.findFirstOrThrow({
@@ -1256,7 +1256,7 @@ export const contractRouter = createTRPCRouter({
       });
     }),
 
-  compare: proc
+  compare: p("contracting:contract:read")
     .input(
       z.object({
         contractIdA: z.string(),
@@ -1343,7 +1343,7 @@ export const contractRouter = createTRPCRouter({
       return { contractA, contractB };
     }),
 
-  listExpiring: proc
+  listExpiring: p("contracting:contract:read")
     .input(
       z.object({
         days: z.number().min(1).max(365).default(60),
@@ -1379,7 +1379,7 @@ export const contractRouter = createTRPCRouter({
       });
     }),
 
-  dashboard: proc.query(async ({ ctx }) => {
+  dashboard: p("contracting:contract:read").query(async ({ ctx }) => {
     const now = new Date();
     const sixtyDaysFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 

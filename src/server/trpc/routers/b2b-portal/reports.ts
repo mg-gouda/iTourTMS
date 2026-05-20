@@ -2,12 +2,12 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const reportsRouter = createTRPCRouter({
-  bookingSummary: proc
+  bookingSummary: p("b2b-portal:report:read")
     .input(
       z.object({
         tourOperatorId: z.string().optional(),
@@ -49,7 +49,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  revenueSummary: proc
+  revenueSummary: p("b2b-portal:report:read")
     .input(
       z.object({
         tourOperatorId: z.string().optional(),
@@ -136,7 +136,7 @@ export const reportsRouter = createTRPCRouter({
       return { timeSeries, byOperator };
     }),
 
-  statement: proc
+  statement: p("b2b-portal:report:read")
     .input(
       z.object({
         tourOperatorId: z.string(),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/shared/data-table";
 import { TT_PRICE_TYPE_LABELS, TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type PriceItem = {
   id: string;
@@ -30,6 +32,8 @@ type PriceItem = {
 
 export default function PricingPage() {
   const utils = trpc.useUtils();
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.traffic.priceItem.list.useQuery();
   const { data: vehicleTypes } = trpc.traffic.vehicleType.list.useQuery();
   const { data: zones } = trpc.traffic.zone.list.useQuery();
@@ -63,13 +67,13 @@ export default function PricingPage() {
   const [description, setDescription] = useState("");
 
   const columns: ColumnDef<PriceItem>[] = [
-    { id: "vehicleType", header: "Vehicle Type", accessorFn: (r) => r.vehicleType.name },
-    { id: "service", header: "Service", accessorFn: (r) => r.serviceType ? TT_SERVICE_TYPE_LABELS[r.serviceType] ?? r.serviceType : "Any" },
-    { id: "priceType", header: "Price Type", accessorFn: (r) => TT_PRICE_TYPE_LABELS[r.priceType] ?? r.priceType },
-    { id: "fromZone", header: "From Zone", accessorFn: (r) => r.fromZone?.name ?? "Any" },
-    { id: "toZone", header: "To Zone", accessorFn: (r) => r.toZone?.name ?? "Any" },
-    { id: "price", header: "Price", accessorFn: (r) => `${r.currency.symbol}${Number(r.price).toFixed(2)}` },
-    { accessorKey: "description", header: "Description", cell: ({ row }) => row.original.description ?? "—" },
+    { id: "vehicleType", header: t("vehicleType"), accessorFn: (r) => r.vehicleType.name },
+    { id: "service", header: t("serviceType"), accessorFn: (r) => r.serviceType ? TT_SERVICE_TYPE_LABELS[r.serviceType] ?? r.serviceType : tc("all") },
+    { id: "priceType", header: t("priceType"), accessorFn: (r) => TT_PRICE_TYPE_LABELS[r.priceType] ?? r.priceType },
+    { id: "fromZone", header: t("fromZone"), accessorFn: (r) => r.fromZone?.name ?? tc("all") },
+    { id: "toZone", header: t("toZone"), accessorFn: (r) => r.toZone?.name ?? tc("all") },
+    { id: "price", header: tc("amount"), accessorFn: (r) => `${r.currency.symbol}${Number(r.price).toFixed(2)}` },
+    { accessorKey: "description", header: tc("description"), cell: ({ row }) => row.original.description ?? "—" },
     {
       id: "actions",
       header: "",
@@ -82,25 +86,27 @@ export default function PricingPage() {
   ];
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:pricing:read">
+      <div className="animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold">Price Items</h1>
-          <p className="text-muted-foreground">Base pricing grid for transport services</p>
+          <h1 className="text-2xl font-bold">{t("priceItems")}</h1>
+          <p className="text-muted-foreground">{t("priceItemsDesc")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Price Item</Button>
+            <Button><Plus className="mr-2 h-4 w-4" /> {t("addPriceItem")}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Add Price Item</DialogTitle>
+              <DialogTitle>{t("addPriceItem")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <Label>Vehicle Type *</Label>
+                <Label>{t("vehicleType")} *</Label>
                 <Select value={vehicleTypeId} onValueChange={setVehicleTypeId}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("select") + "..."} /></SelectTrigger>
                   <SelectContent>
                     {(vehicleTypes ?? []).map((v) => (
                       <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
@@ -110,7 +116,7 @@ export default function PricingPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Price Type</Label>
+                  <Label>{t("priceType")}</Label>
                   <Select value={priceType} onValueChange={setPriceType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -121,11 +127,11 @@ export default function PricingPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Service Type</Label>
+                  <Label>{t("serviceType")}</Label>
                   <Select value={serviceType || "__any"} onValueChange={(v) => setServiceType(v === "__any" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("all")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__any">Any</SelectItem>
+                      <SelectItem value="__any">{tc("all")}</SelectItem>
                       {Object.entries(TT_SERVICE_TYPE_LABELS).map(([k, v]) => (
                         <SelectItem key={k} value={k}>{v}</SelectItem>
                       ))}
@@ -135,11 +141,11 @@ export default function PricingPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>From Zone</Label>
+                  <Label>{t("fromZone")}</Label>
                   <Select value={fromZoneId || "__any"} onValueChange={(v) => setFromZoneId(v === "__any" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("all")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__any">Any</SelectItem>
+                      <SelectItem value="__any">{tc("all")}</SelectItem>
                       {(zones ?? []).map((z) => (
                         <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
                       ))}
@@ -147,11 +153,11 @@ export default function PricingPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>To Zone</Label>
+                  <Label>{t("toZone")}</Label>
                   <Select value={toZoneId || "__any"} onValueChange={(v) => setToZoneId(v === "__any" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("all")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__any">Any</SelectItem>
+                      <SelectItem value="__any">{tc("all")}</SelectItem>
                       {(zones ?? []).map((z) => (
                         <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
                       ))}
@@ -161,13 +167,13 @@ export default function PricingPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Price *</Label>
+                  <Label>{tc("amount")} *</Label>
                   <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />
                 </div>
                 <div>
-                  <Label>Currency *</Label>
+                  <Label>{tc("currency")} *</Label>
                   <Select value={currencyId} onValueChange={setCurrencyId}>
-                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tc("select") + "..."} /></SelectTrigger>
                     <SelectContent>
                       {(currencies ?? []).map((c: { id: string; code: string }) => (
                         <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>
@@ -177,8 +183,8 @@ export default function PricingPage() {
                 </div>
               </div>
               <div>
-                <Label>Description</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                <Label>{tc("description")}</Label>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tc("optional")} />
               </div>
               <Button
                 className="w-full"
@@ -197,7 +203,7 @@ export default function PricingPage() {
                   });
                 }}
               >
-                {createMutation.isPending ? "Creating..." : "Create Price Item"}
+                {createMutation.isPending ? tc("creating") : t("createPriceItem")}
               </Button>
             </div>
           </DialogContent>
@@ -214,5 +220,9 @@ export default function PricingPage() {
         <DataTable columns={columns} data={(data ?? []) as PriceItem[]} />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -1,38 +1,43 @@
 "use client";
 
 import { use } from "react";
+import { useTranslations } from "next-intl";
 
 import { MoveForm } from "@/components/finance/move-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function EditCustomerInvoicePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { id } = use(params);
   const { data, isLoading } = trpc.finance.move.getById.useQuery({ id });
 
   if (isLoading) {
     return (
-      <div className="text-muted-foreground py-10 text-center">Loading...</div>
+      <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
     );
   }
 
   if (!data) {
     return (
       <div className="text-muted-foreground py-10 text-center">
-        Invoice not found.
+        {t("invoice")} {tc("noResults")}.
       </div>
     );
   }
 
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {data.name ?? "Draft Invoice"}
+            {data.name ?? t("draftInvoice")}
           </h1>
           <p className="text-muted-foreground">
             {data.partner?.name ?? "No partner"}
@@ -40,6 +45,7 @@ export default function EditCustomerInvoicePage({
         </div>
         <button
           className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          title={t("downloadPdf")}
           onClick={async () => {
             const { generateInvoicePdf } = await import("@/lib/export/finance-invoice-pdf");
             const pdf = generateInvoicePdf({
@@ -74,7 +80,7 @@ export default function EditCustomerInvoicePage({
             pdf.save(`${data.name ?? "invoice"}.pdf`);
           }}
         >
-          Download PDF
+          {t("downloadPdf")}
         </button>
       </div>
       <MoveForm
@@ -118,5 +124,6 @@ export default function EditCustomerInvoicePage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

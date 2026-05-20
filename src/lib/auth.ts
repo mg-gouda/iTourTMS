@@ -4,6 +4,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import { db } from "@/server/db";
+import { redis } from "@/server/redis";
 import { notifyRole } from "@/server/services/shared/notifications";
 import { LICENSE_EXPIRY_WARNING_DAYS } from "@/server/services/shared/license";
 
@@ -42,6 +43,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user || !user.password || !user.isActive) return null;
 
+        // Reject login if password has expired
+        if (user.passwordExpiresAt && user.passwordExpiresAt < new Date()) return null;
+
         const isValid = await bcrypt.compare(
           credentials.password as string,
           user.password,
@@ -62,44 +66,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
 
-        // Fetch user details for JWT
-        const dbUser = await db.user.findUnique({
-          where: { id: user.id },
-          select: {
-            companyId: true,
-            tourOperatorId: true,
-            locale: true,
-            userRoles: {
-              select: {
-                role: {
-                  select: {
-                    name: true,
-                    rolePermissions: {
-                      select: {
-                        permission: {
-                          select: { code: true },
-                        },
-                      },
-                    },
-                  },
-                },
+        // Fetch user details for JWT (roles only — no permissions, kept out of JWT to avoid JWE size limit)
+        let dbUser;
+        try {
+          dbUser = await db.user.findUnique({
+            where: { id: user.id },
+            select: {
+              companyId: true,
+              tourOperatorId: true,
+              locale: true,
+              tokenVersion: true,
+              userRoles: {
+                select: { role: { select: { name: true } } },
               },
             },
-          },
-        });
+          });
+        } catch (e) {
+          console.error("[auth] jwt sign-in db query failed:", e);
+        }
 
+        token.tokenVersion = dbUser?.tokenVersion ?? 0;
         if (dbUser) {
           token.companyId = dbUser.companyId;
           token.tourOperatorId = dbUser.tourOperatorId;
           token.locale = dbUser.locale;
           token.roles = dbUser.userRoles.map((ur) => ur.role.name);
-          token.permissions = [
-            ...new Set(
-              dbUser.userRoles.flatMap((ur) =>
-                ur.role.rolePermissions.map((rp) => rp.permission.code),
-              ),
-            ),
-          ];
         }
 
         // Backup license expiry notification on login
@@ -137,6 +128,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             })
             .catch(() => {}); // Fire-and-forget
         }
+      } else if (token.id) {
+        // Subsequent requests — validate tokenVersion via Redis cache (60s TTL)
+        const cacheKey = `tv:${token.id}`;
+        try {
+          await redis.connect().catch(() => {});
+          const cached = await redis.get(cacheKey);
+          if (cached) {
+            const { tokenVersion, isActive } = JSON.parse(cached) as { tokenVersion: number; isActive: boolean };
+            if (!isActive || tokenVersion !== token.tokenVersion) return null;
+          } else {
+            const dbUser = await db.user.findUnique({
+              where: { id: token.id as string },
+              select: { tokenVersion: true, isActive: true },
+            });
+            if (!dbUser || !dbUser.isActive) return null;
+            if (dbUser.tokenVersion !== token.tokenVersion) return null;
+            await redis.setex(cacheKey, 60, JSON.stringify({ tokenVersion: dbUser.tokenVersion, isActive: dbUser.isActive })).catch(() => {});
+          }
+        } catch {
+          // Redis/DB unavailable — don't block the request
+        }
       }
       return token;
     },
@@ -146,8 +158,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.companyId = token.companyId as string | null;
         session.user.tourOperatorId = token.tourOperatorId as string | null;
         session.user.locale = token.locale as string;
-        session.user.roles = token.roles as string[];
-        session.user.permissions = token.permissions as string[];
+        session.user.roles = (token.roles as string[]) ?? [];
+
+        // Fetch permissions from Redis/DB (not stored in JWT to keep it small)
+        const userId = token.id as string;
+        const cacheKey = `perms:${userId}`;
+        let permissions: string[] = [];
+        try {
+          await redis.connect().catch(() => {});
+          const cached = await redis.get(cacheKey);
+          if (cached) {
+            permissions = JSON.parse(cached) as string[];
+          } else {
+            const rolePerms = await db.rolePermission.findMany({
+              where: { role: { userRoles: { some: { userId } } } },
+              select: { permission: { select: { code: true } } },
+            });
+            permissions = [...new Set(rolePerms.map((rp) => rp.permission.code))];
+            await redis.setex(cacheKey, 60, JSON.stringify(permissions)).catch(() => {});
+          }
+        } catch {
+          // Redis/DB unavailable — proceed with empty permissions (super_admin bypass covers admins)
+        }
+        session.user.permissions = permissions;
       }
       return session;
     },

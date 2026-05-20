@@ -25,12 +25,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { customerCreateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type FormValues = z.input<typeof customerCreateSchema>;
 
 const LOYALTY_TIERS = ["STANDARD", "SILVER", "GOLD", "PLATINUM"];
 
 export default function NewContactPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -61,10 +65,12 @@ export default function NewContactPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+
+    <PermissionGuard permission="crm:customer:read">
+      <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Contact</h1>
-        <p className="text-muted-foreground">Add a new customer contact</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newContact")}</h1>
+        <p className="text-muted-foreground">{t("customer360")}</p>
       </div>
 
       <Form {...form}>
@@ -75,7 +81,7 @@ export default function NewContactPage() {
               name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>First Name</FormLabel>
+                  <FormLabel>{t("firstName")}</FormLabel>
                   <FormControl><Input placeholder="Jane" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -86,7 +92,7 @@ export default function NewContactPage() {
               name="lastName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Last Name</FormLabel>
+                  <FormLabel>{t("lastName")}</FormLabel>
                   <FormControl><Input placeholder="Smith" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -99,7 +105,7 @@ export default function NewContactPage() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{tc("email")}</FormLabel>
                 <FormControl><Input type="email" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -111,7 +117,7 @@ export default function NewContactPage() {
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone</FormLabel>
+                <FormLabel>{tc("phone")}</FormLabel>
                 <FormControl><Input {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -123,7 +129,7 @@ export default function NewContactPage() {
             name="nationality"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nationality</FormLabel>
+                <FormLabel>{t("nationality")}</FormLabel>
                 <FormControl><Input placeholder="e.g. British" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -135,7 +141,7 @@ export default function NewContactPage() {
             name="dateOfBirth"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Date of Birth</FormLabel>
+                <FormLabel>{t("dateOfBirth")}</FormLabel>
                 <FormControl><Input type="date" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -147,14 +153,14 @@ export default function NewContactPage() {
             name="loyaltyTier"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Loyalty Tier</FormLabel>
+                <FormLabel>{t("loyaltyTier")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {LOYALTY_TIERS.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    {LOYALTY_TIERS.map((tier) => (
+                      <SelectItem key={tier} value={tier}>{tier}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -168,7 +174,7 @@ export default function NewContactPage() {
             name="notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Notes</FormLabel>
+                <FormLabel>{tc("notes")}</FormLabel>
                 <FormControl><Textarea {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -181,14 +187,18 @@ export default function NewContactPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Contact"}
+              {createMutation.isPending ? tc("creating") : t("newContact")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.push("/crm/contacts")}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

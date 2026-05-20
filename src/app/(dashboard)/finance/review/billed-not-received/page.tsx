@@ -6,6 +6,7 @@ import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type BillRow = {
   id: string;
@@ -47,6 +48,7 @@ export default function BilledNotReceivedPage() {
   const { data, isLoading } = trpc.finance.review.billedNotReceived.useQuery({ page: 1, pageSize: 100 });
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -59,5 +61,6 @@ export default function BilledNotReceivedPage() {
         <DataTable columns={columns} data={(data?.items as any) ?? []} searchKey="name" searchPlaceholder="Search bills..." />
       )}
     </div>
+    </PermissionGuard>
   );
 }

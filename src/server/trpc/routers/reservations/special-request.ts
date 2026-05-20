@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("reservations");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const specialRequestRouter = createTRPCRouter({
-  listByBooking: proc
+  listByBooking: p("reservations:booking:read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.booking.findFirstOrThrow({
@@ -17,7 +17,7 @@ export const specialRequestRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("reservations:booking:create")
     .input(
       z.object({
         bookingId: z.string(),
@@ -41,7 +41,7 @@ export const specialRequestRouter = createTRPCRouter({
       });
     }),
 
-  updateStatus: proc
+  updateStatus: p("reservations:booking:update")
     .input(
       z.object({
         id: z.string(),
@@ -65,7 +65,7 @@ export const specialRequestRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("reservations:booking:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const req = await ctx.db.bookingSpecialRequest.findFirstOrThrow({

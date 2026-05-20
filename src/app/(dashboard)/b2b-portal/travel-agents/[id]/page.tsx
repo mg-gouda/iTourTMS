@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
@@ -24,6 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 const updateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -45,6 +47,8 @@ export default function TravelAgentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
 
   const { data: agent, isLoading } = trpc.b2bPortal.travelAgent.getById.useQuery({ id });
 
@@ -94,14 +98,16 @@ export default function TravelAgentDetailPage() {
     );
   }
 
-  if (!agent) return <p>Travel agent not found</p>;
+  if (!agent) return <p>{tc("noData")}</p>;
 
   const contracts = agent.contractAssignments ?? [];
   const hotels = agent.hotelAssignments ?? [];
   const tariffs = agent.tariffs ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:travelAgent:read">
+      <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -112,7 +118,7 @@ export default function TravelAgentDetailPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight">{agent.name}</h1>
               <Badge variant={agent.active ? "default" : "secondary"}>
-                {agent.active ? "Active" : "Inactive"}
+                {agent.active ? tc("active") : tc("inactive")}
               </Badge>
             </div>
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
@@ -126,22 +132,22 @@ export default function TravelAgentDetailPage() {
           variant="destructive"
           size="sm"
           onClick={() => {
-            if (confirm("Delete this travel agent? This action cannot be undone.")) {
+            if (confirm(t("confirmDeleteTravelAgent"))) {
               deleteMutation.mutate({ id });
             }
           }}
         >
-          Delete
+          {tc("delete")}
         </Button>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="contracts">Contracts ({contracts.length})</TabsTrigger>
-          <TabsTrigger value="hotels">Hotels ({hotels.length})</TabsTrigger>
-          <TabsTrigger value="tariffs">Rate Sheets ({tariffs.length})</TabsTrigger>
+          <TabsTrigger value="details">{tc("details")}</TabsTrigger>
+          <TabsTrigger value="contracts">{t("contracts")} ({contracts.length})</TabsTrigger>
+          <TabsTrigger value="hotels">{t("hotels")} ({hotels.length})</TabsTrigger>
+          <TabsTrigger value="tariffs">{t("rateSheets")} ({tariffs.length})</TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
@@ -155,46 +161,46 @@ export default function TravelAgentDetailPage() {
                 >
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="name" render={({ field }) => (
-                      <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{tc("name")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="code" render={({ field }) => (
-                      <FormItem><FormLabel>Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{tc("code")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
                   <FormField control={form.control} name="contactPerson" render={({ field }) => (
-                    <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                    <FormItem><FormLabel>{t("contactPerson")}</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                   )} />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="email" render={({ field }) => (
-                      <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{tc("email")}</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
-                      <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{tc("phone")}</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                     )} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="countryId" render={({ field }) => (
-                      <FormItem><FormLabel>Country ID</FormLabel><FormControl><Input placeholder="Country ID" {...field} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{t("countryId")}</FormLabel><FormControl><Input placeholder={t("countryId")} {...field} /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="marketId" render={({ field }) => (
-                      <FormItem><FormLabel>Market ID</FormLabel><FormControl><Input placeholder="Market ID" {...field} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{t("marketId")}</FormLabel><FormControl><Input placeholder={t("marketId")} {...field} /></FormControl></FormItem>
                     )} />
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <FormField control={form.control} name="creditLimit" render={({ field }) => (
-                      <FormItem><FormLabel>Credit Limit</FormLabel><FormControl><Input type="number" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{t("creditLimit")}</FormLabel><FormControl><Input type="number" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="paymentTermDays" render={({ field }) => (
-                      <FormItem><FormLabel>Payment Terms (days)</FormLabel><FormControl><Input type="number" value={String(field.value ?? 30)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{t("paymentTerms")}</FormLabel><FormControl><Input type="number" value={String(field.value ?? 30)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="commissionPct" render={({ field }) => (
-                      <FormItem><FormLabel>Commission %</FormLabel><FormControl><Input type="number" step="0.1" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
+                      <FormItem><FormLabel>{t("commissionPct")}</FormLabel><FormControl><Input type="number" step="0.1" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
                     )} />
                   </div>
                   <FormField control={form.control} name="active" render={({ field }) => (
                     <FormItem className="flex items-center gap-2 space-y-0">
                       <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      <FormLabel>Active</FormLabel>
+                      <FormLabel>{tc("active")}</FormLabel>
                     </FormItem>
                   )} />
 
@@ -202,7 +208,7 @@ export default function TravelAgentDetailPage() {
                     <p className="text-sm text-destructive">{updateMutation.error.message}</p>
                   )}
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateMutation.isPending ? tc("saving") : tc("saveChanges")}
                   </Button>
                 </form>
               </Form>
@@ -215,7 +221,7 @@ export default function TravelAgentDetailPage() {
           {contracts.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No contracts assigned to this travel agent
+                {t("noContractsAssigned")}
               </CardContent>
             </Card>
           ) : (
@@ -223,8 +229,8 @@ export default function TravelAgentDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Contract Code</th>
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Hotel</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{t("contractCode")}</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{t("hotelName")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -252,7 +258,7 @@ export default function TravelAgentDetailPage() {
           {hotels.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No hotels assigned to this travel agent
+                {t("noHotelsAssigned")}
               </CardContent>
             </Card>
           ) : (
@@ -260,7 +266,7 @@ export default function TravelAgentDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Hotel Name</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{t("hotelName")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -280,7 +286,7 @@ export default function TravelAgentDetailPage() {
           {tariffs.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No rate sheets for this travel agent
+                {t("noRateSheetsFor")}
               </CardContent>
             </Card>
           ) : (
@@ -288,24 +294,24 @@ export default function TravelAgentDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Name</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{tc("name")}</th>
                     <th className="px-3 py-1.5 text-left text-xs font-medium">Contract</th>
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Generated</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{t("generated")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tariffs.map((t) => (
-                    <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
+                  {tariffs.map((tariff) => (
+                    <tr key={tariff.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="px-3 py-1.5 font-medium text-sm">
-                        {t.name}
+                        {tariff.name}
                       </td>
                       <td className="px-3 py-1.5">
-                        {t.contract ? (
-                          <span className="font-mono text-xs">{t.contract.code} — {t.contract.name}</span>
+                        {tariff.contract ? (
+                          <span className="font-mono text-xs">{tariff.contract.code} — {tariff.contract.name}</span>
                         ) : "—"}
                       </td>
                       <td className="px-3 py-1.5 text-muted-foreground">
-                        {new Date(t.generatedAt).toLocaleDateString()}
+                        {new Date(tariff.generatedAt).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}
@@ -316,5 +322,9 @@ export default function TravelAgentDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+
+
+    </PermissionGuard>
+
   );
 }

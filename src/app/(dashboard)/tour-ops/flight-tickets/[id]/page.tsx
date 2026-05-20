@@ -43,6 +43,7 @@ import {
   OPS_FLIGHT_TX_TYPE_LABELS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ const editSchema = z.object({
   returnAirline: z.string().optional(),
   ticketNumber: z.string().optional(),
   legs: z.array(legSchema).optional(),
+  currencyId: z.string().optional(),
   transactionType: z.enum(["ISSUE", "REISSUE", "REFUND", "VOID", "REVALIDATE"]),
   vendorId: z.string().optional(),
   customerPartnerId: z.string().optional(),
@@ -97,6 +99,7 @@ const editSchema = z.object({
   priceDifference: z.number().optional(),
   cancellationFees: z.number().optional(),
   voidFee: z.number().optional(),
+  parentTicketId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -177,6 +180,25 @@ function NumCI({ name, control }: { name: string; control: any }) {
   );
 }
 
+function NumCIWithCcy({ name, control, ccy }: { name: string; control: any; ccy?: string }) {
+  const { field } = useController({ name, control });
+  return (
+    <div className="flex items-stretch">
+      {ccy && (
+        <span className="flex items-center px-1 bg-muted border border-r-0 rounded-l text-[9px] font-mono text-muted-foreground shrink-0">
+          {ccy}
+        </span>
+      )}
+      <Input
+        type="number" min={0} step="0.01"
+        value={field.value ?? 0}
+        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+        className={`h-7 text-xs px-1.5 min-w-0 ${ccy ? "rounded-l-none border-l-0" : ""}`}
+      />
+    </div>
+  );
+}
+
 function CommTypeCI({ name, control }: { name: string; control: any }) {
   const { field } = useController({ name, control });
   return (
@@ -203,28 +225,30 @@ function EmployeeCI({ name, control, employees }: { name: string; control: any; 
   );
 }
 
-function FareLineRow({ index, control, employees, onRemove, canRemove }: {
+function FareLineRow({ index, control, employees, onRemove, canRemove, currencyCode }: {
   index: number; control: any;
   employees: { id: string; name: string | null; email: string }[];
   onRemove: () => void; canRemove: boolean;
+  currencyCode?: string;
 }) {
   const watched = useWatch({ control, name: `fareLines.${index}` }) as FareLineValues;
   const { aviComm, empComm, totalCost, profit } = computeFareLine(watched ?? blankFareLine());
+  const ccy = currencyCode || undefined;
   return (
     <div className="grid gap-1 items-end py-1.5 border-b last:border-b-0"
-      style={{ gridTemplateColumns: "100px 60px 90px 80px 70px 90px 70px 140px 70px 90px 70px 80px 80px 70px 32px" }}>
+      style={{ gridTemplateColumns: "100px 60px 115px 105px 70px 115px 70px 140px 70px 115px 70px 105px 80px 70px 32px" }}>
       <CompactInput name={`fareLines.${index}.passengerLabel`} control={control} placeholder="Pax 1" />
       <CompactInput name={`fareLines.${index}.classCode`} control={control} placeholder="Y" />
-      <NumCI name={`fareLines.${index}.baseFare`} control={control} />
-      <NumCI name={`fareLines.${index}.taxes`} control={control} />
+      <NumCIWithCcy name={`fareLines.${index}.baseFare`} control={control} ccy={ccy} />
+      <NumCIWithCcy name={`fareLines.${index}.taxes`} control={control} ccy={ccy} />
       <CommTypeCI name={`fareLines.${index}.aviationCommType`} control={control} />
-      <NumCI name={`fareLines.${index}.aviationCommValue`} control={control} />
+      <NumCIWithCcy name={`fareLines.${index}.aviationCommValue`} control={control} ccy={ccy} />
       <div className="flex items-end pb-0.5"><span className="text-xs text-green-600 font-medium whitespace-nowrap">-{numFmt(aviComm)}</span></div>
       <EmployeeCI name={`fareLines.${index}.employeeId`} control={control} employees={employees} />
       <CommTypeCI name={`fareLines.${index}.empCommType`} control={control} />
-      <NumCI name={`fareLines.${index}.empCommValue`} control={control} />
+      <NumCIWithCcy name={`fareLines.${index}.empCommValue`} control={control} ccy={ccy} />
       <div className="flex items-end pb-0.5"><span className="text-xs text-orange-600 font-medium whitespace-nowrap">+{numFmt(empComm)}</span></div>
-      <NumCI name={`fareLines.${index}.sellingPrice`} control={control} />
+      <NumCIWithCcy name={`fareLines.${index}.sellingPrice`} control={control} ccy={ccy} />
       <div className="flex items-end pb-0.5"><span className="text-xs text-red-600 font-medium whitespace-nowrap">{numFmt(totalCost)}</span></div>
       <div className="flex items-end pb-0.5">
         <span className={`text-xs font-medium whitespace-nowrap ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>{numFmt(profit)}</span>
@@ -249,6 +273,11 @@ export default function FlightTicketDetailPage() {
   const { data: vendors = [] } = trpc.tourOps.flightTicket.listVendors.useQuery();
   const { data: customers = [] } = trpc.tourOps.flightTicket.listCustomers.useQuery();
   const { data: employees = [] } = trpc.tourOps.flightTicket.listEmployees.useQuery();
+  const { data: currencies = [] } = trpc.tourOps.flightTicket.listCurrencies.useQuery();
+  const { data: linkableTickets = [] } = trpc.tourOps.flightTicket.listForLinking.useQuery(
+    { opsFileId: ticket?.opsFileId ?? undefined, excludeId: id },
+    { enabled: editing },
+  );
 
   const updateMutation = trpc.tourOps.flightTicket.update.useMutation({
     onSuccess: () => {
@@ -284,8 +313,10 @@ export default function FlightTicketDetailPage() {
       takeOffTime: "", airline: "", flightNumber: "", terminal: "",
       returnFlightNumber: "", returnTakeOffTime: "", returnTerminal: "", returnAirline: "",
       ticketNumber: "", legs: [],
+      currencyId: "",
       transactionType: "ISSUE", vendorId: "", customerPartnerId: "",
       fareLines: [blankFareLine()],
+      parentTicketId: "",
       notes: "",
     },
   });
@@ -345,6 +376,8 @@ export default function FlightTicketDetailPage() {
       priceDifference: tkt.priceDifference ? Number(tkt.priceDifference) : undefined,
       cancellationFees: tkt.cancellationFees ? Number(tkt.cancellationFees) : undefined,
       voidFee: tkt.voidFee ? Number(tkt.voidFee) : undefined,
+      currencyId: tkt.currencyId ?? "",
+      parentTicketId: tkt.parentTicketId ?? "",
       notes: ticket.notes ?? "",
     });
     setEditing(true);
@@ -352,6 +385,8 @@ export default function FlightTicketDetailPage() {
 
   const watchedFlightType = form.watch("flightType");
   const watchedTxType = form.watch("transactionType");
+  const watchedCurrencyId = form.watch("currencyId");
+  const selectedCurrencyCode = currencies.find((c) => c.id === watchedCurrencyId)?.code ?? "";
   const allFareLines = form.watch("fareLines");
 
   const aggTotals = (allFareLines ?? []).reduce(
@@ -380,6 +415,8 @@ export default function FlightTicketDetailPage() {
         customerPartnerId: values.customerPartnerId || undefined,
         fareLines: (values.fareLines ?? []).map((fl, i) => ({ ...fl, sequence: i + 1 })),
         legs: values.flightType === "MULTI_LEG" ? values.legs : [],
+        currencyId: values.currencyId || undefined,
+        parentTicketId: values.parentTicketId || undefined,
         // aggregate from fare lines
         buyingRate: aggTotals.totalCost,
         sellingRate: aggTotals.totalRevenue,
@@ -576,7 +613,53 @@ export default function FlightTicketDetailPage() {
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm">Pricing</CardTitle></CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid grid-cols-3 gap-4">
+
+                {/* Links to Original Ticket */}
+                <FormField control={form.control} name="parentTicketId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Links to Ticket (Original)</FormLabel>
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(v) => field.onChange(v === "_none" ? "" : v)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="— None (independent ticket) —" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="_none">— None (independent ticket) —</SelectItem>
+                        {linkableTickets.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.code}{t.ticketNumber ? ` (${t.ticketNumber})` : ""} — {t.origin}→{t.destination}{t.clientName ? ` — ${t.clientName}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Link this transaction to the original issued ticket
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <div className="grid grid-cols-4 gap-4">
+                  <FormField control={form.control} name="currencyId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v === "_none" ? "" : v)}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select currency..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="_none">— None —</SelectItem>
+                          {currencies.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
                   <FormField control={form.control} name="transactionType" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Transaction Type</FormLabel>
@@ -628,22 +711,38 @@ export default function FlightTicketDetailPage() {
                     <FormField control={form.control} name="changeFees" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Change Fees</FormLabel>
-                        <FormControl>
-                          <Input type="number" min={0} step="0.01" placeholder="0.00"
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                        </FormControl>
+                        <div className="flex">
+                          {selectedCurrencyCode && (
+                            <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                              {selectedCurrencyCode}
+                            </span>
+                          )}
+                          <FormControl>
+                            <Input type="number" min={0} step="0.01" placeholder="0.00"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="priceDifference" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Price Difference (+ or -)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00"
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                        </FormControl>
+                        <div className="flex">
+                          {selectedCurrencyCode && (
+                            <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                              {selectedCurrencyCode}
+                            </span>
+                          )}
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="0.00"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -658,11 +757,19 @@ export default function FlightTicketDetailPage() {
                     <FormField control={form.control} name="cancellationFees" render={({ field }) => (
                       <FormItem className="max-w-xs">
                         <FormLabel>Cancellation Fees (charged to customer)</FormLabel>
-                        <FormControl>
-                          <Input type="number" min={0} step="0.01" placeholder="0.00"
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                        </FormControl>
+                        <div className="flex">
+                          {selectedCurrencyCode && (
+                            <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                              {selectedCurrencyCode}
+                            </span>
+                          )}
+                          <FormControl>
+                            <Input type="number" min={0} step="0.01" placeholder="0.00"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -677,11 +784,19 @@ export default function FlightTicketDetailPage() {
                     <FormField control={form.control} name="voidFee" render={({ field }) => (
                       <FormItem className="max-w-xs">
                         <FormLabel>Admin Fee (charged to customer)</FormLabel>
-                        <FormControl>
-                          <Input type="number" min={0} step="0.01" placeholder="0.00"
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                        </FormControl>
+                        <div className="flex">
+                          {selectedCurrencyCode && (
+                            <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                              {selectedCurrencyCode}
+                            </span>
+                          )}
+                          <FormControl>
+                            <Input type="number" min={0} step="0.01" placeholder="0.00"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -696,14 +811,15 @@ export default function FlightTicketDetailPage() {
                   <div className="overflow-x-auto">
                     <div className="min-w-[900px]">
                       <div className="grid gap-1 px-1 pb-1 border-b"
-                        style={{ gridTemplateColumns: "100px 60px 90px 80px 70px 90px 70px 140px 70px 90px 70px 80px 80px 70px 32px" }}>
-                        {["Pax / Label", "Class", "Base Fare", "Taxes", "Avia.%/$", "Avia.Val", "Avia.Disc", "Employee", "Emp.%/$", "Emp.Val", "Emp.Comm", "Sell Price", "Total Cost", "Profit", ""].map((h) => (
+                        style={{ gridTemplateColumns: "100px 60px 115px 105px 70px 115px 70px 140px 70px 115px 70px 105px 80px 70px 32px" }}>
+                        {["Pax / Label", "Class", `Base Fare${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, `Taxes${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Avia.%/$", `Avia.Val${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Avia.Disc", "Employee", "Emp.%/$", `Emp.Val${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Emp.Comm", `Sell Price${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Total Cost", "Profit", ""].map((h) => (
                           <span key={h} className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</span>
                         ))}
                       </div>
                       {fareLineFields.map((fl, idx) => (
                         <FareLineRow key={fl.id} index={idx} control={form.control} employees={employees}
-                          onRemove={() => removeFareLine(idx)} canRemove={fareLineFields.length > 1} />
+                          onRemove={() => removeFareLine(idx)} canRemove={fareLineFields.length > 1}
+                          currencyCode={selectedCurrencyCode} />
                       ))}
                     </div>
                   </div>
@@ -714,15 +830,15 @@ export default function FlightTicketDetailPage() {
 
                 <div className="grid grid-cols-4 gap-3 p-3 bg-muted/40 rounded-md border text-sm">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Cost</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Cost{selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}</p>
                     <p className="font-semibold text-red-600">{numFmt(aggTotals.totalCost)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Revenue</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Revenue{selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}</p>
                     <p className="font-semibold">{numFmt(aggTotals.totalRevenue)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Profit</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Profit{selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}</p>
                     <p className={`font-semibold ${aggTotals.profit >= 0 ? "text-green-600" : "text-red-600"}`}>{numFmt(aggTotals.profit)}</p>
                   </div>
                   <div>
@@ -789,8 +905,30 @@ export default function FlightTicketDetailPage() {
             <Card>
               <CardHeader><CardTitle className="text-sm">Pricing</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-sm">
+                {tkt.parentTicket && (
+                  <div className="flex justify-between p-2 bg-muted/40 rounded text-xs">
+                    <span className="text-muted-foreground">Original Ticket</span>
+                    <Link href={`/tour-ops/flight-tickets/${tkt.parentTicket.id}`} className="font-mono font-medium text-primary hover:underline">
+                      {tkt.parentTicket.code}{tkt.parentTicket.ticketNumber ? ` (${tkt.parentTicket.ticketNumber})` : ""}
+                    </Link>
+                  </div>
+                )}
+                {tkt.derivedTickets?.length > 0 && (
+                  <div className="p-2 bg-muted/40 rounded text-xs space-y-0.5">
+                    <p className="text-muted-foreground mb-1">Derived Transactions</p>
+                    {tkt.derivedTickets.map((d: any) => (
+                      <div key={d.id} className="flex justify-between">
+                        <Link href={`/tour-ops/flight-tickets/${d.id}`} className="font-mono font-medium text-primary hover:underline">
+                          {d.code}
+                        </Link>
+                        <span className="text-muted-foreground">{OPS_FLIGHT_TX_TYPE_LABELS[(d.transactionType ?? "ISSUE") as keyof typeof OPS_FLIGHT_TX_TYPE_LABELS]}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   {[
+                    ["Currency", tkt.currency?.code ? `${tkt.currency.code} — ${tkt.currency.name ?? ""}` : "—"],
                     ["Transaction", OPS_FLIGHT_TX_TYPE_LABELS[(tkt.transactionType ?? "ISSUE") as keyof typeof OPS_FLIGHT_TX_TYPE_LABELS]],
                     ["Vendor", tkt.vendor?.name ?? "—"],
                     ["Customer", tkt.customerPartner?.name ?? "—"],
@@ -823,11 +961,11 @@ export default function FlightTicketDetailPage() {
                   </div>
                 )}
                 <div className="border-t pt-2 space-y-1">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Total Revenue</span><span className="font-medium">{numFmt(revenue)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Total Cost</span><span className="text-red-600">{numFmt(cost)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Revenue</span><span className="font-medium">{tkt.currency?.code ? <span className="text-[10px] text-muted-foreground mr-1 font-mono">{tkt.currency.code}</span> : null}{numFmt(revenue)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Cost</span><span className="text-red-600">{tkt.currency?.code ? <span className="text-[10px] text-muted-foreground mr-1 font-mono">{tkt.currency.code}</span> : null}{numFmt(cost)}</span></div>
                   <div className="flex justify-between font-semibold">
                     <span>Profit</span>
-                    <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>{numFmt(profit)}</span>
+                    <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>{tkt.currency?.code ? <span className="text-[10px] text-muted-foreground mr-1 font-mono">{tkt.currency.code}</span> : null}{numFmt(profit)}</span>
                   </div>
                   <div className="flex justify-between font-semibold">
                     <span>Margin</span>
@@ -847,7 +985,7 @@ export default function FlightTicketDetailPage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b text-muted-foreground">
-                        {["Pax / Label", "Class", "Base Fare", "Taxes", "Avia.Comm", "Employee", "Emp.Comm", "Sell Price", "Total Cost", "Profit", "Margin"].map((h) => (
+                        {["Pax / Label", "Class", `Base Fare${tkt.currency?.code ? ` (${tkt.currency.code})` : ""}`, `Taxes${tkt.currency?.code ? ` (${tkt.currency.code})` : ""}`, "Avia.Comm", "Employee", "Emp.Comm", `Sell Price${tkt.currency?.code ? ` (${tkt.currency.code})` : ""}`, `Total Cost${tkt.currency?.code ? ` (${tkt.currency.code})` : ""}`, `Profit${tkt.currency?.code ? ` (${tkt.currency.code})` : ""}`, "Margin"].map((h) => (
                           <th key={h} className="text-left py-1.5 pr-3 font-semibold uppercase tracking-wide text-[9px] whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -857,7 +995,8 @@ export default function FlightTicketDetailPage() {
                         const p = Number(fl.profit);
                         const m = Number(fl.marginPct);
                         return (
-                          <tr key={fl.id} className="border-b last:border-b-0">
+                          <PermissionGuard permission="tour-ops:flightTicket:read">
+                            <tr key={fl.id} className="border-b last:border-b-0">
                             <td className="py-1.5 pr-3">{fl.passengerLabel || "—"}</td>
                             <td className="py-1.5 pr-3">{fl.classCode || "—"}</td>
                             <td className="py-1.5 pr-3">{numFmt(Number(fl.baseFare))}</td>
@@ -874,6 +1013,7 @@ export default function FlightTicketDetailPage() {
                             <td className={`py-1.5 pr-3 font-medium ${p >= 0 ? "text-green-600" : "text-red-600"}`}>{numFmt(p)}</td>
                             <td className={`py-1.5 pr-3 font-medium ${m >= 0 ? "text-green-600" : "text-red-600"}`}>{m.toFixed(2)}%</td>
                           </tr>
+                          </PermissionGuard>
                         );
                       })}
                     </tbody>

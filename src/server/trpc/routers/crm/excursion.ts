@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { excursionCreateSchema, excursionUpdateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const excursionRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.crmExcursion.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -19,7 +19,7 @@ export const excursionRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("crm:excursion:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmExcursion.findFirstOrThrow({
@@ -50,7 +50,7 @@ export const excursionRouter = createTRPCRouter({
       });
     }),
 
-  stats: proc
+  stats: p("crm:excursion:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const [bookingItems, revenueAgg] = await Promise.all([
@@ -86,7 +86,7 @@ export const excursionRouter = createTRPCRouter({
       };
     }),
 
-  create: proc
+  create: p("crm:excursion:create")
     .input(excursionCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.crmExcursion.findFirst({
@@ -114,7 +114,7 @@ export const excursionRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:excursion:update")
     .input(z.object({ id: z.string(), data: excursionUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
@@ -130,7 +130,7 @@ export const excursionRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:excursion:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmExcursion.delete({

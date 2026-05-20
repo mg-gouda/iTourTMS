@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   Palette,
@@ -11,25 +14,30 @@ import {
   DollarSign,
 } from "lucide-react";
 
-const sections = [
-  { href: "/b2c-site/branding", label: "Branding & Theme", desc: "Colors, fonts, logos, feature toggles", icon: Palette },
-  { href: "/b2c-site/hero-slides", label: "Hero Slides", desc: "Homepage slider images and CTAs", icon: Image },
-  { href: "/b2c-site/pages", label: "Pages", desc: "About us, terms, privacy, etc.", icon: FileText },
-  { href: "/b2c-site/blog", label: "Blog Posts", desc: "Travel guides and articles", icon: BookOpen },
-  { href: "/b2c-site/faq", label: "FAQ", desc: "Frequently asked questions", icon: HelpCircle },
-  { href: "/b2c-site/testimonials", label: "Testimonials", desc: "Guest reviews and ratings", icon: Star },
-  { href: "/b2c-site/inquiries", label: "Contact Inquiries", desc: "Messages from the contact form", icon: MessageSquare },
-  { href: "/b2c-site/newsletter", label: "Newsletter", desc: "Email subscribers", icon: Mail },
-  { href: "/b2c-site/markup", label: "Markup Rules", desc: "B2C pricing markup configuration", icon: DollarSign },
-];
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function B2cSiteDashboardPage() {
+  const t = useTranslations("b2cSite");
+
+  const sections = [
+    { href: "/b2c-site/branding", label: t("branding"), desc: t("siteName"), icon: Palette },
+    { href: "/b2c-site/hero-slides", label: t("heroSlides"), desc: t("headline"), icon: Image },
+    { href: "/b2c-site/pages", label: t("pages"), desc: t("slug"), icon: FileText },
+    { href: "/b2c-site/blog", label: t("blog"), desc: t("blogPost"), icon: BookOpen },
+    { href: "/b2c-site/faq", label: t("faq"), desc: t("faqItem"), icon: HelpCircle },
+    { href: "/b2c-site/testimonials", label: t("testimonials"), desc: t("testimonial"), icon: Star },
+    { href: "/b2c-site/inquiries", label: t("inquiries"), desc: t("inquiry"), icon: MessageSquare },
+    { href: "/b2c-site/newsletter", label: t("newsletter"), desc: t("subscribers"), icon: Mail },
+    { href: "/b2c-site/markup", label: t("markupRules"), desc: t("markupRule"), icon: DollarSign },
+  ];
+
   return (
+    <PermissionGuard permission="b2c-site:branding:read">
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">B2C Website</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Manage your public website content, branding, and engagement features
+          {t("branding")}
         </p>
       </div>
 
@@ -52,5 +60,6 @@ export default function B2cSiteDashboardPage() {
         ))}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

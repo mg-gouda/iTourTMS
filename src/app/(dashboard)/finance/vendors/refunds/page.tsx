@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MOVE_STATE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type MoveRow = {
   id: string;
@@ -96,26 +98,29 @@ const columns: ColumnDef<MoveRow, unknown>[] = [
 
 export default function VendorRefundsPage() {
   const router = useRouter();
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.finance.move.list.useQuery({
     moveType: "IN_REFUND",
   });
 
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vendor Refunds</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("vendorRefunds")}</h1>
           <p className="text-muted-foreground">
-            Vendor debit notes and refunds.
+            {t("vendorRefundsDesc")}
           </p>
         </div>
         <Button asChild>
-          <Link href="/finance/vendors/refunds/new">New Refund</Link>
+          <Link href="/finance/vendors/refunds/new">{t("newVendorRefund")}</Link>
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-10 text-center">Loading...</div>
+        <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
       ) : (
         <DataTable
           columns={columns}
@@ -128,5 +133,6 @@ export default function VendorRefundsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

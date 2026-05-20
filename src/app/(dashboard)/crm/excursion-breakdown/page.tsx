@@ -19,6 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 const STATUS_ICON = {
   PENDING:   { icon: Clock,         class: "text-yellow-600" },
@@ -33,6 +35,8 @@ const LANG_LABEL: Record<string, string> = {
 };
 
 export default function ExcursionBreakdownPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   // ── Filters ──
   const [filterExcursionId, setFilterExcursionId] = useState("");
   const [filterDate, setFilterDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
@@ -166,7 +170,7 @@ export default function ExcursionBreakdownPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Excursion Breakdown</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("breakdown")}</h1>
           <p className="text-sm text-muted-foreground">
             Filter tickets by excursion & date · assign rep, vehicle & driver · publish to rep portal
           </p>
@@ -175,17 +179,17 @@ export default function ExcursionBreakdownPage() {
           {breakdown && (
             breakdownPublished ? (
               <Button size="sm" variant="outline" onClick={() => unpublishMutation.mutate({ id: breakdown.id })} disabled={unpublishMutation.isPending}>
-                Revert to Draft
+                {tc("draft")}
               </Button>
             ) : (
               <Button size="sm" variant="outline" className="gap-1.5 border-green-500 text-green-600 hover:bg-green-50"
                 onClick={() => publishMutation.mutate({ id: breakdown.id })} disabled={publishMutation.isPending}>
-                <Send className="h-3.5 w-3.5" /> Publish to Rep
+                <Send className="h-3.5 w-3.5" /> {tc("publish")}
               </Button>
             )
           )}
           <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? "Saving…" : "Save Breakdown"}
+            {saveMutation.isPending ? tc("saving") : t("breakdown")}
           </Button>
         </div>
       </div>
@@ -248,7 +252,8 @@ export default function ExcursionBreakdownPage() {
                 const sc = STATUS_ICON[t.status as keyof typeof STATUS_ICON];
                 const StatusIcon = sc.icon;
                 return (
-                  <label
+                  <PermissionGuard permission="crm:booking:read">
+                    <label
                     key={t.id}
                     className={cn(
                       "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
@@ -290,6 +295,7 @@ export default function ExcursionBreakdownPage() {
                       <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", sc.class)} />
                     </div>
                   </label>
+                  </PermissionGuard>
                 );
               })}
             </div>
@@ -403,7 +409,7 @@ export default function ExcursionBreakdownPage() {
           </Card>
 
           <Button className="w-full" onClick={handleSave} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? "Saving…" : "Save Breakdown"}
+            {saveMutation.isPending ? tc("saving") : t("breakdown")}
           </Button>
         </div>
       </div>

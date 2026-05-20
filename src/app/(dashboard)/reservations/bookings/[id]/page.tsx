@@ -83,6 +83,8 @@ import { generateVoucherPdf } from "@/lib/export/voucher-pdf";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
+
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -288,6 +290,7 @@ export default function BookingDetailPage() {
   const canLock = !["CANCELLED", "CHECKED_OUT"].includes(booking.status);
 
   return (
+    <PermissionGuard permission="reservations:booking:read">
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -2403,6 +2406,7 @@ export default function BookingDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }
 

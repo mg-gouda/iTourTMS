@@ -1,14 +1,16 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   heroSlideCreateSchema,
   heroSlideUpdateSchema,
   reorderSchema,
 } from "@/lib/validations/b2c-site";
 
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
+
 export const heroSlideRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: p("b2c-site:heroSlide:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId!;
     return ctx.db.heroSlide.findMany({
       where: { companyId },
@@ -16,14 +18,14 @@ export const heroSlideRouter = createTRPCRouter({
     });
   }),
 
-  create: protectedProcedure
+  create: p("b2c-site:heroSlide:create")
     .input(heroSlideCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
       return ctx.db.heroSlide.create({ data: { companyId, ...input } });
     }),
 
-  update: protectedProcedure
+  update: p("b2c-site:heroSlide:update")
     .input(heroSlideUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -32,7 +34,7 @@ export const heroSlideRouter = createTRPCRouter({
       return ctx.db.heroSlide.update({ where: { id }, data });
     }),
 
-  delete: protectedProcedure
+  delete: p("b2c-site:heroSlide:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -40,7 +42,7 @@ export const heroSlideRouter = createTRPCRouter({
       return ctx.db.heroSlide.delete({ where: { id: input.id } });
     }),
 
-  reorder: protectedProcedure
+  reorder: p("b2c-site:heroSlide:update")
     .input(reorderSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.$transaction(

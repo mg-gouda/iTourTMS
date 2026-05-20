@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import {
   AlertTriangle,
@@ -39,6 +40,7 @@ import {
   CONTRACT_STATUS_VARIANTS,
 } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const PIE_COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
@@ -49,6 +51,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ContractingDashboardPage() {
+  const t = useTranslations("contracting");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.contracting.contract.dashboard.useQuery();
 
@@ -56,39 +60,40 @@ export default function ContractingDashboardPage() {
     data?.byStatus.find((s) => s.status === "PUBLISHED")?.count ?? 0;
 
   return (
+    <PermissionGuard permission="contracting:contract:read">
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
-        <h1 className="text-2xl font-bold tracking-tight">Contracting Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Overview of hotel contracts and their status
+          {t("contractSummary")}
         </p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Total Contracts"
+          title={t("contracts")}
           value={data?.totalContracts}
           isLoading={isLoading}
           icon={FileStack}
           accent="text-blue-600 dark:text-blue-400 bg-blue-500/10"
         />
         <KpiCard
-          title="Published"
+          title={t("published")}
           value={publishedCount}
           isLoading={isLoading}
           icon={CheckCircle2}
           accent="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
         />
         <KpiCard
-          title="Hotels Under Contract"
+          title={t("hotels")}
           value={data?.totalHotels}
           isLoading={isLoading}
           icon={Building2}
           accent="text-violet-600 dark:text-violet-400 bg-violet-500/10"
         />
         <KpiCard
-          title="Expiring Soon (60 days)"
+          title={t("expiringContracts")}
           value={data?.expiringSoonCount}
           isLoading={isLoading}
           icon={AlertTriangle}
@@ -101,7 +106,7 @@ export default function ContractingDashboardPage() {
         {/* Contracts by Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Contracts by Status</CardTitle>
+            <CardTitle>{t("contracts")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -139,7 +144,7 @@ export default function ContractingDashboardPage() {
         {/* Contracts by Hotel */}
         <Card>
           <CardHeader>
-            <CardTitle>Contracts by Hotel (Top 8)</CardTitle>
+            <CardTitle>{t("hotels")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -171,9 +176,9 @@ export default function ContractingDashboardPage() {
         {/* Expiring Soon */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Expiring Soon</CardTitle>
+            <CardTitle>{t("expiringContracts")}</CardTitle>
             <Button variant="link" size="sm" asChild className="text-xs">
-              <Link href="/contracting/expiring">View all</Link>
+              <Link href="/contracting/expiring">{tCommon("view")}</Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -187,10 +192,10 @@ export default function ContractingDashboardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Contract</TableHead>
-                    <TableHead>Hotel</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Expires</TableHead>
+                    <TableHead>{t("contract")}</TableHead>
+                    <TableHead>{t("hotel")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead>{t("validTo")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -233,7 +238,7 @@ export default function ContractingDashboardPage() {
               </Table>
             ) : (
               <p className="text-center text-sm text-muted-foreground">
-                No contracts expiring in the next 60 days.
+                {tCommon("noResults")}
               </p>
             )}
           </CardContent>
@@ -242,7 +247,7 @@ export default function ContractingDashboardPage() {
         {/* Recently Created */}
         <Card>
           <CardHeader>
-            <CardTitle>Recently Created</CardTitle>
+            <CardTitle>{t("contracts")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -255,10 +260,10 @@ export default function ContractingDashboardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Contract</TableHead>
-                    <TableHead>Hotel</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t("contract")}</TableHead>
+                    <TableHead>{t("hotel")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead>{tCommon("createdAt")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -301,13 +306,14 @@ export default function ContractingDashboardPage() {
               </Table>
             ) : (
               <p className="text-center text-sm text-muted-foreground">
-                No contracts yet.
+                {tCommon("noData")}
               </p>
             )}
           </CardContent>
         </Card>
       </div>
     </div>
+    </PermissionGuard>
   );
 }
 

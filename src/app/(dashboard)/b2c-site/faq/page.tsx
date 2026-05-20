@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, GripVertical } from "lucide-react";
 
@@ -18,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FaqForm = { question: string; answer: string; category: string; active: boolean };
 const emptyForm: FaqForm = { question: "", answer: "", category: "", active: true };
@@ -25,20 +27,22 @@ const emptyForm: FaqForm = { question: "", answer: "", category: "", active: tru
 export default function FaqPage() {
   const { data: faqs, isLoading } = trpc.b2cSite.faq.list.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FaqForm>(emptyForm);
 
   const createMutation = trpc.b2cSite.faq.create.useMutation({
-    onSuccess: () => { toast.success("FAQ created"); utils.b2cSite.faq.list.invalidate(); setDialogOpen(false); },
+    onSuccess: () => { toast.success(tc("created")); utils.b2cSite.faq.list.invalidate(); setDialogOpen(false); },
     onError: (err) => toast.error(err.message),
   });
   const updateMutation = trpc.b2cSite.faq.update.useMutation({
-    onSuccess: () => { toast.success("FAQ updated"); utils.b2cSite.faq.list.invalidate(); setDialogOpen(false); },
+    onSuccess: () => { toast.success(tc("updated")); utils.b2cSite.faq.list.invalidate(); setDialogOpen(false); },
     onError: (err) => toast.error(err.message),
   });
   const deleteMutation = trpc.b2cSite.faq.delete.useMutation({
-    onSuccess: () => { toast.success("FAQ deleted"); utils.b2cSite.faq.list.invalidate(); },
+    onSuccess: () => { toast.success(tc("deleted")); utils.b2cSite.faq.list.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
 
@@ -50,7 +54,7 @@ export default function FaqPage() {
   };
 
   const handleSave = () => {
-    if (!form.question || !form.answer) { toast.error("Question and answer are required"); return; }
+    if (!form.question || !form.answer) { toast.error(tc("required")); return; }
     const payload = { ...form, category: form.category || null };
     if (editId) {
       updateMutation.mutate({ id: editId, ...payload });
@@ -60,19 +64,21 @@ export default function FaqPage() {
   };
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:faq:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">FAQ</h1>
-          <p className="text-muted-foreground">Frequently asked questions</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("faq")}</h1>
+          <p className="text-muted-foreground">{t("faqDesc")}</p>
         </div>
-        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Add FAQ</Button>
+        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />{t("newFaqItem")}</Button>
       </div>
 
       {isLoading ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">Loading...</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{tc("loading")}</CardContent></Card>
       ) : !faqs?.length ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">No FAQs yet.</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{t("noFaqs")}</CardContent></Card>
       ) : (
         <div className="grid gap-3">
           {faqs.map((faq) => (
@@ -84,7 +90,7 @@ export default function FaqPage() {
               </div>
               {faq.category && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{faq.category}</span>}
               <span className={`rounded-full px-2 py-0.5 text-xs ${faq.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                {faq.active ? "Active" : "Inactive"}
+                {faq.active ? t("active") : t("inactive")}
               </span>
               <Button variant="ghost" size="icon" onClick={() => openEdit(faq)}><Pencil className="h-4 w-4" /></Button>
               <Button variant="ghost" size="icon" onClick={() => { if (confirm("Delete?")) deleteMutation.mutate({ id: faq.id }); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -95,19 +101,23 @@ export default function FaqPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? "Edit FAQ" : "Add FAQ"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? t("faqItem") : t("newFaqItem")}</DialogTitle></DialogHeader>
           <div className="grid gap-3">
-            <div className="space-y-1.5"><Label>Question *</Label><Input value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Answer *</Label><Textarea value={form.answer} onChange={(e) => setForm({ ...form, answer: e.target.value })} rows={4} /></div>
-            <div className="space-y-1.5"><Label>Category</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="General" /></div>
-            <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} /><Label>Active</Label></div>
+            <div className="space-y-1.5"><Label>{t("question")} *</Label><Input value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>{t("answer")} *</Label><Textarea value={form.answer} onChange={(e) => setForm({ ...form, answer: e.target.value })} rows={4} /></div>
+            <div className="space-y-1.5"><Label>{t("category")}</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="General" /></div>
+            <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} /><Label>{t("active")}</Label></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>Save</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>{tc("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

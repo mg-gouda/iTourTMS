@@ -38,6 +38,7 @@ import {
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type GroupBy = "hotel" | "status" | "currency";
 
@@ -61,7 +62,9 @@ export default function ContractSummaryPage() {
   }, [rawData, statusFilter]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="contracting:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -236,5 +239,9 @@ export default function ContractSummaryPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

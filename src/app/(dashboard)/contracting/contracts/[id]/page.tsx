@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
@@ -6883,7 +6884,9 @@ function ActivityTab({ contractId }: { contractId: string }) {
   const items = data?.items ?? [];
 
   return (
-    <Card>
+
+    <PermissionGuard permission="contracting:contract:read">
+      <Card>
       <CardHeader>
         <CardTitle>Activity Log</CardTitle>
       </CardHeader>
@@ -6922,5 +6925,9 @@ function ActivityTab({ contractId }: { contractId: string }) {
         )}
       </CardContent>
     </Card>
+  
+
+    </PermissionGuard>
+
   );
 }

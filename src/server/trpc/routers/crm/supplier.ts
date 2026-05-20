@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { supplierCreateSchema, supplierUpdateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const supplierRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("crm:supplier:read").query(async ({ ctx }) => {
     return ctx.db.crmSupplier.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -17,7 +17,7 @@ export const supplierRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("crm:supplier:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmSupplier.findFirstOrThrow({
@@ -39,7 +39,7 @@ export const supplierRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:supplier:create")
     .input(supplierCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmSupplier.create({
@@ -56,7 +56,7 @@ export const supplierRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:supplier:update")
     .input(z.object({ id: z.string(), data: supplierUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
@@ -72,7 +72,7 @@ export const supplierRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:supplier:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const componentCount = await ctx.db.crmCostComponent.count({

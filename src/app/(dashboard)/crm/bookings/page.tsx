@@ -27,6 +27,8 @@ import {
 } from "@/lib/constants/crm";
 import { exportBookingsListToExcel } from "@/lib/export/bookings-list-excel";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type BookingRow = {
   id: string;
@@ -44,63 +46,65 @@ type BookingRow = {
   createdAt: Date;
 };
 
-const columns: ColumnDef<BookingRow>[] = [
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => <span className="font-mono text-xs">{row.original.code}</span>,
-  },
-  {
-    id: "customer",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
-    accessorFn: (row) => row.customer ? `${row.customer.firstName} ${row.customer.lastName}` : "",
-    cell: ({ row }) => row.original.customer
-      ? <span className="font-medium">{row.original.customer.firstName} {row.original.customer.lastName}</span>
-      : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    accessorKey: "travelDate",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Travel Date" />,
-    cell: ({ row }) => new Date(row.original.travelDate).toLocaleDateString(),
-  },
-  {
-    id: "pax",
-    header: "Pax",
-    cell: ({ row }) => {
-      const { paxAdults, paxChildren, paxInfants } = row.original;
-      const parts = [`${paxAdults}A`];
-      if (paxChildren > 0) parts.push(`${paxChildren}C`);
-      if (paxInfants > 0) parts.push(`${paxInfants}I`);
-      return parts.join(" + ");
-    },
-  },
-  {
-    id: "items",
-    header: "Items",
-    cell: ({ row }) => row.original._count.items,
-  },
-  {
-    id: "total",
-    header: "Total",
-    cell: ({ row }) => {
-      const val = Number(row.original.totalSelling ?? 0);
-      return val > 0 ? `$${val.toLocaleString()}` : "—";
-    },
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={CRM_BOOKING_STATUS_VARIANTS[row.original.status] as "default"}>
-        {CRM_BOOKING_STATUS_LABELS[row.original.status]}
-      </Badge>
-    ),
-  },
-];
-
 export default function BookingsPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.crm.booking.list.useQuery();
+
+  const columns: ColumnDef<BookingRow>[] = [
+    {
+      accessorKey: "code",
+      header: tc("code"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.code}</span>,
+    },
+    {
+      id: "customer",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("customer")} />,
+      accessorFn: (row) => row.customer ? `${row.customer.firstName} ${row.customer.lastName}` : "",
+      cell: ({ row }) => row.original.customer
+        ? <span className="font-medium">{row.original.customer.firstName} {row.original.customer.lastName}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      accessorKey: "travelDate",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("travelDate")} />,
+      cell: ({ row }) => new Date(row.original.travelDate).toLocaleDateString(),
+    },
+    {
+      id: "pax",
+      header: t("paxCount"),
+      cell: ({ row }) => {
+        const { paxAdults, paxChildren, paxInfants } = row.original;
+        const parts = [`${paxAdults}A`];
+        if (paxChildren > 0) parts.push(`${paxChildren}C`);
+        if (paxInfants > 0) parts.push(`${paxInfants}I`);
+        return parts.join(" + ");
+      },
+    },
+    {
+      id: "items",
+      header: t("bookingItems"),
+      cell: ({ row }) => row.original._count.items,
+    },
+    {
+      id: "total",
+      header: tc("total"),
+      cell: ({ row }) => {
+        const val = Number(row.original.totalSelling ?? 0);
+        return val > 0 ? `$${val.toLocaleString()}` : "—";
+      },
+    },
+    {
+      accessorKey: "status",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={CRM_BOOKING_STATUS_VARIANTS[row.original.status] as "default"}>
+          {CRM_BOOKING_STATUS_LABELS[row.original.status]}
+        </Badge>
+      ),
+    },
+  ];
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [view, setView] = useState<"list" | "calendar">("list");
 
@@ -111,11 +115,13 @@ export default function BookingsPage() {
   }, [data, statusFilter]);
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="crm:booking:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bookings</h1>
-          <p className="text-muted-foreground">Manage excursion bookings</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("bookings")}</h1>
+          <p className="text-muted-foreground">{t("manageBookings")}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border">
@@ -142,11 +148,11 @@ export default function BookingsPage() {
             disabled={filtered.length === 0}
             onClick={() => exportBookingsListToExcel(filtered)}
           >
-            <FileSpreadsheet className="mr-1 h-4 w-4" /> Export
+            <FileSpreadsheet className="mr-1 h-4 w-4" /> {t("exportExcel")}
           </Button>
           <Button asChild>
             <Link href="/crm/bookings/new">
-              <Plus className="mr-2 size-4" /> New Booking
+              <Plus className="mr-2 size-4" /> {t("newBooking")}
             </Link>
           </Button>
         </div>
@@ -175,14 +181,14 @@ export default function BookingsPage() {
           columns={columns}
           data={filtered}
           searchKey="customer"
-          searchPlaceholder="Search bookings..."
+          searchPlaceholder={t("searchBookings")}
           toolbar={
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9 w-[150px]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={t("allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t("allStatuses")}</SelectItem>
                 {Object.entries(CRM_BOOKING_STATUS_LABELS).map(([v, l]) => (
                   <SelectItem key={v} value={v}>{l}</SelectItem>
                 ))}
@@ -193,5 +199,9 @@ export default function BookingsPage() {
         />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

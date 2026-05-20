@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const pickupTimeSheetRouter = createTRPCRouter({
   // All destinations that have at least one active hotel
-  listDestinations: proc.query(async ({ ctx }) => {
+  listDestinations: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.destination.findMany({
       where: {
         companyId: ctx.companyId,
@@ -19,7 +19,7 @@ export const pickupTimeSheetRouter = createTRPCRouter({
   }),
 
   // Hotels + excursions + existing pickup times for one destination
-  getSheet: proc
+  getSheet: p("crm:booking:read")
     .input(z.object({ destinationId: z.string() }))
     .query(async ({ ctx, input }) => {
       const [hotels, excursions, times] = await Promise.all([
@@ -43,7 +43,7 @@ export const pickupTimeSheetRouter = createTRPCRouter({
     }),
 
   // Bulk save: delete all for destination + recreate only non-empty cells
-  saveSheet: proc
+  saveSheet: p("crm:booking:update")
     .input(
       z.object({
         destinationId: z.string(),

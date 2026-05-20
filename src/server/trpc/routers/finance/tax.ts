@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { taxGroupSchema, taxSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const taxRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:tax:read")
     .input(
       z.object({
         typeTaxUse: z.enum(["SALE", "PURCHASE", "NONE"]).optional(),
@@ -25,7 +25,7 @@ export const taxRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:tax:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.tax.findFirstOrThrow({
@@ -40,7 +40,7 @@ export const taxRouter = createTRPCRouter({
       });
     }),
 
-  create: financeProcedure
+  create: p("finance:tax:create")
     .input(taxSchema)
     .mutation(async ({ ctx, input }) => {
       const { repartitionLines, ...data } = input;
@@ -64,7 +64,7 @@ export const taxRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:tax:update")
     .input(z.object({ id: z.string() }).merge(taxSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, repartitionLines, ...data } = input;
@@ -91,7 +91,7 @@ export const taxRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:tax:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.tax.delete({ where: { id: input.id } });
@@ -99,7 +99,7 @@ export const taxRouter = createTRPCRouter({
 
   // ── Tax Groups ──
 
-  listGroups: financeProcedure.query(async ({ ctx }) => {
+  listGroups: p("finance:tax:read").query(async ({ ctx }) => {
     return ctx.db.taxGroup.findMany({
       where: { companyId: ctx.companyId },
       include: { _count: { select: { taxes: true } } },
@@ -107,7 +107,7 @@ export const taxRouter = createTRPCRouter({
     });
   }),
 
-  createGroup: financeProcedure
+  createGroup: p("finance:tax:create")
     .input(taxGroupSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxGroup.create({
@@ -115,14 +115,14 @@ export const taxRouter = createTRPCRouter({
       });
     }),
 
-  updateGroup: financeProcedure
+  updateGroup: p("finance:tax:update")
     .input(z.object({ id: z.string() }).merge(taxGroupSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       return ctx.db.taxGroup.update({ where: { id }, data });
     }),
 
-  deleteGroup: financeProcedure
+  deleteGroup: p("finance:tax:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxGroup.delete({ where: { id: input.id } });

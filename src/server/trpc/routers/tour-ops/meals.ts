@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   opsMealRateCreateSchema,
   opsMealRateUpdateSchema,
@@ -8,10 +8,10 @@ import {
   opsMealSeasonUpdateSchema,
 } from "@/lib/validations/tour-ops";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsMealsRouter = createTRPCRouter({
-  list: tourOpsProcedure
+  list: p("tour-ops:component:read")
     .input(z.object({ mealType: z.string().optional(), destinationCode: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsMealRate.findMany({
@@ -28,7 +28,7 @@ export const opsMealsRouter = createTRPCRouter({
       });
     }),
 
-  getById: tourOpsProcedure
+  getById: p("tour-ops:component:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const rate = await ctx.db.opsMealRate.findFirst({
@@ -42,7 +42,7 @@ export const opsMealsRouter = createTRPCRouter({
       return rate;
     }),
 
-  create: tourOpsProcedure
+  create: p("tour-ops:component:create")
     .input(opsMealRateCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.opsMealRate.create({
@@ -56,7 +56,7 @@ export const opsMealsRouter = createTRPCRouter({
       });
     }),
 
-  update: tourOpsProcedure
+  update: p("tour-ops:component:update")
     .input(z.object({ id: z.string(), data: opsMealRateUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const rate = await ctx.db.opsMealRate.findFirst({
@@ -74,7 +74,7 @@ export const opsMealsRouter = createTRPCRouter({
       });
     }),
 
-  delete: tourOpsProcedure
+  delete: p("tour-ops:component:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const rate = await ctx.db.opsMealRate.findFirst({
@@ -84,7 +84,7 @@ export const opsMealsRouter = createTRPCRouter({
       await ctx.db.opsMealRate.delete({ where: { id: input.id } });
     }),
 
-  addSeason: tourOpsProcedure
+  addSeason: p("tour-ops:component:create")
     .input(opsMealSeasonCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const rate = await ctx.db.opsMealRate.findFirst({
@@ -101,7 +101,7 @@ export const opsMealsRouter = createTRPCRouter({
       });
     }),
 
-  updateSeason: tourOpsProcedure
+  updateSeason: p("tour-ops:component:update")
     .input(z.object({ id: z.string(), data: opsMealSeasonUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const season = await ctx.db.opsMealRateSeason.findFirst({
@@ -118,7 +118,7 @@ export const opsMealsRouter = createTRPCRouter({
       });
     }),
 
-  deleteSeason: tourOpsProcedure
+  deleteSeason: p("tour-ops:component:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const season = await ctx.db.opsMealRateSeason.findFirst({
@@ -128,7 +128,7 @@ export const opsMealsRouter = createTRPCRouter({
       await ctx.db.opsMealRateSeason.delete({ where: { id: input.id } });
     }),
 
-  getActiveRate: tourOpsProcedure
+  getActiveRate: p("tour-ops:component:read")
     .input(z.object({ mealRateId: z.string(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       const date = input.date ? new Date(input.date) : new Date();

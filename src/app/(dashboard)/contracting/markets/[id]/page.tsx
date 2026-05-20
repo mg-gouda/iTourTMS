@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -39,10 +40,13 @@ import {
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_VARIANTS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import { marketUpdateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof marketUpdateSchema>;
 
 export default function MarketDetailPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -127,6 +131,7 @@ export default function MarketDetailPage() {
     .join(", ");
 
   return (
+    <PermissionGuard permission="contracting:market:read">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -138,7 +143,7 @@ export default function MarketDetailPage() {
             </span>
           </h1>
           <Badge variant={data.active ? "default" : "secondary"} className="mt-1">
-            {data.active ? "Active" : "Inactive"}
+            {data.active ? tc("active") : tc("inactive")}
           </Badge>
         </div>
         <div className="flex gap-2">
@@ -148,22 +153,22 @@ export default function MarketDetailPage() {
                 onClick={form.handleSubmit(onSubmit)}
                 disabled={updateMutation.isPending}
               >
-                {updateMutation.isPending ? "Saving..." : "Save"}
+                {updateMutation.isPending ? tc("saving") : tc("save")}
               </Button>
               <Button variant="outline" onClick={() => setEditing(false)}>
-                Cancel
+                {tc("cancel")}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => setEditing(true)}>
-                Edit
+                {tc("edit")}
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => setDeleteOpen(true)}
               >
-                Delete
+                {tc("delete")}
               </Button>
             </>
           )}
@@ -173,7 +178,7 @@ export default function MarketDetailPage() {
       {/* Details Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Market Details</CardTitle>
+          <CardTitle>{t("marketDetails")}</CardTitle>
         </CardHeader>
         <CardContent>
           {editing ? (
@@ -275,21 +280,21 @@ export default function MarketDetailPage() {
       {/* Linked Contracts */}
       <Card>
         <CardHeader>
-          <CardTitle>Linked Contracts ({data.contracts.length})</CardTitle>
+          <CardTitle>{t("linkedContracts")} ({data.contracts.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {data.contracts.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No contracts assigned to this market yet.
+              {t("noContractsInMarket")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Contract</TableHead>
-                  <TableHead>Hotel</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("contract")}</TableHead>
+                  <TableHead>{t("hotel")}</TableHead>
+                  <TableHead>{t("period")}</TableHead>
+                  <TableHead>{tc("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -334,27 +339,26 @@ export default function MarketDetailPage() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Market</DialogTitle>
+            <DialogTitle>{tc("confirmDelete")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &ldquo;{data.name}&rdquo;? This
-              will also remove it from all assigned contracts. This action cannot
-              be undone.
+              {tc("confirmDeleteDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate({ id })}
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? tc("deleting") : tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

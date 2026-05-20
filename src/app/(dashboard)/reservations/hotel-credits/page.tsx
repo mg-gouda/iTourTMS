@@ -13,6 +13,7 @@ import {
   HOTEL_CREDIT_STATUS_LABELS,
   HOTEL_CREDIT_STATUS_VARIANTS,
 } from "@/lib/constants/reservations";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { trpc } from "@/lib/trpc";
 
 type HotelCreditRow = {
@@ -153,14 +154,16 @@ export default function HotelCreditsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Hotel Credit Notes</h1>
-        <p className="text-sm text-muted-foreground">
-          Track money left with hotels after penalty-free cancellations.
-        </p>
+    <PermissionGuard permission="reservations:hotelCredit:read">
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Hotel Credit Notes</h1>
+          <p className="text-sm text-muted-foreground">
+            Track money left with hotels after penalty-free cancellations.
+          </p>
+        </div>
+        <DataTable columns={columns} data={rows} searchKey="code" searchPlaceholder="Search by code..." />
       </div>
-      <DataTable columns={columns} data={rows} searchKey="code" searchPlaceholder="Search by code..." />
-    </div>
+    </PermissionGuard>
   );
 }

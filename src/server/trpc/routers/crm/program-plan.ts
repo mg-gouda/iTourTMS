@@ -5,12 +5,12 @@ import {
   programPlanSaveItemsSchema,
   programPlanUpdateSchema,
 } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const programPlanRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.crmProgramPlan.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -21,7 +21,7 @@ export const programPlanRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("crm:excursion:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmProgramPlan.findFirstOrThrow({
@@ -78,7 +78,7 @@ export const programPlanRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:excursion:create")
     .input(programPlanCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmProgramPlan.create({
@@ -92,7 +92,7 @@ export const programPlanRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:excursion:update")
     .input(z.object({ id: z.string(), data: programPlanUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmProgramPlan.findFirstOrThrow({
@@ -109,7 +109,7 @@ export const programPlanRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:excursion:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmProgramPlan.findFirstOrThrow({
@@ -119,7 +119,7 @@ export const programPlanRouter = createTRPCRouter({
     }),
 
   // Bulk save items: delete all existing + recreate
-  saveItems: proc
+  saveItems: p("crm:excursion:update")
     .input(programPlanSaveItemsSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmProgramPlan.findFirstOrThrow({
@@ -147,7 +147,7 @@ export const programPlanRouter = createTRPCRouter({
     }),
 
   // Fetch markets for the dropdown (reuse contracting Market)
-  listMarkets: proc.query(async ({ ctx }) => {
+  listMarkets: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.market.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true },
@@ -156,7 +156,7 @@ export const programPlanRouter = createTRPCRouter({
   }),
 
   // List all tour operators with their program assignments for a given plan
-  listTourOperators: proc
+  listTourOperators: p("crm:excursion:read")
     .input(z.object({ programPlanId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.crmProgramPlan.findFirstOrThrow({
@@ -181,7 +181,7 @@ export const programPlanRouter = createTRPCRouter({
       }));
     }),
 
-  assignTO: proc
+  assignTO: p("crm:excursion:update")
     .input(z.object({ programPlanId: z.string(), tourOperatorId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmProgramPlan.findFirstOrThrow({
@@ -192,7 +192,7 @@ export const programPlanRouter = createTRPCRouter({
       });
     }),
 
-  unassignTO: proc
+  unassignTO: p("crm:excursion:update")
     .input(z.object({ programPlanId: z.string(), tourOperatorId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmProgramTourOperator.deleteMany({
@@ -201,7 +201,7 @@ export const programPlanRouter = createTRPCRouter({
     }),
 
   // Summary for to-assign page: all plans with their assigned TO count
-  listWithTOCount: proc.query(async ({ ctx }) => {
+  listWithTOCount: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.crmProgramPlan.findMany({
       where: { companyId: ctx.companyId },
       include: {

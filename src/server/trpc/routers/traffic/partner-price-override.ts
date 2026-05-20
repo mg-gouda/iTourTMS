@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { partnerPriceOverrideCreateSchema, partnerPriceOverrideUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const partnerPriceOverrideRouter = createTRPCRouter({
-  list: proc
+  list: p("traffic:pricing:read")
     .input(z.object({ partnerId: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.ttPartnerPriceOverride.findMany({
@@ -29,7 +29,7 @@ export const partnerPriceOverrideRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:pricing:create")
     .input(partnerPriceOverrideCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttPartnerPriceOverride.create({
@@ -37,7 +37,7 @@ export const partnerPriceOverrideRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:pricing:update")
     .input(z.object({ id: z.string(), data: partnerPriceOverrideUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttPartnerPriceOverride.update({
@@ -46,7 +46,7 @@ export const partnerPriceOverrideRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:pricing:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttPartnerPriceOverride.delete({

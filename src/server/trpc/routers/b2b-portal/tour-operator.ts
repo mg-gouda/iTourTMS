@@ -2,12 +2,12 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const tourOperatorRouter = createTRPCRouter({
-  list: proc
+  list: p("b2b-portal:contract:read")
     .input(
       z
         .object({
@@ -46,7 +46,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("b2b-portal:contract:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const record = await ctx.db.tourOperator.findFirst({
@@ -67,7 +67,7 @@ export const tourOperatorRouter = createTRPCRouter({
       return record;
     }),
 
-  create: proc
+  create: p("b2b-portal:contract:create")
     .input(
       z.object({
         name: z.string().min(1),
@@ -102,7 +102,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("b2b-portal:contract:update")
     .input(
       z.object({
         id: z.string(),
@@ -143,7 +143,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("b2b-portal:contract:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const to = await ctx.db.tourOperator.findUnique({

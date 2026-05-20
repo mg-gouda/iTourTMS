@@ -1,19 +1,19 @@
 import { z } from "zod";
 
 import { bookingPaymentCreateSchema } from "@/lib/validations/reservations";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   updateBookingPaymentStatus,
   createFinanceRecords,
 } from "@/server/services/reservations/finance-bridge";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 
-const proc = moduleProcedure("reservations");
-const finProc = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
+const finProc = (code: string) => modulePermissionProcedure("finance", code);
 
 export const bookingPaymentRouter = createTRPCRouter({
   // Finance team: list all payments across bookings with filters
-  listAll: finProc
+  listAll: finProc("finance:payment:read")
     .input(
       z.object({
         status: z.enum(["ALL", "UNPAID", "PARTIAL", "PAID"]).default("ALL"),
@@ -85,7 +85,7 @@ export const bookingPaymentRouter = createTRPCRouter({
       });
     }),
 
-  listByBooking: proc
+  listByBooking: p("payment.read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify booking belongs to company
@@ -104,7 +104,7 @@ export const bookingPaymentRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("payment.create")
     .input(bookingPaymentCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -167,7 +167,7 @@ export const bookingPaymentRouter = createTRPCRouter({
       return payment;
     }),
 
-  delete: proc
+  delete: p("payment.cancel")
     .input(z.object({ id: z.string(), bookingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.bookingPayment.findFirstOrThrow({

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { opsPackageCreateSchema } from "@/lib/validations/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof opsPackageCreateSchema>;
 
@@ -48,7 +49,9 @@ export default function NewFilePackagePage() {
   });
 
   return (
-    <div className="mx-auto max-w-xl space-y-6 p-6">
+
+    <PermissionGuard permission="tour-ops:file:read">
+      <div className="mx-auto max-w-xl space-y-6 p-6">
       <div>
         <h1 className="text-xl font-semibold">Add Package</h1>
         <p className="text-sm text-muted-foreground">Create a tour package for this file</p>
@@ -115,5 +118,9 @@ export default function NewFilePackagePage() {
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

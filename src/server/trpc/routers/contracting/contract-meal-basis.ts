@@ -2,12 +2,12 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { contractMealBasisCreateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const contractMealBasisRouter = createTRPCRouter({
-  list: proc
+  list: p("contracting:mealBasis:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -23,7 +23,7 @@ export const contractMealBasisRouter = createTRPCRouter({
       });
     }),
 
-  add: proc
+  add: p("contracting:mealBasis:create")
     .input(contractMealBasisCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -40,7 +40,7 @@ export const contractMealBasisRouter = createTRPCRouter({
       });
     }),
 
-  remove: proc
+  remove: p("contracting:mealBasis:delete")
     .input(z.object({ id: z.string(), contractId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({

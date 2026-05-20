@@ -203,3 +203,12 @@ export const permissionProcedure = (permissionCode: string) =>
     .use(loggerMiddleware)
     .use(authMiddleware)
     .use(permissionMiddleware(permissionCode));
+
+// Module + Permission: session + module installed + specific permission
+export const modulePermissionProcedure = (moduleName: string, permissionCode: string) =>
+  t.procedure
+    .use(loggerMiddleware)
+    .use(authMiddleware)
+    .use(licenseMiddleware)
+    .use(moduleMiddleware(moduleName))
+    .use(permissionMiddleware(permissionCode));

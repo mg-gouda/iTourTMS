@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import {
   CalendarCheck,
@@ -38,6 +39,8 @@ import {
 } from "@/lib/constants/reservations";
 import { trpc } from "@/lib/trpc";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
+
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: "#94a3b8",
   CONFIRMED: "#3b82f6",
@@ -50,6 +53,8 @@ const STATUS_COLORS: Record<string, string> = {
 const PIE_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"];
 
 export default function ReservationsDashboardPage() {
+  const t = useTranslations("reservations");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.reservations.booking.dashboard.useQuery();
 
@@ -68,39 +73,40 @@ export default function ReservationsDashboardPage() {
   );
 
   return (
+    <PermissionGuard permission="reservations:booking:read">
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
-        <h1 className="text-2xl font-bold tracking-tight">Reservations Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Overview of bookings, revenue, and upcoming activity
+          {t("bookings")}
         </p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Total Bookings"
+          title={t("bookings")}
           value={totalBookings}
           isLoading={isLoading}
           icon={CalendarCheck}
           accent="text-blue-600 dark:text-blue-400 bg-blue-500/10"
         />
         <KpiCard
-          title="Confirmed Today"
+          title={tCommon("confirmed")}
           value={data?.confirmedToday}
           isLoading={isLoading}
           icon={TrendingUp}
           accent="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
         />
         <KpiCard
-          title="Upcoming Check-ins (7d)"
+          title={t("checkIn")}
           value={data?.upcomingCheckIns}
           isLoading={isLoading}
           icon={LogIn}
           accent="text-violet-600 dark:text-violet-400 bg-violet-500/10"
         />
         <KpiCard
-          title="Monthly Revenue"
+          title={t("reports")}
           value={data?.monthRevenue?.selling}
           isLoading={isLoading}
           icon={DollarSign}
@@ -114,7 +120,7 @@ export default function ReservationsDashboardPage() {
         {/* Bookings by Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Bookings by Status</CardTitle>
+            <CardTitle>{t("bookings")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -148,7 +154,7 @@ export default function ReservationsDashboardPage() {
         {/* Bookings by Hotel */}
         <Card>
           <CardHeader>
-            <CardTitle>Bookings by Hotel (Top 8)</CardTitle>
+            <CardTitle>{t("hotel")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -178,7 +184,7 @@ export default function ReservationsDashboardPage() {
       {/* Recent Bookings */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Bookings</CardTitle>
+          <CardTitle>{t("bookings")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -191,12 +197,12 @@ export default function ReservationsDashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Hotel</TableHead>
-                  <TableHead>Guest</TableHead>
-                  <TableHead>Check-in</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Selling</TableHead>
+                  <TableHead>{t("bookingCode")}</TableHead>
+                  <TableHead>{t("hotel")}</TableHead>
+                  <TableHead>{t("guestName")}</TableHead>
+                  <TableHead>{t("checkIn")}</TableHead>
+                  <TableHead>{tCommon("status")}</TableHead>
+                  <TableHead className="text-right">{t("rate")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -241,12 +247,13 @@ export default function ReservationsDashboardPage() {
             </Table>
           ) : (
             <p className="text-center text-sm text-muted-foreground py-8">
-              No bookings yet. Create your first booking to get started.
+              {tCommon("noData")}
             </p>
           )}
         </CardContent>
       </Card>
     </div>
+    </PermissionGuard>
   );
 }
 

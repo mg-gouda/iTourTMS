@@ -7,12 +7,12 @@ import {
   paymentOptionDateFilterSchema,
   reportFilterSchema,
 } from "@/lib/validations/reservations";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("reservations");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const reportsRouter = createTRPCRouter({
-  occupancy: proc
+  occupancy: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -59,7 +59,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  revenue: proc
+  revenue: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -205,7 +205,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  upcomingArrivals: proc
+  upcomingArrivals: p("report.read")
     .input(z.object({ days: z.number().int().min(1).max(30).default(7) }).optional())
     .query(async ({ ctx, input }) => {
       const now = new Date();
@@ -226,7 +226,7 @@ export const reportsRouter = createTRPCRouter({
       });
     }),
 
-  upcomingDepartures: proc
+  upcomingDepartures: p("report.read")
     .input(z.object({ days: z.number().int().min(1).max(30).default(7) }).optional())
     .query(async ({ ctx, input }) => {
       const now = new Date();
@@ -246,7 +246,7 @@ export const reportsRouter = createTRPCRouter({
       });
     }),
 
-  arrivalList: proc
+  arrivalList: p("report.read")
     .input(arrivalListFilterSchema)
     .query(async ({ ctx, input }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -370,7 +370,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  paymentOptionDate: proc
+  paymentOptionDate: p("report.read")
     .input(paymentOptionDateFilterSchema)
     .query(async ({ ctx, input }) => {
       const bookings = await ctx.db.booking.findMany({
@@ -438,7 +438,7 @@ export const reportsRouter = createTRPCRouter({
       return { rows, currencyTotals };
     }),
 
-  materialization: proc
+  materialization: p("report.read")
     .input(materializationFilterSchema)
     .query(async ({ ctx, input }) => {
       const hotelId = input.hotelId;
@@ -620,7 +620,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  dailyOps: proc.query(async ({ ctx }) => {
+  dailyOps: p("report.read").query(async ({ ctx }) => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 86_400_000);
@@ -680,7 +680,7 @@ export const reportsRouter = createTRPCRouter({
     };
   }),
 
-  productionByTO: proc
+  productionByTO: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -761,7 +761,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  cancellationReport: proc
+  cancellationReport: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -805,7 +805,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  noShowReport: proc
+  noShowReport: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -849,7 +849,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  bookingLeadTime: proc
+  bookingLeadTime: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -907,7 +907,7 @@ export const reportsRouter = createTRPCRouter({
       return { averageLeadDays, byHotel };
     }),
 
-  marketMix: proc
+  marketMix: p("report.read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {

@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type JournalItemRow = {
   id: string;
@@ -89,6 +90,7 @@ export default function JournalItemsPage() {
   const { data, isLoading } = trpc.finance.review.journalItems.useQuery({ pageSize: 100 });
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Journal Items</h1>
@@ -105,5 +107,6 @@ export default function JournalItemsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

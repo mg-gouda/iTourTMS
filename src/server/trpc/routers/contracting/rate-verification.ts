@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { simulateStay } from "@/server/services/contracting/booking-simulator";
 import type { RateContractData } from "@/server/services/contracting/rate-calculator";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 const simulateInput = z.object({
   contractId: z.string().min(1),
@@ -21,7 +21,7 @@ const simulateInput = z.object({
 
 export const rateVerificationRouter = createTRPCRouter({
   // ── Simulate: compute full rate breakdown for a stay ──
-  simulate: proc
+  simulate: p("contracting:tariff:read")
     .input(simulateInput)
     .query(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -292,7 +292,7 @@ export const rateVerificationRouter = createTRPCRouter({
     }),
 
   // ── Save a simulation result ──
-  saveResult: proc
+  saveResult: p("contracting:tariff:update")
     .input(
       z.object({
         contractId: z.string(),
@@ -326,7 +326,7 @@ export const rateVerificationRouter = createTRPCRouter({
     }),
 
   // ── List saved results for a contract ──
-  listResults: proc
+  listResults: p("contracting:tariff:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.rateVerification.findMany({
@@ -340,7 +340,7 @@ export const rateVerificationRouter = createTRPCRouter({
     }),
 
   // ── Delete a saved result ──
-  deleteResult: proc
+  deleteResult: p("contracting:tariff:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       // Verify ownership

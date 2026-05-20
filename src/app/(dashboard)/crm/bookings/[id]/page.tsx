@@ -46,6 +46,8 @@ import { exportBookingToExcel } from "@/lib/export/booking-excel";
 import { generateBookingVoucher } from "@/lib/export/booking-voucher-pdf";
 import { trpc } from "@/lib/trpc";
 import { activityCreateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type ActivityFormValues = z.input<typeof activityCreateSchema>;
 
@@ -63,6 +65,8 @@ interface EditItem {
 }
 
 export default function BookingDetailPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -100,7 +104,7 @@ export default function BookingDetailPage() {
 
   const transitionMutation = trpc.crm.booking.transition.useMutation({
     onSuccess: () => {
-      toast.success("Booking status updated");
+      toast.success(t("bookingStatus"));
       utils.crm.booking.getById.invalidate({ id });
       utils.crm.booking.list.invalidate();
     },
@@ -245,7 +249,7 @@ export default function BookingDetailPage() {
     );
   }
 
-  if (!booking) return <p>Booking not found</p>;
+  if (!booking) return <p>{t("booking")} not found</p>;
 
   const totalCost = editing
     ? editItems.reduce((s, i) => s + i.totalCost, 0)
@@ -259,7 +263,9 @@ export default function BookingDetailPage() {
     : booking.paxAdults + booking.paxChildren + booking.paxInfants;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="crm:booking:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -267,7 +273,7 @@ export default function BookingDetailPage() {
             <Badge variant={CRM_BOOKING_STATUS_VARIANTS[booking.status] as "default"}>
               {CRM_BOOKING_STATUS_LABELS[booking.status]}
             </Badge>
-            {editing && <Badge variant="secondary">Editing</Badge>}
+            {editing && <Badge variant="secondary">{t("editingMode")}</Badge>}
           </div>
           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
             {booking.customer && (
@@ -281,16 +287,16 @@ export default function BookingDetailPage() {
           {editing ? (
             <>
               <Button size="sm" onClick={saveEdit} disabled={updateWithItemsMutation.isPending || editItems.length === 0}>
-                {updateWithItemsMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateWithItemsMutation.isPending ? tc("saving") : t("saveChanges")}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-                <X className="mr-1 h-4 w-4" /> Cancel
+                <X className="mr-1 h-4 w-4" /> {tc("cancel")}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={enterEditMode}>
-                <Pencil className="mr-1 h-4 w-4" /> Edit
+                <Pencil className="mr-1 h-4 w-4" /> {tc("edit")}
               </Button>
               <Button
                 variant="outline"
@@ -298,26 +304,26 @@ export default function BookingDetailPage() {
                 onClick={() => cloneMutation.mutate({ id })}
                 disabled={cloneMutation.isPending}
               >
-                <Copy className="mr-1 h-4 w-4" /> {cloneMutation.isPending ? "Cloning..." : "Duplicate"}
+                <Copy className="mr-1 h-4 w-4" /> {cloneMutation.isPending ? tc("loading") : tc("duplicate")}
               </Button>
               {booking.status === "DRAFT" && (
                 <Button size="sm" onClick={() => transitionMutation.mutate({ id, action: "confirm" })} disabled={transitionMutation.isPending}>
-                  Confirm
+                  {tc("confirm")}
                 </Button>
               )}
               {(booking.status === "DRAFT" || booking.status === "CONFIRMED") && (
-                <Button size="sm" variant="destructive" onClick={() => { if (confirm("Cancel this booking?")) transitionMutation.mutate({ id, action: "cancel" }); }} disabled={transitionMutation.isPending}>
-                  Cancel
+                <Button size="sm" variant="destructive" onClick={() => { if (confirm(tc("confirmDelete"))) transitionMutation.mutate({ id, action: "cancel" }); }} disabled={transitionMutation.isPending}>
+                  {tc("cancel")}
                 </Button>
               )}
               {booking.status === "CONFIRMED" && (
                 <Button size="sm" variant="outline" onClick={() => transitionMutation.mutate({ id, action: "complete" })} disabled={transitionMutation.isPending}>
-                  Complete
+                  {tc("completed")}
                 </Button>
               )}
               {booking.status === "CANCELLED" && (
                 <Button size="sm" variant="outline" onClick={() => transitionMutation.mutate({ id, action: "reopen" })} disabled={transitionMutation.isPending}>
-                  Reopen
+                  {tc("open")}
                 </Button>
               )}
               <Button
@@ -407,10 +413,10 @@ export default function BookingDetailPage() {
                 variant="destructive"
                 size="sm"
                 onClick={() => {
-                  if (confirm("Delete this booking?")) deleteMutation.mutate({ id });
+                  if (confirm(tc("confirmDelete"))) deleteMutation.mutate({ id });
                 }}
               >
-                Delete
+                {tc("delete")}
               </Button>
             </>
           )}
@@ -421,25 +427,25 @@ export default function BookingDetailPage() {
       <div className="grid grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Total Cost</p>
+            <p className="text-xs text-muted-foreground">{t("totalCost")}</p>
             <p className="text-lg font-bold font-mono">${totalCost.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Selling Price</p>
+            <p className="text-xs text-muted-foreground">{t("sellingPrice")}</p>
             <p className="text-lg font-bold font-mono text-green-600">${totalSelling.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Profit</p>
+            <p className="text-xs text-muted-foreground">{t("profit")}</p>
             <p className="text-lg font-bold font-mono">${(totalSelling - totalCost).toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Margin</p>
+            <p className="text-xs text-muted-foreground">{t("margin")}</p>
             <p className="text-lg font-bold font-mono">{margin.toFixed(1)}%</p>
           </CardContent>
         </Card>
@@ -448,11 +454,11 @@ export default function BookingDetailPage() {
       {/* Edit mode: booking details */}
       {editing && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Booking Details</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("bookingDetails")}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-4 gap-4">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Travel Date</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("travelDate")}</label>
                 <Input
                   type="date"
                   value={editTravelDate}
@@ -460,7 +466,7 @@ export default function BookingDetailPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Adults</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("adults")}</label>
                 <Input
                   type="number"
                   min={0}
@@ -469,7 +475,7 @@ export default function BookingDetailPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Children</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("children")}</label>
                 <Input
                   type="number"
                   min={0}
@@ -478,7 +484,7 @@ export default function BookingDetailPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Infants</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("infants")}</label>
                 <Input
                   type="number"
                   min={0}
@@ -488,7 +494,7 @@ export default function BookingDetailPage() {
               </div>
             </div>
             <div className="mt-4">
-              <label className="text-xs font-medium text-muted-foreground">Notes</label>
+              <label className="text-xs font-medium text-muted-foreground">{tc("notes")}</label>
               <Textarea
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
@@ -501,8 +507,8 @@ export default function BookingDetailPage() {
 
       <Tabs defaultValue="items">
         <TabsList>
-          <TabsTrigger value="items">Items ({editing ? editItems.length : booking.items.length})</TabsTrigger>
-          <TabsTrigger value="activities">Activities ({booking.activities?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="items">{t("bookingItems")} ({editing ? editItems.length : booking.items.length})</TabsTrigger>
+          <TabsTrigger value="activities">{t("activities")} ({booking.activities?.length ?? 0})</TabsTrigger>
         </TabsList>
 
         {/* Items Tab */}
@@ -515,13 +521,13 @@ export default function BookingDetailPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b bg-muted/50">
-                          <th className="px-2 py-1.5 text-left text-xs font-medium">Excursion</th>
-                          <th className="px-2 py-1.5 text-left text-xs font-medium">Label</th>
+                          <th className="px-2 py-1.5 text-left text-xs font-medium">{t("excursion")}</th>
+                          <th className="px-2 py-1.5 text-left text-xs font-medium">{t("bookingItems")}</th>
                           <th className="px-2 py-1.5 text-right text-xs font-medium w-16">Qty</th>
-                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">Unit Cost</th>
-                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">Unit Price</th>
-                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">Total Cost</th>
-                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">Total Price</th>
+                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">{t("unitCost")}</th>
+                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">{t("unitPrice")}</th>
+                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">{t("totalCost")}</th>
+                          <th className="px-2 py-1.5 text-right text-xs font-medium w-24">{t("totalPrice")}</th>
                           <th className="px-2 py-1.5 w-10" />
                         </tr>
                       </thead>
@@ -615,7 +621,7 @@ export default function BookingDetailPage() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-muted/30">
-                          <td colSpan={5} className="px-2 py-1.5 text-right text-xs font-semibold">Totals</td>
+                          <td colSpan={5} className="px-2 py-1.5 text-right text-xs font-semibold">{t("totals")}</td>
                           <td className="px-2 py-1.5 text-right font-mono text-xs font-semibold">${totalCost.toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-right font-mono text-xs font-semibold text-green-600">${totalSelling.toFixed(2)}</td>
                           <td />
@@ -624,23 +630,23 @@ export default function BookingDetailPage() {
                     </table>
                   </div>
                   <Button variant="outline" size="sm" onClick={addBlankItem}>
-                    <Plus className="mr-1 h-4 w-4" /> Add Item
+                    <Plus className="mr-1 h-4 w-4" /> {t("addItem")}
                   </Button>
                 </div>
               ) : booking.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No items</p>
+                <p className="text-sm text-muted-foreground">{t("noItems")}</p>
               ) : (
                 <div className="overflow-hidden rounded border">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="px-3 py-1.5 text-left text-xs font-medium">Item</th>
-                        <th className="px-3 py-1.5 text-left text-xs font-medium">Excursion</th>
+                        <th className="px-3 py-1.5 text-left text-xs font-medium">{t("bookingItems")}</th>
+                        <th className="px-3 py-1.5 text-left text-xs font-medium">{t("excursion")}</th>
                         <th className="px-3 py-1.5 text-right text-xs font-medium">Qty</th>
-                        <th className="px-3 py-1.5 text-right text-xs font-medium">Unit Cost</th>
-                        <th className="px-3 py-1.5 text-right text-xs font-medium">Unit Price</th>
-                        <th className="px-3 py-1.5 text-right text-xs font-medium">Total Cost</th>
-                        <th className="px-3 py-1.5 text-right text-xs font-medium">Total Price</th>
+                        <th className="px-3 py-1.5 text-right text-xs font-medium">{t("unitCost")}</th>
+                        <th className="px-3 py-1.5 text-right text-xs font-medium">{t("unitPrice")}</th>
+                        <th className="px-3 py-1.5 text-right text-xs font-medium">{t("totalCost")}</th>
+                        <th className="px-3 py-1.5 text-right text-xs font-medium">{t("totalPrice")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -663,7 +669,7 @@ export default function BookingDetailPage() {
                     </tbody>
                     <tfoot>
                       <tr className="bg-muted/30">
-                        <td colSpan={5} className="px-3 py-1.5 text-right text-xs font-semibold">Totals</td>
+                        <td colSpan={5} className="px-3 py-1.5 text-right text-xs font-semibold">{t("totals")}</td>
                         <td className="px-3 py-1.5 text-right font-mono text-xs font-semibold">${Number(booking.totalCost ?? 0).toFixed(2)}</td>
                         <td className="px-3 py-1.5 text-right font-mono text-xs font-semibold text-green-600">${Number(booking.totalSelling ?? 0).toFixed(2)}</td>
                       </tr>
@@ -681,15 +687,15 @@ export default function BookingDetailPage() {
             <div className="flex justify-end">
               <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Add Activity</Button>
+                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> {t("addActivity")}</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>New Activity</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{t("newActivity")}</DialogTitle></DialogHeader>
                   <Form {...activityForm}>
                     <form onSubmit={activityForm.handleSubmit((v) => createActivity.mutate(v))} className="space-y-4">
                       <FormField control={activityForm.control} name="type" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Type</FormLabel>
+                          <FormLabel>{tc("type")}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent>
@@ -701,16 +707,16 @@ export default function BookingDetailPage() {
                         </FormItem>
                       )} />
                       <FormField control={activityForm.control} name="subject" render={({ field }) => (
-                        <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t("subject")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={activityForm.control} name="description" render={({ field }) => (
-                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{tc("description")}</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
                       )} />
                       <FormField control={activityForm.control} name="dueDate" render={({ field }) => (
-                        <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{t("dueDate")}</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
                       )} />
                       <Button type="submit" disabled={createActivity.isPending}>
-                        {createActivity.isPending ? "Adding..." : "Add Activity"}
+                        {createActivity.isPending ? tc("saving") : t("addActivity")}
                       </Button>
                     </form>
                   </Form>
@@ -719,7 +725,7 @@ export default function BookingDetailPage() {
             </div>
 
             {(booking.activities?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No activities yet</p>
+              <p className="text-sm text-muted-foreground">{t("noActivities")}</p>
             ) : (
               <div className="space-y-2">
                 {booking.activities.map((act) => (
@@ -740,7 +746,7 @@ export default function BookingDetailPage() {
                               Due {new Date(act.dueDate).toLocaleDateString()}
                             </Badge>
                           )}
-                          {act.completedAt && <Badge variant="default" className="text-xs">Completed</Badge>}
+                          {act.completedAt && <Badge variant="default" className="text-xs">{tc("completed")}</Badge>}
                           <span className="text-xs text-muted-foreground">{new Date(act.createdAt).toLocaleDateString()}</span>
                           {editingActivityId === act.id ? (
                             <>
@@ -788,7 +794,7 @@ export default function BookingDetailPage() {
       {/* Notes & Meta */}
       {!editing && booking.notes && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{tc("notes")}</CardTitle></CardHeader>
           <CardContent>
             <p className="text-sm whitespace-pre-wrap">{booking.notes}</p>
           </CardContent>
@@ -801,5 +807,9 @@ export default function BookingDetailPage() {
         <p>Created: {new Date(booking.createdAt).toLocaleString()}</p>
       </div>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

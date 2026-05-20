@@ -41,6 +41,8 @@ import {
 import { trpc } from "@/lib/trpc";
 import { bookingAmendSchema } from "@/lib/validations/reservations";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
+
 type FormValues = z.input<typeof bookingAmendSchema>;
 
 const PARTNER_STATUS_OPTIONS = [
@@ -439,6 +441,7 @@ export default function AmendBookingPage() {
   const isBlocked = ["CANCELLED", "CHECKED_OUT"].includes(booking.status);
 
   return (
+    <PermissionGuard permission="reservations:booking:read">
     <div className="mx-auto max-w-6xl space-y-6 animate-fade-in pb-10">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -1139,5 +1142,6 @@ export default function AmendBookingPage() {
         </Form>
       )}
     </div>
+    </PermissionGuard>
   );
 }

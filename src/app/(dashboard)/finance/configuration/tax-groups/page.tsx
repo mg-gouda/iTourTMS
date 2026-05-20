@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { taxGroupSchema } from "@/lib/validations/finance";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type TaxGroupFormValues = z.input<typeof taxGroupSchema>;
 
@@ -154,6 +155,7 @@ export default function TaxGroupsPage() {
   >();
 
   return (
+    <PermissionGuard permission="finance:tax:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -246,5 +248,6 @@ export default function TaxGroupsPage() {
         </div>
       )}
     </div>
+    </PermissionGuard>
   );
 }

@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { OPS_DESTINATION_CODES } from "@/lib/constants/tour-ops";
 import { exportSightseeingRatesExcel } from "@/lib/export/tour-ops-sightseeing-excel";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type EntryDialog = { open: boolean; id?: string; destinationCode: string; nameEn: string; nameAr: string };
 const emptyEntry = (): EntryDialog => ({ open: false, destinationCode: "", nameEn: "", nameAr: "" });
@@ -169,7 +170,8 @@ export default function SightseeingMasterDataPage() {
               {items.map((entry) => {
                 const activeSeason = entry.seasons.find((s) => s.isActive);
                 return (
-                  <div key={entry.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
+                  <PermissionGuard permission="tour-ops:component:read">
+                    <div key={entry.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="font-medium text-sm">{entry.nameEn}</span>
                       {entry.nameAr && <span className="text-xs text-muted-foreground" dir="rtl">{entry.nameAr}</span>}
@@ -192,6 +194,7 @@ export default function SightseeingMasterDataPage() {
                       </Button>
                     </div>
                   </div>
+                  </PermissionGuard>
                 );
               })}
             </div>

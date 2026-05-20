@@ -29,6 +29,7 @@ import {
   OPS_QUOTATION_STATUS_VARIANTS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function QuotationsPage() {
   const [status, setStatus] = useState("ALL");
@@ -43,7 +44,9 @@ export default function QuotationsPage() {
   });
 
   return (
-    <div className="space-y-4 p-6">
+
+    <PermissionGuard permission="tour-ops:quotation:read">
+      <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Quotations</h1>
       </div>
@@ -146,5 +149,9 @@ export default function QuotationsPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

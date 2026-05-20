@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { exportTariffToExcel, type TariffExportData } from "@/lib/export/tariff-excel";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 interface TariffRateEntry {
   seasonLabel: string;
@@ -132,7 +133,9 @@ export default function TariffDetailPage() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="contracting:tariff:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
@@ -362,5 +365,9 @@ export default function TariffDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

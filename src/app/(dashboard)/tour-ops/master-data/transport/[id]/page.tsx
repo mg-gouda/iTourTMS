@@ -39,6 +39,7 @@ import {
 import { OPS_VEHICLE_TYPE_LABELS, OPS_VEHICLE_TYPE_CAPACITY } from "@/lib/constants/tour-ops";
 import type { OpsVehicleType } from "@prisma/client";
 import { format } from "date-fns";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const VEHICLE_TYPES: OpsVehicleType[] = ["SEDAN", "VAN_11", "VAN_16", "BUS_25", "BUS_45"];
 
@@ -209,7 +210,8 @@ export default function TransportRouteDetailPage() {
                   if (!rate) return null;
                   const total = Number(rate.rentEGP) + Number(rate.tipEGP) + Number(rate.repAllowEGP);
                   return (
-                    <TableRow key={vt}>
+                    <PermissionGuard permission="tour-ops:component:read">
+                      <TableRow key={vt}>
                       <TableCell className="font-medium">{OPS_VEHICLE_TYPE_LABELS[vt]}</TableCell>
                       <TableCell className="text-muted-foreground">{OPS_VEHICLE_TYPE_CAPACITY[vt]} pax</TableCell>
                       <TableCell className="text-right">{Number(rate.rentEGP).toLocaleString()}</TableCell>
@@ -217,6 +219,7 @@ export default function TransportRouteDetailPage() {
                       <TableCell className="text-right">{Number(rate.repAllowEGP).toLocaleString()}</TableCell>
                       <TableCell className="text-right font-semibold">{total.toLocaleString()}</TableCell>
                     </TableRow>
+                    </PermissionGuard>
                   );
                 })}
               </TableBody>

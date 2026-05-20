@@ -1,38 +1,44 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function RevenueByServicePage() {
   const now = new Date();
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
   const [dateFrom, setDateFrom] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]);
   const [dateTo, setDateTo] = useState(now.toISOString().split("T")[0]);
 
   const { data, isLoading } = trpc.traffic.reports.revenueByService.useQuery({ dateFrom: new Date(dateFrom), dateTo: new Date(dateTo) });
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:report:read">
+      <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Revenue by Service Type</h1></div>
+        <div><h1 className="text-2xl font-bold">{t("revenueByServiceReport")}</h1></div>
         <div className="flex items-center gap-3">
           <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
-          <span className="text-muted-foreground">to</span>
+          <span className="text-muted-foreground">{tc("to")}</span>
           <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
         </div>
       </div>
       {isLoading ? <Skeleton className="h-[300px] w-full" /> : (
         <Card>
-          <CardHeader><CardTitle>Revenue Summary</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("revenueSummary")}</CardTitle></CardHeader>
           <CardContent>
-            {data?.length === 0 ? <p className="py-8 text-center text-muted-foreground">No data for this period.</p> : (
+            {data?.length === 0 ? <p className="py-8 text-center text-muted-foreground">{t("noDataForPeriod")}</p> : (
               <div className="space-y-2">
                 <div className="grid grid-cols-5 gap-4 border-b pb-2 text-sm font-medium text-muted-foreground">
-                  <span>Service Type</span><span>Jobs</span><span>Revenue</span><span>Cost</span><span>Margin</span>
+                  <span>{t("serviceType")}</span><span>{t("trafficJobs")}</span><span>{t("revenueByService")}</span><span>{tc("total")}</span><span>Margin</span>
                 </div>
                 {data?.map((d) => (
                   <div key={d.serviceType} className="grid grid-cols-5 gap-4 rounded-md border p-3 text-sm">
@@ -49,5 +55,9 @@ export default function RevenueByServicePage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

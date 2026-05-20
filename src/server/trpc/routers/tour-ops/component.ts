@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Decimal } from "decimal.js";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { opsComponentBulkSaveSchema } from "@/lib/validations/tour-ops";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 function computeComponent(c: {
   type: string;
@@ -35,7 +35,7 @@ function computeComponent(c: {
 }
 
 export const opsComponentRouter = createTRPCRouter({
-  bulkSave: tourOpsProcedure
+  bulkSave: p("tour-ops:component:update")
     .input(opsComponentBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       const pkg = await ctx.db.opsPackage.findFirst({
@@ -92,7 +92,7 @@ export const opsComponentRouter = createTRPCRouter({
       });
     }),
 
-  reorder: tourOpsProcedure
+  reorder: p("tour-ops:component:update")
     .input(z.object({ packageId: z.string(), ids: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.$transaction(

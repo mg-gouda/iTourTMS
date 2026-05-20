@@ -25,12 +25,17 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { useTranslations } from "next-intl";
 import { guestCreateSchema } from "@/lib/validations/reservations";
+
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof guestCreateSchema>;
 
 export default function NewGuestPage() {
   const router = useRouter();
+  const t = useTranslations("reservations");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
 
   const { data: countries } = trpc.setup.getCountries.useQuery();
@@ -82,9 +87,9 @@ export default function NewGuestPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Guest</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newGuest")}</h1>
         <p className="text-muted-foreground">
-          Add a new guest to the reservation system
+          {t("guestMasterData")}
         </p>
       </div>
 
@@ -92,14 +97,14 @@ export default function NewGuestPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Personal Information */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Personal Information</h2>
+            <h2 className="text-lg font-semibold">{t("personalInfo")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name *</FormLabel>
+                    <FormLabel>{tc("firstName")} *</FormLabel>
                     <FormControl>
                       <Input placeholder="John" {...field} />
                     </FormControl>
@@ -112,7 +117,7 @@ export default function NewGuestPage() {
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name *</FormLabel>
+                    <FormLabel>{tc("lastName")} *</FormLabel>
                     <FormControl>
                       <Input placeholder="Doe" {...field} />
                     </FormControl>
@@ -128,7 +133,7 @@ export default function NewGuestPage() {
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gender</FormLabel>
+                    <FormLabel>{t("gender")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? ""}
@@ -153,7 +158,7 @@ export default function NewGuestPage() {
                 name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
+                    <FormLabel>{tc("dateOfBirth")}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -166,7 +171,7 @@ export default function NewGuestPage() {
                 name="countryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country</FormLabel>
+                    <FormLabel>{t("country")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? ""}
@@ -193,14 +198,14 @@ export default function NewGuestPage() {
 
           {/* Contact */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Contact</h2>
+            <h2 className="text-lg font-semibold">{t("contact")}</h2>
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{tc("email")}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
@@ -218,7 +223,7 @@ export default function NewGuestPage() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>{tc("phone")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="+1 234 567 890"
@@ -235,7 +240,7 @@ export default function NewGuestPage() {
                 name="mobile"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobile</FormLabel>
+                    <FormLabel>{t("mobile")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="+1 234 567 890"
@@ -252,14 +257,14 @@ export default function NewGuestPage() {
 
           {/* Travel Documents */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Travel Documents</h2>
+            <h2 className="text-lg font-semibold">{t("travelDocuments")}</h2>
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="nationality"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nationality</FormLabel>
+                    <FormLabel>{tc("nationality")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="e.g. British"
@@ -276,7 +281,7 @@ export default function NewGuestPage() {
                 name="passportNo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Passport No.</FormLabel>
+                    <FormLabel>{t("passportNo")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="AB123456"
@@ -293,7 +298,7 @@ export default function NewGuestPage() {
                 name="passportExpiry"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Passport Expiry</FormLabel>
+                    <FormLabel>{t("passportExpiry")}</FormLabel>
                     <FormControl>
                       <Input
                         type="date"
@@ -310,14 +315,14 @@ export default function NewGuestPage() {
 
           {/* Address */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Address</h2>
+            <h2 className="text-lg font-semibold">{t("address")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>{t("address")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Street address"
@@ -334,7 +339,7 @@ export default function NewGuestPage() {
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>{t("city")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="City"
@@ -355,7 +360,7 @@ export default function NewGuestPage() {
             name="notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Notes</FormLabel>
+                <FormLabel>{tc("notes")}</FormLabel>
                 <FormControl>
                   <Textarea
                     rows={3}
@@ -380,7 +385,7 @@ export default function NewGuestPage() {
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
-                <FormLabel>VIP Guest</FormLabel>
+                <FormLabel>{t("vipGuest")}</FormLabel>
               </FormItem>
             )}
           />
@@ -393,14 +398,14 @@ export default function NewGuestPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Guest"}
+              {createMutation.isPending ? tc("creating") : t("createGuest")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/reservations/guests")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>

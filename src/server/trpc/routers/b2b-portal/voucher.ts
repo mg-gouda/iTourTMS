@@ -2,12 +2,12 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const voucherRouter = createTRPCRouter({
-  list: proc
+  list: p("b2b-portal:voucher:read")
     .input(
       z.object({
         tourOperatorId: z.string().optional(),
@@ -47,7 +47,7 @@ export const voucherRouter = createTRPCRouter({
       return { items, total, page: input.page, pageSize: input.pageSize };
     }),
 
-  generate: proc
+  generate: p("b2b-portal:voucher:create")
     .input(
       z.object({
         bookingId: z.string(),

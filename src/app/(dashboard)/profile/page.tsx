@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { PasswordStrength } from "@/components/shared/password-strength";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,17 +43,19 @@ const LANGUAGES = [
 export default function ProfilePage() {
   const { data, isLoading } = trpc.user.getProfile.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("profile");
+  const tc = useTranslations("common");
 
   if (isLoading) {
     return (
-      <div className="py-10 text-center text-muted-foreground">Loading...</div>
+      <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>
     );
   }
 
   if (!data) {
     return (
       <div className="py-10 text-center text-muted-foreground">
-        Unable to load profile.
+        {tc("noData")}
       </div>
     );
   }
@@ -60,9 +63,9 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Manage your account settings
+          {t("manageAccount")}
         </p>
       </div>
 
@@ -88,10 +91,12 @@ function ProfileCard({
 }) {
   const [name, setName] = useState(user.name ?? "");
   const [image, setImage] = useState(user.image ?? "");
+  const t = useTranslations("profile");
+  const tc = useTranslations("common");
 
   const updateMutation = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
-      toast.success("Profile updated");
+      toast.success(tc("updated"));
       onUpdate();
     },
     onError: (err) => toast.error(err.message),
@@ -109,8 +114,8 @@ function ProfileCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile Information</CardTitle>
-        <CardDescription>Update your name and avatar</CardDescription>
+        <CardTitle>{t("profileInfo")}</CardTitle>
+        <CardDescription>{t("profileInfoDesc")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -134,7 +139,7 @@ function ProfileCard({
               <p className="font-medium">{user.name ?? "—"}</p>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <p className="text-xs text-muted-foreground">
-                Member since {format(new Date(user.createdAt), "dd MMM yyyy")}
+                {t("memberSince")} {format(new Date(user.createdAt), "dd MMM yyyy")}
               </p>
             </div>
           </div>
@@ -142,7 +147,7 @@ function ProfileCard({
           <Separator />
 
           <div className="space-y-1.5">
-            <Label>Full Name</Label>
+            <Label>{t("fullName")}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -151,20 +156,20 @@ function ProfileCard({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Avatar URL</Label>
+            <Label>{t("avatarUrl")}</Label>
             <Input
               value={image}
               onChange={(e) => setImage(e.target.value)}
               placeholder="https://example.com/avatar.jpg"
             />
             <p className="text-xs text-muted-foreground">
-              Enter a URL to an image for your avatar
+              {t("avatarUrlDesc")}
             </p>
           </div>
 
           <div className="flex justify-end">
             <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Saving..." : "Save Profile"}
+              {updateMutation.isPending ? t("savingProfile") : t("saveProfile")}
             </Button>
           </div>
         </form>
@@ -179,10 +184,11 @@ function ProfileCard({
 
 function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
   const [locale, setLocale] = useState(currentLocale);
+  const t = useTranslations("profile");
 
   const updateMutation = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
-      toast.success("Language updated — reloading…");
+      toast.success(t("changeLanguage") + " — reloading…");
       // Reload the page to apply the new language
       setTimeout(() => {
         window.location.reload();
@@ -199,14 +205,14 @@ function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Display Language</CardTitle>
+        <CardTitle>{t("displayLanguage")}</CardTitle>
         <CardDescription>
-          Choose the language for the user interface
+          {t("displayLanguageDesc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">
-          <Label>Language</Label>
+          <Label>{t("displayLanguage")}</Label>
           <Select value={locale} onValueChange={handleChange}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select language" />
@@ -220,7 +226,7 @@ function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            The system will reload automatically when you change the language.
+            {t("languageReloadDesc")}
           </p>
         </div>
       </CardContent>
@@ -236,10 +242,12 @@ function ChangePasswordCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const t = useTranslations("profile");
+  const tc = useTranslations("common");
 
   const changeMutation = trpc.user.changePassword.useMutation({
     onSuccess: () => {
-      toast.success("Password changed successfully");
+      toast.success(tc("saved"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -255,9 +263,9 @@ function ChangePasswordCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Change Password</CardTitle>
+        <CardTitle>{t("changePassword")}</CardTitle>
         <CardDescription>
-          Update your password to keep your account secure
+          {t("changePasswordDesc")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -270,7 +278,7 @@ function ChangePasswordCard() {
           }}
         >
           <div className="space-y-1.5">
-            <Label>Current Password</Label>
+            <Label>{t("currentPassword")}</Label>
             <Input
               type="password"
               value={currentPassword}
@@ -280,7 +288,7 @@ function ChangePasswordCard() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>New Password</Label>
+            <Label>{t("newPassword")}</Label>
             <Input
               type="password"
               value={newPassword}
@@ -291,7 +299,7 @@ function ChangePasswordCard() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Confirm New Password</Label>
+            <Label>{t("confirmPassword")}</Label>
             <Input
               type="password"
               value={confirmPassword}
@@ -300,7 +308,7 @@ function ChangePasswordCard() {
             />
             {confirmPassword && newPassword !== confirmPassword && (
               <p className="text-xs text-destructive">
-                Passwords do not match
+                {t("passwordsDoNotMatch")}
               </p>
             )}
           </div>
@@ -313,7 +321,7 @@ function ChangePasswordCard() {
 
           <div className="flex justify-end">
             <Button type="submit" disabled={!canSubmit || changeMutation.isPending}>
-              {changeMutation.isPending ? "Changing..." : "Change Password"}
+              {changeMutation.isPending ? t("changingPassword") : t("changePassword")}
             </Button>
           </div>
         </form>

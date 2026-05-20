@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { journalSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const journalRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:journal:read")
     .input(
       z.object({
         type: z.enum(["SALE", "PURCHASE", "CASH", "BANK", "CREDIT_CARD", "GENERAL"]).optional(),
@@ -27,7 +27,7 @@ export const journalRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:journal:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.journal.findFirstOrThrow({
@@ -42,7 +42,7 @@ export const journalRouter = createTRPCRouter({
       });
     }),
 
-  create: financeProcedure
+  create: p("finance:journal:create")
     .input(journalSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.journal.create({
@@ -50,14 +50,14 @@ export const journalRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:journal:update")
     .input(z.object({ id: z.string() }).merge(journalSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       return ctx.db.journal.update({ where: { id }, data });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:journal:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.journal.delete({ where: { id: input.id } });

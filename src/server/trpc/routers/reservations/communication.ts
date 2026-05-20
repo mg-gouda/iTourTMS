@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("reservations");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const communicationRouter = createTRPCRouter({
-  listByBooking: proc
+  listByBooking: p("booking.read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.booking.findFirstOrThrow({
@@ -20,7 +20,7 @@ export const communicationRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("reservations:booking:create")
     .input(
       z.object({
         bookingId: z.string(),
@@ -54,7 +54,7 @@ export const communicationRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("reservations:booking:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const comm = await ctx.db.bookingCommunication.findFirstOrThrow({

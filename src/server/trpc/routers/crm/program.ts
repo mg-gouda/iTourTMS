@@ -6,12 +6,12 @@ import {
   programItemCreateSchema,
   programItemUpdateSchema,
 } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const programRouter = createTRPCRouter({
-  listByExcursion: proc
+  listByExcursion: p("crm:excursion:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify excursion belongs to company
@@ -25,7 +25,7 @@ export const programRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:excursion:create")
     .input(programCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -42,7 +42,7 @@ export const programRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:excursion:update")
     .input(z.object({ id: z.string(), data: programUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       // Verify ownership through excursion
@@ -61,7 +61,7 @@ export const programRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:excursion:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const program = await ctx.db.crmExcursionProgram.findFirstOrThrow({
@@ -76,7 +76,7 @@ export const programRouter = createTRPCRouter({
 
   // ── Program Items ──
 
-  createItem: proc
+  createItem: p("crm:excursion:create")
     .input(programItemCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const program = await ctx.db.crmExcursionProgram.findFirstOrThrow({
@@ -98,7 +98,7 @@ export const programRouter = createTRPCRouter({
       });
     }),
 
-  updateItem: proc
+  updateItem: p("crm:excursion:update")
     .input(z.object({ id: z.string(), data: programItemUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const item = await ctx.db.crmProgramItem.findFirstOrThrow({
@@ -115,7 +115,7 @@ export const programRouter = createTRPCRouter({
       return ctx.db.crmProgramItem.update({ where: { id: input.id }, data });
     }),
 
-  deleteItem: proc
+  deleteItem: p("crm:excursion:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const item = await ctx.db.crmProgramItem.findFirstOrThrow({

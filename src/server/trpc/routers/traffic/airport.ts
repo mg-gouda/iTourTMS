@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { airportCreateSchema, airportUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const airportRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("traffic:airport:read").query(async ({ ctx }) => {
     return ctx.db.airport.findMany({
       include: {
         country: { select: { id: true, name: true, code: true } },
@@ -15,7 +15,7 @@ export const airportRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("traffic:airport:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.airport.findUniqueOrThrow({
@@ -26,7 +26,7 @@ export const airportRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:airport:create")
     .input(airportCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.airport.findFirst({
@@ -38,7 +38,7 @@ export const airportRouter = createTRPCRouter({
       return ctx.db.airport.create({ data: input });
     }),
 
-  update: proc
+  update: p("traffic:airport:update")
     .input(z.object({ id: z.string(), data: airportUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.airport.update({
@@ -47,7 +47,7 @@ export const airportRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:airport:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.airport.delete({ where: { id: input.id } });

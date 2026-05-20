@@ -5,6 +5,7 @@ import { FileDown, FileSpreadsheet, Plus, RefreshCw, Trash2 } from "lucide-react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -24,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type TariffRow = {
   id: string;
@@ -36,94 +38,96 @@ type TariffRow = {
   markupRule: { id: string; name: string; markupType: string; value: { toString(): string } } | null;
 };
 
-const columns: ColumnDef<TariffRow>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-        onClick={(e) => e.stopPropagation()}
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
-    ),
-  },
-  {
-    id: "contract",
-    header: "Contract",
-    cell: ({ row }) => (
-      <span>
-        {row.original.contract.name}{" "}
-        <span className="font-mono text-xs text-muted-foreground">
-          ({row.original.contract.code})
-        </span>
-      </span>
-    ),
-  },
-  {
-    id: "tourOperator",
-    header: "Tour Operator",
-    cell: ({ row }) => row.original.tourOperator.name,
-  },
-  {
-    id: "markup",
-    header: "Markup",
-    cell: ({ row }) => {
-      if (!row.original.markupRule) return <span className="text-muted-foreground">None</span>;
-      const r = row.original.markupRule;
-      const val = parseFloat(r.value.toString());
-      return (
-        <Badge variant="outline">
-          {r.markupType === "PERCENTAGE" ? `${val}%` : val.toFixed(2)} {r.name}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "currencyCode",
-    header: "Currency",
-    cell: ({ row }) => (
-      <Badge variant="secondary">{row.original.currencyCode}</Badge>
-    ),
-  },
-  {
-    id: "generatedAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Generated" />
-    ),
-    accessorFn: (row) => row.generatedAt,
-    cell: ({ row }) =>
-      new Date(row.original.generatedAt).toLocaleDateString(),
-  },
-];
-
 export default function TariffsPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.contracting.tariff.list.useQuery();
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  const columns: ColumnDef<TariffRow>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={tc("name")} />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      id: "contract",
+      header: t("contract"),
+      cell: ({ row }) => (
+        <span>
+          {row.original.contract.name}{" "}
+          <span className="font-mono text-xs text-muted-foreground">
+            ({row.original.contract.code})
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: "tourOperator",
+      header: t("tourOperator"),
+      cell: ({ row }) => row.original.tourOperator.name,
+    },
+    {
+      id: "markup",
+      header: t("markup"),
+      cell: ({ row }) => {
+        if (!row.original.markupRule) return <span className="text-muted-foreground">{tc("none")}</span>;
+        const r = row.original.markupRule;
+        const val = parseFloat(r.value.toString());
+        return (
+          <Badge variant="outline">
+            {r.markupType === "PERCENTAGE" ? `${val}%` : val.toFixed(2)} {r.name}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "currencyCode",
+      header: tc("currency"),
+      cell: ({ row }) => (
+        <Badge variant="secondary">{row.original.currencyCode}</Badge>
+      ),
+    },
+    {
+      id: "generatedAt",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("generated")} />
+      ),
+      accessorFn: (row) => row.generatedAt,
+      cell: ({ row }) =>
+        new Date(row.original.generatedAt).toLocaleDateString(),
+    },
+  ];
 
   const regenerateMutation = trpc.contracting.tariff.regenerate.useMutation({
     onSuccess: () => {
@@ -201,7 +205,7 @@ export default function TariffsPage() {
   const handleBulkExcelExport = async () => {
     const { exportTariffToExcel } = await import("@/lib/export/tariff-excel");
     const selectedTariffs = selectedIds
-      .map((id) => allData.find((t) => t.id === id))
+      .map((id) => allData.find((tariff) => tariff.id === id))
       .filter(Boolean);
     for (const tariff of selectedTariffs) {
       if (!tariff) continue;
@@ -270,7 +274,7 @@ export default function TariffsPage() {
           variant="ghost"
           size="icon"
           className="size-8"
-          title="Regenerate"
+          title={t("regenerate")}
           onClick={() => regenerateMutation.mutate({ id: row.original.id })}
           disabled={regenerateMutation.isPending}
         >
@@ -280,7 +284,7 @@ export default function TariffsPage() {
           variant="ghost"
           size="icon"
           className="size-8 text-destructive"
-          title="Delete"
+          title={tc("delete")}
           onClick={() => deleteMutation.mutate({ id: row.original.id })}
           disabled={deleteMutation.isPending}
         >
@@ -294,7 +298,7 @@ export default function TariffsPage() {
   const bulkToolbar = selectedIds.length > 0 ? (
     <div className="flex items-center gap-2 ml-auto">
       <span className="text-sm text-muted-foreground">
-        {selectedIds.length} selected
+        {selectedIds.length} {tc("selected")}
       </span>
       <Button
         variant="outline"
@@ -318,7 +322,7 @@ export default function TariffsPage() {
         onClick={() => setBulkDeleteOpen(true)}
       >
         <Trash2 className="mr-2 size-4" />
-        Delete ({selectedIds.length})
+        {tc("delete")} ({selectedIds.length})
       </Button>
     </div>
   ) : null;
@@ -327,14 +331,14 @@ export default function TariffsPage() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Tariffs</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("tariffs")}</h1>
           <p className="text-muted-foreground">
-            Generated tariff sheets with markup applied for tour operators
+            {t("manageTariffs")}
           </p>
         </div>
         <Button asChild>
           <Link href="/contracting/tariffs/generate">
-            <Plus className="mr-2 size-4" /> Generate Tariff
+            <Plus className="mr-2 size-4" /> {t("generateTariff")}
           </Link>
         </Button>
       </div>
@@ -361,7 +365,7 @@ export default function TariffsPage() {
           columns={[...columns, actionColumn]}
           data={allData}
           searchKey="name"
-          searchPlaceholder="Search tariffs..."
+          searchPlaceholder={t("searchTariffs")}
           onRowClick={(row) => router.push(`/contracting/tariffs/${row.id}`)}
           enableRowSelection
           rowSelection={rowSelection}
@@ -373,16 +377,14 @@ export default function TariffsPage() {
       <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Tariffs</DialogTitle>
+            <DialogTitle>{t("deleteTariffs")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedIds.length} tariff
-              {selectedIds.length !== 1 ? "s" : ""}? This action cannot be
-              undone.
+              {t("deleteTariffsDesc", { count: selectedIds.length })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -390,8 +392,8 @@ export default function TariffsPage() {
               disabled={deleteBulkMutation.isPending}
             >
               {deleteBulkMutation.isPending
-                ? "Deleting..."
-                : `Delete ${selectedIds.length} Tariff${selectedIds.length !== 1 ? "s" : ""}`}
+                ? tc("deleting")
+                : `${tc("delete")} ${selectedIds.length}`}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -25,10 +26,13 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { destinationCreateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof destinationCreateSchema>;
 
 export default function NewDestinationPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: countries } = trpc.setup.getCountries.useQuery();
@@ -55,11 +59,12 @@ export default function NewDestinationPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:destination:read">
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Destination</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newDestination")}</h1>
         <p className="text-muted-foreground">
-          Add a city or region grouping for hotel locations
+          {t("manageDestinations")}
         </p>
       </div>
 
@@ -145,18 +150,19 @@ export default function NewDestinationPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Destination"}
+              {createMutation.isPending ? tc("creating") : t("newDestination")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/contracting/destinations")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

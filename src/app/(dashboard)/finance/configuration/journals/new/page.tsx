@@ -1,9 +1,11 @@
 "use client";
 
 import { JournalForm } from "@/components/finance/journal-form";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function NewJournalPage() {
   return (
+    <PermissionGuard permission="finance:journal:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">New Journal</h1>
@@ -13,5 +15,6 @@ export default function NewJournalPage() {
       </div>
       <JournalForm />
     </div>
+    </PermissionGuard>
   );
 }

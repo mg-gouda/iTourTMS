@@ -2,13 +2,13 @@ import { z } from "zod";
 
 import { TT_JOB_STATUS_TRANSITIONS } from "@/lib/constants/traffic";
 import { trafficJobCreateSchema, trafficJobUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const trafficJobRouter = createTRPCRouter({
-  list: proc
+  list: p("traffic:job:read")
     .input(
       z.object({
         serviceDate: z.coerce.date().optional(),
@@ -73,7 +73,7 @@ export const trafficJobRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("traffic:job:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const [job, dispatchRun] = await Promise.all([
@@ -146,7 +146,7 @@ export const trafficJobRouter = createTRPCRouter({
       return { ...job, dispatchRun: dispatchRun ?? null };
     }),
 
-  create: proc
+  create: p("traffic:job:create")
     .input(trafficJobCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const code = await generateSequenceNumber(ctx.db, ctx.companyId, "traffic_job");
@@ -160,7 +160,7 @@ export const trafficJobRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:job:update")
     .input(z.object({ id: z.string(), data: trafficJobUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficJob.update({
@@ -169,7 +169,7 @@ export const trafficJobRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:job:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficJob.delete({
@@ -177,7 +177,7 @@ export const trafficJobRouter = createTRPCRouter({
       });
     }),
 
-  updateStatus: proc
+  updateStatus: p("traffic:job:update")
     .input(z.object({
       id: z.string(),
       status: z.enum([
@@ -215,7 +215,7 @@ export const trafficJobRouter = createTRPCRouter({
       return updatedJob;
     }),
 
-  bulkCreate: proc
+  bulkCreate: p("traffic:job:import")
     .input(z.object({ jobs: z.array(trafficJobCreateSchema) }))
     .mutation(async ({ ctx, input }) => {
       const results = [];
@@ -234,7 +234,7 @@ export const trafficJobRouter = createTRPCRouter({
       return results;
     }),
 
-  linkToBooking: proc
+  linkToBooking: p("traffic:job:update")
     .input(z.object({ jobId: z.string(), bookingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficJob.update({
@@ -243,7 +243,7 @@ export const trafficJobRouter = createTRPCRouter({
       });
     }),
 
-  dashboard: proc.query(async ({ ctx }) => {
+  dashboard: p("traffic:job:read").query(async ({ ctx }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);

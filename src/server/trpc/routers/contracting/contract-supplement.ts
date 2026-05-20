@@ -6,12 +6,12 @@ import {
   supplementOccupancyBulkSaveSchema,
   supplementRoomTypeBulkSaveSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
 import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 async function verifyContract(
   db: PrismaClient,
@@ -24,7 +24,7 @@ async function verifyContract(
 }
 
 export const contractSupplementRouter = createTRPCRouter({
-  listByContract: proc
+  listByContract: p("contracting:supplement:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -39,7 +39,7 @@ export const contractSupplementRouter = createTRPCRouter({
       });
     }),
 
-  bulkSaveRoomType: proc
+  bulkSaveRoomType: p("contracting:supplement:create")
     .input(supplementRoomTypeBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -78,7 +78,7 @@ export const contractSupplementRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  bulkSaveMeal: proc
+  bulkSaveMeal: p("contracting:supplement:create")
     .input(supplementMealBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -118,7 +118,7 @@ export const contractSupplementRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  bulkSaveOccupancy: proc
+  bulkSaveOccupancy: p("contracting:supplement:create")
     .input(supplementOccupancyBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -157,7 +157,7 @@ export const contractSupplementRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  bulkSaveExtraBed: proc
+  bulkSaveExtraBed: p("contracting:supplement:create")
     .input(supplementExtraBedBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -194,7 +194,7 @@ export const contractSupplementRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  delete: proc
+  delete: p("contracting:supplement:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const supplement = await ctx.db.contractSupplement.findFirstOrThrow({

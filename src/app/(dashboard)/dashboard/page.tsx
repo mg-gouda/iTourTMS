@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth";
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
@@ -51,6 +52,7 @@ const hrefMap: Record<string, string> = {
 export default async function DashboardPage() {
   const session = await auth();
   const companyId = session?.user?.companyId;
+  const t = await getTranslations("dashboard");
 
   const installedModules = companyId
     ? await db.installedModule.findMany({
@@ -62,9 +64,9 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Welcome back, {session?.user?.name ?? "User"}
+          {t("welcomeBack", { name: session?.user?.name ?? "User" })}
         </p>
       </div>
 
@@ -86,7 +88,7 @@ export default async function DashboardPage() {
               </div>
               <h3 className="font-semibold tracking-tight">{mod.displayName}</h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {registry?.description ?? "Module active"}
+                {registry?.description ?? t("moduleActive")}
               </p>
               <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             </Link>

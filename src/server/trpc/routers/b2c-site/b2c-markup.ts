@@ -1,13 +1,15 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   b2cMarkupRuleCreateSchema,
   b2cMarkupRuleUpdateSchema,
 } from "@/lib/validations/b2c-site";
 
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
+
 export const b2cMarkupRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: p("b2c-site:markup:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId!;
     return ctx.db.b2cMarkupRule.findMany({
       where: { companyId },
@@ -20,7 +22,7 @@ export const b2cMarkupRouter = createTRPCRouter({
     });
   }),
 
-  getById: protectedProcedure
+  getById: p("b2c-site:markup:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.b2cMarkupRule.findUniqueOrThrow({
@@ -33,7 +35,7 @@ export const b2cMarkupRouter = createTRPCRouter({
       });
     }),
 
-  create: protectedProcedure
+  create: p("b2c-site:markup:create")
     .input(b2cMarkupRuleCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -59,7 +61,7 @@ export const b2cMarkupRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: p("b2c-site:markup:update")
     .input(b2cMarkupRuleUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       const { id, tiers, ...ruleData } = input;
@@ -99,7 +101,7 @@ export const b2cMarkupRouter = createTRPCRouter({
       });
     }),
 
-  delete: protectedProcedure
+  delete: p("b2c-site:markup:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.b2cMarkupRule.delete({ where: { id: input.id } });

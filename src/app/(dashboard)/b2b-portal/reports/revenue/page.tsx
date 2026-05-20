@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { DollarSign, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type RevenueRow = {
   tourOperatorId: string;
@@ -31,48 +33,50 @@ type RevenueRow = {
   bookingCount: number;
 };
 
-const columns: ColumnDef<RevenueRow>[] = [
-  {
-    accessorKey: "tourOperatorName",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Tour Operator" />,
-    cell: ({ row }) => <span className="font-medium">{row.original.tourOperatorName}</span>,
-  },
-  {
-    accessorKey: "sellingTotal",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Selling Total" />,
-    cell: ({ row }) => `$${row.original.sellingTotal.toLocaleString()}`,
-  },
-  {
-    accessorKey: "buyingTotal",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Buying Total" />,
-    cell: ({ row }) => `$${row.original.buyingTotal.toLocaleString()}`,
-  },
-  {
-    accessorKey: "markup",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Markup" />,
-    cell: ({ row }) => (
-      <span className="text-green-600 font-medium">
-        ${row.original.markup.toLocaleString()}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "marginPct",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Margin %" />,
-    cell: ({ row }) => (
-      <span className={row.original.marginPct >= 0 ? "text-green-600" : "text-red-600"}>
-        {row.original.marginPct.toFixed(1)}%
-      </span>
-    ),
-  },
-  {
-    accessorKey: "bookingCount",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Bookings" />,
-  },
-];
-
 export default function RevenueReportsPage() {
   const { data: toList } = trpc.b2bPortal.tourOperator.list.useQuery();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
+
+  const columns: ColumnDef<RevenueRow>[] = [
+    {
+      accessorKey: "tourOperatorName",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("tourOperator")} />,
+      cell: ({ row }) => <span className="font-medium">{row.original.tourOperatorName}</span>,
+    },
+    {
+      accessorKey: "sellingTotal",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("totalSelling")} />,
+      cell: ({ row }) => `$${row.original.sellingTotal.toLocaleString()}`,
+    },
+    {
+      accessorKey: "buyingTotal",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("totalBuying")} />,
+      cell: ({ row }) => `$${row.original.buyingTotal.toLocaleString()}`,
+    },
+    {
+      accessorKey: "markup",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("markupAmount")} />,
+      cell: ({ row }) => (
+        <span className="text-green-600 font-medium">
+          ${row.original.markup.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "marginPct",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("margin")} />,
+      cell: ({ row }) => (
+        <span className={row.original.marginPct >= 0 ? "text-green-600" : "text-red-600"}>
+          {row.original.marginPct.toFixed(1)}%
+        </span>
+      ),
+    },
+    {
+      accessorKey: "bookingCount",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("reservations")} />,
+    },
+  ];
 
   const [filters, setFilters] = useState({
     tourOperatorId: "",
@@ -100,17 +104,19 @@ export default function RevenueReportsPage() {
   };
 
   const kpis = [
-    { title: "Total Selling", value: `$${totals.sellingTotal.toLocaleString()}`, icon: Receipt, color: "text-blue-600" },
-    { title: "Total Buying", value: `$${totals.buyingTotal.toLocaleString()}`, icon: Wallet, color: "text-red-500" },
-    { title: "Markup Amount", value: `$${totals.markup.toLocaleString()}`, icon: DollarSign, color: "text-green-600" },
-    { title: "Margin", value: `${totals.marginPct.toFixed(1)}%`, icon: TrendingUp, color: "text-emerald-600" },
+    { title: t("totalSelling"), value: `$${totals.sellingTotal.toLocaleString()}`, icon: Receipt, color: "text-blue-600" },
+    { title: t("totalBuying"), value: `$${totals.buyingTotal.toLocaleString()}`, icon: Wallet, color: "text-red-500" },
+    { title: t("markupAmount"), value: `$${totals.markup.toLocaleString()}`, icon: DollarSign, color: "text-green-600" },
+    { title: t("margin"), value: `${totals.marginPct.toFixed(1)}%`, icon: TrendingUp, color: "text-emerald-600" },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Revenue Reports</h1>
-        <p className="text-muted-foreground">Revenue breakdown by partner and period</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("revenue")}</h1>
+        <p className="text-muted-foreground">{t("revenueReportsDesc")}</p>
       </div>
 
       {/* Filters */}
@@ -118,13 +124,13 @@ export default function RevenueReportsPage() {
         <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <Label>Tour Operator</Label>
+              <Label>{t("tourOperator")}</Label>
               <Select value={filters.tourOperatorId || "all"} onValueChange={(v) => setFilters({ ...filters, tourOperatorId: v === "all" ? "" : v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All" />
+                  <SelectValue placeholder={tc("all")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Tour Operators</SelectItem>
+                  <SelectItem value="all">{t("allOperators")}</SelectItem>
                   {(toList ?? []).map((to: { id: string; name: string }) => (
                     <SelectItem key={to.id} value={to.id}>{to.name}</SelectItem>
                   ))}
@@ -132,11 +138,11 @@ export default function RevenueReportsPage() {
               </Select>
             </div>
             <div>
-              <Label>Date From</Label>
+              <Label>{t("dateFrom")}</Label>
               <Input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
             </div>
             <div>
-              <Label>Date To</Label>
+              <Label>{t("dateTo")}</Label>
               <Input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
             </div>
           </div>
@@ -201,5 +207,9 @@ export default function RevenueReportsPage() {
         />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

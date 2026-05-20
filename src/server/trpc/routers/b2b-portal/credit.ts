@@ -2,12 +2,12 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const creditRouter = createTRPCRouter({
-  summary: proc
+  summary: p("b2b-portal:credit:read")
     .input(z.object({ tourOperatorId: z.string() }))
     .query(async ({ ctx, input }) => {
       const to = await ctx.db.tourOperator.findFirst({
@@ -39,7 +39,7 @@ export const creditRouter = createTRPCRouter({
       };
     }),
 
-  listTransactions: proc
+  listTransactions: p("b2b-portal:credit:read")
     .input(
       z.object({
         tourOperatorId: z.string(),
@@ -79,7 +79,7 @@ export const creditRouter = createTRPCRouter({
       return { items, total, page: input.page, pageSize: input.pageSize };
     }),
 
-  recordPayment: proc
+  recordPayment: p("b2b-portal:credit:manage")
     .input(
       z.object({
         tourOperatorId: z.string(),
@@ -120,7 +120,7 @@ export const creditRouter = createTRPCRouter({
       });
     }),
 
-  adjustment: proc
+  adjustment: p("b2b-portal:credit:manage")
     .input(
       z.object({
         tourOperatorId: z.string(),

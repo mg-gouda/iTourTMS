@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 const ticketCreateSchema = z.object({
   tourOperatorId: z.string().optional(),
@@ -52,7 +52,7 @@ const TICKET_SELECT = {
 } as const;
 
 export const excursionTicketRouter = createTRPCRouter({
-  list: proc
+  list: p("crm:excursion:read")
     .input(
       z.object({
         excursionId: z.string().optional(),
@@ -89,7 +89,7 @@ export const excursionTicketRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("crm:excursion:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmExcursionTicket.findFirstOrThrow({
@@ -99,7 +99,7 @@ export const excursionTicketRouter = createTRPCRouter({
     }),
 
   // Auto-fill pickup time from the pickup time sheet
-  getPickupTime: proc
+  getPickupTime: p("crm:excursion:read")
     .input(z.object({ hotelId: z.string(), excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       const pt = await ctx.db.crmPickupTime.findFirst({
@@ -109,7 +109,7 @@ export const excursionTicketRouter = createTRPCRouter({
       return pt?.pickupTime ?? null;
     }),
 
-  create: proc
+  create: p("crm:excursion:create")
     .input(ticketCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const seq = await ctx.db.sequence.upsert({
@@ -157,7 +157,7 @@ export const excursionTicketRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:excursion:update")
     .input(z.object({ id: z.string(), data: ticketCreateSchema.partial() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursionTicket.findFirstOrThrow({
@@ -188,7 +188,7 @@ export const excursionTicketRouter = createTRPCRouter({
       });
     }),
 
-  setStatus: proc
+  setStatus: p("crm:excursion:update")
     .input(z.object({ id: z.string(), status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "NO_SHOW"]) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursionTicket.findFirstOrThrow({ where: { id: input.id, companyId: ctx.companyId } });
@@ -196,7 +196,7 @@ export const excursionTicketRouter = createTRPCRouter({
     }),
 
   // Supporting dropdowns
-  listTourOperators: proc.query(async ({ ctx }) => {
+  listTourOperators: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.tourOperator.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true },
@@ -204,7 +204,7 @@ export const excursionTicketRouter = createTRPCRouter({
     });
   }),
 
-  listHotels: proc.query(async ({ ctx }) => {
+  listHotels: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.hotel.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true, destinationId: true, destination: { select: { name: true } } },
@@ -212,7 +212,7 @@ export const excursionTicketRouter = createTRPCRouter({
     });
   }),
 
-  listExcursions: proc.query(async ({ ctx }) => {
+  listExcursions: p("crm:excursion:read").query(async ({ ctx }) => {
     return ctx.db.crmExcursion.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true },
@@ -221,7 +221,7 @@ export const excursionTicketRouter = createTRPCRouter({
   }),
 
   // Fetch adult selling price for an excursion (first active cost sheet → first adult-like price)
-  getExcursionPrice: proc
+  getExcursionPrice: p("crm:excursion:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findFirst({

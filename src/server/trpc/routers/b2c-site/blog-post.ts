@@ -1,13 +1,15 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   blogPostCreateSchema,
   blogPostUpdateSchema,
 } from "@/lib/validations/b2c-site";
 
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
+
 export const blogPostRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: p("b2c-site:blog:read")
     .input(
       z
         .object({
@@ -26,14 +28,14 @@ export const blogPostRouter = createTRPCRouter({
       });
     }),
 
-  getById: protectedProcedure
+  getById: p("b2c-site:blog:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
       return ctx.db.blogPost.findFirst({ where: { id: input.id, companyId } });
     }),
 
-  create: protectedProcedure
+  create: p("b2c-site:blog:create")
     .input(blogPostCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -46,7 +48,7 @@ export const blogPostRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: p("b2c-site:blog:update")
     .input(blogPostUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -55,7 +57,7 @@ export const blogPostRouter = createTRPCRouter({
       return ctx.db.blogPost.update({ where: { id }, data });
     }),
 
-  delete: protectedProcedure
+  delete: p("b2c-site:blog:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -63,7 +65,7 @@ export const blogPostRouter = createTRPCRouter({
       return ctx.db.blogPost.delete({ where: { id: input.id } });
     }),
 
-  publish: protectedProcedure
+  publish: p("b2c-site:blog:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -74,7 +76,7 @@ export const blogPostRouter = createTRPCRouter({
       });
     }),
 
-  unpublish: protectedProcedure
+  unpublish: p("b2c-site:blog:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;

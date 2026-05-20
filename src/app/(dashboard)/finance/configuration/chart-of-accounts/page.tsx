@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { AccountForm } from "@/components/finance/account-form";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ import {
   parseChartOfAccountsFile,
 } from "@/lib/export/chart-of-accounts-excel";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -309,6 +311,8 @@ function CategorySection({
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function ChartOfAccountsPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const { data: flat = [], isLoading } = trpc.finance.account.listTree.useQuery();
   const { data: groups = [] } = trpc.finance.account.listGroups.useQuery();
@@ -399,9 +403,9 @@ export default function ChartOfAccountsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Chart of Accounts</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("chartOfAccountsTitle")}</h1>
           <p className="text-muted-foreground">
-            Manage your company&apos;s hierarchical chart of accounts.
+            {t("chartOfAccountsDesc")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -411,7 +415,7 @@ export default function ChartOfAccountsPage() {
             onClick={() => downloadChartOfAccountsTemplate(groups as { name: string; codePrefixStart: string; codePrefixEnd: string }[])}
           >
             <Download className="mr-2 size-4" />
-            Template
+            {t("template")}
           </Button>
           <Button
             variant="outline"
@@ -419,7 +423,7 @@ export default function ChartOfAccountsPage() {
             onClick={() => setSaveTemplateDialog(true)}
           >
             <Save className="mr-2 size-4" />
-            Save as Template
+            {t("saveAsTemplate")}
           </Button>
           <Button
             variant="outline"
@@ -428,7 +432,7 @@ export default function ChartOfAccountsPage() {
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="mr-2 size-4" />
-            {importing ? "Importing…" : "Import"}
+            {importing ? t("importing") : tc("import")}
           </Button>
           <input
             ref={fileInputRef}
@@ -440,7 +444,7 @@ export default function ChartOfAccountsPage() {
           />
           <Button size="sm" onClick={() => setDialog({ mode: "add", parentId: null, accountType: "ASSET_CURRENT" })}>
             <Plus className="mr-2 size-4" />
-            New Account
+            {t("newAccount")}
           </Button>
         </div>
       </div>
@@ -448,7 +452,7 @@ export default function ChartOfAccountsPage() {
       {/* Search */}
       <Input
         name="account-search"
-        placeholder="Search by code or name…"
+        placeholder={t("searchByCodeOrName")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="max-w-sm"
@@ -456,7 +460,7 @@ export default function ChartOfAccountsPage() {
 
       {/* Tree */}
       {isLoading ? (
-        <div className="py-10 text-center text-muted-foreground">Loading…</div>
+        <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>
       ) : (
         <div className="space-y-3">
           {CATEGORY_SECTIONS.map((cat) => (
@@ -487,7 +491,7 @@ export default function ChartOfAccountsPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {dialog?.mode === "edit" ? "Edit Account" : "New Account"}
+              {dialog?.mode === "edit" ? t("editAccount") : t("newAccount")}
             </DialogTitle>
           </DialogHeader>
           {dialog && (
@@ -520,11 +524,11 @@ export default function ChartOfAccountsPage() {
       <Dialog open={saveTemplateDialog} onOpenChange={(o) => { if (!o) setSaveTemplateDialog(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Save Chart of Accounts as Template</DialogTitle>
+            <DialogTitle>{t("saveCoaAsTemplate")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <label className="text-sm font-medium">Template Name</label>
+              <label className="text-sm font-medium">{t("templateName")}</label>
               <Input
                 name="template-name"
                 value={templateName}
@@ -533,7 +537,7 @@ export default function ChartOfAccountsPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <label className="text-sm font-medium">{tc("description")} <span className="text-muted-foreground font-normal">({tc("optional")})</span></label>
               <Input
                 name="template-desc"
                 value={templateDesc}
@@ -542,10 +546,10 @@ export default function ChartOfAccountsPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              This saves all {flat.length} accounts and their groups as a reusable template for new companies.
+              {t("saveTemplateHint", { count: flat.length })}
             </p>
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setSaveTemplateDialog(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setSaveTemplateDialog(false)}>{tc("cancel")}</Button>
               <Button
                 disabled={!templateName.trim() || saveTemplateMutation.isPending}
                 onClick={() => saveTemplateMutation.mutate({
@@ -554,7 +558,7 @@ export default function ChartOfAccountsPage() {
                   overwrite: false,
                 })}
               >
-                {saveTemplateMutation.isPending ? "Saving…" : "Save Template"}
+                {saveTemplateMutation.isPending ? tc("saving") : t("saveTemplate")}
               </Button>
             </div>
           </div>
@@ -661,6 +665,7 @@ function AccountTagsPanel() {
   });
 
   return (
+    <PermissionGuard permission="finance:account:read">
     <Card>
       <CardHeader><CardTitle className="text-base">Account Tags</CardTitle></CardHeader>
       <CardContent className="space-y-3">
@@ -682,5 +687,6 @@ function AccountTagsPanel() {
         )}
       </CardContent>
     </Card>
+    </PermissionGuard>
   );
 }

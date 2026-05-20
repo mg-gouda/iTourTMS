@@ -1,9 +1,9 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -11,11 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,10 +31,13 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        setError(t("invalidCredentials"));
       } else {
-        router.push("/dashboard");
-        router.refresh();
+        // Full page navigation ensures the session cookie is present in the
+        // middleware (client-side router push can race with cookie availability).
+        const params = new URLSearchParams(window.location.search);
+        const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
+        window.location.href = callbackUrl;
       }
     } catch {
       setError("Something went wrong");
@@ -47,7 +50,7 @@ export default function LoginPage() {
     <>
       <Card className="animate-fade-in-up border-white/[0.08] bg-white/[0.07] shadow-2xl shadow-black/20 backdrop-blur-xl ring-1 ring-white/[0.05]">
         <CardHeader className="pb-4 text-center">
-          <p className="text-xs font-medium tracking-wide text-gray-400 uppercase">Sign in to your account</p>
+          <p className="text-xs font-medium tracking-wide text-gray-400 uppercase">{t("loginSubtitle")}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -59,7 +62,7 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs text-gray-300">
-                Email
+                {t("email")}
               </Label>
               <Input
                 id="email"
@@ -74,7 +77,7 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-xs text-gray-300">
-                Password
+                {t("password")}
               </Label>
               <div className="relative">
                 <Input
@@ -106,7 +109,7 @@ export default function LoginPage() {
               className="h-9 w-full text-sm font-medium transition-all duration-200 hover:shadow-lg hover:shadow-primary/25"
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? t("loggingIn") : t("login")}
             </Button>
           </form>
         </CardContent>

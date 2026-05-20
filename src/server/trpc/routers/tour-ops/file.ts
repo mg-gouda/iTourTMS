@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { opsFileCreateSchema, opsFileUpdateSchema } from "@/lib/validations/tour-ops";
 import { OPS_FILE_STATUS_TRANSITIONS } from "@/lib/constants/tour-ops";
 import type { OpsFileStatus } from "@prisma/client";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsFileRouter = createTRPCRouter({
-  list: tourOpsProcedure
+  list: p("tour-ops:file:read")
     .input(
       z.object({
         status: z.string().optional(),
@@ -57,7 +57,7 @@ export const opsFileRouter = createTRPCRouter({
       return { items, total, page: input.page, pageSize: input.pageSize };
     }),
 
-  getById: tourOpsProcedure
+  getById: p("tour-ops:file:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const file = await ctx.db.opsFile.findFirst({
@@ -84,7 +84,7 @@ export const opsFileRouter = createTRPCRouter({
       return file;
     }),
 
-  create: tourOpsProcedure
+  create: p("tour-ops:file:create")
     .input(opsFileCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { companyId, db, session } = ctx;
@@ -121,7 +121,7 @@ export const opsFileRouter = createTRPCRouter({
       return file;
     }),
 
-  update: tourOpsProcedure
+  update: p("tour-ops:file:update")
     .input(z.object({ id: z.string(), data: opsFileUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.opsFile.findFirst({
@@ -143,7 +143,7 @@ export const opsFileRouter = createTRPCRouter({
       });
     }),
 
-  updateStatus: tourOpsProcedure
+  updateStatus: p("tour-ops:file:update")
     .input(z.object({ id: z.string(), status: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const file = await ctx.db.opsFile.findFirst({
@@ -178,7 +178,7 @@ export const opsFileRouter = createTRPCRouter({
       return ctx.db.opsFile.update({ where: { id: input.id }, data: { status: input.status as OpsFileStatus } });
     }),
 
-  delete: tourOpsProcedure
+  delete: p("tour-ops:file:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const file = await ctx.db.opsFile.findFirst({
@@ -191,7 +191,7 @@ export const opsFileRouter = createTRPCRouter({
       return ctx.db.opsFile.delete({ where: { id: input.id } });
     }),
 
-  dashboard: tourOpsProcedure.query(async ({ ctx }) => {
+  dashboard: p("tour-ops:file:read").query(async ({ ctx }) => {
     const { companyId, db } = ctx;
     const [statusCounts, revenueAgg, recentFiles] = await Promise.all([
       db.opsFile.groupBy({

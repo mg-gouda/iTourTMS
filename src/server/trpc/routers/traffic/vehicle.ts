@@ -5,12 +5,12 @@ import {
   vehicleUpdateSchema,
   vehicleComplianceCreateSchema,
 } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const vehicleRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("traffic:vehicle:read").query(async ({ ctx }) => {
     return ctx.db.ttVehicle.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -22,7 +22,7 @@ export const vehicleRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("traffic:vehicle:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttVehicle.findFirstOrThrow({
@@ -40,7 +40,7 @@ export const vehicleRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:vehicle:create")
     .input(vehicleCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.ttVehicle.findFirst({
@@ -54,7 +54,7 @@ export const vehicleRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:vehicle:update")
     .input(z.object({ id: z.string(), data: vehicleUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttVehicle.update({
@@ -63,7 +63,7 @@ export const vehicleRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:vehicle:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttVehicle.delete({
@@ -71,7 +71,7 @@ export const vehicleRouter = createTRPCRouter({
       });
     }),
 
-  addCompliance: proc
+  addCompliance: p("traffic:vehicle:create")
     .input(vehicleComplianceCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.ttVehicle.findFirstOrThrow({
@@ -82,7 +82,7 @@ export const vehicleRouter = createTRPCRouter({
       });
     }),
 
-  listCompliance: proc
+  listCompliance: p("traffic:vehicle:read")
     .input(z.object({ vehicleId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttVehicleCompliance.findMany({
@@ -91,7 +91,7 @@ export const vehicleRouter = createTRPCRouter({
       });
     }),
 
-  deleteCompliance: proc
+  deleteCompliance: p("traffic:vehicle:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttVehicleCompliance.delete({

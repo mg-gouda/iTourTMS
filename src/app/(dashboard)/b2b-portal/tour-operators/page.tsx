@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 const createSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -120,6 +122,8 @@ const columns: ColumnDef<TourOperatorRow>[] = [
 export default function TourOperatorsPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.b2bPortal.tourOperator.list.useQuery();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -165,14 +169,16 @@ export default function TourOperatorsPage() {
   }, [data, statusFilter]);
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:tourOperator:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tour Operators</h1>
-          <p className="text-muted-foreground">Manage tour operator partners and accounts</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("tourOperators")}</h1>
+          <p className="text-muted-foreground">{t("editTourOperator")}</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 size-4" /> New Tour Operator
+          <Plus className="mr-2 size-4" /> {t("newTourOperator")}
         </Button>
       </div>
 
@@ -205,9 +211,9 @@ export default function TourOperatorsPage() {
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">{tc("all")}</SelectItem>
+                <SelectItem value="active">{tc("active")}</SelectItem>
+                <SelectItem value="inactive">{tc("inactive")}</SelectItem>
               </SelectContent>
             </Select>
           }
@@ -218,7 +224,7 @@ export default function TourOperatorsPage() {
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Tour Operator</DialogTitle>
+            <DialogTitle>{t("newTourOperator")}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -273,14 +279,18 @@ export default function TourOperatorsPage() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating..." : "Create Tour Operator"}
+                  {createMutation.isPending ? tc("creating") : t("newTourOperator")}
                 </Button>
-                <Button type="button" variant="outline" onClick={closeDialog}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={closeDialog}>{tc("cancel")}</Button>
               </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

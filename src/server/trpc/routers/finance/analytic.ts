@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const analyticRouter = createTRPCRouter({
-  listAccounts: financeProcedure
+  listAccounts: p("finance:account:read")
     .input(z.object({ isActive: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.analyticAccount.findMany({
@@ -14,7 +14,7 @@ export const analyticRouter = createTRPCRouter({
       });
     }),
 
-  createAccount: financeProcedure
+  createAccount: p("finance:account:create")
     .input(z.object({ code: z.string().optional(), name: z.string().min(1), partnerId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const { code, partnerId, ...rest } = input;
@@ -23,7 +23,7 @@ export const analyticRouter = createTRPCRouter({
       });
     }),
 
-  updateAccount: financeProcedure
+  updateAccount: p("finance:account:update")
     .input(z.object({ id: z.string(), code: z.string().optional(), name: z.string().min(1).optional(), partnerId: z.string().optional().nullable(), isActive: z.boolean().optional() }))
     .mutation(async ({ ctx, input }) => {
       const { id, partnerId, ...rest } = input;
@@ -33,7 +33,7 @@ export const analyticRouter = createTRPCRouter({
       });
     }),
 
-  listItems: financeProcedure
+  listItems: p("finance:account:read")
     .input(z.object({
       analyticAccountId: z.string().optional(),
       dateFrom: z.string().optional(),

@@ -30,12 +30,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
-
-const MARKUP_TYPE_LABELS: Record<string, string> = {
-  PERCENTAGE: "Percentage",
-  FIXED_PER_NIGHT: "Fixed per Night",
-  FIXED_PER_BOOKING: "Fixed per Booking",
-};
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 const MARKUP_TYPE_SHORT: Record<string, string> = {
   PERCENTAGE: "%",
@@ -67,68 +63,6 @@ function scopeLabel(row: MarkupRow) {
   return parts.length > 0 ? parts.join(", ") : "Global";
 }
 
-const columns: ColumnDef<MarkupRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  },
-  {
-    accessorKey: "markupType",
-    header: "Type",
-    cell: ({ row }) => (
-      <Badge variant="outline">
-        {MARKUP_TYPE_LABELS[row.original.markupType] ?? row.original.markupType}
-      </Badge>
-    ),
-  },
-  {
-    id: "value",
-    header: "Value",
-    cell: ({ row }) => (
-      <span>
-        {Number(row.original.value)}{MARKUP_TYPE_SHORT[row.original.markupType] ?? ""}
-      </span>
-    ),
-  },
-  {
-    id: "scope",
-    header: "Scope",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{scopeLabel(row.original)}</span>
-    ),
-  },
-  {
-    accessorKey: "priority",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
-  },
-  {
-    id: "validFrom",
-    header: "Valid From",
-    cell: ({ row }) =>
-      row.original.validFrom
-        ? new Date(row.original.validFrom).toLocaleDateString()
-        : "—",
-  },
-  {
-    id: "validTo",
-    header: "Valid To",
-    cell: ({ row }) =>
-      row.original.validTo
-        ? new Date(row.original.validTo).toLocaleDateString()
-        : "—",
-  },
-  {
-    accessorKey: "active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.active ? "default" : "secondary"}>
-        {row.original.active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
-
 const defaultForm = {
   name: "",
   markupType: "PERCENTAGE",
@@ -144,6 +78,8 @@ const defaultForm = {
 export default function B2bMarkupsPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.b2bPortal.markup.list.useQuery();
   const { data: toList } = trpc.b2bPortal.tourOperator.list.useQuery();
 
@@ -151,9 +87,78 @@ export default function B2bMarkupsPage() {
   const [form, setForm] = useState(defaultForm);
   const [toFilter, setToFilter] = useState<string>("all");
 
+  const MARKUP_TYPE_LABELS: Record<string, string> = {
+    PERCENTAGE: tc("percentage"),
+    FIXED_PER_NIGHT: t("fixedPerNight"),
+    FIXED_PER_BOOKING: t("fixedPerBooking"),
+  };
+
+  const columns: ColumnDef<MarkupRow>[] = useMemo(() => [
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("name")} />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: "markupType",
+      header: tc("type"),
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {MARKUP_TYPE_LABELS[row.original.markupType] ?? row.original.markupType}
+        </Badge>
+      ),
+    },
+    {
+      id: "value",
+      header: tc("value"),
+      cell: ({ row }) => (
+        <span>
+          {Number(row.original.value)}{MARKUP_TYPE_SHORT[row.original.markupType] ?? ""}
+        </span>
+      ),
+    },
+    {
+      id: "scope",
+      header: t("scope"),
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{scopeLabel(row.original)}</span>
+      ),
+    },
+    {
+      accessorKey: "priority",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("priority")} />,
+    },
+    {
+      id: "validFrom",
+      header: t("validFrom"),
+      cell: ({ row }) =>
+        row.original.validFrom
+          ? new Date(row.original.validFrom).toLocaleDateString()
+          : "—",
+    },
+    {
+      id: "validTo",
+      header: t("validTo"),
+      cell: ({ row }) =>
+        row.original.validTo
+          ? new Date(row.original.validTo).toLocaleDateString()
+          : "—",
+    },
+    {
+      accessorKey: "active",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "default" : "secondary"}>
+          {row.original.active ? tc("active") : tc("inactive")}
+        </Badge>
+      ),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], []);
+
   const createMutation = trpc.b2bPortal.markup.create.useMutation({
     onSuccess: () => {
-      toast.success("Markup rule created");
+      toast.success(t("markupRuleCreated"));
       utils.b2bPortal.markup.list.invalidate();
       setDialogOpen(false);
       setForm(defaultForm);
@@ -163,7 +168,7 @@ export default function B2bMarkupsPage() {
 
   const deleteMutation = trpc.b2bPortal.markup.delete.useMutation({
     onSuccess: () => {
-      toast.success("Markup rule deleted");
+      toast.success(t("markupRuleDeleted"));
       utils.b2bPortal.markup.list.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -193,14 +198,16 @@ export default function B2bMarkupsPage() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:markup:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Markup Rules</h1>
-          <p className="text-muted-foreground">Configure partner-specific markup and pricing rules</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("markupRules")}</h1>
+          <p className="text-muted-foreground">{t("markupRulesDesc")}</p>
         </div>
         <Button onClick={() => { setForm(defaultForm); setDialogOpen(true); }}>
-          <Plus className="mr-2 size-4" /> New Rule
+          <Plus className="mr-2 size-4" /> {t("newMarkupRule")}
         </Button>
       </div>
 
@@ -233,7 +240,7 @@ export default function B2bMarkupsPage() {
                   className="h-7 w-7 text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm("Delete this markup rule?"))
+                    if (confirm(tc("confirmDelete")))
                       deleteMutation.mutate({ id: row.original.id });
                   }}
                 >
@@ -244,15 +251,15 @@ export default function B2bMarkupsPage() {
           ] as ColumnDef<MarkupRow>[]}
           data={filtered}
           searchKey="name"
-          searchPlaceholder="Search markup rules..."
+          searchPlaceholder={`${tc("search")} ${t("markupRules").toLowerCase()}...`}
           onRowClick={(row) => router.push(`/b2b-portal/markups/${row.id}`)}
           toolbar={
             <Select value={toFilter} onValueChange={setToFilter}>
               <SelectTrigger className="h-9 w-[200px]">
-                <SelectValue placeholder="All Tour Operators" />
+                <SelectValue placeholder={t("allOperators")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Tour Operators</SelectItem>
+                <SelectItem value="all">{t("allOperators")}</SelectItem>
                 {(toList ?? []).map((to: { id: string; name: string }) => (
                   <SelectItem key={to.id} value={to.id}>{to.name}</SelectItem>
                 ))}
@@ -265,15 +272,15 @@ export default function B2bMarkupsPage() {
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) { setDialogOpen(false); setForm(defaultForm); } else setDialogOpen(true); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>New Markup Rule</DialogTitle>
+            <DialogTitle>{t("newMarkupRule")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label>Name</Label>
+              <Label>{tc("name")}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
             <div>
-              <Label>Markup Type</Label>
+              <Label>{t("markupType")}</Label>
               <Select value={form.markupType} onValueChange={(v) => setForm({ ...form, markupType: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -286,17 +293,17 @@ export default function B2bMarkupsPage() {
               </Select>
             </div>
             <div>
-              <Label>Value</Label>
+              <Label>{tc("value")}</Label>
               <Input type="number" step="0.01" value={form.value} onChange={(e) => setForm({ ...form, value: parseFloat(e.target.value) || 0 })} required />
             </div>
             <div>
-              <Label>Tour Operator</Label>
+              <Label>{t("tourOperator")}</Label>
               <Select value={form.tourOperatorId || "none"} onValueChange={(v) => setForm({ ...form, tourOperatorId: v === "none" ? "" : v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select (optional)" />
+                  <SelectValue placeholder={t("selectPartnerOptional")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{tc("none")}</SelectItem>
                   {(toList ?? []).map((to: { id: string; name: string }) => (
                     <SelectItem key={to.id} value={to.id}>{to.name}</SelectItem>
                   ))}
@@ -304,26 +311,26 @@ export default function B2bMarkupsPage() {
               </Select>
             </div>
             <div>
-              <Label>Hotel ID (optional)</Label>
-              <Input value={form.hotelId} onChange={(e) => setForm({ ...form, hotelId: e.target.value })} placeholder="Leave empty for all hotels" />
+              <Label>{t("hotelIdOptional")}</Label>
+              <Input value={form.hotelId} onChange={(e) => setForm({ ...form, hotelId: e.target.value })} placeholder={t("leaveEmptyAllHotels")} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Priority</Label>
+                <Label>{t("priority")}</Label>
                 <Input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value) || 0 })} />
               </div>
               <div className="flex items-center gap-2 pt-6">
                 <Checkbox checked={form.active} onCheckedChange={(c) => setForm({ ...form, active: !!c })} id="active" />
-                <Label htmlFor="active">Active</Label>
+                <Label htmlFor="active">{tc("active")}</Label>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Valid From</Label>
+                <Label>{t("validFrom")}</Label>
                 <Input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} />
               </div>
               <div>
-                <Label>Valid To</Label>
+                <Label>{t("validTo")}</Label>
                 <Input type="date" value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} />
               </div>
             </div>
@@ -334,15 +341,19 @@ export default function B2bMarkupsPage() {
 
             <div className="flex gap-2">
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create Rule"}
+                {createMutation.isPending ? tc("creating") : t("createRule")}
               </Button>
               <Button type="button" variant="outline" onClick={() => { setDialogOpen(false); setForm(defaultForm); }}>
-                Cancel
+                {tc("cancel")}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+
+
+    </PermissionGuard>
+
   );
 }

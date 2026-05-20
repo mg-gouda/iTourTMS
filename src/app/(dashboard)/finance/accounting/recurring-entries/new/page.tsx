@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,10 +29,13 @@ import {
 import { RECURRING_FREQUENCY_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
 import { recurringEntryCreateSchema } from "@/lib/validations/finance";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof recurringEntryCreateSchema>;
 
 export default function NewRecurringEntryPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -61,7 +65,6 @@ export default function NewRecurringEntryPage() {
   const { data: journals } = trpc.finance.journal.list.useQuery();
   const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 1000 });
   const { data: currencies } = trpc.finance.currency.list.useQuery();
-  const { data: partners } = trpc.finance.journal.list.useQuery(); // partners not available directly, use journal list as proxy
 
   const createMutation = trpc.finance.recurringEntry.create.useMutation({
     onSuccess: (result) => {
@@ -75,13 +78,14 @@ export default function NewRecurringEntryPage() {
   }
 
   return (
+    <PermissionGuard permission="finance:move:read">
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          New Recurring Entry
+          {t("newRecurringEntry")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Create a template for recurring journal entries
+          {t("createRecurringEntry")}
         </p>
       </div>
 
@@ -94,7 +98,7 @@ export default function NewRecurringEntryPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>{tc("name")}</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Monthly Rent" {...field} />
                   </FormControl>
@@ -107,10 +111,10 @@ export default function NewRecurringEntryPage() {
               name="ref"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Reference</FormLabel>
+                  <FormLabel>{t("reference")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Optional reference"
+                      placeholder={tc("optional")}
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -127,14 +131,14 @@ export default function NewRecurringEntryPage() {
               name="journalId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Journal</FormLabel>
+                  <FormLabel>{t("journal")}</FormLabel>
                   <FormControl>
                     <Combobox
                       options={(journals ?? []).map((j: any) => ({ value: j.id, label: `${j.code} — ${j.name}` }))}
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
-                      placeholder="Select journal"
-                      searchPlaceholder="Search journals..."
+                      placeholder={tc("select")}
+                      searchPlaceholder={tc("search")}
                     />
                   </FormControl>
                   <FormMessage />
@@ -146,14 +150,14 @@ export default function NewRecurringEntryPage() {
               name="currencyId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Currency</FormLabel>
+                  <FormLabel>{tc("currency")}</FormLabel>
                   <FormControl>
                     <Combobox
                       options={(currencies ?? []).map((c: any) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
-                      placeholder="Select currency"
-                      searchPlaceholder="Search currencies..."
+                      placeholder={tc("select")}
+                      searchPlaceholder={tc("search")}
                     />
                   </FormControl>
                   <FormMessage />
@@ -165,7 +169,7 @@ export default function NewRecurringEntryPage() {
               name="frequency"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Frequency</FormLabel>
+                  <FormLabel>{t("frequency")}</FormLabel>
                   <FormControl>
                     <Combobox
                       options={Object.entries(RECURRING_FREQUENCY_LABELS).map(([key, label]) => ({ value: key, label }))}
@@ -185,7 +189,7 @@ export default function NewRecurringEntryPage() {
               name="nextRunDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>First Run Date</FormLabel>
+                  <FormLabel>{t("firstRunDate")}</FormLabel>
                   <FormControl>
                     <Input
                       type="date"
@@ -210,7 +214,7 @@ export default function NewRecurringEntryPage() {
               name="endDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>End Date (optional)</FormLabel>
+                  <FormLabel>{t("endDateOptional")}</FormLabel>
                   <FormControl>
                     <Input
                       type="date"
@@ -235,7 +239,7 @@ export default function NewRecurringEntryPage() {
           {/* Line Templates */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium">Line Templates</h2>
+              <h2 className="text-lg font-medium">{t("lineTemplates")}</h2>
               <Button
                 type="button"
                 variant="outline"
@@ -251,17 +255,17 @@ export default function NewRecurringEntryPage() {
                   })
                 }
               >
-                <Plus className="mr-1 h-4 w-4" /> Add Line
+                <Plus className="mr-1 h-4 w-4" /> {t("addLine")}
               </Button>
             </div>
 
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[40%]">Account</TableHead>
-                  <TableHead>Label</TableHead>
-                  <TableHead className="text-right">Debit</TableHead>
-                  <TableHead className="text-right">Credit</TableHead>
+                  <TableHead className="w-[40%]">{t("accountName")}</TableHead>
+                  <TableHead>{t("label")}</TableHead>
+                  <TableHead className="text-right">{t("debit")}</TableHead>
+                  <TableHead className="text-right">{t("credit")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
@@ -277,8 +281,8 @@ export default function NewRecurringEntryPage() {
                             options={((accounts as any) ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
                             value={f.value ?? ""}
                             onValueChange={f.onChange}
-                            placeholder="Account"
-                            searchPlaceholder="Search accounts..."
+                            placeholder={t("accountName")}
+                            searchPlaceholder={tc("search")}
                           />
                         )}
                       />
@@ -289,7 +293,7 @@ export default function NewRecurringEntryPage() {
                         name={`lineTemplates.${index}.name`}
                         render={({ field: f }) => (
                           <Input
-                            placeholder="Label"
+                            placeholder={t("label")}
                             {...f}
                             value={f.value ?? ""}
                           />
@@ -363,7 +367,7 @@ export default function NewRecurringEntryPage() {
 
           <div className="flex gap-3">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Recurring Entry"}
+              {createMutation.isPending ? tc("creating") : t("newRecurringEntry")}
             </Button>
             <Button
               type="button"
@@ -372,11 +376,12 @@ export default function NewRecurringEntryPage() {
                 router.push("/finance/accounting/recurring-entries")
               }
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

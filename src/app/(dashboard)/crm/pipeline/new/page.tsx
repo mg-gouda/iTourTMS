@@ -26,10 +26,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { CRM_OPPORTUNITY_STAGE_LABELS } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { opportunityCreateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type FormValues = z.input<typeof opportunityCreateSchema>;
 
 export default function NewOpportunityPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: users } = trpc.user.list.useQuery();
@@ -63,10 +67,12 @@ export default function NewOpportunityPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+
+    <PermissionGuard permission="crm:opportunity:read">
+      <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Opportunity</h1>
-        <p className="text-muted-foreground">Create a new pipeline opportunity</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newOpportunity")}</h1>
+        <p className="text-muted-foreground">{t("pipeline")}</p>
       </div>
 
       <Form {...form}>
@@ -76,7 +82,7 @@ export default function NewOpportunityPage() {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Title</FormLabel>
+                <FormLabel>{tc("name")}</FormLabel>
                 <FormControl><Input placeholder="Desert Safari Package — Acme Corp" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -89,7 +95,7 @@ export default function NewOpportunityPage() {
               name="stage"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Stage</FormLabel>
+                  <FormLabel>{t("stage")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
@@ -107,7 +113,7 @@ export default function NewOpportunityPage() {
               name="probability"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Probability (%)</FormLabel>
+                  <FormLabel>{t("probability")} (%)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -129,7 +135,7 @@ export default function NewOpportunityPage() {
               name="value"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Value ($)</FormLabel>
+                  <FormLabel>{t("expectedValue")} ($)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -148,7 +154,7 @@ export default function NewOpportunityPage() {
               name="expectedCloseDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Expected Close</FormLabel>
+                  <FormLabel>{t("expectedClose")}</FormLabel>
                   <FormControl><Input type="date" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -161,9 +167,9 @@ export default function NewOpportunityPage() {
             name="ownerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Owner</FormLabel>
+                <FormLabel>{t("owner")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                  <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select owner" /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="w-full"><SelectValue placeholder={tc("select")} /></SelectTrigger></FormControl>
                   <SelectContent>
                     {(users ?? []).map((u) => (
                       <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>
@@ -180,9 +186,9 @@ export default function NewOpportunityPage() {
             name="leadId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Linked Lead</FormLabel>
+                <FormLabel>{t("linkedLead")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                  <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="None" /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="w-full"><SelectValue placeholder={tc("none")} /></SelectTrigger></FormControl>
                   <SelectContent>
                     {(leads ?? []).map((l) => (
                       <SelectItem key={l.id} value={l.id}>{l.code} — {l.firstName} {l.lastName}</SelectItem>
@@ -199,9 +205,9 @@ export default function NewOpportunityPage() {
             name="customerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Linked Customer</FormLabel>
+                <FormLabel>{t("linkedCustomer")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                  <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="None" /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger className="w-full"><SelectValue placeholder={tc("none")} /></SelectTrigger></FormControl>
                   <SelectContent>
                     {(customers ?? []).map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>
@@ -218,7 +224,7 @@ export default function NewOpportunityPage() {
             name="notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Notes</FormLabel>
+                <FormLabel>{tc("notes")}</FormLabel>
                 <FormControl><Textarea {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -231,14 +237,18 @@ export default function NewOpportunityPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Opportunity"}
+              {createMutation.isPending ? tc("creating") : t("newOpportunity")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.push("/crm/pipeline")}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

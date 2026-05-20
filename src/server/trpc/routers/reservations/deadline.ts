@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("reservations");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const deadlineRouter = createTRPCRouter({
-  listByBooking: proc
+  listByBooking: p("reservations:booking:read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.booking.findFirstOrThrow({
@@ -21,7 +21,7 @@ export const deadlineRouter = createTRPCRouter({
       });
     }),
 
-  dashboard: proc
+  dashboard: p("reservations:booking:read")
     .input(
       z.object({
         status: z.enum(["UPCOMING", "WARNING", "OVERDUE"]).optional(),
@@ -53,7 +53,7 @@ export const deadlineRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("reservations:booking:create")
     .input(
       z.object({
         bookingId: z.string(),
@@ -80,7 +80,7 @@ export const deadlineRouter = createTRPCRouter({
       });
     }),
 
-  complete: proc
+  complete: p("reservations:booking:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const dl = await ctx.db.bookingDeadline.findFirstOrThrow({
@@ -99,7 +99,7 @@ export const deadlineRouter = createTRPCRouter({
       });
     }),
 
-  waive: proc
+  waive: p("reservations:booking:manage")
     .input(z.object({ id: z.string(), note: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const dl = await ctx.db.bookingDeadline.findFirstOrThrow({
@@ -119,7 +119,7 @@ export const deadlineRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("reservations:booking:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const dl = await ctx.db.bookingDeadline.findFirstOrThrow({

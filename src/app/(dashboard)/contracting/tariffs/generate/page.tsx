@@ -32,6 +32,7 @@ import { formatSeasonLabel } from "@/lib/utils";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { tariffBulkGenerateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.infer<typeof tariffBulkGenerateSchema>;
 
@@ -121,7 +122,9 @@ export default function GenerateTariffPage() {
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="contracting:tariff:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/contracting/tariffs">
@@ -390,5 +393,9 @@ export default function GenerateTariffPage() {
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

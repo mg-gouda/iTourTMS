@@ -1,15 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const reportsRouter = createTRPCRouter({
   /**
    * Contract Summary – groups contracts by hotel, status, or currency.
    */
-  contractSummary: proc
+  contractSummary: p("contracting:report:read")
     .input(
       z
         .object({
@@ -104,7 +104,7 @@ export const reportsRouter = createTRPCRouter({
    * Rate Comparison – returns all contracts for a specific hotel with
    * their seasons and base rates so they can be compared side-by-side.
    */
-  rateComparison: proc
+  rateComparison: p("contracting:report:read")
     .input(z.object({ hotelId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify the hotel belongs to the current company
@@ -147,7 +147,7 @@ export const reportsRouter = createTRPCRouter({
    * Season Coverage – returns contracts with their season date ranges
    * so a timeline / coverage chart can be rendered.
    */
-  seasonCoverage: proc
+  seasonCoverage: p("contracting:report:read")
     .input(
       z
         .object({
@@ -205,7 +205,7 @@ export const reportsRouter = createTRPCRouter({
   /**
    * Seasonal Offers Report – offers grouped by season with conditions.
    */
-  seasonalOffers: proc
+  seasonalOffers: p("contracting:report:read")
     .input(
       z
         .object({
@@ -263,7 +263,7 @@ export const reportsRouter = createTRPCRouter({
   /**
    * EBD Conditions Report – cross-contract EBD comparison matrix.
    */
-  ebdConditions: proc
+  ebdConditions: p("contracting:report:read")
     .input(
       z
         .object({
@@ -319,7 +319,7 @@ export const reportsRouter = createTRPCRouter({
   /**
    * Allotment Utilization Report – utilization percentages per contract/room type.
    */
-  allotmentUtilization: proc
+  allotmentUtilization: p("contracting:report:read")
     .input(
       z
         .object({

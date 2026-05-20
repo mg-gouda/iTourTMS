@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BANK_STATEMENT_STATE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type StatementRow = {
   id: string;
@@ -130,17 +132,20 @@ function StatementActions({ statement }: { statement: StatementRow }) {
 
 export default function BankStatementsPage() {
   const router = useRouter();
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.finance.bankStatement.list.useQuery();
 
   return (
+    <PermissionGuard permission="finance:bankStatement:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Bank Statements
+            {t("bankStatements")}
           </h1>
           <p className="text-muted-foreground">
-            Manage bank and cash statement imports.
+            {t("bankStatementsDesc")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -148,7 +153,7 @@ export default function BankStatementsPage() {
           <Button asChild>
             <Link href="/finance/banking/statements/new">
               <Plus className="mr-2 size-4" />
-              New Statement
+              {t("newBankStatement")}
             </Link>
           </Button>
         </div>
@@ -156,7 +161,7 @@ export default function BankStatementsPage() {
 
       {isLoading ? (
         <div className="text-muted-foreground py-10 text-center">
-          Loading...
+          {tc("loading")}
         </div>
       ) : (
         <DataTable
@@ -170,5 +175,6 @@ export default function BankStatementsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

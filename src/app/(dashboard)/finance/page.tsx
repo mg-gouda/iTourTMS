@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -25,41 +26,46 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { trpc } from "@/lib/trpc";
 
 const PIE_COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 export default function FinanceDashboardPage() {
+  const t = useTranslations("finance");
+  const tCommon = useTranslations("common");
+  const tDashboard = useTranslations("dashboard");
   const { data, isLoading } = trpc.finance.report.dashboard.useQuery();
 
   return (
+    <PermissionGuard permission="finance:move:read">
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Finance Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Overview of your financial position
+          {tDashboard("overview")}
         </p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Receivable"
+          title={t("agedReceivable")}
           value={data?.totalReceivable}
           isLoading={isLoading}
         />
         <KpiCard
-          title="Payable"
+          title={t("agedPayable")}
           value={data?.totalPayable}
           isLoading={isLoading}
         />
         <KpiCard
-          title="Bank Balance"
+          title={t("bankAccount")}
           value={data?.bankBalance}
           isLoading={isLoading}
         />
         <KpiCard
-          title="Revenue (This Month)"
+          title={t("revenue")}
           value={data?.revenueThisMonth}
           isLoading={isLoading}
         />
@@ -70,7 +76,7 @@ export default function FinanceDashboardPage() {
         {/* Revenue Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue Trend (12 Months)</CardTitle>
+            <CardTitle>{t("revenue")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -99,7 +105,7 @@ export default function FinanceDashboardPage() {
         {/* Payment Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Payment Status Breakdown</CardTitle>
+            <CardTitle>{t("payments")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -134,7 +140,7 @@ export default function FinanceDashboardPage() {
       {/* Top Overdue Invoices */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Overdue Invoices</CardTitle>
+          <CardTitle>{t("invoices")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -147,11 +153,11 @@ export default function FinanceDashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right">Days Overdue</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>{t("invoice")}</TableHead>
+                  <TableHead>{t("customer")}</TableHead>
+                  <TableHead>{t("dueDate")}</TableHead>
+                  <TableHead className="text-right">{t("overdue")}</TableHead>
+                  <TableHead className="text-right">{tCommon("amount")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,12 +186,13 @@ export default function FinanceDashboardPage() {
             </Table>
           ) : (
             <p className="text-center text-muted-foreground">
-              No overdue invoices.
+              {tCommon("noData")}
             </p>
           )}
         </CardContent>
       </Card>
     </div>
+    </PermissionGuard>
   );
 }
 

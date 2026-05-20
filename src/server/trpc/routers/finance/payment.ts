@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 import { z } from "zod";
 
 import { paymentCreateSchema, registerPaymentSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   buildPaymentMoveLines,
   computeExchangeDifference,
@@ -14,7 +14,7 @@ import { validateBalance } from "@/server/services/finance/move-engine";
 import { getRate } from "@/server/services/finance/currency-service";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 /** Get the default receivable/payable account based on payment type */
 async function getCounterpartAccountId(
@@ -62,7 +62,7 @@ async function getBankAccountId(
 }
 
 export const paymentRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:payment:read")
     .input(
       z.object({
         paymentType: z.enum(["INBOUND", "OUTBOUND"]).optional(),
@@ -110,7 +110,7 @@ export const paymentRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  getById: financeProcedure
+  getById: p("finance:payment:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const payment = await ctx.db.payment.findFirst({
@@ -153,7 +153,7 @@ export const paymentRouter = createTRPCRouter({
       return payment;
     }),
 
-  create: financeProcedure
+  create: p("finance:payment:create")
     .input(paymentCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { invoiceMoveIds, ...data } = input;
@@ -176,7 +176,7 @@ export const paymentRouter = createTRPCRouter({
       });
     }),
 
-  confirm: financeProcedure
+  confirm: p("finance:payment:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.payment.findFirst({
@@ -423,7 +423,7 @@ export const paymentRouter = createTRPCRouter({
       });
     }),
 
-  cancel: financeProcedure
+  cancel: p("finance:payment:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.payment.findFirst({
@@ -493,7 +493,7 @@ export const paymentRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:payment:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.payment.findFirst({
@@ -514,7 +514,7 @@ export const paymentRouter = createTRPCRouter({
       return ctx.db.payment.delete({ where: { id: input.id } });
     }),
 
-  registerPayment: financeProcedure
+  registerPayment: p("finance:payment:manage")
     .input(registerPaymentSchema)
     .mutation(async ({ ctx, input }) => {
       // Fetch the invoice to determine payment type and currency

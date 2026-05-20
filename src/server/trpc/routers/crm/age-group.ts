@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { ageGroupCreateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const ageGroupRouter = createTRPCRouter({
-  listByExcursion: proc
+  listByExcursion: p("crm:excursion:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -18,7 +18,7 @@ export const ageGroupRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:excursion:create")
     .input(ageGroupCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -35,7 +35,7 @@ export const ageGroupRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:excursion:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const ag = await ctx.db.crmExcursionAgeGroup.findFirstOrThrow({

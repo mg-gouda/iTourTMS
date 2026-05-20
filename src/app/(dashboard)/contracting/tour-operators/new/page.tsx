@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { tourOperatorCreateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof tourOperatorCreateSchema>;
 
@@ -60,6 +61,7 @@ export default function NewTourOperatorPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:contract:read">
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">New Tour Operator</h1>
@@ -233,5 +235,6 @@ export default function NewTourOperatorPage() {
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

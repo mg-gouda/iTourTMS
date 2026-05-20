@@ -48,6 +48,7 @@ import {
 import { exportArrivalListPdf } from "@/lib/export/arrival-list-pdf";
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { trpc } from "@/lib/trpc";
 
 export default function ReportsPage() {
@@ -135,7 +136,8 @@ export default function ReportsPage() {
   }, [podData?.rows, podSort]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <PermissionGuard permission="reservations:booking:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
         <p className="text-muted-foreground">
@@ -1437,7 +1439,8 @@ export default function ReportsPage() {
           <MarketMixReport />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }
 

@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { TT_VEHICLE_STATUS_LABELS, TT_VEHICLE_STATUS_VARIANTS, TT_VEHICLE_OWNERSHIP_LABELS, TT_COMPLIANCE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -184,7 +185,9 @@ function AddComplianceDialog({ vehicleId, onSuccess }: { vehicleId: string; onSu
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+
+    <PermissionGuard permission="traffic:vehicle:read">
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">Add Compliance</Button>
       </DialogTrigger>
@@ -225,5 +228,9 @@ function AddComplianceDialog({ vehicleId, onSuccess }: { vehicleId: string; onSu
         </form>
       </DialogContent>
     </Dialog>
+  
+
+    </PermissionGuard>
+
   );
 }

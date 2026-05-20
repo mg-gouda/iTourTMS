@@ -1,10 +1,12 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { faqCreateSchema, faqUpdateSchema, reorderSchema } from "@/lib/validations/b2c-site";
 
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
+
 export const faqRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: p("b2c-site:faq:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId!;
     return ctx.db.faq.findMany({
       where: { companyId },
@@ -12,14 +14,14 @@ export const faqRouter = createTRPCRouter({
     });
   }),
 
-  create: protectedProcedure
+  create: p("b2c-site:faq:create")
     .input(faqCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
       return ctx.db.faq.create({ data: { companyId, ...input } });
     }),
 
-  update: protectedProcedure
+  update: p("b2c-site:faq:update")
     .input(faqUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -28,7 +30,7 @@ export const faqRouter = createTRPCRouter({
       return ctx.db.faq.update({ where: { id }, data });
     }),
 
-  delete: protectedProcedure
+  delete: p("b2c-site:faq:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -36,7 +38,7 @@ export const faqRouter = createTRPCRouter({
       return ctx.db.faq.delete({ where: { id: input.id } });
     }),
 
-  reorder: protectedProcedure
+  reorder: p("b2c-site:faq:update")
     .input(reorderSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.$transaction(

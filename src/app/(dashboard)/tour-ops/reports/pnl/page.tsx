@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { OPS_CLIENT_TYPE_LABELS, OPS_FILE_STATUS_LABELS } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function PnLReportPage() {
   const [dateFrom, setDateFrom] = useState("");
@@ -113,7 +114,8 @@ export default function PnLReportPage() {
                   const actMargin = Number(file.pnl?.actualRevenue ?? 0) - Number(file.pnl?.actualCost ?? 0);
                   const variance = Number(file.pnl?.variance ?? 0);
                   return (
-                    <tr key={file.id} className="hover:bg-muted/30">
+                    <PermissionGuard permission="tour-ops:report:read">
+                      <tr key={file.id} className="hover:bg-muted/30">
                       <td className="py-2 font-mono">{file.code}</td>
                       <td className="py-2">{format(new Date(file.travelFrom), "dd MMM yyyy")}</td>
                       <td className="py-2">
@@ -127,6 +129,7 @@ export default function PnLReportPage() {
                       <td className={`py-2 text-right ${actMargin >= 0 ? "text-green-600" : "text-red-600"}`}>${actMargin.toLocaleString()}</td>
                       <td className={`py-2 text-right font-medium ${variance >= 0 ? "text-green-600" : "text-red-600"}`}>${variance.toLocaleString()}</td>
                     </tr>
+                    </PermissionGuard>
                   );
                 })}
               </tbody>

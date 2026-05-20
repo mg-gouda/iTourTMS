@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, Star } from "lucide-react";
 
@@ -19,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type TestimonialForm = { guestName: string; quote: string; rating: number; avatar: string; featured: boolean; active: boolean };
 const emptyForm: TestimonialForm = { guestName: "", quote: "", rating: 5, avatar: "", featured: false, active: true };
@@ -26,20 +28,22 @@ const emptyForm: TestimonialForm = { guestName: "", quote: "", rating: 5, avatar
 export default function TestimonialsPage() {
   const { data: testimonials, isLoading } = trpc.b2cSite.testimonial.list.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<TestimonialForm>(emptyForm);
 
   const createMutation = trpc.b2cSite.testimonial.create.useMutation({
-    onSuccess: () => { toast.success("Testimonial created"); utils.b2cSite.testimonial.list.invalidate(); setDialogOpen(false); },
+    onSuccess: () => { toast.success(tc("created")); utils.b2cSite.testimonial.list.invalidate(); setDialogOpen(false); },
     onError: (err) => toast.error(err.message),
   });
   const updateMutation = trpc.b2cSite.testimonial.update.useMutation({
-    onSuccess: () => { toast.success("Testimonial updated"); utils.b2cSite.testimonial.list.invalidate(); setDialogOpen(false); },
+    onSuccess: () => { toast.success(tc("updated")); utils.b2cSite.testimonial.list.invalidate(); setDialogOpen(false); },
     onError: (err) => toast.error(err.message),
   });
   const deleteMutation = trpc.b2cSite.testimonial.delete.useMutation({
-    onSuccess: () => { toast.success("Deleted"); utils.b2cSite.testimonial.list.invalidate(); },
+    onSuccess: () => { toast.success(tc("deleted")); utils.b2cSite.testimonial.list.invalidate(); },
     onError: (err) => toast.error(err.message),
   });
   const toggleFeaturedMutation = trpc.b2cSite.testimonial.toggleFeatured.useMutation({
@@ -55,7 +59,7 @@ export default function TestimonialsPage() {
   };
 
   const handleSave = () => {
-    if (!form.guestName || !form.quote) { toast.error("Name and quote are required"); return; }
+    if (!form.guestName || !form.quote) { toast.error(tc("required")); return; }
     const payload = { ...form, avatar: form.avatar || null };
     if (editId) {
       updateMutation.mutate({ id: editId, ...payload });
@@ -65,19 +69,21 @@ export default function TestimonialsPage() {
   };
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:testimonial:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Testimonials</h1>
-          <p className="text-muted-foreground">Guest reviews displayed on the public site</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("testimonials")}</h1>
+          <p className="text-muted-foreground">{t("testimonialsDesc")}</p>
         </div>
-        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Add Testimonial</Button>
+        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />{t("newTestimonial")}</Button>
       </div>
 
       {isLoading ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">Loading...</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{tc("loading")}</CardContent></Card>
       ) : !testimonials?.length ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">No testimonials yet.</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{t("noTestimonials")}</CardContent></Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {testimonials.map((t) => (
@@ -105,7 +111,7 @@ export default function TestimonialsPage() {
               <div className="flex items-center gap-2">
                 {t.featured && <Badge>Featured</Badge>}
                 <Button variant="outline" size="sm" className="text-xs" onClick={() => toggleFeaturedMutation.mutate({ id: t.id })}>
-                  {t.featured ? "Unfeature" : "Feature"}
+                  {t.featured ? tc("unfeature") : tc("feature")}
                 </Button>
               </div>
             </Card>
@@ -115,25 +121,29 @@ export default function TestimonialsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? "Edit Testimonial" : "Add Testimonial"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? t("testimonial") : t("newTestimonial")}</DialogTitle></DialogHeader>
           <div className="grid gap-3">
-            <div className="space-y-1.5"><Label>Guest Name *</Label><Input value={form.guestName} onChange={(e) => setForm({ ...form, guestName: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Quote *</Label><Textarea value={form.quote} onChange={(e) => setForm({ ...form, quote: e.target.value })} rows={3} /></div>
+            <div className="space-y-1.5"><Label>{t("guestName")} *</Label><Input value={form.guestName} onChange={(e) => setForm({ ...form, guestName: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>{t("quote")} *</Label><Textarea value={form.quote} onChange={(e) => setForm({ ...form, quote: e.target.value })} rows={3} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>Rating (1-5)</Label><Input type="number" min={1} max={5} value={form.rating} onChange={(e) => setForm({ ...form, rating: parseInt(e.target.value) || 5 })} /></div>
-              <div className="space-y-1.5"><Label>Avatar URL</Label><Input value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>{t("rating")} (1-5)</Label><Input type="number" min={1} max={5} value={form.rating} onChange={(e) => setForm({ ...form, rating: parseInt(e.target.value) || 5 })} /></div>
+              <div className="space-y-1.5"><Label>{t("avatarUrl")}</Label><Input value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} /></div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2"><Switch checked={form.featured} onCheckedChange={(v) => setForm({ ...form, featured: v })} /><Label>Featured</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} /><Label>Active</Label></div>
+              <div className="flex items-center gap-2"><Switch checked={form.featured} onCheckedChange={(v) => setForm({ ...form, featured: v })} /><Label>{t("featured")}</Label></div>
+              <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} /><Label>{t("active")}</Label></div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>Save</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>{tc("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

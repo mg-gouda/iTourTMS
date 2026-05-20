@@ -255,8 +255,10 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  password      String?   // bcrypt hash for credentials auth
+  password          String?   // bcrypt hash for credentials auth
+  passwordExpiresAt DateTime? // null = never expires
   isActive      Boolean   @default(true)
+  tokenVersion  Int       @default(0)
   companyId     String?
   locale        String    @default("en")
   createdAt     DateTime  @default(now())
@@ -463,6 +465,9 @@ model Currency {
   bookings               Booking[]        @relation("BookingCurrency")
   bookingPayments        BookingPayment[] @relation("BookingPaymentCurrency")
   hotelCreditNotes       HotelCreditNote[]
+
+  // Tour Ops relations
+  opsFlightTickets       OpsFlightTicket[] @relation("OpsFlightTicketCurrency")
 
   // Traffic relations
   ttPriceItems           TtPriceItem[]
@@ -5757,6 +5762,8 @@ model OpsFlightTicket {
   priceDifference    Decimal?              @db.Decimal(12, 2)
   cancellationFees   Decimal?              @db.Decimal(12, 2)
   voidFee            Decimal?              @db.Decimal(12, 2)
+  parentTicketId     String?
+  currencyId         String?
   journalMoveId      String?               @unique
   vendorMoveId       String?               @unique
   customerMoveId     String?               @unique
@@ -5767,6 +5774,9 @@ model OpsFlightTicket {
 
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   opsFile         OpsFile?         @relation("OpsFileFlightTickets", fields: [opsFileId], references: [id])
+  parentTicket    OpsFlightTicket? @relation("TicketLineage", fields: [parentTicketId], references: [id])
+  derivedTickets  OpsFlightTicket[] @relation("TicketLineage")
+  currency        Currency?        @relation("OpsFlightTicketCurrency", fields: [currencyId], references: [id])
   journalMove     Move?            @relation("FlightTicketMove", fields: [journalMoveId], references: [id])
   vendorMove      Move?            @relation("FlightTicketVendorMove", fields: [vendorMoveId], references: [id])
   customerMove    Move?            @relation("FlightTicketCustomerMove", fields: [customerMoveId], references: [id])
@@ -5780,6 +5790,7 @@ model OpsFlightTicket {
   @@index([companyId])
   @@index([companyId, status])
   @@index([opsFileId])
+  @@index([currencyId])
   @@map("ops_flight_ticket")
 }
 

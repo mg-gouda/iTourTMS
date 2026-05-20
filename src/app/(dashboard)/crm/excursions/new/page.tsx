@@ -31,10 +31,14 @@ import {
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { excursionCreateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type FormValues = z.input<typeof excursionCreateSchema>;
 
 export default function NewExcursionPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -68,10 +72,12 @@ export default function NewExcursionPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+
+    <PermissionGuard permission="crm:excursion:read">
+      <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Excursion</h1>
-        <p className="text-muted-foreground">Create an activity or tour package</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newExcursion")}</h1>
+        <p className="text-muted-foreground">{t("activityAndTourCatalog")}</p>
       </div>
 
       <Form {...form}>
@@ -79,14 +85,14 @@ export default function NewExcursionPage() {
           <div className="grid grid-cols-2 gap-4">
             <FormField control={form.control} name="code" render={({ field }) => (
               <FormItem>
-                <FormLabel>Code</FormLabel>
+                <FormLabel>{tc("code")}</FormLabel>
                 <FormControl><Input placeholder="DSF-001" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
-                <FormLabel>Name</FormLabel>
+                <FormLabel>{tc("name")}</FormLabel>
                 <FormControl><Input placeholder="Desert Safari" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -96,7 +102,7 @@ export default function NewExcursionPage() {
           <div className="grid grid-cols-3 gap-4">
             <FormField control={form.control} name="productType" render={({ field }) => (
               <FormItem>
-                <FormLabel>Product Type</FormLabel>
+                <FormLabel>{t("productType")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
@@ -110,7 +116,7 @@ export default function NewExcursionPage() {
             )} />
             <FormField control={form.control} name="category" render={({ field }) => (
               <FormItem>
-                <FormLabel>Category</FormLabel>
+                <FormLabel>{t("category")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
@@ -124,7 +130,7 @@ export default function NewExcursionPage() {
             )} />
             <FormField control={form.control} name="tripMode" render={({ field }) => (
               <FormItem>
-                <FormLabel>Trip Mode</FormLabel>
+                <FormLabel>{t("tripMode")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
@@ -140,7 +146,7 @@ export default function NewExcursionPage() {
 
           <FormField control={form.control} name="duration" render={({ field }) => (
             <FormItem>
-              <FormLabel>Duration</FormLabel>
+              <FormLabel>{t("duration")}</FormLabel>
               <FormControl><Input placeholder="e.g. 4 hours, Full Day" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -149,7 +155,7 @@ export default function NewExcursionPage() {
           <div className="grid grid-cols-2 gap-4">
             <FormField control={form.control} name="minPax" render={({ field }) => (
               <FormItem>
-                <FormLabel>Min Pax</FormLabel>
+                <FormLabel>{t("minPax")}</FormLabel>
                 <FormControl>
                   <Input type="number" min={1} {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
                 </FormControl>
@@ -158,7 +164,7 @@ export default function NewExcursionPage() {
             )} />
             <FormField control={form.control} name="maxPax" render={({ field }) => (
               <FormItem>
-                <FormLabel>Max Pax</FormLabel>
+                <FormLabel>{t("maxPax")}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -174,7 +180,7 @@ export default function NewExcursionPage() {
 
           <FormField control={form.control} name="description" render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{tc("description")}</FormLabel>
               <FormControl><Textarea rows={3} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -182,7 +188,7 @@ export default function NewExcursionPage() {
 
           <FormField control={form.control} name="inclusions" render={({ field }) => (
             <FormItem>
-              <FormLabel>Inclusions</FormLabel>
+              <FormLabel>{t("inclusions")}</FormLabel>
               <FormControl><Textarea rows={2} placeholder="What's included..." {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -190,7 +196,7 @@ export default function NewExcursionPage() {
 
           <FormField control={form.control} name="exclusions" render={({ field }) => (
             <FormItem>
-              <FormLabel>Exclusions</FormLabel>
+              <FormLabel>{t("exclusions")}</FormLabel>
               <FormControl><Textarea rows={2} placeholder="What's not included..." {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -201,7 +207,7 @@ export default function NewExcursionPage() {
               <FormControl>
                 <Checkbox checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
-              <FormLabel>Active</FormLabel>
+              <FormLabel>{tc("active")}</FormLabel>
             </FormItem>
           )} />
 
@@ -211,14 +217,18 @@ export default function NewExcursionPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Excursion"}
+              {createMutation.isPending ? tc("creating") : t("newExcursion")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.push("/crm/excursions")}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -6,13 +6,13 @@ import {
   contractSeasonUpdateSchema,
 } from "@/lib/validations/contracting";
 import { formatSeasonLabel } from "@/lib/utils";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const contractSeasonRouter = createTRPCRouter({
-  list: proc
+  list: p("contracting:season:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify contract belongs to company
@@ -26,7 +26,7 @@ export const contractSeasonRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:season:create")
     .input(contractSeasonCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -70,7 +70,7 @@ export const contractSeasonRouter = createTRPCRouter({
       return season;
     }),
 
-  update: proc
+  update: p("contracting:season:update")
     .input(z.object({ id: z.string(), contractId: z.string(), data: contractSeasonUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const contract = await ctx.db.contract.findFirstOrThrow({
@@ -117,7 +117,7 @@ export const contractSeasonRouter = createTRPCRouter({
       return updated;
     }),
 
-  delete: proc
+  delete: p("contracting:season:delete")
     .input(z.object({ id: z.string(), contractId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({

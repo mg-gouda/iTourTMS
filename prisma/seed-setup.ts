@@ -1,12 +1,28 @@
 /**
- * Full system seed — company, roles, users, finance, contracting, traffic, reservations.
- * Run with: npx tsx prisma/seed-setup.ts
+ * DEMO / DEVELOPMENT SEED — NOT FOR PRODUCTION USE.
+ *
+ * Creates a fully populated demo environment with sample company, users,
+ * hotels, contracts, traffic jobs, and all modules installed.
+ *
+ * Run with: pnpm db:seed:demo
+ *
+ * For a clean live deployment run in order:
+ *   1. pnpm db:migrate       — apply all schema migrations
+ *   2. pnpm db:seed          — seed reference data + permissions (safe to run on prod)
+ *   3. /setup wizard         — create the company, admin user, and modules via UI
+ *
+ * Credentials seeded by this script (development only):
+ *   admin@itour.com / admin123  (Super Admin)
+ *   driver@itour.com / user123
+ *   rep@itour.com    / user123
+ *   reservations@itour.com / user123
  */
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { seedFinance, seedContracting } from "./seed";
+import { ALL_PERMISSIONS } from "../src/lib/constants/permissions";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -166,14 +182,24 @@ async function main() {
   });
   console.log("  ✓ Setup marked as complete\n");
 
-  // ── 8. Finance & Contracting (existing seeds) ──
-  await seedFinance(cId);
-  await seedContracting(cId);
+  // ── 8. Finance & Contracting (existing seeds, idempotent guard) ──
+  const taxGroupCount = await prisma.taxGroup.count({ where: { companyId: cId } });
+  if (taxGroupCount === 0) {
+    await seedFinance(cId);
+    await seedContracting(cId);
+  } else {
+    console.log("  ✓ Finance & contracting data already seeded — skipping");
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // 9. PARTNERS (suppliers, tour operators as Partner records)
   // ══════════════════════════════════════════════════════════════════════════
   console.log("\n  Seeding partners & tour operators...");
+  const partnerCount = await prisma.partner.count({ where: { companyId: cId } });
+  if (partnerCount > 0) {
+    console.log("  ✓ Partners & demo data already seeded — skipping sections 9-11");
+    // Still seed permissions below
+  } else {
 
   const supplierPartner = await prisma.partner.create({
     data: { companyId: cId, type: "supplier", isCompany: true, name: "Nile Transport Co.", email: "info@niletransport.com", phone: "+20-2-555-0200", countryId: egypt?.id },
@@ -559,41 +585,16 @@ async function main() {
     }
     console.log(`    ✓ ${jobsData.length} traffic jobs seeded`);
   }
+  } // end else (partners & demo data)
 
-  // ── Traffic Permissions ──
-  const trafficPermissions = [
-    { code: "traffic:zone:read", module: "traffic", resource: "zone", action: "read", displayName: "View Zones" },
-    { code: "traffic:zone:create", module: "traffic", resource: "zone", action: "create", displayName: "Create Zones" },
-    { code: "traffic:zone:update", module: "traffic", resource: "zone", action: "update", displayName: "Update Zones" },
-    { code: "traffic:zone:delete", module: "traffic", resource: "zone", action: "delete", displayName: "Delete Zones" },
-    { code: "traffic:vehicle:read", module: "traffic", resource: "vehicle", action: "read", displayName: "View Vehicles" },
-    { code: "traffic:vehicle:create", module: "traffic", resource: "vehicle", action: "create", displayName: "Create Vehicles" },
-    { code: "traffic:vehicle:update", module: "traffic", resource: "vehicle", action: "update", displayName: "Update Vehicles" },
-    { code: "traffic:vehicle:delete", module: "traffic", resource: "vehicle", action: "delete", displayName: "Delete Vehicles" },
-    { code: "traffic:driver:read", module: "traffic", resource: "driver", action: "read", displayName: "View Drivers" },
-    { code: "traffic:driver:create", module: "traffic", resource: "driver", action: "create", displayName: "Create Drivers" },
-    { code: "traffic:driver:update", module: "traffic", resource: "driver", action: "update", displayName: "Update Drivers" },
-    { code: "traffic:job:read", module: "traffic", resource: "job", action: "read", displayName: "View Traffic Jobs" },
-    { code: "traffic:job:create", module: "traffic", resource: "job", action: "create", displayName: "Create Traffic Jobs" },
-    { code: "traffic:job:update", module: "traffic", resource: "job", action: "update", displayName: "Update Traffic Jobs" },
-    { code: "traffic:job:assign", module: "traffic", resource: "job", action: "assign", displayName: "Assign Traffic Jobs" },
-    { code: "traffic:job:dispatch", module: "traffic", resource: "job", action: "dispatch", displayName: "Dispatch Traffic Jobs" },
-    { code: "traffic:rep:read", module: "traffic", resource: "rep", action: "read", displayName: "View Reps" },
-    { code: "traffic:rep:create", module: "traffic", resource: "rep", action: "create", displayName: "Create Reps" },
-    { code: "traffic:rep:update", module: "traffic", resource: "rep", action: "update", displayName: "Update Reps" },
-    { code: "traffic:flight:read", module: "traffic", resource: "flight", action: "read", displayName: "View Flights" },
-    { code: "traffic:flight:create", module: "traffic", resource: "flight", action: "create", displayName: "Create Flights" },
-    { code: "traffic:flight:update", module: "traffic", resource: "flight", action: "update", displayName: "Update Flights" },
-    { code: "traffic:price:read", module: "traffic", resource: "price", action: "read", displayName: "View Price List" },
-    { code: "traffic:price:manage", module: "traffic", resource: "price", action: "manage", displayName: "Manage Prices" },
-    { code: "traffic:settings:manage", module: "traffic", resource: "settings", action: "manage", displayName: "Manage Traffic Settings" },
-  ];
-
-  for (const perm of trafficPermissions) {
+  // ── Permissions (all ~310 codes from constants registry) ──
+  console.log("\n🔐 Seeding permissions...");
+  for (const perm of ALL_PERMISSIONS) {
     await prisma.permission.upsert({ where: { code: perm.code }, update: {}, create: perm });
   }
+  console.log(`    ✓ ${ALL_PERMISSIONS.length} permissions seeded`);
 
-  // Assign all traffic perms to traffic_manager role
+  // Assign traffic perms to traffic_manager role
   const allTrafficPerms = await prisma.permission.findMany({ where: { module: "traffic" } });
   for (const perm of allTrafficPerms) {
     await prisma.rolePermission.upsert({
@@ -602,36 +603,9 @@ async function main() {
       create: { roleId: trafficManagerRole.id, permissionId: perm.id },
     });
   }
-  console.log(`    ✓ ${trafficPermissions.length} traffic permissions seeded & assigned`);
+  console.log(`    ✓ ${allTrafficPerms.length} traffic permissions assigned to traffic_manager`);
 
-  // ── Reservations & Contracting Permissions ──
-  const resPermissions = [
-    { code: "reservations:booking:read", module: "reservations", resource: "booking", action: "read", displayName: "View Bookings" },
-    { code: "reservations:booking:create", module: "reservations", resource: "booking", action: "create", displayName: "Create Bookings" },
-    { code: "reservations:booking:update", module: "reservations", resource: "booking", action: "update", displayName: "Update Bookings" },
-    { code: "reservations:booking:cancel", module: "reservations", resource: "booking", action: "cancel", displayName: "Cancel Bookings" },
-    { code: "reservations:booking:confirm", module: "reservations", resource: "booking", action: "confirm", displayName: "Confirm Bookings" },
-    { code: "reservations:guest:read", module: "reservations", resource: "guest", action: "read", displayName: "View Guests" },
-    { code: "reservations:guest:create", module: "reservations", resource: "guest", action: "create", displayName: "Create Guests" },
-    { code: "reservations:guest:update", module: "reservations", resource: "guest", action: "update", displayName: "Update Guests" },
-    { code: "reservations:voucher:read", module: "reservations", resource: "voucher", action: "read", displayName: "View Vouchers" },
-    { code: "reservations:voucher:create", module: "reservations", resource: "voucher", action: "create", displayName: "Create Vouchers" },
-    { code: "contracting:hotel:read", module: "contracting", resource: "hotel", action: "read", displayName: "View Hotels" },
-    { code: "contracting:hotel:create", module: "contracting", resource: "hotel", action: "create", displayName: "Create Hotels" },
-    { code: "contracting:hotel:update", module: "contracting", resource: "hotel", action: "update", displayName: "Update Hotels" },
-    { code: "contracting:contract:read", module: "contracting", resource: "contract", action: "read", displayName: "View Contracts" },
-    { code: "contracting:contract:create", module: "contracting", resource: "contract", action: "create", displayName: "Create Contracts" },
-    { code: "contracting:contract:update", module: "contracting", resource: "contract", action: "update", displayName: "Update Contracts" },
-    { code: "contracting:contract:publish", module: "contracting", resource: "contract", action: "publish", displayName: "Publish Contracts" },
-    { code: "contracting:market:read", module: "contracting", resource: "market", action: "read", displayName: "View Markets" },
-    { code: "contracting:market:manage", module: "contracting", resource: "market", action: "manage", displayName: "Manage Markets" },
-  ];
-
-  for (const perm of resPermissions) {
-    await prisma.permission.upsert({ where: { code: perm.code }, update: {}, create: perm });
-  }
-
-  // Assign res perms to reservations_manager
+  // Assign reservations perms to reservations_manager
   const allResPerms = await prisma.permission.findMany({ where: { module: "reservations" } });
   for (const perm of allResPerms) {
     await prisma.rolePermission.upsert({
@@ -650,6 +624,7 @@ async function main() {
       create: { roleId: contractingManagerRole.id, permissionId: perm.id },
     });
   }
+  console.log(`    ✓ ${allResPerms.length} reservations + ${allContractingPerms.length} contracting permissions assigned to respective roles`);
 
   // Assign ALL permissions to super_admin
   const allPerms = await prisma.permission.findMany();
@@ -660,7 +635,6 @@ async function main() {
       create: { roleId: superAdminRole.id, permissionId: perm.id },
     });
   }
-  console.log(`    ✓ ${resPermissions.length} reservations & contracting permissions seeded & assigned`);
   console.log(`    ✓ ${allPerms.length} total permissions assigned to super_admin`);
 
   // ══════════════════════════════════════════════════════════════════════════

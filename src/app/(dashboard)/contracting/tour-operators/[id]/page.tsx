@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import {
   Table,
   TableBody,

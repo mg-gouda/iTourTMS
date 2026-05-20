@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type MarkupRow = {
   id: string;
@@ -39,92 +41,94 @@ type MarkupRow = {
   validTo: Date | null;
 };
 
-function scopeLabel(row: MarkupRow): string {
-  if (row.contract) return `Contract: ${row.contract.name}`;
-  if (row.hotel) return `Hotel: ${row.hotel.name}`;
-  if (row.destination) return `Dest: ${row.destination.name}`;
-  if (row.market) return `Market: ${row.market.name}`;
-  if (row.tourOperator) return `TO: ${row.tourOperator.name}`;
-  return "Global";
-}
-
-function typeLabel(t: string): string {
-  switch (t) {
-    case "PERCENTAGE":
-      return "Percentage";
-    case "FIXED_PER_NIGHT":
-      return "Fixed/Night";
-    case "FIXED_PER_BOOKING":
-      return "Fixed/Booking";
-    default:
-      return t;
-  }
-}
-
-const columns: ColumnDef<MarkupRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
-    ),
-  },
-  {
-    accessorKey: "markupType",
-    header: "Type",
-    cell: ({ row }) => (
-      <Badge variant="outline">{typeLabel(row.original.markupType)}</Badge>
-    ),
-  },
-  {
-    id: "value",
-    header: "Value",
-    cell: ({ row }) => {
-      const val = parseFloat(row.original.value.toString());
-      return row.original.markupType === "PERCENTAGE"
-        ? `${val}%`
-        : val.toFixed(2);
-    },
-  },
-  {
-    id: "scope",
-    header: "Scope",
-    cell: ({ row }) => (
-      <span className="text-xs text-muted-foreground">
-        {scopeLabel(row.original)}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "priority",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Priority" />
-    ),
-  },
-  {
-    id: "tariffs",
-    header: "Tariffs",
-    cell: ({ row }) => row.original._count.tariffs,
-  },
-  {
-    accessorKey: "active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.active ? "default" : "secondary"}>
-        {row.original.active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
-
 export default function MarkupRulesPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.contracting.markupRule.list.useQuery();
 
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
+
+  function scopeLabel(row: MarkupRow): string {
+    if (row.contract) return `Contract: ${row.contract.name}`;
+    if (row.hotel) return `Hotel: ${row.hotel.name}`;
+    if (row.destination) return `Dest: ${row.destination.name}`;
+    if (row.market) return `Market: ${row.market.name}`;
+    if (row.tourOperator) return `TO: ${row.tourOperator.name}`;
+    return "Global";
+  }
+
+  function typeLabelFn(type: string): string {
+    switch (type) {
+      case "PERCENTAGE":
+        return t("percentage");
+      case "FIXED_PER_NIGHT":
+        return t("fixedPerNight");
+      case "FIXED_PER_BOOKING":
+        return t("fixedPerBooking");
+      default:
+        return type;
+    }
+  }
+
+  const columns: ColumnDef<MarkupRow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={tc("name")} />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "markupType",
+      header: t("markupType"),
+      cell: ({ row }) => (
+        <Badge variant="outline">{typeLabelFn(row.original.markupType)}</Badge>
+      ),
+    },
+    {
+      id: "value",
+      header: tc("value"),
+      cell: ({ row }) => {
+        const val = parseFloat(row.original.value.toString());
+        return row.original.markupType === "PERCENTAGE"
+          ? `${val}%`
+          : val.toFixed(2);
+      },
+    },
+    {
+      id: "scope",
+      header: t("scopeLabel"),
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {scopeLabel(row.original)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "priority",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("priority")} />
+      ),
+    },
+    {
+      id: "tariffs",
+      header: t("tarifsCount"),
+      cell: ({ row }) => row.original._count.tariffs,
+    },
+    {
+      accessorKey: "active",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "default" : "secondary"}>
+          {row.original.active ? tc("active") : tc("inactive")}
+        </Badge>
+      ),
+    },
+  ];
 
   const filteredData = useMemo(() => {
     let result = (data ?? []) as MarkupRow[];
@@ -150,31 +154,31 @@ export default function MarkupRulesPage() {
     <div className="flex items-center gap-2">
       <Select value={activeFilter} onValueChange={setActiveFilter}>
         <SelectTrigger className="h-9 w-[120px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={tc("status")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Status</SelectItem>
-          <SelectItem value="ACTIVE">Active</SelectItem>
-          <SelectItem value="INACTIVE">Inactive</SelectItem>
+          <SelectItem value="ALL">{t("allStatus")}</SelectItem>
+          <SelectItem value="ACTIVE">{tc("active")}</SelectItem>
+          <SelectItem value="INACTIVE">{tc("inactive")}</SelectItem>
         </SelectContent>
       </Select>
 
       <Select value={typeFilter} onValueChange={setTypeFilter}>
         <SelectTrigger className="h-9 w-[150px]">
-          <SelectValue placeholder="Type" />
+          <SelectValue placeholder={t("markupType")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Types</SelectItem>
-          <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-          <SelectItem value="FIXED_PER_NIGHT">Fixed/Night</SelectItem>
-          <SelectItem value="FIXED_PER_BOOKING">Fixed/Booking</SelectItem>
+          <SelectItem value="ALL">{t("allTypes")}</SelectItem>
+          <SelectItem value="PERCENTAGE">{t("percentage")}</SelectItem>
+          <SelectItem value="FIXED_PER_NIGHT">{t("fixedPerNight")}</SelectItem>
+          <SelectItem value="FIXED_PER_BOOKING">{t("fixedPerBooking")}</SelectItem>
         </SelectContent>
       </Select>
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters}>
           <X className="mr-1 h-3 w-3" />
-          Clear
+          {tc("clear")}
         </Button>
       )}
     </div>
@@ -184,14 +188,14 @@ export default function MarkupRulesPage() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Markup Rules</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("markupRules")}</h1>
           <p className="text-muted-foreground">
-            Define markup rules for tariff generation (contract &gt; hotel &gt; destination &gt; global)
+            {t("markupRulesDesc")}
           </p>
         </div>
         <Button asChild>
           <Link href="/contracting/markups/new">
-            <Plus className="mr-2 size-4" /> New Markup Rule
+            <Plus className="mr-2 size-4" /> {tc("new")}
           </Link>
         </Button>
       </div>
@@ -218,7 +222,7 @@ export default function MarkupRulesPage() {
           columns={columns}
           data={filteredData}
           searchKey="name"
-          searchPlaceholder="Search markup rules..."
+          searchPlaceholder={t("searchMarkupRules")}
           toolbar={filterToolbar}
           onRowClick={(row) => router.push(`/contracting/markups/${row.id}`)}
         />

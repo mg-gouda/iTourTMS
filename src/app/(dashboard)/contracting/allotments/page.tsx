@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,13 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-
-const BASIS_LABELS: Record<string, string> = {
-  FREESALE: "Free Sale",
-  ON_REQUEST: "On Request",
-  COMMITMENT: "Commitment",
-  ALLOCATION: "Allocation",
-};
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const BASIS_COLORS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   FREESALE: "default",
@@ -38,9 +33,18 @@ const BASIS_COLORS: Record<string, "default" | "secondary" | "outline" | "destru
 };
 
 export default function AllotmentsPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const [hotelId, setHotelId] = useState("ALL");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
+
+  const BASIS_LABELS: Record<string, string> = {
+    FREESALE: t("freesale"),
+    ON_REQUEST: t("onRequest"),
+    COMMITMENT: t("commitment"),
+    ALLOCATION: t("allocation"),
+  };
 
   // Get calendar for next 12 months
   const dateFrom = new Date().toISOString().slice(0, 10);
@@ -94,9 +98,9 @@ export default function AllotmentsPage() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Allotments</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("allotments")}</h1>
           <p className="text-muted-foreground">
-            Cross-contract allotment overview with availability status
+            {t("manageAllotments")}
           </p>
         </div>
       </div>
@@ -105,10 +109,10 @@ export default function AllotmentsPage() {
       <div className="flex items-center gap-2">
         <Select value={hotelId} onValueChange={setHotelId}>
           <SelectTrigger className="h-9 w-[220px]">
-            <SelectValue placeholder="Filter by hotel" />
+            <SelectValue placeholder={t("hotel")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Hotels</SelectItem>
+            <SelectItem value="ALL">{t("allHotels")}</SelectItem>
             {hotels?.map((h) => (
               <SelectItem key={h.id} value={h.id}>
                 {h.name}
@@ -123,7 +127,7 @@ export default function AllotmentsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Allotments
+              {t("totalAllotmentsCard")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -133,7 +137,7 @@ export default function AllotmentsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Rooms
+              {t("totalRoomsCard")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -143,7 +147,7 @@ export default function AllotmentsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Free Sale
+              {t("freeSaleCard")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -153,7 +157,7 @@ export default function AllotmentsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Stop Sales
+              {t("activeStopSales")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -172,7 +176,7 @@ export default function AllotmentsPage() {
       ) : grouped.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No allotments found for the selected period.
+            {t("noAllotmentsFound")}
           </CardContent>
         </Card>
       ) : (
@@ -189,7 +193,7 @@ export default function AllotmentsPage() {
                   </CardTitle>
                   {stopSales.length > 0 && (
                     <Badge variant="destructive">
-                      {stopSales.length} Stop Sale{stopSales.length > 1 ? "s" : ""}
+                      {stopSales.length} {t("stopSale")}{stopSales.length > 1 ? "s" : ""}
                     </Badge>
                   )}
                 </div>
@@ -198,11 +202,11 @@ export default function AllotmentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Room Type</TableHead>
-                      <TableHead>Basis</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Sold</TableHead>
-                      <TableHead className="text-right">Available</TableHead>
+                      <TableHead>{t("roomType")}</TableHead>
+                      <TableHead>{t("allotmentBasis")}</TableHead>
+                      <TableHead className="text-right">{tc("total")}</TableHead>
+                      <TableHead className="text-right">{tc("sold")}</TableHead>
+                      <TableHead className="text-right">{tc("available")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -231,7 +235,7 @@ export default function AllotmentsPage() {
                 {stopSales.length > 0 && (
                   <div className="mt-3 border-t pt-3">
                     <p className="text-sm font-medium text-destructive mb-2">
-                      Stop Sales
+                      {t("stopSales")}
                     </p>
                     <div className="space-y-1">
                       {stopSales.map((ss) => (
@@ -250,7 +254,7 @@ export default function AllotmentsPage() {
                           )}
                           {!ss.roomType && (
                             <Badge variant="destructive" className="text-xs">
-                              All Rooms
+                              {t("allRooms")}
                             </Badge>
                           )}
                           {ss.reason && <span className="italic">— {ss.reason}</span>}

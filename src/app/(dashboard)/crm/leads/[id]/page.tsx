@@ -44,11 +44,15 @@ import {
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { activityCreateSchema, leadUpdateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type LeadFormValues = z.input<typeof leadUpdateSchema>;
 type ActivityFormValues = z.input<typeof activityCreateSchema>;
 
 export default function LeadDetailPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -165,10 +169,12 @@ export default function LeadDetailPage() {
     );
   }
 
-  if (!lead) return <p>Lead not found</p>;
+  if (!lead) return <p>{t("lead")} not found</p>;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="crm:lead:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -186,7 +192,7 @@ export default function LeadDetailPage() {
             <>
               <Button variant="outline" onClick={handleConvert} disabled={convertMutation.isPending}>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                Convert to Opportunity
+                {t("convertToOpportunity")}
               </Button>
               <Button
                 variant="outline"
@@ -194,7 +200,7 @@ export default function LeadDetailPage() {
                 disabled={convertToCustomerMutation.isPending}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
-                Convert to Customer
+                {t("convertToCustomer")}
               </Button>
             </>
           )}
@@ -202,19 +208,19 @@ export default function LeadDetailPage() {
             variant="destructive"
             size="sm"
             onClick={() => {
-              if (confirm("Delete this lead?")) deleteMutation.mutate({ id });
+              if (confirm(tc("confirmDelete"))) deleteMutation.mutate({ id });
             }}
           >
-            Delete
+            {tc("delete")}
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="details">{t("details")}</TabsTrigger>
           <TabsTrigger value="activities">
-            Activities ({lead.activities?.length ?? 0})
+            {t("activities")} ({lead.activities?.length ?? 0})
           </TabsTrigger>
         </TabsList>
 
@@ -229,7 +235,7 @@ export default function LeadDetailPage() {
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>First Name</FormLabel>
+                          <FormLabel>{t("firstName")}</FormLabel>
                           <FormControl><Input {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
@@ -240,7 +246,7 @@ export default function LeadDetailPage() {
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Last Name</FormLabel>
+                          <FormLabel>{t("lastName")}</FormLabel>
                           <FormControl><Input {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
@@ -253,7 +259,7 @@ export default function LeadDetailPage() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>{tc("email")}</FormLabel>
                         <FormControl><Input type="email" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -265,7 +271,7 @@ export default function LeadDetailPage() {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone</FormLabel>
+                        <FormLabel>{tc("phone")}</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -278,7 +284,7 @@ export default function LeadDetailPage() {
                       name="source"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Source</FormLabel>
+                          <FormLabel>{t("source")}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -300,7 +306,7 @@ export default function LeadDetailPage() {
                       name="status"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Status</FormLabel>
+                          <FormLabel>{tc("status")}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -324,11 +330,11 @@ export default function LeadDetailPage() {
                     name="assignedToId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Assigned To</FormLabel>
+                        <FormLabel>{t("assignedTo")}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value ?? ""}>
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select user" />
+                              <SelectValue placeholder={tc("select")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -349,7 +355,7 @@ export default function LeadDetailPage() {
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Notes</FormLabel>
+                        <FormLabel>{tc("notes")}</FormLabel>
                         <FormControl><Textarea {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -361,7 +367,7 @@ export default function LeadDetailPage() {
                   )}
 
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateMutation.isPending ? tc("saving") : t("saveChanges")}
                   </Button>
                 </form>
               </Form>
@@ -375,12 +381,12 @@ export default function LeadDetailPage() {
               <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
-                    <Plus className="mr-2 h-4 w-4" /> Add Activity
+                    <Plus className="mr-2 h-4 w-4" /> {t("addActivity")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>New Activity</DialogTitle>
+                    <DialogTitle>{t("newActivity")}</DialogTitle>
                   </DialogHeader>
                   <Form {...activityForm}>
                     <form
@@ -392,7 +398,7 @@ export default function LeadDetailPage() {
                         name="type"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Type</FormLabel>
+                            <FormLabel>{tc("type")}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="w-full">
@@ -413,7 +419,7 @@ export default function LeadDetailPage() {
                         name="subject"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Subject</FormLabel>
+                            <FormLabel>{t("subject")}</FormLabel>
                             <FormControl><Input {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
@@ -424,7 +430,7 @@ export default function LeadDetailPage() {
                         name="description"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel>{tc("description")}</FormLabel>
                             <FormControl><Textarea {...field} /></FormControl>
                           </FormItem>
                         )}
@@ -434,13 +440,13 @@ export default function LeadDetailPage() {
                         name="dueDate"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Due Date</FormLabel>
+                            <FormLabel>{t("dueDate")}</FormLabel>
                             <FormControl><Input type="date" {...field} /></FormControl>
                           </FormItem>
                         )}
                       />
                       <Button type="submit" disabled={createActivityMutation.isPending}>
-                        {createActivityMutation.isPending ? "Adding..." : "Add Activity"}
+                        {createActivityMutation.isPending ? tc("add") + "..." : t("addActivity")}
                       </Button>
                     </form>
                   </Form>
@@ -449,7 +455,7 @@ export default function LeadDetailPage() {
             </div>
 
             {(lead.activities?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No activities yet</p>
+              <p className="text-sm text-muted-foreground">{t("noActivities")}</p>
             ) : (
               <div className="space-y-2">
                 {lead.activities.map((act) => (
@@ -477,7 +483,7 @@ export default function LeadDetailPage() {
                             </Badge>
                           )}
                           {act.completedAt && (
-                            <Badge variant="default" className="text-xs">Completed</Badge>
+                            <Badge variant="default" className="text-xs">{tc("completed")}</Badge>
                           )}
                           <span className="text-xs text-muted-foreground">
                             {new Date(act.createdAt).toLocaleDateString()}
@@ -569,5 +575,9 @@ export default function LeadDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -2,6 +2,7 @@
 
 import { Hotel, Search, Star, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const AVAILABILITY_LABELS: Record<string, string> = {
   available: "Available",
@@ -41,6 +43,8 @@ const AVAILABILITY_VARIANTS: Record<string, "default" | "secondary" | "destructi
 export default function SearchAndBookPage() {
   const { data: operators, isLoading: loadingOperators } =
     trpc.b2bPortal.tourOperator.list.useQuery();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
 
   const [operatorId, setOperatorId] = useState("");
   const [destination, setDestination] = useState("");
@@ -103,10 +107,12 @@ export default function SearchAndBookPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:reservation:read">
+      <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Search & Book</h1>
-        <p className="text-muted-foreground">Search availability and create partner bookings</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("searchBook")}</h1>
+        <p className="text-muted-foreground">{t("searchAndBookDesc")}</p>
       </div>
 
       {/* Search Form */}
@@ -114,14 +120,14 @@ export default function SearchAndBookPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Search className="h-5 w-5" />
-            Search Availability
+            {t("searchAvailability")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
-                <Label>Tour Operator</Label>
+                <Label>{t("tourOperator")}</Label>
                 {loadingOperators ? (
                   <Skeleton className="h-9 w-full" />
                 ) : (
@@ -140,7 +146,7 @@ export default function SearchAndBookPage() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Destination</Label>
+                <Label>{t("destination")}</Label>
                 <Input
                   placeholder="City or region (optional)"
                   value={destination}
@@ -148,7 +154,7 @@ export default function SearchAndBookPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Check-in</Label>
+                <Label>{tc("checkIn")}</Label>
                 <Input
                   type="date"
                   value={checkIn}
@@ -156,7 +162,7 @@ export default function SearchAndBookPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Check-out</Label>
+                <Label>{tc("checkOut")}</Label>
                 <Input
                   type="date"
                   value={checkOut}
@@ -164,7 +170,7 @@ export default function SearchAndBookPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Adults</Label>
+                <Label>{tc("adults")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -174,7 +180,7 @@ export default function SearchAndBookPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Children</Label>
+                <Label>{tc("children")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -192,10 +198,10 @@ export default function SearchAndBookPage() {
                 ) : (
                   <Search className="mr-2 h-4 w-4" />
                 )}
-                Search
+                {tc("search")}
               </Button>
               <Button type="button" variant="outline" onClick={handleReset}>
-                Clear
+                {tc("clear")}
               </Button>
             </div>
           </form>
@@ -208,10 +214,10 @@ export default function SearchAndBookPage() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Hotel className="mb-4 h-12 w-12 text-muted-foreground/40" />
             <h3 className="text-lg font-semibold text-muted-foreground">
-              Select a partner and dates to search availability
+              {t("selectPartnerAndDates")}
             </h3>
             <p className="mt-1 text-sm text-muted-foreground/70">
-              Choose a tour operator, set your travel dates, and click Search
+              {t("chooseTourOperator")}
             </p>
           </CardContent>
         </Card>
@@ -236,8 +242,8 @@ export default function SearchAndBookPage() {
       ) : results && results.hotels.length > 0 ? (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {results.total} hotel{results.total !== 1 ? "s" : ""} found &middot;{" "}
-            {results.hotels[0]?.nights} night{(results.hotels[0]?.nights ?? 0) !== 1 ? "s" : ""}
+            {results.total} {t("hotelsFound")} &middot;{" "}
+            {results.hotels[0]?.nights} {t("nights")}
           </p>
           {results.hotels.map((hotel) => (
             <Card key={hotel.hotelId}>
@@ -348,5 +354,9 @@ export default function SearchAndBookPage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

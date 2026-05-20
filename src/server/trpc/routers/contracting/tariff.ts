@@ -5,13 +5,13 @@ import {
   tariffBulkGenerateSchema,
 } from "@/lib/validations/contracting";
 import { dispatchTariffWebhook } from "@/server/services/contracting/webhook-dispatcher";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const tariffRouter = createTRPCRouter({
   // ── List all tariffs ──
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:tariff:read").query(async ({ ctx }) => {
     return ctx.db.tariff.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -24,7 +24,7 @@ export const tariffRouter = createTRPCRouter({
   }),
 
   // ── Get by ID ──
-  getById: proc
+  getById: p("contracting:tariff:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.tariff.findFirstOrThrow({
@@ -46,7 +46,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Preview: compute tariff rates without saving ──
-  preview: proc
+  preview: p("contracting:tariff:read")
     .input(tariffGenerateSchema)
     .query(async ({ ctx, input }) => {
       const { generateTariffRates, resolveMarkupRule } = await import(
@@ -134,7 +134,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Generate a tariff ──
-  generate: proc
+  generate: p("contracting:tariff:create")
     .input(tariffGenerateSchema)
     .mutation(async ({ ctx, input }) => {
       const { generateTariffRates, resolveMarkupRule } = await import(
@@ -272,7 +272,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Regenerate: delete + recreate ──
-  regenerate: proc
+  regenerate: p("contracting:tariff:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.tariff.findFirstOrThrow({
@@ -416,7 +416,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Contracts available for tariff generation (assigned to a TO) ──
-  contractsForTariff: proc
+  contractsForTariff: p("contracting:tariff:read")
     .input(
       z.object({
         tourOperatorId: z.string(),
@@ -451,7 +451,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Bulk generate: tariffs for all contracts assigned to a TO ──
-  generateBulk: proc
+  generateBulk: p("contracting:tariff:create")
     .input(tariffBulkGenerateSchema)
     .mutation(async ({ ctx, input }) => {
       const { generateTariffRates, resolveMarkupRule } = await import(
@@ -626,7 +626,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Delete ──
-  delete: proc
+  delete: p("contracting:tariff:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.tariff.delete({
@@ -635,7 +635,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Bulk delete ──
-  deleteBulk: proc
+  deleteBulk: p("contracting:tariff:delete")
     .input(z.object({ ids: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db.tariff.deleteMany({

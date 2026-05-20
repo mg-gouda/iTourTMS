@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -27,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RATE_BASIS_LABELS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import { contractCreateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof contractCreateSchema>;
 
@@ -36,6 +38,8 @@ const RATE_BASIS_OPTIONS = Object.entries(RATE_BASIS_LABELS) as [
 ][];
 
 export default function NewContractPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -111,9 +115,9 @@ export default function NewContractPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Contract</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newContract")}</h1>
         <p className="text-muted-foreground">
-          Create a new hotel contract with seasons and rates
+          {t("manageContracts")}
         </p>
       </div>
 
@@ -121,13 +125,13 @@ export default function NewContractPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Hotel Selection */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Hotel</h2>
+            <h2 className="text-lg font-semibold">{t("hotelSection")}</h2>
             <FormField
               control={form.control}
               name="hotelId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Select Hotel</FormLabel>
+                  <FormLabel>{t("selectHotel")}</FormLabel>
                   <Select
                     onValueChange={(val) => {
                       field.onChange(val);
@@ -162,14 +166,14 @@ export default function NewContractPage() {
 
           {/* Contract Details */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Contract Details</h2>
+            <h2 className="text-lg font-semibold">{t("contractDetails")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contract Name</FormLabel>
+                    <FormLabel>{t("contractName")}</FormLabel>
                     <FormControl>
                       <Input {...field} readOnly className="bg-muted" />
                     </FormControl>
@@ -182,7 +186,7 @@ export default function NewContractPage() {
                 name="season"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Season</FormLabel>
+                    <FormLabel>{t("season")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Summer 2026"
@@ -204,11 +208,11 @@ export default function NewContractPage() {
               name="marketIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Market Validity</FormLabel>
+                  <FormLabel>{t("marketValidity")}</FormLabel>
                   <div className="rounded-md border p-3">
                     {(markets ?? []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        No markets defined. Add markets in Settings &gt; Contracting.
+                        {t("noMarketsMsg")}
                       </p>
                     ) : (
                       <div className="flex flex-wrap gap-4">
@@ -240,7 +244,7 @@ export default function NewContractPage() {
               name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Code</FormLabel>
+                  <FormLabel>{tc("code")}</FormLabel>
                   <FormControl>
                     <Input {...field} readOnly className="bg-muted" />
                   </FormControl>
@@ -254,7 +258,7 @@ export default function NewContractPage() {
                 name="validFrom"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booking From</FormLabel>
+                    <FormLabel>{t("bookingFrom")}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -267,7 +271,7 @@ export default function NewContractPage() {
                 name="validTo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booking To</FormLabel>
+                    <FormLabel>{t("bookingTo")}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -280,7 +284,7 @@ export default function NewContractPage() {
                 name="travelFrom"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Travel From</FormLabel>
+                    <FormLabel>{t("travelFrom")}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -293,7 +297,7 @@ export default function NewContractPage() {
                 name="travelTo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Travel To</FormLabel>
+                    <FormLabel>{t("travelTo")}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -308,7 +312,7 @@ export default function NewContractPage() {
                 name="rateBasis"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rate Basis</FormLabel>
+                    <FormLabel>{t("rateBasisCol")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -335,7 +339,7 @@ export default function NewContractPage() {
                 name="baseCurrencyId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Currency</FormLabel>
+                    <FormLabel>{tc("currency")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -363,7 +367,7 @@ export default function NewContractPage() {
                   name="minimumStay"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Min Stay</FormLabel>
+                      <FormLabel>{t("minStay")}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -383,7 +387,7 @@ export default function NewContractPage() {
                   name="maximumStay"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Max Stay</FormLabel>
+                      <FormLabel>{t("maxStay")}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -407,10 +411,9 @@ export default function NewContractPage() {
 
           {/* Base Assignments */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Base Assignments</h2>
+            <h2 className="text-lg font-semibold">{t("baseAssignments")}</h2>
             <p className="text-sm text-muted-foreground">
-              Select the base room type and meal basis for this contract. These
-              will be automatically assigned.
+              {t("baseAssignmentsDesc")}
             </p>
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -418,7 +421,7 @@ export default function NewContractPage() {
                 name="baseRoomTypeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Base Room Type</FormLabel>
+                    <FormLabel>{t("baseRoomType")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -452,7 +455,7 @@ export default function NewContractPage() {
                 name="baseMealBasisId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Base Meal Basis</FormLabel>
+                    <FormLabel>{t("baseMealBasis")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -486,13 +489,13 @@ export default function NewContractPage() {
 
           {/* Terms & Notes */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Terms & Notes</h2>
+            <h2 className="text-lg font-semibold">{t("termsNotes")}</h2>
             <FormField
               control={form.control}
               name="terms"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Terms & Conditions</FormLabel>
+                  <FormLabel>{t("terms")}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
@@ -511,7 +514,7 @@ export default function NewContractPage() {
                 name="internalNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Internal Notes</FormLabel>
+                    <FormLabel>{t("internalNotes")}</FormLabel>
                     <FormControl>
                       <Textarea
                         rows={3}
@@ -529,7 +532,7 @@ export default function NewContractPage() {
                 name="hotelNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hotel Notes</FormLabel>
+                    <FormLabel>{t("hotelNotes")}</FormLabel>
                     <FormControl>
                       <Textarea
                         rows={3}
@@ -553,14 +556,14 @@ export default function NewContractPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Contract"}
+              {createMutation.isPending ? tc("creating") : t("newContract")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/contracting/contracts")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>

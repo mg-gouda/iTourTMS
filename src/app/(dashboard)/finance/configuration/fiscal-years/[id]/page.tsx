@@ -31,6 +31,7 @@ import {
   FISCAL_PERIOD_STATE_LABELS,
 } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 function PeriodStateBadge({ state }: { state: string }) {
   const variant =
@@ -131,6 +132,7 @@ export default function FiscalYearDetailPage() {
   );
 
   return (
+    <PermissionGuard permission="finance:period:read">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -366,5 +368,6 @@ export default function FiscalYearDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

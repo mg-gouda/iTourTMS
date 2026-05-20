@@ -4,6 +4,7 @@ import { use } from "react";
 
 import { JournalForm } from "@/components/finance/journal-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function EditJournalPage({
   params,
@@ -28,6 +29,7 @@ export default function EditJournalPage({
   }
 
   return (
+    <PermissionGuard permission="finance:journal:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Edit Journal</h1>
@@ -50,5 +52,6 @@ export default function EditJournalPage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

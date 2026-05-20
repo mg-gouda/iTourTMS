@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsReportsRouter = createTRPCRouter({
-  pnlSummary: tourOpsProcedure
+  pnlSummary: p("tour-ops:report:read")
     .input(
       z.object({
         dateFrom: z.string().optional(),
@@ -49,7 +49,7 @@ export const opsReportsRouter = createTRPCRouter({
       };
     }),
 
-  revenueByPeriod: tourOpsProcedure
+  revenueByPeriod: p("tour-ops:report:read")
     .input(
       z.object({
         year: z.number().int().optional(),
@@ -91,7 +91,7 @@ export const opsReportsRouter = createTRPCRouter({
         .map(([period, data]) => ({ period, ...data }));
     }),
 
-  filesByStatus: tourOpsProcedure.query(async ({ ctx }) => {
+  filesByStatus: p("tour-ops:report:read").query(async ({ ctx }) => {
     const counts = await ctx.db.opsFile.groupBy({
       by: ["status"],
       where: { companyId: ctx.companyId },

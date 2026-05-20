@@ -4,10 +4,10 @@ import {
   contractChildPolicyCreateSchema,
   contractChildPolicyUpdateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import type { PrismaClient } from "@prisma/client";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 async function verifyContract(
   db: PrismaClient,
@@ -20,7 +20,7 @@ async function verifyContract(
 }
 
 export const contractChildPolicyRouter = createTRPCRouter({
-  listByContract: proc
+  listByContract: p("contracting:policy:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -30,7 +30,7 @@ export const contractChildPolicyRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:policy:create")
     .input(contractChildPolicyCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -51,7 +51,7 @@ export const contractChildPolicyRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("contracting:policy:update")
     .input(contractChildPolicyUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -63,7 +63,7 @@ export const contractChildPolicyRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("contracting:policy:delete")
     .input(z.object({ id: z.string(), contractId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);

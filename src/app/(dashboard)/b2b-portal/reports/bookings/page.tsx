@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { BarChart3, CalendarCheck, FileText, XCircle } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type SummaryRow = {
   tourOperatorId: string;
@@ -31,40 +33,42 @@ type SummaryRow = {
   avgBookingValue: number;
 };
 
-const columns: ColumnDef<SummaryRow>[] = [
-  {
-    accessorKey: "tourOperatorName",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Tour Operator" />,
-    cell: ({ row }) => <span className="font-medium">{row.original.tourOperatorName}</span>,
-  },
-  {
-    accessorKey: "totalBookings",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Total Bookings" />,
-  },
-  {
-    accessorKey: "confirmed",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Confirmed" />,
-    cell: ({ row }) => <span className="text-green-600 font-medium">{row.original.confirmed}</span>,
-  },
-  {
-    accessorKey: "cancelled",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Cancelled" />,
-    cell: ({ row }) => <span className="text-red-600 font-medium">{row.original.cancelled}</span>,
-  },
-  {
-    accessorKey: "revenue",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Revenue" />,
-    cell: ({ row }) => `$${row.original.revenue.toLocaleString()}`,
-  },
-  {
-    accessorKey: "avgBookingValue",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Avg. Value" />,
-    cell: ({ row }) => `$${row.original.avgBookingValue.toLocaleString()}`,
-  },
-];
-
 export default function BookingReportsPage() {
   const { data: toList } = trpc.b2bPortal.tourOperator.list.useQuery();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
+
+  const columns: ColumnDef<SummaryRow>[] = [
+    {
+      accessorKey: "tourOperatorName",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("tourOperator")} />,
+      cell: ({ row }) => <span className="font-medium">{row.original.tourOperatorName}</span>,
+    },
+    {
+      accessorKey: "totalBookings",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("totalBookings")} />,
+    },
+    {
+      accessorKey: "confirmed",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("confirmed")} />,
+      cell: ({ row }) => <span className="text-green-600 font-medium">{row.original.confirmed}</span>,
+    },
+    {
+      accessorKey: "cancelled",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("cancelled")} />,
+      cell: ({ row }) => <span className="text-red-600 font-medium">{row.original.cancelled}</span>,
+    },
+    {
+      accessorKey: "revenue",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("revenue")} />,
+      cell: ({ row }) => `$${row.original.revenue.toLocaleString()}`,
+    },
+    {
+      accessorKey: "avgBookingValue",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("avgValue")} />,
+      cell: ({ row }) => `$${row.original.avgBookingValue.toLocaleString()}`,
+    },
+  ];
 
   const [filters, setFilters] = useState({
     tourOperatorId: "",
@@ -87,17 +91,19 @@ export default function BookingReportsPage() {
   };
 
   const kpis = [
-    { title: "Total Bookings", value: totals.totalBookings, icon: FileText, color: "text-blue-600" },
-    { title: "Confirmed", value: totals.confirmed, icon: CalendarCheck, color: "text-green-600" },
-    { title: "Cancelled", value: totals.cancelled, icon: XCircle, color: "text-red-500" },
-    { title: "Total Revenue", value: `$${totals.revenue.toLocaleString()}`, icon: BarChart3, color: "text-emerald-600" },
+    { title: t("totalBookings"), value: totals.totalBookings, icon: FileText, color: "text-blue-600" },
+    { title: tc("confirmed"), value: totals.confirmed, icon: CalendarCheck, color: "text-green-600" },
+    { title: tc("cancelled"), value: totals.cancelled, icon: XCircle, color: "text-red-500" },
+    { title: t("totalRevenue"), value: `$${totals.revenue.toLocaleString()}`, icon: BarChart3, color: "text-emerald-600" },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Booking Reports</h1>
-        <p className="text-muted-foreground">Booking volume and status analytics by partner</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("bookingReports")}</h1>
+        <p className="text-muted-foreground">{t("bookingReportsDesc")}</p>
       </div>
 
       {/* Filters */}
@@ -105,13 +111,13 @@ export default function BookingReportsPage() {
         <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-4">
             <div>
-              <Label>Tour Operator</Label>
+              <Label>{t("tourOperator")}</Label>
               <Select value={filters.tourOperatorId || "all"} onValueChange={(v) => setFilters({ ...filters, tourOperatorId: v === "all" ? "" : v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All" />
+                  <SelectValue placeholder={tc("all")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Tour Operators</SelectItem>
+                  <SelectItem value="all">{t("allOperators")}</SelectItem>
                   {(toList ?? []).map((to: { id: string; name: string }) => (
                     <SelectItem key={to.id} value={to.id}>{to.name}</SelectItem>
                   ))}
@@ -119,25 +125,25 @@ export default function BookingReportsPage() {
               </Select>
             </div>
             <div>
-              <Label>Date From</Label>
+              <Label>{t("dateFrom")}</Label>
               <Input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
             </div>
             <div>
-              <Label>Date To</Label>
+              <Label>{t("dateTo")}</Label>
               <Input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
             </div>
             <div>
-              <Label>Status</Label>
+              <Label>{tc("status")}</Label>
               <Select value={filters.status || "all"} onValueChange={(v) => setFilters({ ...filters, status: v === "all" ? "" : v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
+                  <SelectValue placeholder={t("allStatuses")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                  <SelectItem value="CONFIRMED">{tc("confirmed")}</SelectItem>
+                  <SelectItem value="CANCELLED">{tc("cancelled")}</SelectItem>
+                  <SelectItem value="PENDING">{tc("pending")}</SelectItem>
+                  <SelectItem value="COMPLETED">{tc("completed")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -203,5 +209,9 @@ export default function BookingReportsPage() {
         />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

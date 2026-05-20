@@ -33,6 +33,7 @@ import {
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 function fmtDate(d: string | Date | null | undefined) {
   if (!d) return "—";
@@ -68,7 +69,9 @@ export default function EbdConditionsReportPage() {
   const totalEbds = data?.reduce((s, c) => s + c.ebdOffers.length, 0) ?? 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="contracting:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
           <h1 className="text-2xl font-bold tracking-tight">EBD Conditions</h1>
@@ -266,5 +269,9 @@ export default function EbdConditionsReportPage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -42,6 +42,8 @@ import {
   programPlanSaveItemsSchema,
 } from "@/lib/validations/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type UpdateForm = z.infer<typeof programPlanUpdateSchema>;
 
@@ -190,6 +192,8 @@ function PlanItemRow({
 }
 
 export default function ExcProgramDetailPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -302,10 +306,12 @@ export default function ExcProgramDetailPage() {
     );
   }
 
-  if (!plan) return <p className="p-6 text-sm text-muted-foreground">Program not found</p>;
+  if (!plan) return <p className="p-6 text-sm text-muted-foreground">{t("program")} not found</p>;
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+
+    <PermissionGuard permission="crm:excursion:read">
+      <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -315,7 +321,7 @@ export default function ExcProgramDetailPage() {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">{plan.name}</h1>
               <Badge variant={plan.active ? "default" : "secondary"}>
-                {plan.active ? "Active" : "Inactive"}
+                {plan.active ? tc("active") : tc("inactive")}
               </Badge>
               {plan.market && <Badge variant="outline">{plan.market.name}</Badge>}
             </div>
@@ -327,9 +333,9 @@ export default function ExcProgramDetailPage() {
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => { if (confirm("Delete this program?")) deleteMutation.mutate({ id }); }}
+          onClick={() => { if (confirm(tc("confirmDelete"))) deleteMutation.mutate({ id }); }}
         >
-          Delete Program
+          {tc("delete")}
         </Button>
       </div>
 
@@ -337,7 +343,7 @@ export default function ExcProgramDetailPage() {
         {/* ── Left: Info form ── */}
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle className="text-base">Program Info</CardTitle>
+            <CardTitle className="text-base">{t("program")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...infoForm}>
@@ -349,7 +355,7 @@ export default function ExcProgramDetailPage() {
               >
                 <FormField control={infoForm.control} name="name" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{tc("name")}</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -357,7 +363,7 @@ export default function ExcProgramDetailPage() {
 
                 <FormField control={infoForm.control} name="description" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{tc("description")}</FormLabel>
                     <FormControl><Textarea rows={3} {...field} /></FormControl>
                   </FormItem>
                 )} />
@@ -384,12 +390,12 @@ export default function ExcProgramDetailPage() {
                 <FormField control={infoForm.control} name="active" render={({ field }) => (
                   <FormItem className="flex items-center gap-2 space-y-0">
                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                    <FormLabel>Active</FormLabel>
+                    <FormLabel>{tc("active")}</FormLabel>
                   </FormItem>
                 )} />
 
                 <Button type="submit" size="sm" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Saving…" : "Save Info"}
+                  {updateMutation.isPending ? tc("saving") : tc("save")}
                 </Button>
               </form>
             </Form>
@@ -399,14 +405,14 @@ export default function ExcProgramDetailPage() {
         {/* ── Right: Schedule editor ── */}
         <div className="col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Excursion Schedule</h2>
+            <h2 className="text-base font-semibold">{t("excursionPrograms")}</h2>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={addItem}>
-                <Plus className="mr-1 h-3 w-3" /> Add Excursion
+                <Plus className="mr-1 h-3 w-3" /> {t("excursions")}
               </Button>
               {itemsDirty && (
                 <Button size="sm" onClick={handleSaveItems} disabled={saveItemsMutation.isPending}>
-                  {saveItemsMutation.isPending ? "Saving…" : "Save Schedule"}
+                  {saveItemsMutation.isPending ? tc("saving") : tc("save")}
                 </Button>
               )}
             </div>
@@ -436,11 +442,11 @@ export default function ExcProgramDetailPage() {
 
               <div className="flex justify-end gap-2 pt-2">
                 <Button size="sm" variant="outline" onClick={addItem}>
-                  <Plus className="mr-1 h-3 w-3" /> Add Excursion
+                  <Plus className="mr-1 h-3 w-3" /> {t("excursions")}
                 </Button>
                 {itemsDirty && (
                   <Button size="sm" onClick={handleSaveItems} disabled={saveItemsMutation.isPending}>
-                    {saveItemsMutation.isPending ? "Saving…" : "Save Schedule"}
+                    {saveItemsMutation.isPending ? tc("saving") : tc("save")}
                   </Button>
                 )}
               </div>
@@ -449,5 +455,9 @@ export default function ExcProgramDetailPage() {
         </div>
       </div>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

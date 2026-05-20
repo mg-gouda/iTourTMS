@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type UCRow = {
   id: string;
@@ -68,6 +69,7 @@ export default function UnrealizedCurrenciesPage() {
   ];
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -115,5 +117,6 @@ export default function UnrealizedCurrenciesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

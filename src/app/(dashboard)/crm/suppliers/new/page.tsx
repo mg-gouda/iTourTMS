@@ -20,10 +20,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { supplierCreateSchema } from "@/lib/validations/crm";
 import { toast } from "sonner";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type FormValues = z.input<typeof supplierCreateSchema>;
 
 export default function NewSupplierPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -43,7 +47,7 @@ export default function NewSupplierPage() {
   const createMutation = trpc.crm.supplier.create.useMutation({
     onSuccess: (data) => {
       utils.crm.supplier.invalidate();
-      toast.success("Supplier created");
+      toast.success(t("newSupplier"));
       router.push(`/crm/suppliers/${data.id}`);
     },
     onError: (err) => toast.error(err.message),
@@ -54,10 +58,12 @@ export default function NewSupplierPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+
+    <PermissionGuard permission="crm:supplier:read">
+      <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Supplier</h1>
-        <p className="text-muted-foreground">Add a new excursion supplier to your catalog</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newSupplier")}</h1>
+        <p className="text-muted-foreground">{t("manageSuppliers")}</p>
       </div>
 
       <Form {...form}>
@@ -67,7 +73,7 @@ export default function NewSupplierPage() {
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Name *</FormLabel>
+                <FormLabel>{tc("name")} *</FormLabel>
                 <FormControl>
                   <Input placeholder="Supplier name" {...field} />
                 </FormControl>
@@ -82,7 +88,7 @@ export default function NewSupplierPage() {
               name="contactName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contact Person</FormLabel>
+                  <FormLabel>{t("contactPerson")}</FormLabel>
                   <FormControl>
                     <Input placeholder="Contact name" {...field} />
                   </FormControl>
@@ -95,7 +101,7 @@ export default function NewSupplierPage() {
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type</FormLabel>
+                  <FormLabel>{tc("type")}</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Boat, Ground, Guide" {...field} />
                   </FormControl>
@@ -111,7 +117,7 @@ export default function NewSupplierPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{tc("email")}</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="email@example.com" {...field} />
                   </FormControl>
@@ -124,7 +130,7 @@ export default function NewSupplierPage() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel>{tc("phone")}</FormLabel>
                   <FormControl>
                     <Input placeholder="+1 234 567 8900" {...field} />
                   </FormControl>
@@ -139,7 +145,7 @@ export default function NewSupplierPage() {
             name="notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Notes</FormLabel>
+                <FormLabel>{tc("notes")}</FormLabel>
                 <FormControl>
                   <Textarea placeholder="Internal notes..." rows={3} {...field} />
                 </FormControl>
@@ -156,21 +162,25 @@ export default function NewSupplierPage() {
                 <FormControl>
                   <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                 </FormControl>
-                <FormLabel className="font-normal">Active</FormLabel>
+                <FormLabel className="font-normal">{tc("active")}</FormLabel>
               </FormItem>
             )}
           />
 
           <div className="flex gap-3">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Supplier"}
+              {createMutation.isPending ? tc("creating") : t("newSupplier")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

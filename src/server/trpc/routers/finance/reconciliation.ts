@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 import { z } from "zod";
 
 import { reconcileSchema, unreconcileSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   suggestMatches,
   validateReconciliation,
@@ -12,10 +12,10 @@ import {
 import { validateBalance } from "@/server/services/finance/move-engine";
 import { updateMovePaymentState } from "@/server/services/finance/payment-engine";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const reconciliationRouter = createTRPCRouter({
-  getUnreconciledStatementLines: financeProcedure
+  getUnreconciledStatementLines: p("finance:reconciliation:read")
     .input(
       z.object({
         journalId: z.string(),
@@ -51,7 +51,7 @@ export const reconciliationRouter = createTRPCRouter({
       return lines;
     }),
 
-  getUnreconciledJournalItems: financeProcedure
+  getUnreconciledJournalItems: p("finance:reconciliation:read")
     .input(
       z.object({
         journalId: z.string(),
@@ -125,7 +125,7 @@ export const reconciliationRouter = createTRPCRouter({
       });
     }),
 
-  suggestMatches: financeProcedure
+  suggestMatches: p("finance:reconciliation:read")
     .input(z.object({ journalId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Fetch unreconciled statement lines
@@ -198,7 +198,7 @@ export const reconciliationRouter = createTRPCRouter({
       return suggestMatches(stLines, jItems);
     }),
 
-  reconcile: financeProcedure
+  reconcile: p("finance:reconciliation:reconcile")
     .input(reconcileSchema)
     .mutation(async ({ ctx, input }) => {
       // 1. Fetch selected statement lines
@@ -392,7 +392,7 @@ export const reconciliationRouter = createTRPCRouter({
       });
     }),
 
-  unreconcile: financeProcedure
+  unreconcile: p("finance:reconciliation:reconcile")
     .input(unreconcileSchema)
     .mutation(async ({ ctx, input }) => {
       // Fetch the statement lines with their move line IDs

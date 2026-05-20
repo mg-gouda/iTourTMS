@@ -38,6 +38,7 @@ import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 import { formatSeasonLabel } from "@/lib/utils";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function RateComparisonPage() {
   const router = useRouter();
@@ -231,7 +232,8 @@ export default function RateComparisonPage() {
                                   )
                                 : null;
                               return (
-                                <TableCell
+                                <PermissionGuard permission="contracting:report:read">
+                                  <TableCell
                                   key={c.id}
                                   className="text-center font-mono"
                                 >
@@ -259,6 +261,7 @@ export default function RateComparisonPage() {
                                     </span>
                                   )}
                                 </TableCell>
+                                </PermissionGuard>
                               );
                             })}
                           </TableRow>

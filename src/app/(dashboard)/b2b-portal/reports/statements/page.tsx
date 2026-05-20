@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileDown, Search } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type StatementRow = {
   createdAt: Date;
@@ -33,65 +35,10 @@ type StatementRow = {
   notes: string | null;
 };
 
-const columns: ColumnDef<StatementRow>[] = [
-  {
-    id: "date",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
-    accessorFn: (row) => new Date(row.createdAt).getTime(),
-    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
-  },
-  {
-    id: "description",
-    header: "Description / Reference",
-    cell: ({ row }) => (
-      <div>
-        <span className="font-medium">{row.original.type}</span>
-        {row.original.booking && (
-          <span className="ml-2 text-xs text-muted-foreground">({row.original.booking.code})</span>
-        )}
-        {row.original.reference && (
-          <span className="ml-2 text-xs text-muted-foreground">Ref: {row.original.reference}</span>
-        )}
-      </div>
-    ),
-  },
-  {
-    id: "debit",
-    header: "Debit",
-    cell: ({ row }) => {
-      const val = Number(row.original.amount ?? 0);
-      return val < 0 ? (
-        <span className="text-red-600">${Math.abs(val).toLocaleString()}</span>
-      ) : (
-        "—"
-      );
-    },
-  },
-  {
-    id: "credit",
-    header: "Credit",
-    cell: ({ row }) => {
-      const val = Number(row.original.amount ?? 0);
-      return val > 0 ? (
-        <span className="text-green-600">${val.toLocaleString()}</span>
-      ) : (
-        "—"
-      );
-    },
-  },
-  {
-    id: "runningBalance",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Running Balance" />,
-    cell: ({ row }) => (
-      <span className="font-medium">
-        ${Number(row.original.runningBalance ?? 0).toLocaleString()}
-      </span>
-    ),
-  },
-];
-
 export default function StatementsPage() {
   const { data: toList } = trpc.b2bPortal.tourOperator.list.useQuery();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
 
   const [tourOperatorId, setTourOperatorId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -112,11 +59,70 @@ export default function StatementsPage() {
     (to: { id: string; name: string }) => to.id === tourOperatorId
   ) as { id: string; name: string } | undefined;
 
+  const columns: ColumnDef<StatementRow>[] = [
+    {
+      id: "date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("date")} />,
+      accessorFn: (row) => new Date(row.createdAt).getTime(),
+      cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+    },
+    {
+      id: "description",
+      header: t("descriptionReference"),
+      cell: ({ row }) => (
+        <div>
+          <span className="font-medium">{row.original.type}</span>
+          {row.original.booking && (
+            <span className="ml-2 text-xs text-muted-foreground">({row.original.booking.code})</span>
+          )}
+          {row.original.reference && (
+            <span className="ml-2 text-xs text-muted-foreground">Ref: {row.original.reference}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "debit",
+      header: t("debit"),
+      cell: ({ row }) => {
+        const val = Number(row.original.amount ?? 0);
+        return val < 0 ? (
+          <span className="text-red-600">${Math.abs(val).toLocaleString()}</span>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      id: "credit",
+      header: t("creditCol"),
+      cell: ({ row }) => {
+        const val = Number(row.original.amount ?? 0);
+        return val > 0 ? (
+          <span className="text-green-600">${val.toLocaleString()}</span>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      id: "runningBalance",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("runningBalance")} />,
+      cell: ({ row }) => (
+        <span className="font-medium">
+          ${Number(row.original.runningBalance ?? 0).toLocaleString()}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Partner Statements</h1>
-        <p className="text-muted-foreground">Generate account statements for partners</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("partnerStatements")}</h1>
+        <p className="text-muted-foreground">{t("statementsDesc")}</p>
       </div>
 
       {/* Form */}
@@ -124,13 +130,13 @@ export default function StatementsPage() {
         <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-4 items-end">
             <div>
-              <Label>Tour Operator *</Label>
+              <Label>{t("tourOperatorRequired")}</Label>
               <Select value={tourOperatorId || "none"} onValueChange={(v) => setTourOperatorId(v === "none" ? "" : v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select partner" />
+                  <SelectValue placeholder={t("selectPartner")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none" disabled>Select partner</SelectItem>
+                  <SelectItem value="none" disabled>{t("selectPartner")}</SelectItem>
                   {(toList ?? []).map((to: { id: string; name: string }) => (
                     <SelectItem key={to.id} value={to.id}>{to.name}</SelectItem>
                   ))}
@@ -138,17 +144,17 @@ export default function StatementsPage() {
               </Select>
             </div>
             <div>
-              <Label>Date From *</Label>
+              <Label>{t("dateFromRequired")}</Label>
               <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} required />
             </div>
             <div>
-              <Label>Date To *</Label>
+              <Label>{t("dateToRequired")}</Label>
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} required />
             </div>
             <div>
               <Button disabled={!enabled} className="w-full">
                 <Search className="mr-2 h-4 w-4" />
-                Generate
+                {t("generate")}
               </Button>
             </div>
           </div>
@@ -185,10 +191,10 @@ export default function StatementsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">
-                    Statement: {selectedPartner?.name ?? "Partner"}
+                    {t("statementHeader")}: {selectedPartner?.name ?? "Partner"}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Period: {new Date(dateFrom).toLocaleDateString()} — {new Date(dateTo).toLocaleDateString()}
+                    {t("period")}: {new Date(dateFrom).toLocaleDateString()} — {new Date(dateTo).toLocaleDateString()}
                   </p>
                 </div>
                 <Button
@@ -212,24 +218,24 @@ export default function StatementsPage() {
                       });
                       pdf.save(`statement-${data.tourOperator?.code ?? "partner"}-${dateFrom}-to-${dateTo}.pdf`);
                     } catch {
-                      toast.error("Failed to generate PDF");
+                      toast.error(tc("error"));
                     }
                   }}
                 >
-                  <FileDown className="mr-1 h-4 w-4" /> Export PDF
+                  <FileDown className="mr-1 h-4 w-4" /> {tc("exportPdf")}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="flex gap-8">
                 <div>
-                  <p className="text-sm text-muted-foreground">Opening Balance</p>
+                  <p className="text-sm text-muted-foreground">{t("openingBalance")}</p>
                   <p className="text-xl font-bold">
                     ${Number(data.openingBalance ?? 0).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Closing Balance</p>
+                  <p className="text-sm text-muted-foreground">{t("closingBalance")}</p>
                   <p className="text-xl font-bold">
                     ${Number(data.closingBalance ?? 0).toLocaleString()}
                   </p>
@@ -251,7 +257,7 @@ export default function StatementsPage() {
             <CardContent className="py-4">
               <div className="flex justify-end">
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Closing Balance</p>
+                  <p className="text-sm text-muted-foreground">{t("closingBalance")}</p>
                   <p className="text-2xl font-bold">
                     ${Number(data.closingBalance ?? 0).toLocaleString()}
                   </p>
@@ -265,10 +271,14 @@ export default function StatementsPage() {
       {enabled && !isLoading && !data && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No statement data found for the selected criteria.
+            {t("noStatementData")}
           </CardContent>
         </Card>
       )}
     </div>
+
+
+    </PermissionGuard>
+
   );
 }

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 const BREAKDOWN_SELECT = {
   id: true,
@@ -38,7 +38,7 @@ const BREAKDOWN_SELECT = {
 } as const;
 
 export const excursionBreakdownRouter = createTRPCRouter({
-  list: proc
+  list: p("crm:excursion:read")
     .input(
       z.object({
         excursionId: z.string().optional(),
@@ -69,7 +69,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("crm:excursion:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmExcursionBreakdown.findFirstOrThrow({
@@ -79,7 +79,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
     }),
 
   // Find or create breakdown for a given excursion+date+language, then attach tickets
-  saveBreakdown: proc
+  saveBreakdown: p("crm:excursion:update")
     .input(
       z.object({
         excursionId: z.string(),
@@ -144,7 +144,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
       });
     }),
 
-  assign: proc
+  assign: p("crm:excursion:update")
     .input(
       z.object({
         id: z.string(),
@@ -166,7 +166,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
       });
     }),
 
-  publish: proc
+  publish: p("crm:excursion:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursionBreakdown.findFirstOrThrow({ where: { id: input.id, companyId: ctx.companyId } });
@@ -177,7 +177,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
       });
     }),
 
-  unpublish: proc
+  unpublish: p("crm:booking:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursionBreakdown.findFirstOrThrow({ where: { id: input.id, companyId: ctx.companyId } });
@@ -189,7 +189,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
     }),
 
   // Supporting dropdowns for traffic pool
-  listReps: proc.query(async ({ ctx }) => {
+  listReps: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.ttRep.findMany({
       where: { companyId: ctx.companyId, isActive: true },
       select: { id: true, user: { select: { name: true, email: true } } },
@@ -197,7 +197,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
     });
   }),
 
-  listVehicles: proc.query(async ({ ctx }) => {
+  listVehicles: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.ttVehicle.findMany({
       where: { companyId: ctx.companyId, isActive: true },
       select: { id: true, plateNumber: true, make: true, model: true, vehicleType: { select: { name: true, capacity: true } } },
@@ -205,7 +205,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
     });
   }),
 
-  listDrivers: proc.query(async ({ ctx }) => {
+  listDrivers: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.ttDriver.findMany({
       where: { companyId: ctx.companyId, isActive: true },
       select: { id: true, user: { select: { name: true } } },

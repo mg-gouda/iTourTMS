@@ -42,6 +42,9 @@ import { GUEST_TITLE_OPTIONS } from "@/lib/constants/reservations";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
+
 type FormValues = z.input<typeof bookingCreateSchema>;
 
 const PARTNER_STATUS_OPTIONS = [
@@ -60,6 +63,8 @@ const PAYMENT_METHOD_OPTIONS = [
 
 export default function NewBookingPage() {
   const router = useRouter();
+  const t = useTranslations("reservations");
+  const tCommon = useTranslations("common");
   const utils = trpc.useUtils();
 
   const form = useForm<FormValues>({
@@ -430,20 +435,21 @@ export default function NewBookingPage() {
   }
 
   return (
+    <PermissionGuard permission="reservations:booking:read">
     <div className="mx-auto max-w-6xl space-y-6 animate-fade-in pb-10">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">New Booking</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("newBooking")}</h1>
           <p className="text-sm text-muted-foreground">
-            Create a new reservation
+            {t("createBooking")}
           </p>
         </div>
         <Button
           variant="outline"
           onClick={() => router.push("/reservations/bookings")}
         >
-          Cancel
+          {tCommon("cancel")}
         </Button>
       </div>
 
@@ -452,7 +458,7 @@ export default function NewBookingPage() {
           {/* ── Section 1: Booking Info & Status ── */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Booking Information</CardTitle>
+              <CardTitle className="text-base">{t("bookingInfoTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -462,7 +468,7 @@ export default function NewBookingPage() {
                   name="bookingDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>BKG Date</FormLabel>
+                      <FormLabel>{t("bookingDate")}</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -476,7 +482,7 @@ export default function NewBookingPage() {
                   name="htlBookingStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>HTL BKG Status</FormLabel>
+                      <FormLabel>{t("htlBookingStatus")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -501,7 +507,7 @@ export default function NewBookingPage() {
                   name="toBookingStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>T/O BKG Status</FormLabel>
+                      <FormLabel>{t("toBookingStatus")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -526,7 +532,7 @@ export default function NewBookingPage() {
                   name="externalRef"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>T/O BKG Ref *</FormLabel>
+                      <FormLabel>{t("toRef")} *</FormLabel>
                       <FormControl>
                         <Input placeholder="TO-12345" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -543,7 +549,7 @@ export default function NewBookingPage() {
                   name="marketId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Market</FormLabel>
+                      <FormLabel>{t("market")}</FormLabel>
                       <FormControl>
                         <Combobox
                           options={(markets ?? [])
@@ -570,7 +576,7 @@ export default function NewBookingPage() {
                   name="tourOperatorId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tour Operator</FormLabel>
+                      <FormLabel>{t("tourOperator")}</FormLabel>
                       <FormControl>
                         <Combobox
                           options={(tourOperators ?? [])
@@ -597,7 +603,7 @@ export default function NewBookingPage() {
                   name="hotelId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hotel Name *</FormLabel>
+                      <FormLabel>{t("hotelName")} *</FormLabel>
                       <FormControl>
                         <Combobox
                           options={(hotels ?? [])
@@ -643,7 +649,7 @@ export default function NewBookingPage() {
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <PlaneLanding className="size-4 text-green-600" />
-                <CardTitle className="text-base">Arrival</CardTitle>
+                <CardTitle className="text-base">{t("arrival")}</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
@@ -653,7 +659,7 @@ export default function NewBookingPage() {
                   name="checkIn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Arrival Date *</FormLabel>
+                      <FormLabel>{t("arrivalDate")} *</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -666,7 +672,7 @@ export default function NewBookingPage() {
                   name="arrivalFlightNo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Flight No</FormLabel>
+                      <FormLabel>{t("flightNumber")}</FormLabel>
                       <FormControl>
                         <Input placeholder="MS-804" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -678,7 +684,7 @@ export default function NewBookingPage() {
                   name="arrivalTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Time</FormLabel>
+                      <FormLabel>{t("flightTime")}</FormLabel>
                       <FormControl>
                         <Input type="time" lang="en-GB" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -690,7 +696,7 @@ export default function NewBookingPage() {
                   name="arrivalOriginApt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Origin Airport</FormLabel>
+                      <FormLabel>{t("originAirport")}</FormLabel>
                       <FormControl>
                         <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
@@ -702,7 +708,7 @@ export default function NewBookingPage() {
                   name="arrivalDestApt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Dest. Airport</FormLabel>
+                      <FormLabel>{t("destAirport")}</FormLabel>
                       <FormControl>
                         <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
@@ -714,7 +720,7 @@ export default function NewBookingPage() {
                   name="arrivalTerminal"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Terminal</FormLabel>
+                      <FormLabel>{t("terminal")}</FormLabel>
                       <FormControl>
                         <Input placeholder="T1" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -730,7 +736,7 @@ export default function NewBookingPage() {
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <PlaneTakeoff className="size-4 text-blue-600" />
-                <CardTitle className="text-base">Departure</CardTitle>
+                <CardTitle className="text-base">{t("departure")}</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
@@ -740,7 +746,7 @@ export default function NewBookingPage() {
                   name="checkOut"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Departure Date *</FormLabel>
+                      <FormLabel>{t("departureDate")} *</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -753,7 +759,7 @@ export default function NewBookingPage() {
                   name="departFlightNo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Flight No</FormLabel>
+                      <FormLabel>{t("flightNumber")}</FormLabel>
                       <FormControl>
                         <Input placeholder="MS-805" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -765,7 +771,7 @@ export default function NewBookingPage() {
                   name="departTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Time</FormLabel>
+                      <FormLabel>{t("flightTime")}</FormLabel>
                       <FormControl>
                         <Input type="time" lang="en-GB" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -777,7 +783,7 @@ export default function NewBookingPage() {
                   name="departOriginApt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Origin Airport</FormLabel>
+                      <FormLabel>{t("originAirport")}</FormLabel>
                       <FormControl>
                         <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
@@ -789,7 +795,7 @@ export default function NewBookingPage() {
                   name="departDestApt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Dest. Airport</FormLabel>
+                      <FormLabel>{t("destAirport")}</FormLabel>
                       <FormControl>
                         <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
@@ -801,7 +807,7 @@ export default function NewBookingPage() {
                   name="departTerminal"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Terminal</FormLabel>
+                      <FormLabel>{t("terminal")}</FormLabel>
                       <FormControl>
                         <Input placeholder="T1" {...field} value={field.value ?? ""} />
                       </FormControl>
@@ -825,7 +831,7 @@ export default function NewBookingPage() {
           <Card>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Rooms</CardTitle>
+                <CardTitle className="text-base">{t("rooms")}</CardTitle>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -837,7 +843,7 @@ export default function NewBookingPage() {
                     {ratesLoading ? (
                       <Loader2 className="mr-1 size-3.5 animate-spin" />
                     ) : null}
-                    Calculate Rates
+                    {t("calculateRates")}
                   </Button>
                   <Button
                     type="button"
@@ -859,7 +865,7 @@ export default function NewBookingPage() {
                   }
                 >
                   <Plus className="mr-1 size-3.5" />
-                  Add Room
+                  {t("addRoom")}
                 </Button>
                 </div>
               </div>
@@ -871,7 +877,7 @@ export default function NewBookingPage() {
                 name="rooms.0.mealBasisId"
                 render={({ field }) => (
                   <FormItem className="max-w-xs">
-                    <FormLabel>Meal Basis *</FormLabel>
+                    <FormLabel>{t("mealBasis")} *</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -910,7 +916,7 @@ export default function NewBookingPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm font-medium">
-                          Room {roomIndex + 1}
+                          {t("roomType")} {roomIndex + 1}
                         </CardTitle>
                         {roomFields.length > 1 && (
                           <Button
@@ -932,7 +938,7 @@ export default function NewBookingPage() {
                           name={`rooms.${roomIndex}.roomTypeId`}
                           render={({ field: f }) => (
                             <FormItem>
-                              <FormLabel>Room Type *</FormLabel>
+                              <FormLabel>{t("roomType")} *</FormLabel>
                               <Select
                                 onValueChange={f.onChange}
                                 value={f.value}
@@ -1175,7 +1181,7 @@ export default function NewBookingPage() {
           {/* ── Section 5: Payment ── */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Payment</CardTitle>
+              <CardTitle className="text-base">{t("payment")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -1184,7 +1190,7 @@ export default function NewBookingPage() {
                   name="hotelPaymentMethod"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Payment Method</FormLabel>
+                      <FormLabel>{t("paymentMethod")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value ?? ""}>
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -1206,7 +1212,7 @@ export default function NewBookingPage() {
                     name="paymentOptionDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>P. Option Date</FormLabel>
+                        <FormLabel>{t("paymentOptionDate")}</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} value={field.value ?? ""} />
                         </FormControl>
@@ -1221,7 +1227,7 @@ export default function NewBookingPage() {
           {/* ── Section 6: Remarks & Notes ── */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Remarks & Notes</CardTitle>
+              <CardTitle className="text-base">{t("remarksNotes")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1230,7 +1236,7 @@ export default function NewBookingPage() {
                   name="internalNotes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Internal Remarks</FormLabel>
+                      <FormLabel>{t("internalRemarks")}</FormLabel>
                       <FormControl>
                         <Textarea
                           rows={3}
@@ -1247,7 +1253,7 @@ export default function NewBookingPage() {
                   name="specialRequests"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Special Requests</FormLabel>
+                      <FormLabel>{t("specialRequests")}</FormLabel>
                       <FormControl>
                         <Textarea
                           rows={3}
@@ -1266,7 +1272,7 @@ export default function NewBookingPage() {
                 name="bookingNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booking Notes</FormLabel>
+                    <FormLabel>{t("bookingNotes")}</FormLabel>
                     <FormControl>
                       <Textarea
                         rows={2}
@@ -1293,10 +1299,10 @@ export default function NewBookingPage() {
                     </FormControl>
                     <div>
                       <FormLabel className="text-sm font-medium cursor-pointer">
-                        Meet, Assist & Visa
+                        {t("meetAssistVisa")}
                       </FormLabel>
                       <p className="text-xs text-muted-foreground">
-                        Check if meet, assist and visa services are required for this booking
+                        {t("meetAssistVisaDesc")}
                       </p>
                     </div>
                   </FormItem>
@@ -1312,16 +1318,16 @@ export default function NewBookingPage() {
               variant="outline"
               onClick={() => router.push("/reservations/bookings")}
             >
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Creating...
+                  {t("creating")}
                 </>
               ) : (
-                "Create Booking"
+                t("createBooking")
               )}
             </Button>
           </div>
@@ -1347,11 +1353,10 @@ export default function NewBookingPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-amber-600">
                   <AlertTriangle className="size-5" />
-                  Stop Sale Warning
+                  {t("stopSaleWarning")}
                 </DialogTitle>
                 <DialogDescription>
-                  The selected dates overlap with one or more stop sale periods
-                  for this hotel.
+                  {t("stopSaleDesc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="max-h-[240px] overflow-y-auto space-y-2">
@@ -1381,10 +1386,10 @@ export default function NewBookingPage() {
                     pendingSubmitRef.current = null;
                   }}
                 >
-                  Cancel
+                  {tCommon("cancel")}
                 </Button>
                 <Button variant="default" onClick={handleStopSaleProceed}>
-                  Book Anyway
+                  {t("bookAnyway")}
                 </Button>
               </DialogFooter>
             </>
@@ -1393,13 +1398,10 @@ export default function NewBookingPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-amber-600">
                   <AlertTriangle className="size-5" />
-                  Manager Approval Required
+                  {t("managerApprovalRequired")}
                 </DialogTitle>
                 <DialogDescription>
-                  This booking will be created with <strong>Pending Approval</strong> status.
-                  It will not count as sold in materialization reports and cannot
-                  be sent to the hotel until a reservations manager approves it.
-                  A notification will be sent to the manager.
+                  {t("managerApprovalDesc")}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="gap-2 sm:gap-0">
@@ -1410,7 +1412,7 @@ export default function NewBookingPage() {
                     pendingSubmitRef.current = null;
                   }}
                 >
-                  Cancel
+                  {tCommon("cancel")}
                 </Button>
                 <Button
                   variant="default"
@@ -1420,7 +1422,7 @@ export default function NewBookingPage() {
                   {createMutation.isPending ? (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   ) : null}
-                  Confirm & Request Approval
+                  {t("confirmRequestApproval")}
                 </Button>
               </DialogFooter>
             </>
@@ -1428,5 +1430,6 @@ export default function NewBookingPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

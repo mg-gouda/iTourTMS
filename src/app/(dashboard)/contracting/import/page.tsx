@@ -28,6 +28,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type ImportType = "hotels";
 
@@ -46,6 +48,8 @@ interface ImportResult {
 type Step = "select" | "upload" | "preview" | "importing" | "done";
 
 export default function ImportPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const [importType, setImportType] = useState<ImportType>("hotels");
   const [step, setStep] = useState<Step>("select");
   const [file, setFile] = useState<File | null>(null);
@@ -141,14 +145,16 @@ export default function ImportPage() {
   }, [file, importType]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="contracting:contract:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <div className="flex items-center gap-2">
           <Upload className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Bulk Import</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("bulkImport")}</h1>
         </div>
         <p className="text-muted-foreground">
-          Import hotels, room types, and meal bases from Excel files
+          {t("bulkImportDesc")}
         </p>
       </div>
 
@@ -156,9 +162,9 @@ export default function ImportPage() {
       {step === "select" && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: Select Import Type</CardTitle>
+            <CardTitle>{t("step1SelectType")}</CardTitle>
             <CardDescription>
-              Choose what type of data you want to import
+              {t("step1SelectTypeDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -175,7 +181,7 @@ export default function ImportPage() {
             </Select>
 
             <div className="flex gap-2">
-              <Button onClick={() => setStep("upload")}>Next</Button>
+              <Button onClick={() => setStep("upload")}>{tc("next")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -185,7 +191,7 @@ export default function ImportPage() {
       {step === "upload" && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 2: Upload Excel File</CardTitle>
+            <CardTitle>{t("step2Upload")}</CardTitle>
             <CardDescription>
               {importType === "hotels"
                 ? 'Upload an Excel file with a "Hotels" sheet. Optional: "Room Types" and "Meal Bases" sheets.'
@@ -204,14 +210,14 @@ export default function ImportPage() {
             >
               <FileUp className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Drag and drop your Excel file here, or
+                {t("dragDropHere")}
               </p>
               <Button
                 variant="outline"
                 onClick={() => inputRef.current?.click()}
                 disabled={loading}
               >
-                {loading ? "Parsing..." : "Browse Files"}
+                {loading ? tc("loading") : t("browseFiles")}
               </Button>
               <input
                 ref={inputRef}
@@ -253,7 +259,7 @@ export default function ImportPage() {
             )}
 
             <Button variant="outline" onClick={reset}>
-              Back
+              {tc("back")}
             </Button>
           </CardContent>
         </Card>
@@ -264,7 +270,7 @@ export default function ImportPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Step 3: Preview & Confirm</CardTitle>
+              <CardTitle>{t("step3Preview")}</CardTitle>
               <CardDescription>
                 Review the parsed data below. Rows with errors will be skipped
                 during import.
@@ -413,10 +419,10 @@ export default function ImportPage() {
 
           <div className="flex gap-2">
             <Button onClick={handleImport} disabled={loading}>
-              {loading ? "Importing..." : "Import Data"}
+              {loading ? tc("loading") : t("importData")}
             </Button>
             <Button variant="outline" onClick={reset}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </div>
@@ -436,7 +442,7 @@ export default function ImportPage() {
       {step === "done" && result && (
         <Card>
           <CardHeader>
-            <CardTitle>Import Complete</CardTitle>
+            <CardTitle>{t("importComplete")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-6">
@@ -467,10 +473,14 @@ export default function ImportPage() {
               </div>
             )}
 
-            <Button onClick={reset}>Import More</Button>
+            <Button onClick={reset}>{t("importMore")}</Button>
           </CardContent>
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

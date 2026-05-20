@@ -11,12 +11,12 @@ import {
   REPORT_EXPENSE_TYPES,
   BUDGET_AMOUNT_KEYS,
 } from "@/lib/constants/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const budgetRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:budget:read")
     .input(
       z
         .object({
@@ -38,7 +38,7 @@ export const budgetRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:budget:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const budget = await ctx.db.budget.findFirst({
@@ -61,7 +61,7 @@ export const budgetRouter = createTRPCRouter({
       return budget;
     }),
 
-  create: financeProcedure
+  create: p("finance:budget:create")
     .input(budgetCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.budget.create({
@@ -104,7 +104,7 @@ export const budgetRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:budget:update")
     .input(budgetUpdateSchema.extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { id, lines, ...data } = input;
@@ -172,7 +172,7 @@ export const budgetRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:budget:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.budget.findFirst({
@@ -192,7 +192,7 @@ export const budgetRouter = createTRPCRouter({
       return ctx.db.budget.delete({ where: { id: input.id } });
     }),
 
-  approve: financeProcedure
+  approve: p("finance:budget:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const budget = await ctx.db.budget.findFirst({
@@ -212,7 +212,7 @@ export const budgetRouter = createTRPCRouter({
       });
     }),
 
-  cancel: financeProcedure
+  cancel: p("finance:budget:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const budget = await ctx.db.budget.findFirst({
@@ -232,7 +232,7 @@ export const budgetRouter = createTRPCRouter({
       });
     }),
 
-  resetToDraft: financeProcedure
+  resetToDraft: p("finance:budget:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const budget = await ctx.db.budget.findFirst({
@@ -252,7 +252,7 @@ export const budgetRouter = createTRPCRouter({
       });
     }),
 
-  budgetVsActuals: financeProcedure
+  budgetVsActuals: p("finance:budget:read")
     .input(z.object({ budgetId: z.string() }))
     .query(async ({ ctx, input }) => {
       const budget = await ctx.db.budget.findFirst({

@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { fiscalYearCreateSchema } from "@/lib/validations/finance";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof fiscalYearCreateSchema>;
 
@@ -62,6 +63,7 @@ export default function NewFiscalYearPage() {
   }
 
   return (
+    <PermissionGuard permission="finance:period:read">
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">New Fiscal Year</h1>
@@ -190,5 +192,6 @@ export default function NewFiscalYearPage() {
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

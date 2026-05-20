@@ -46,6 +46,8 @@ import {
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { activityCreateSchema, customerUpdateSchema } from "@/lib/validations/crm";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type CustomerFormValues = z.input<typeof customerUpdateSchema>;
 type ActivityFormValues = z.input<typeof activityCreateSchema>;
@@ -53,6 +55,8 @@ type ActivityFormValues = z.input<typeof activityCreateSchema>;
 const LOYALTY_TIERS = ["STANDARD", "SILVER", "GOLD", "PLATINUM"];
 
 export default function ContactDetailPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -138,17 +142,19 @@ export default function ContactDetailPage() {
     );
   }
 
-  if (!customer) return <p>Contact not found</p>;
+  if (!customer) return <p>{t("contact")} not found</p>;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="crm:customer:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             {customer.firstName} {customer.lastName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {customer.email ?? "No email"} &middot; Lifetime Value: $
+            {customer.email ?? tc("noData")} &middot; {t("lifetimeValue")}: $
             {Number(customer.lifetimeValue ?? 0).toLocaleString()}
           </p>
         </div>
@@ -156,19 +162,19 @@ export default function ContactDetailPage() {
           variant="destructive"
           size="sm"
           onClick={() => {
-            if (confirm("Delete this contact?")) deleteMutation.mutate({ id });
+            if (confirm(tc("confirmDelete"))) deleteMutation.mutate({ id });
           }}
         >
-          Delete
+          {tc("delete")}
         </Button>
       </div>
 
       <Tabs defaultValue="profile">
         <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="activities">Activities ({customer.activities?.length ?? 0})</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings ({customer.bookings?.length ?? 0})</TabsTrigger>
-          <TabsTrigger value="opportunities">Opportunities ({customer.opportunities?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="profile">{t("profile")}</TabsTrigger>
+          <TabsTrigger value="activities">{t("activities")} ({customer.activities?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="bookings">{t("bookings")} ({customer.bookings?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="opportunities">{t("opportunities")} ({customer.opportunities?.length ?? 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
@@ -178,43 +184,43 @@ export default function ContactDetailPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="firstName" render={({ field }) => (
-                      <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("firstName")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="lastName" render={({ field }) => (
-                      <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{t("lastName")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
                   <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>{tc("email")}</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>{tc("phone")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="nationality" render={({ field }) => (
-                    <FormItem><FormLabel>Nationality</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>{t("nationality")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
-                    <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>{t("dateOfBirth")}</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="loyaltyTier" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Loyalty Tier</FormLabel>
+                      <FormLabel>{t("loyaltyTier")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {LOYALTY_TIERS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          {LOYALTY_TIERS.map((tier) => <SelectItem key={tier} value={tier}>{tier}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="notes" render={({ field }) => (
-                    <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>{tc("notes")}</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
 
                   {updateMutation.error && <p className="text-sm text-destructive">{updateMutation.error.message}</p>}
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateMutation.isPending ? tc("saving") : t("saveChanges")}
                   </Button>
                 </form>
               </Form>
@@ -227,15 +233,15 @@ export default function ContactDetailPage() {
             <div className="flex justify-end">
               <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Add Activity</Button>
+                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> {t("addActivity")}</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>New Activity</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{t("newActivity")}</DialogTitle></DialogHeader>
                   <Form {...activityForm}>
                     <form onSubmit={activityForm.handleSubmit((v) => createActivityMutation.mutate(v))} className="space-y-4">
                       <FormField control={activityForm.control} name="type" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Type</FormLabel>
+                          <FormLabel>{tc("type")}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent>
@@ -247,16 +253,16 @@ export default function ContactDetailPage() {
                         </FormItem>
                       )} />
                       <FormField control={activityForm.control} name="subject" render={({ field }) => (
-                        <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t("subject")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={activityForm.control} name="description" render={({ field }) => (
-                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{tc("description")}</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
                       )} />
                       <FormField control={activityForm.control} name="dueDate" render={({ field }) => (
-                        <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{t("dueDate")}</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
                       )} />
                       <Button type="submit" disabled={createActivityMutation.isPending}>
-                        {createActivityMutation.isPending ? "Adding..." : "Add Activity"}
+                        {createActivityMutation.isPending ? tc("add") + "..." : t("addActivity")}
                       </Button>
                     </form>
                   </Form>
@@ -264,7 +270,7 @@ export default function ContactDetailPage() {
               </Dialog>
             </div>
             {(customer.activities?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No activities yet</p>
+              <p className="text-sm text-muted-foreground">{t("noActivities")}</p>
             ) : (
               <div className="space-y-2">
                 {customer.activities.map((act) => (
@@ -285,7 +291,7 @@ export default function ContactDetailPage() {
                               Due {new Date(act.dueDate).toLocaleDateString()}
                             </Badge>
                           )}
-                          {act.completedAt && <Badge variant="default" className="text-xs">Completed</Badge>}
+                          {act.completedAt && <Badge variant="default" className="text-xs">{tc("completed")}</Badge>}
                           <span className="text-xs text-muted-foreground">{new Date(act.createdAt).toLocaleDateString()}</span>
                           {editingActivityId === act.id ? (
                             <>
@@ -331,18 +337,18 @@ export default function ContactDetailPage() {
 
         <TabsContent value="bookings" className="mt-4">
           {(customer.bookings?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">No bookings yet</p>
+            <p className="text-sm text-muted-foreground">{t("noBookings")}</p>
           ) : (
             <div className="overflow-hidden rounded border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Code</th>
-                    <th className="px-3 py-1.5 text-left text-xs font-medium">Travel Date</th>
-                    <th className="px-3 py-1.5 text-center text-xs font-medium">Pax</th>
-                    <th className="px-3 py-1.5 text-center text-xs font-medium">Items</th>
-                    <th className="px-3 py-1.5 text-right text-xs font-medium">Total</th>
-                    <th className="px-3 py-1.5 text-center text-xs font-medium">Status</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{tc("code")}</th>
+                    <th className="px-3 py-1.5 text-left text-xs font-medium">{t("travelDate")}</th>
+                    <th className="px-3 py-1.5 text-center text-xs font-medium">{t("paxCount")}</th>
+                    <th className="px-3 py-1.5 text-center text-xs font-medium">{t("bookingItems")}</th>
+                    <th className="px-3 py-1.5 text-right text-xs font-medium">{tc("total")}</th>
+                    <th className="px-3 py-1.5 text-center text-xs font-medium">{tc("status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -374,7 +380,7 @@ export default function ContactDetailPage() {
 
         <TabsContent value="opportunities" className="mt-4">
           {(customer.opportunities?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">No opportunities yet</p>
+            <p className="text-sm text-muted-foreground">{t("noOpportunities")}</p>
           ) : (
             <div className="space-y-2">
               {customer.opportunities.map((opp) => (
@@ -390,7 +396,7 @@ export default function ContactDetailPage() {
                   <CardContent className="pt-0 pb-3">
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       {opp.value && <span>${Number(opp.value).toLocaleString()}</span>}
-                      {opp.owner && <span>Owner: {opp.owner.name}</span>}
+                      {opp.owner && <span>{t("owner")}: {opp.owner.name}</span>}
                     </div>
                   </CardContent>
                 </Card>
@@ -400,5 +406,9 @@ export default function ContactDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BUDGET_STATE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type BudgetRow = {
   id: string;
@@ -29,75 +31,79 @@ const stateVariant: Record<string, "default" | "secondary" | "outline" | "destru
   CANCELLED: "destructive",
 };
 
-const columns: ColumnDef<BudgetRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
-    ),
-  },
-  {
-    accessorKey: "fiscalYear.name",
-    header: "Fiscal Year",
-    cell: ({ row }) => row.original.fiscalYear?.name ?? "—",
-  },
-  {
-    accessorKey: "state",
-    header: "State",
-    cell: ({ row }) => (
-      <Badge variant={stateVariant[row.original.state] ?? "outline"}>
-        {BUDGET_STATE_LABELS[row.original.state] ?? row.original.state}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "_count.lines",
-    header: "Lines",
-    cell: ({ row }) => row.original._count.lines,
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
-  },
-];
-
 export default function BudgetsPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.finance.budget.list.useQuery();
 
+  const columns: ColumnDef<BudgetRow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={tc("name")} />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "fiscalYear.name",
+      header: t("fiscalYears"),
+      cell: ({ row }) => row.original.fiscalYear?.name ?? "—",
+    },
+    {
+      accessorKey: "state",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={stateVariant[row.original.state] ?? "outline"}>
+          {BUDGET_STATE_LABELS[row.original.state] ?? row.original.state}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "_count.lines",
+      header: t("lines"),
+      cell: ({ row }) => row.original._count.lines,
+    },
+    {
+      accessorKey: "createdAt",
+      header: tc("createdAt"),
+      cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+    },
+  ];
+
   return (
+    <PermissionGuard permission="finance:budget:read">
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Budgets</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("budgets")}</h1>
           <p className="text-sm text-muted-foreground">
-            Annual budgets by account with monthly amounts
+            {t("budgetsDesc")}
           </p>
         </div>
         <Button asChild>
           <Link href="/finance/accounting/budgets/new">
-            <Plus className="mr-2 h-4 w-4" /> New Budget
+            <Plus className="mr-2 h-4 w-4" /> {t("newBudget")}
           </Link>
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading...</div>
+        <div className="text-center py-12 text-muted-foreground">{tc("loading")}</div>
       ) : (
         <DataTable
           columns={columns}
           data={(data as BudgetRow[]) ?? []}
           searchKey="name"
-          searchPlaceholder="Search budgets..."
+          searchPlaceholder={tc("search")}
           onRowClick={(row) =>
             router.push(`/finance/accounting/budgets/${row.id}`)
           }
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

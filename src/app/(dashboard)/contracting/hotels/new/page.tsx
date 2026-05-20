@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -29,12 +30,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { STAR_RATING_LABELS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import { hotelCreateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof hotelCreateSchema>;
 
 const STAR_OPTIONS = Object.entries(STAR_RATING_LABELS) as [string, string][];
 
 export default function NewHotelPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: countries } = trpc.setup.getCountries.useQuery();
@@ -141,11 +145,12 @@ export default function NewHotelPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:hotel:read">
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Hotel</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newHotel")}</h1>
         <p className="text-muted-foreground">
-          Add a new hotel to the contracting system
+          {t("manageHotels")}
         </p>
       </div>
 
@@ -153,14 +158,14 @@ export default function NewHotelPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Basic Information</h2>
+            <h2 className="text-lg font-semibold">{t("basicInfo")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hotel Name</FormLabel>
+                    <FormLabel>{t("hotelName")}</FormLabel>
                     <FormControl>
                       <Input placeholder="Grand Seaside Resort" {...field} />
                     </FormControl>
@@ -198,7 +203,7 @@ export default function NewHotelPage() {
                 name="starRating"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Star Rating</FormLabel>
+                    <FormLabel>{t("starRating")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? "THREE"}
@@ -225,7 +230,7 @@ export default function NewHotelPage() {
                 name="chainName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Chain Name</FormLabel>
+                    <FormLabel>{t("chainName")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Marriott, Hilton..."
@@ -242,7 +247,7 @@ export default function NewHotelPage() {
                 name="giataId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>GIATA ID</FormLabel>
+                    <FormLabel>{t("giataId")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="e.g. 12345"
@@ -259,13 +264,13 @@ export default function NewHotelPage() {
 
           {/* Location */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Location</h2>
+            <h2 className="text-lg font-semibold">{t("location")}</h2>
             <FormField
               control={form.control}
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>{t("address")}</FormLabel>
                   <FormControl>
                     {googlePlacesApiKey ? (
                       <GooglePlacesAutocomplete
@@ -292,7 +297,7 @@ export default function NewHotelPage() {
                 name="countryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country</FormLabel>
+                    <FormLabel>{t("country")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? ""}
@@ -321,7 +326,7 @@ export default function NewHotelPage() {
                 name="destinationId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Destination</FormLabel>
+                    <FormLabel>{t("destinationSection")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? ""}
@@ -355,7 +360,7 @@ export default function NewHotelPage() {
                 name="cityId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>{t("city")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? ""}
@@ -391,7 +396,7 @@ export default function NewHotelPage() {
                 name="zoneId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Zone</FormLabel>
+                    <FormLabel>{t("zone")}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value ?? ""}
@@ -425,14 +430,14 @@ export default function NewHotelPage() {
 
           {/* Contact */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Contact</h2>
+            <h2 className="text-lg font-semibold">{t("contact")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>{tc("phone")}</FormLabel>
                     <FormControl>
                       <Input {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -445,7 +450,7 @@ export default function NewHotelPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{tc("email")}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
@@ -464,7 +469,7 @@ export default function NewHotelPage() {
                 name="website"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Website</FormLabel>
+                    <FormLabel>{t("website")}</FormLabel>
                     <FormControl>
                       <Input {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -477,7 +482,7 @@ export default function NewHotelPage() {
                 name="reservationEmail"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reservation Email</FormLabel>
+                    <FormLabel>{t("reservationEmail")}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
@@ -495,7 +500,7 @@ export default function NewHotelPage() {
               name="contactPerson"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contact Person</FormLabel>
+                  <FormLabel>{t("contactPerson")}</FormLabel>
                   <FormControl>
                     <Input {...field} value={field.value ?? ""} />
                   </FormControl>
@@ -507,14 +512,14 @@ export default function NewHotelPage() {
 
           {/* Operations */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Operations</h2>
+            <h2 className="text-lg font-semibold">{t("operations")}</h2>
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="checkInTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Check-in Time</FormLabel>
+                    <FormLabel>{t("checkInTime")}</FormLabel>
                     <FormControl>
                       <Input type="time" {...field} />
                     </FormControl>
@@ -527,7 +532,7 @@ export default function NewHotelPage() {
                 name="checkOutTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Check-out Time</FormLabel>
+                    <FormLabel>{t("checkOutTime")}</FormLabel>
                     <FormControl>
                       <Input type="time" {...field} />
                     </FormControl>
@@ -540,7 +545,7 @@ export default function NewHotelPage() {
                 name="totalRooms"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Total Rooms</FormLabel>
+                    <FormLabel>{t("totalRooms")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -563,7 +568,7 @@ export default function NewHotelPage() {
           {/* Amenities */}
           {amenities && amenities.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Amenities</h2>
+              <h2 className="text-lg font-semibold">{t("amenities")}</h2>
               <div className="grid grid-cols-3 gap-2">
                 {amenities.map((a) => {
                   const selected = form.watch("amenityIds") ?? [];
@@ -599,7 +604,7 @@ export default function NewHotelPage() {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
+                <FormLabel>{tc("description")}</FormLabel>
                 <FormControl>
                   <Textarea
                     rows={4}
@@ -624,7 +629,7 @@ export default function NewHotelPage() {
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
-                <FormLabel>Active</FormLabel>
+                <FormLabel>{tc("active")}</FormLabel>
               </FormItem>
             )}
           />
@@ -637,18 +642,19 @@ export default function NewHotelPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Hotel"}
+              {createMutation.isPending ? tc("creating") : t("newHotel")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/contracting/hotels")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

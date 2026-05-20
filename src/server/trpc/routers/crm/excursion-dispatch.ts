@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 // Parse "YYYY-MM-DD" as local date (avoids UTC midnight timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -25,7 +25,7 @@ const runSchema = z.object({
 
 export const excursionDispatchRouter = createTRPCRouter({
   // Hotels with booked pax for a given excursion+date
-  getHotels: proc
+  getHotels: p("crm:booking:read")
     .input(z.object({ excursionId: z.string(), date: z.string() }))
     .query(async ({ ctx, input }) => {
       const date = parseLocalDate(input.date);
@@ -65,7 +65,7 @@ export const excursionDispatchRouter = createTRPCRouter({
     }),
 
   // Load existing dispatch (or null)
-  getDispatch: proc
+  getDispatch: p("crm:booking:read")
     .input(z.object({ excursionId: z.string(), date: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmExcursionDispatch.findUnique({
@@ -93,7 +93,7 @@ export const excursionDispatchRouter = createTRPCRouter({
     }),
 
   // Upsert dispatch + runs + stops (full replace of runs)
-  saveDispatch: proc
+  saveDispatch: p("crm:booking:update")
     .input(
       z.object({
         excursionId: z.string(),
@@ -172,7 +172,7 @@ export const excursionDispatchRouter = createTRPCRouter({
     }),
 
   // Generate one TtTrafficJob per run (idempotent — skips runs that already have a job)
-  generateJobs: proc
+  generateJobs: p("crm:booking:create")
     .input(z.object({ excursionId: z.string(), date: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const dispatch = await ctx.db.crmExcursionDispatch.findUnique({
@@ -293,7 +293,7 @@ export const excursionDispatchRouter = createTRPCRouter({
     }),
 
   // Supporting dropdowns
-  listReps: proc.query(async ({ ctx }) => {
+  listReps: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.ttRep.findMany({
       where: { companyId: ctx.companyId, isActive: true },
       select: { id: true, user: { select: { name: true } } },
@@ -301,7 +301,7 @@ export const excursionDispatchRouter = createTRPCRouter({
     });
   }),
 
-  listExcursions: proc.query(async ({ ctx }) => {
+  listExcursions: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.crmExcursion.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true },

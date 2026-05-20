@@ -26,6 +26,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CRM_BOOKING_STATUS_LABELS } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type BookingItem = {
   excursionId: string;
@@ -40,6 +42,8 @@ type BookingItem = {
 };
 
 export default function NewBookingPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const searchParams = useSearchParams();
   const utils = trpc.useUtils();
@@ -211,21 +215,23 @@ export default function NewBookingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="crm:booking:read">
+      <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Booking</h1>
-        <p className="text-muted-foreground">Create a new excursion booking</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newBooking")}</h1>
+        <p className="text-muted-foreground">{t("manageBookings")}</p>
         {opportunityId && (
-          <Badge variant="outline" className="mt-2">Linked to opportunity</Badge>
+          <Badge variant="outline" className="mt-2">{t("linkedOpportunity")}</Badge>
         )}
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Booking Details</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("bookingDetails")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Customer</Label>
+              <Label>{t("customer")}</Label>
               <div className="flex gap-2">
                 <Select value={customerId} onValueChange={setCustomerId}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select customer" /></SelectTrigger>
@@ -243,32 +249,32 @@ export default function NewBookingPage() {
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Quick-Create Customer</DialogTitle>
+                      <DialogTitle>{t("newContact")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-2">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>First Name *</Label>
+                          <Label>{tc("firstName")} *</Label>
                           <Input value={newCustFirst} onChange={(e) => setNewCustFirst(e.target.value)} placeholder="First name" />
                         </div>
                         <div className="space-y-2">
-                          <Label>Last Name *</Label>
+                          <Label>{tc("lastName")} *</Label>
                           <Input value={newCustLast} onChange={(e) => setNewCustLast(e.target.value)} placeholder="Last name" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Email</Label>
+                        <Label>{tc("email")}</Label>
                         <Input type="email" value={newCustEmail} onChange={(e) => setNewCustEmail(e.target.value)} placeholder="email@example.com" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Phone</Label>
+                        <Label>{tc("phone")}</Label>
                         <Input value={newCustPhone} onChange={(e) => setNewCustPhone(e.target.value)} placeholder="+1 234 567 890" />
                       </div>
                       {quickCreateCustomer.error && (
                         <p className="text-sm text-destructive">{quickCreateCustomer.error.message}</p>
                       )}
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setQuickCustomerOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setQuickCustomerOpen(false)}>{tc("cancel")}</Button>
                         <Button
                           disabled={!newCustFirst || !newCustLast || quickCreateCustomer.isPending}
                           onClick={() => quickCreateCustomer.mutate({
@@ -278,7 +284,7 @@ export default function NewBookingPage() {
                             phone: newCustPhone,
                           })}
                         >
-                          {quickCreateCustomer.isPending ? "Creating..." : "Create & Select"}
+                          {quickCreateCustomer.isPending ? tc("creating") : t("newContact")}
                         </Button>
                       </div>
                     </div>
@@ -287,7 +293,7 @@ export default function NewBookingPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>{tc("status")}</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -301,25 +307,25 @@ export default function NewBookingPage() {
 
           <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label>Travel Date</Label>
+              <Label>{t("travelDate")}</Label>
               <Input type="date" value={travelDate} onChange={(e) => setTravelDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Adults</Label>
+              <Label>{t("adults")}</Label>
               <Input type="number" min={0} value={paxAdults} onChange={(e) => setPaxAdults(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Children</Label>
+              <Label>{t("children")}</Label>
               <Input type="number" min={0} value={paxChildren} onChange={(e) => setPaxChildren(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Infants</Label>
+              <Label>{t("infants")}</Label>
               <Input type="number" min={0} value={paxInfants} onChange={(e) => setPaxInfants(Number(e.target.value))} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>{tc("notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </CardContent>
@@ -328,7 +334,7 @@ export default function NewBookingPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Booking Items</CardTitle>
+            <CardTitle className="text-base">{t("bookingItems")}</CardTitle>
             <div className="flex items-center gap-2">
               <Select value={selectedExcursion} onValueChange={setSelectedExcursion}>
                 <SelectTrigger className="h-9 w-[250px]"><SelectValue placeholder="Select excursion..." /></SelectTrigger>
@@ -340,25 +346,25 @@ export default function NewBookingPage() {
               </Select>
               <Button size="sm" onClick={addItem} disabled={!selectedExcursion || addingItem}>
                 {addingItem ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
-                {addingItem ? "Loading..." : "Add"}
+                {addingItem ? tc("loading") : tc("add")}
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No items added yet. Select an excursion above.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t("noItems")}</p>
           ) : (
             <div className="space-y-3">
               <div className="overflow-x-auto rounded border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="px-2 py-1.5 text-left text-xs font-medium">Item</th>
+                      <th className="px-2 py-1.5 text-left text-xs font-medium">{t("bookingItems")}</th>
                       <th className="px-2 py-1.5 text-right text-xs font-medium w-[60px]">Qty</th>
-                      <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">Unit Cost</th>
-                      <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">Unit Price</th>
-                      <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">Total</th>
+                      <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">{t("unitCost")}</th>
+                      <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">{t("unitPrice")}</th>
+                      <th className="px-2 py-1.5 text-right text-xs font-medium w-[90px]">{tc("total")}</th>
                       <th className="w-[36px]" />
                     </tr>
                   </thead>
@@ -419,7 +425,7 @@ export default function NewBookingPage() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-muted/30">
-                      <td colSpan={2} className="px-2 py-1.5 text-right text-xs font-semibold">Totals</td>
+                      <td colSpan={2} className="px-2 py-1.5 text-right text-xs font-semibold">{t("totals")}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-xs">${totalCost.toFixed(2)}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-xs">${totalPrice.toFixed(2)}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-xs">
@@ -441,10 +447,14 @@ export default function NewBookingPage() {
 
       <div className="flex gap-2">
         <Button onClick={onSubmit} disabled={createMutation.isPending}>
-          {createMutation.isPending ? "Creating..." : "Create Booking"}
+          {createMutation.isPending ? tc("creating") : t("newBooking")}
         </Button>
-        <Button variant="outline" onClick={() => router.push("/crm/bookings")}>Cancel</Button>
+        <Button variant="outline" onClick={() => router.push("/crm/bookings")}>{tc("cancel")}</Button>
       </div>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

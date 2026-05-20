@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 const createSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -67,62 +69,64 @@ type TravelAgentRow = {
   active: boolean;
 };
 
-const columns: ColumnDef<TravelAgentRow>[] = [
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => <span className="font-mono text-xs">{row.original.code}</span>,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  },
-  {
-    id: "country",
-    header: "Country",
-    cell: ({ row }) => row.original.country?.name ?? "—",
-  },
-  {
-    id: "market",
-    header: "Market",
-    cell: ({ row }) => row.original.market?.name ?? "—",
-  },
-  {
-    id: "contracts",
-    header: "Contracts",
-    cell: ({ row }) => row.original._count.contractAssignments,
-  },
-  {
-    id: "hotels",
-    header: "Hotels",
-    cell: ({ row }) => row.original._count.hotelAssignments,
-  },
-  {
-    id: "creditLimit",
-    header: "Credit Limit",
-    cell: ({ row }) => {
-      const val = Number(row.original.creditLimit ?? 0);
-      return val > 0 ? `$${val.toLocaleString()}` : "—";
-    },
-  },
-  {
-    accessorKey: "active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.active ? "default" : "secondary"}>
-        {row.original.active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
-
 export default function TravelAgentsPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.b2bPortal.travelAgent.list.useQuery();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const columns: ColumnDef<TravelAgentRow>[] = [
+    {
+      accessorKey: "code",
+      header: tc("code"),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.code}</span>,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("name")} />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      id: "country",
+      header: "Country",
+      cell: ({ row }) => row.original.country?.name ?? "—",
+    },
+    {
+      id: "market",
+      header: "Market",
+      cell: ({ row }) => row.original.market?.name ?? "—",
+    },
+    {
+      id: "contracts",
+      header: t("contracts"),
+      cell: ({ row }) => row.original._count.contractAssignments,
+    },
+    {
+      id: "hotels",
+      header: t("hotels"),
+      cell: ({ row }) => row.original._count.hotelAssignments,
+    },
+    {
+      id: "creditLimit",
+      header: t("creditLimit"),
+      cell: ({ row }) => {
+        const val = Number(row.original.creditLimit ?? 0);
+        return val > 0 ? `$${val.toLocaleString()}` : "—";
+      },
+    },
+    {
+      accessorKey: "active",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "default" : "secondary"}>
+          {row.original.active ? tc("active") : tc("inactive")}
+        </Badge>
+      ),
+    },
+  ];
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createSchema),
@@ -165,14 +169,16 @@ export default function TravelAgentsPage() {
   }, [data, statusFilter]);
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:travelAgent:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Travel Agents</h1>
-          <p className="text-muted-foreground">Manage travel agent partners and credentials</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("travelAgents")}</h1>
+          <p className="text-muted-foreground">{t("editTravelAgent")}</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 size-4" /> New Travel Agent
+          <Plus className="mr-2 size-4" /> {t("newTravelAgent")}
         </Button>
       </div>
 
@@ -198,16 +204,16 @@ export default function TravelAgentsPage() {
           columns={columns}
           data={filtered}
           searchKey="name"
-          searchPlaceholder="Search travel agents..."
+          searchPlaceholder={`${tc("search")} ${t("travelAgents").toLowerCase()}...`}
           toolbar={
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9 w-[150px]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={t("allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">{tc("all")}</SelectItem>
+                <SelectItem value="active">{tc("active")}</SelectItem>
+                <SelectItem value="inactive">{tc("inactive")}</SelectItem>
               </SelectContent>
             </Select>
           }
@@ -218,52 +224,52 @@ export default function TravelAgentsPage() {
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Travel Agent</DialogTitle>
+            <DialogTitle>{t("newTravelAgent")}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>{tc("name")}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="code" render={({ field }) => (
-                  <FormItem><FormLabel>Code</FormLabel><FormControl><Input placeholder="e.g. EXPD, BCOM" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>{tc("code")}</FormLabel><FormControl><Input placeholder="e.g. EXPD, BCOM" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="contactPerson" render={({ field }) => (
-                <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                <FormItem><FormLabel>{t("contactPerson")}</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
               )} />
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>{tc("email")}</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                  <FormItem><FormLabel>{tc("phone")}</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                 )} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="countryId" render={({ field }) => (
-                  <FormItem><FormLabel>Country ID</FormLabel><FormControl><Input placeholder="Country ID" {...field} /></FormControl></FormItem>
+                  <FormItem><FormLabel>{t("countryId")}</FormLabel><FormControl><Input placeholder={t("countryId")} {...field} /></FormControl></FormItem>
                 )} />
                 <FormField control={form.control} name="marketId" render={({ field }) => (
-                  <FormItem><FormLabel>Market ID</FormLabel><FormControl><Input placeholder="Market ID" {...field} /></FormControl></FormItem>
+                  <FormItem><FormLabel>{t("marketId")}</FormLabel><FormControl><Input placeholder={t("marketId")} {...field} /></FormControl></FormItem>
                 )} />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <FormField control={form.control} name="creditLimit" render={({ field }) => (
-                  <FormItem><FormLabel>Credit Limit</FormLabel><FormControl><Input type="number" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
+                  <FormItem><FormLabel>{t("creditLimit")}</FormLabel><FormControl><Input type="number" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
                 )} />
                 <FormField control={form.control} name="paymentTermDays" render={({ field }) => (
-                  <FormItem><FormLabel>Payment Terms (days)</FormLabel><FormControl><Input type="number" value={String(field.value ?? 30)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
+                  <FormItem><FormLabel>{t("paymentTerms")}</FormLabel><FormControl><Input type="number" value={String(field.value ?? 30)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
                 )} />
                 <FormField control={form.control} name="commissionPct" render={({ field }) => (
-                  <FormItem><FormLabel>Commission %</FormLabel><FormControl><Input type="number" step="0.1" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
+                  <FormItem><FormLabel>{t("commissionPct")}</FormLabel><FormControl><Input type="number" step="0.1" value={String(field.value ?? 0)} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl></FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="active" render={({ field }) => (
                 <FormItem className="flex items-center gap-2 space-y-0">
                   <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                  <FormLabel>Active</FormLabel>
+                  <FormLabel>{tc("active")}</FormLabel>
                 </FormItem>
               )} />
 
@@ -273,14 +279,18 @@ export default function TravelAgentsPage() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating..." : "Create Travel Agent"}
+                  {createMutation.isPending ? tc("creating") : t("newTravelAgent")}
                 </Button>
-                <Button type="button" variant="outline" onClick={closeDialog}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={closeDialog}>{tc("cancel")}</Button>
               </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
     </div>
+
+
+    </PermissionGuard>
+
   );
 }

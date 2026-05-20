@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import type { OpsFlightTicketStatus, OpsFlightType, OpsMarkupType, OpsPricingBasis, OpsFlightTxType } from "@prisma/client";
 import { createFlightTicketAccountingMoves } from "@/server/services/tour-ops/flight-ticket-accounting";
 
-const proc = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 const legSchema = z.object({
   sequence: z.number().int().min(1),
@@ -110,10 +110,12 @@ const createSchema = z.object({
   commissionValue: z.number().min(0).default(0),
   notes: z.string().optional(),
   createAccountingMoves: z.boolean().default(false),
+  parentTicketId: z.string().optional(),
+  currencyId: z.string().optional(),
 });
 
 export const opsFlightTicketRouter = createTRPCRouter({
-  list: proc
+  list: p("tour-ops:flightTicket:read")
     .input(
       z.object({
         status: z.string().optional(),
@@ -172,7 +174,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
       return { items, total };
     }),
 
-  getById: proc
+  getById: p("tour-ops:flightTicket:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const ticket = await ctx.db.opsFlightTicket.findFirst({
@@ -189,6 +191,9 @@ export const opsFlightTicketRouter = createTRPCRouter({
             orderBy: { sequence: "asc" },
             include: { employee: { select: { id: true, name: true } } },
           },
+          parentTicket: { select: { id: true, code: true, ticketNumber: true } },
+          derivedTickets: { select: { id: true, code: true, ticketNumber: true, transactionType: true } },
+          currency: { select: { id: true, code: true, symbol: true } },
         },
       });
       if (!ticket) throw new TRPCError({ code: "NOT_FOUND" });
@@ -197,7 +202,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
 
   // ── Lookup queries for dropdowns ──────────────────────────────────────────
 
-  listVendors: proc.query(async ({ ctx }) => {
+  listVendors: p("tour-ops:flightTicket:read").query(async ({ ctx }) => {
     return ctx.db.partner.findMany({
       where: {
         companyId: ctx.companyId,
@@ -209,7 +214,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
     });
   }),
 
-  listCustomers: proc.query(async ({ ctx }) => {
+  listCustomers: p("tour-ops:flightTicket:read").query(async ({ ctx }) => {
     return ctx.db.partner.findMany({
       where: {
         companyId: ctx.companyId,
@@ -221,7 +226,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
     });
   }),
 
-  listEmployees: proc.query(async ({ ctx }) => {
+  listEmployees: p("tour-ops:flightTicket:read").query(async ({ ctx }) => {
     return ctx.db.user.findMany({
       where: {
         companyId: ctx.companyId,
@@ -232,9 +237,52 @@ export const opsFlightTicketRouter = createTRPCRouter({
     });
   }),
 
+  listForLinking: p("tour-ops:flightTicket:read")
+    .input(z.object({ opsFileId: z.string().optional(), excludeId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.opsFlightTicket.findMany({
+        where: {
+          companyId: ctx.companyId,
+          ...(input.opsFileId ? { opsFileId: input.opsFileId } : {}),
+          ...(input.excludeId ? { id: { not: input.excludeId } } : {}),
+        },
+        select: {
+          id: true,
+          code: true,
+          ticketNumber: true,
+          clientName: true,
+          origin: true,
+          destination: true,
+          departureDate: true,
+          returnDate: true,
+          airline: true,
+          flightNumber: true,
+          returnFlightNumber: true,
+          flightType: true,
+          takeOffTime: true,
+          terminal: true,
+          returnTakeOffTime: true,
+          returnTerminal: true,
+          returnAirline: true,
+          transactionType: true,
+          status: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+    }),
+
+  listCurrencies: p("tour-ops:flightTicket:read").query(async ({ ctx }) => {
+    return ctx.db.currency.findMany({
+      where: { isActive: true },
+      select: { id: true, code: true, name: true, symbol: true },
+      orderBy: { code: "asc" },
+    });
+  }),
+
   // ── Create ────────────────────────────────────────────────────────────────
 
-  create: proc
+  create: p("tour-ops:flightTicket:create")
     .input(createSchema)
     .mutation(async ({ ctx, input }) => {
       const { companyId, db, session } = ctx;
@@ -306,6 +354,8 @@ export const opsFlightTicketRouter = createTRPCRouter({
           priceDifference: input.priceDifference ?? null,
           cancellationFees: input.cancellationFees ?? null,
           voidFee: input.voidFee ?? null,
+          parentTicketId: input.parentTicketId || null,
+          currencyId: input.currencyId || null,
           pricingBasis: input.pricingBasis as OpsPricingBasis,
           pax: input.pax,
           buyingRate,
@@ -390,7 +440,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
 
   // ── Update ────────────────────────────────────────────────────────────────
 
-  update: proc
+  update: p("tour-ops:flightTicket:update")
     .input(z.object({ id: z.string(), data: createSchema.partial() }))
     .mutation(async ({ ctx, input }) => {
       const ticket = await ctx.db.opsFlightTicket.findFirst({
@@ -509,6 +559,8 @@ export const opsFlightTicketRouter = createTRPCRouter({
             ...(input.data.priceDifference !== undefined && { priceDifference: input.data.priceDifference ?? null }),
             ...(input.data.cancellationFees !== undefined && { cancellationFees: input.data.cancellationFees ?? null }),
             ...(input.data.voidFee !== undefined && { voidFee: input.data.voidFee ?? null }),
+            ...(input.data.parentTicketId !== undefined && { parentTicketId: input.data.parentTicketId || null }),
+            ...(input.data.currencyId !== undefined && { currencyId: input.data.currencyId || null }),
             ...(input.data.pricingBasis && { pricingBasis: input.data.pricingBasis as OpsPricingBasis }),
             ...(input.data.pax !== undefined && { pax: input.data.pax }),
             ...(input.data.buyingRate !== undefined && { buyingRate: input.data.buyingRate }),
@@ -527,7 +579,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
 
   // ── Post (generate P&L journal entry) ─────────────────────────────────────
 
-  post: proc
+  post: p("tour-ops:flightTicket:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { companyId, db } = ctx;
@@ -624,7 +676,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
       });
     }),
 
-  cancel: proc
+  cancel: p("tour-ops:flightTicket:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const ticket = await ctx.db.opsFlightTicket.findFirst({
@@ -640,7 +692,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("tour-ops:flightTicket:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const ticket = await ctx.db.opsFlightTicket.findFirst({

@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -21,6 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { useTranslations } from "next-intl";
+
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type GuestRow = {
   id: string;
@@ -35,11 +39,14 @@ type GuestRow = {
   _count: { bookingGuests: number };
 };
 
-const columns: ColumnDef<GuestRow>[] = [
+function useColumns() {
+  const t = useTranslations("reservations");
+  const tc = useTranslations("common");
+  const columns: ColumnDef<GuestRow>[] = [
   {
     id: "name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
+      <DataTableColumnHeader column={column} title={tc("name")} />
     ),
     accessorFn: (row) => `${row.lastName}, ${row.firstName}`,
     cell: ({ row }) => (
@@ -57,22 +64,22 @@ const columns: ColumnDef<GuestRow>[] = [
   },
   {
     accessorKey: "email",
-    header: "Email",
+    header: tc("email"),
     cell: ({ row }) => row.original.email ?? "—",
   },
   {
     accessorKey: "phone",
-    header: "Phone",
+    header: tc("phone"),
     cell: ({ row }) => row.original.phone ?? "—",
   },
   {
     accessorKey: "nationality",
-    header: "Nationality",
+    header: tc("nationality"),
     cell: ({ row }) => row.original.country?.name ?? row.original.nationality ?? "—",
   },
   {
     accessorKey: "passportNo",
-    header: "Passport",
+    header: t("passport"),
     cell: ({ row }) => (
       <span className="font-mono text-sm">
         {row.original.passportNo ?? "—"}
@@ -81,13 +88,18 @@ const columns: ColumnDef<GuestRow>[] = [
   },
   {
     id: "bookings",
-    header: "Bookings",
+    header: t("bookings"),
     cell: ({ row }) => row.original._count.bookingGuests,
   },
-];
+  ];
+  return columns;
+}
 
 export default function GuestsPage() {
   const router = useRouter();
+  const t = useTranslations("reservations");
+  const tc = useTranslations("common");
+  const columns = useColumns();
   const { data, isLoading } = trpc.reservations.guest.list.useQuery();
 
   const [vipFilter, setVipFilter] = useState("ALL");
@@ -107,36 +119,37 @@ export default function GuestsPage() {
     <div className="flex items-center gap-2">
       <Select value={vipFilter} onValueChange={setVipFilter}>
         <SelectTrigger className="h-8 w-[130px]">
-          <SelectValue placeholder="Type" />
+          <SelectValue placeholder={tc("type")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Guests</SelectItem>
-          <SelectItem value="VIP">VIP Only</SelectItem>
-          <SelectItem value="REGULAR">Regular</SelectItem>
+          <SelectItem value="ALL">{t("allGuests")}</SelectItem>
+          <SelectItem value="VIP">{t("vipOnly")}</SelectItem>
+          <SelectItem value="REGULAR">{t("regularGuests")}</SelectItem>
         </SelectContent>
       </Select>
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={() => setVipFilter("ALL")}>
           <X className="mr-1 h-3 w-3" />
-          Clear
+          {tc("clear")}
         </Button>
       )}
     </div>
   );
 
   return (
+    <PermissionGuard permission="reservations:guest:read">
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Guests</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("guests")}</h1>
           <p className="text-muted-foreground">
-            Guest master data and booking history
+            {t("guestMasterData")}
           </p>
         </div>
         <Button asChild>
           <Link href="/reservations/guests/new">
-            <Plus className="mr-2 size-4" /> New Guest
+            <Plus className="mr-2 size-4" /> {t("newGuest")}
           </Link>
         </Button>
       </div>
@@ -160,5 +173,6 @@ export default function GuestsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

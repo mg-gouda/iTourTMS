@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Mail, MailOpen, Reply, Trash2 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: "bg-blue-100 text-blue-700",
@@ -28,6 +30,8 @@ const STATUS_COLORS: Record<string, string> = {
 export default function InquiriesPage() {
   const { data: inquiries, isLoading } = trpc.b2cSite.contactInquiry.list.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
@@ -37,7 +41,7 @@ export default function InquiriesPage() {
   });
   const replyMutation = trpc.b2cSite.contactInquiry.reply.useMutation({
     onSuccess: () => {
-      toast.success("Reply sent");
+      toast.success(t("replySent"));
       utils.b2cSite.contactInquiry.list.invalidate();
       setReplyDialogOpen(false);
     },
@@ -45,7 +49,7 @@ export default function InquiriesPage() {
   });
   const deleteMutation = trpc.b2cSite.contactInquiry.delete.useMutation({
     onSuccess: () => {
-      toast.success("Inquiry deleted");
+      toast.success(tc("deleted"));
       utils.b2cSite.contactInquiry.list.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -60,23 +64,25 @@ export default function InquiriesPage() {
   const newCount = inquiries?.filter((i) => i.status === "NEW").length ?? 0;
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:inquiry:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Contact Inquiries
+            {t("inquiries")}
             {newCount > 0 && (
-              <Badge className="ml-2" variant="destructive">{newCount} new</Badge>
+              <Badge className="ml-2" variant="destructive">{newCount} {t("new")}</Badge>
             )}
           </h1>
-          <p className="text-muted-foreground">Messages from the contact form</p>
+          <p className="text-muted-foreground">{t("inquiriesDesc")}</p>
         </div>
       </div>
 
       {isLoading ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">Loading...</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{tc("loading")}</CardContent></Card>
       ) : !inquiries?.length ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">No inquiries yet.</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{t("noInquiries")}</CardContent></Card>
       ) : (
         <div className="grid gap-3">
           {inquiries.map((inq) => (
@@ -106,12 +112,12 @@ export default function InquiriesPage() {
                 </div>
                 <div className="flex gap-1">
                   {inq.status === "NEW" && (
-                    <Button variant="ghost" size="icon" title="Mark as read" onClick={() => markReadMutation.mutate({ id: inq.id })}>
+                    <Button variant="ghost" size="icon" title={t("markAsRead")} onClick={() => markReadMutation.mutate({ id: inq.id })}>
                       <MailOpen className="h-4 w-4" />
                     </Button>
                   )}
                   {inq.status !== "REPLIED" && (
-                    <Button variant="ghost" size="icon" title="Reply" onClick={() => openReply(inq.id)}>
+                    <Button variant="ghost" size="icon" title={t("reply")} onClick={() => openReply(inq.id)}>
                       <Reply className="h-4 w-4" />
                     </Button>
                   )}
@@ -127,19 +133,23 @@ export default function InquiriesPage() {
 
       <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reply to Inquiry</DialogTitle></DialogHeader>
-          <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={5} placeholder="Type your reply..." />
+          <DialogHeader><DialogTitle>{t("replyToInquiry")}</DialogTitle></DialogHeader>
+          <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={5} placeholder={t("typeYourReply")} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReplyDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setReplyDialogOpen(false)}>{tc("cancel")}</Button>
             <Button
               onClick={() => { if (selectedId && replyText) replyMutation.mutate({ id: selectedId, reply: replyText }); }}
               disabled={!replyText || replyMutation.isPending}
             >
-              {replyMutation.isPending ? "Sending..." : "Send Reply"}
+              {replyMutation.isPending ? t("sending") : t("sendReply")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   opsTransportDestinationCreateSchema,
   opsTransportDestinationUpdateSchema,
@@ -10,12 +10,12 @@ import {
   opsTransportSeasonUpdateSchema,
 } from "@/lib/validations/tour-ops";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsTransportRouter = createTRPCRouter({
   // ── Destinations ──
 
-  listDestinations: tourOpsProcedure.query(async ({ ctx }) => {
+  listDestinations: p("tour-ops:component:read").query(async ({ ctx }) => {
     return ctx.db.opsTransportDestination.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -33,7 +33,7 @@ export const opsTransportRouter = createTRPCRouter({
     });
   }),
 
-  createDestination: tourOpsProcedure
+  createDestination: p("tour-ops:component:create")
     .input(opsTransportDestinationCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.opsTransportDestination.create({
@@ -41,7 +41,7 @@ export const opsTransportRouter = createTRPCRouter({
       });
     }),
 
-  updateDestination: tourOpsProcedure
+  updateDestination: p("tour-ops:component:update")
     .input(z.object({ id: z.string(), data: opsTransportDestinationUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const dest = await ctx.db.opsTransportDestination.findFirst({
@@ -54,7 +54,7 @@ export const opsTransportRouter = createTRPCRouter({
       });
     }),
 
-  deleteDestination: tourOpsProcedure
+  deleteDestination: p("tour-ops:component:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const dest = await ctx.db.opsTransportDestination.findFirst({
@@ -66,7 +66,7 @@ export const opsTransportRouter = createTRPCRouter({
 
   // ── Routes ──
 
-  listRoutes: tourOpsProcedure
+  listRoutes: p("tour-ops:component:read")
     .input(z.object({ destinationId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsTransportRoute.findMany({
@@ -81,7 +81,7 @@ export const opsTransportRouter = createTRPCRouter({
       });
     }),
 
-  getRoute: tourOpsProcedure
+  getRoute: p("tour-ops:component:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const route = await ctx.db.opsTransportRoute.findFirst({
@@ -98,7 +98,7 @@ export const opsTransportRouter = createTRPCRouter({
       return route;
     }),
 
-  createRoute: tourOpsProcedure
+  createRoute: p("tour-ops:component:create")
     .input(opsTransportRouteCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.opsTransportRoute.create({
@@ -106,7 +106,7 @@ export const opsTransportRouter = createTRPCRouter({
       });
     }),
 
-  updateRoute: tourOpsProcedure
+  updateRoute: p("tour-ops:component:update")
     .input(z.object({ id: z.string(), data: opsTransportRouteUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const route = await ctx.db.opsTransportRoute.findFirst({
@@ -116,7 +116,7 @@ export const opsTransportRouter = createTRPCRouter({
       return ctx.db.opsTransportRoute.update({ where: { id: input.id }, data: input.data });
     }),
 
-  deleteRoute: tourOpsProcedure
+  deleteRoute: p("tour-ops:component:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const route = await ctx.db.opsTransportRoute.findFirst({
@@ -128,7 +128,7 @@ export const opsTransportRouter = createTRPCRouter({
 
   // ── Seasons & Rates ──
 
-  addSeason: tourOpsProcedure
+  addSeason: p("tour-ops:component:create")
     .input(opsTransportSeasonCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const route = await ctx.db.opsTransportRoute.findFirst({
@@ -162,7 +162,7 @@ export const opsTransportRouter = createTRPCRouter({
       });
     }),
 
-  updateSeason: tourOpsProcedure
+  updateSeason: p("tour-ops:component:update")
     .input(z.object({ id: z.string(), data: opsTransportSeasonUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const season = await ctx.db.opsTransportRateSeason.findFirst({
@@ -199,7 +199,7 @@ export const opsTransportRouter = createTRPCRouter({
       });
     }),
 
-  deleteSeason: tourOpsProcedure
+  deleteSeason: p("tour-ops:component:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const season = await ctx.db.opsTransportRateSeason.findFirst({
@@ -210,7 +210,7 @@ export const opsTransportRouter = createTRPCRouter({
     }),
 
   // ── Bulk Import ──
-  bulkImport: tourOpsProcedure
+  bulkImport: p("tour-ops:component:update")
     .input(z.array(z.object({
       destinationCode: z.string(),
       destinationName: z.string(),
@@ -296,7 +296,7 @@ export const opsTransportRouter = createTRPCRouter({
     }),
 
   // ── Lookup: active rates for a route on a given date ──
-  getActiveRates: tourOpsProcedure
+  getActiveRates: p("tour-ops:component:read")
     .input(z.object({ routeId: z.string(), date: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       const date = input.date ? new Date(input.date) : new Date();

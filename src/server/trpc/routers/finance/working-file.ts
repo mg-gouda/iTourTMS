@@ -1,11 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const workingFileRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:settings:read")
     .input(z.object({ state: z.enum(["DRAFT", "IN_PROGRESS", "COMPLETED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.workingFile.findMany({
@@ -15,7 +15,7 @@ export const workingFileRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:settings:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const wf = await ctx.db.workingFile.findFirst({
@@ -26,7 +26,7 @@ export const workingFileRouter = createTRPCRouter({
       return wf;
     }),
 
-  create: financeProcedure
+  create: p("finance:settings:create")
     .input(z.object({
       name: z.string().min(1),
       periodId: z.string().optional(),
@@ -44,7 +44,7 @@ export const workingFileRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:settings:update")
     .input(z.object({
       id: z.string(),
       name: z.string().min(1).optional(),
@@ -63,7 +63,7 @@ export const workingFileRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:settings:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.workingFile.delete({ where: { id: input.id, companyId: ctx.session.user.companyId } });

@@ -1,13 +1,15 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   publicPageCreateSchema,
   publicPageUpdateSchema,
 } from "@/lib/validations/b2c-site";
 
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
+
 export const publicPageRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: p("b2c-site:page:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId!;
     return ctx.db.publicPage.findMany({
       where: { companyId },
@@ -15,7 +17,7 @@ export const publicPageRouter = createTRPCRouter({
     });
   }),
 
-  getById: protectedProcedure
+  getById: p("b2c-site:page:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -24,7 +26,7 @@ export const publicPageRouter = createTRPCRouter({
       });
     }),
 
-  getBySlug: protectedProcedure
+  getBySlug: p("b2c-site:page:read")
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -33,14 +35,14 @@ export const publicPageRouter = createTRPCRouter({
       });
     }),
 
-  create: protectedProcedure
+  create: p("b2c-site:page:create")
     .input(publicPageCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
       return ctx.db.publicPage.create({ data: { companyId, ...input } });
     }),
 
-  update: protectedProcedure
+  update: p("b2c-site:page:update")
     .input(publicPageUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -49,7 +51,7 @@ export const publicPageRouter = createTRPCRouter({
       return ctx.db.publicPage.update({ where: { id }, data });
     }),
 
-  delete: protectedProcedure
+  delete: p("b2c-site:page:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;

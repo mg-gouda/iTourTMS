@@ -22,7 +22,9 @@ declare module "next-auth/jwt" {
     companyId: string | null;
     tourOperatorId: string | null;
     locale: string;
+    tokenVersion: number;
     roles: string[];
-    permissions: string[];
+    // permissions are NOT stored in the JWT (too large — causes JWE chunking errors).
+    // They are fetched per-request in the session callback and cached in Redis.
   }
 }

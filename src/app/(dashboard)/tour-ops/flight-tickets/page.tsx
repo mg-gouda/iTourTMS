@@ -30,6 +30,7 @@ import {
   OPS_FLIGHT_TYPE_LABELS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function FlightTicketFilesPage() {
   const [search, setSearch] = useState("");
@@ -49,7 +50,9 @@ export default function FlightTicketFilesPage() {
   const total = data?.total ?? 0;
 
   return (
-    <div className="space-y-4 p-6">
+
+    <PermissionGuard permission="tour-ops:flightTicket:read">
+      <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Flight Ticket Files</h1>
         <Button asChild>
@@ -157,5 +160,9 @@ export default function FlightTicketFilesPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

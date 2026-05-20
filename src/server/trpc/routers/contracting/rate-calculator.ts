@@ -12,9 +12,9 @@ import {
   computeFullRateGrid,
 } from "@/server/services/contracting/rate-calculator";
 import type { RateContractData, OccupancyRow } from "@/server/services/contracting/rate-calculator";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 async function fetchContractData(
   db: PrismaClient,
@@ -247,7 +247,7 @@ async function fetchOccupancyTables(
 }
 
 export const rateCalculatorRouter = createTRPCRouter({
-  calculate: proc
+  calculate: p("contracting:tariff:read")
     .input(rateCalculatorInputSchema)
     .query(async ({ ctx, input }) => {
       const contractData = await fetchContractData(
@@ -268,7 +268,7 @@ export const rateCalculatorRouter = createTRPCRouter({
       });
     }),
 
-  calculateMultiRoom: proc
+  calculateMultiRoom: p("contracting:tariff:read")
     .input(multiRoomRateCalculatorInputSchema)
     .query(async ({ ctx, input }) => {
       const contractData = await fetchContractData(ctx.db, input.contractId, ctx.companyId);
@@ -277,7 +277,7 @@ export const rateCalculatorRouter = createTRPCRouter({
       return calculateMultiRoomRate(contractData, occupancyTables, input);
     }),
 
-  getRateSheet: proc
+  getRateSheet: p("contracting:tariff:read")
     .input(rateSheetInputSchema)
     .query(async ({ ctx, input }) => {
       const contractData = await fetchContractData(
@@ -288,7 +288,7 @@ export const rateCalculatorRouter = createTRPCRouter({
       return computeRateSheet(contractData);
     }),
 
-  getFullRateGrid: proc
+  getFullRateGrid: p("contracting:tariff:read")
     .input(rateSheetInputSchema)
     .query(async ({ ctx, input }) => {
       const contractData = await fetchContractData(

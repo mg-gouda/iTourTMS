@@ -4,12 +4,12 @@ import {
   operationalCostCreateSchema,
   operationalCostUpdateSchema,
 } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const operationalCostRouter = createTRPCRouter({
-  list: proc
+  list: p("traffic:pricing:read")
     .input(z.object({ jobId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttOperationalCost.findMany({
@@ -21,7 +21,7 @@ export const operationalCostRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:pricing:create")
     .input(operationalCostCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttOperationalCost.create({
@@ -29,7 +29,7 @@ export const operationalCostRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:pricing:update")
     .input(z.object({ id: z.string(), data: operationalCostUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttOperationalCost.update({
@@ -38,7 +38,7 @@ export const operationalCostRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:pricing:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttOperationalCost.delete({

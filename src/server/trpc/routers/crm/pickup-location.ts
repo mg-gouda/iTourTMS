@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { pickupLocationBulkSaveSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const pickupLocationRouter = createTRPCRouter({
-  listByExcursion: proc
+  listByExcursion: p("crm:booking:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -20,7 +20,7 @@ export const pickupLocationRouter = createTRPCRouter({
     }),
 
   // Bulk save: delete all for excursion, recreate. Tiers cascade.
-  bulkSave: proc
+  bulkSave: p("crm:booking:import")
     .input(pickupLocationBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({

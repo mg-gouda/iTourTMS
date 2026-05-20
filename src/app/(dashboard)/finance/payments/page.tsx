@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MOVE_STATE_LABELS, PAYMENT_TYPE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type PaymentRow = {
   id: string;
@@ -133,28 +135,31 @@ function PaymentActions({ payment }: { payment: PaymentRow }) {
 
 export default function PaymentsPage() {
   const router = useRouter();
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.finance.payment.list.useQuery();
 
   return (
+    <PermissionGuard permission="finance:payment:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Payments</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("payments")}</h1>
           <p className="text-muted-foreground">
-            Manage customer and vendor payments.
+            {t("paymentsDesc")}
           </p>
         </div>
         <Button asChild>
           <Link href="/finance/payments/new">
             <Plus className="mr-2 size-4" />
-            New Payment
+            {t("newPayment")}
           </Link>
         </Button>
       </div>
 
       {isLoading ? (
         <div className="text-muted-foreground py-10 text-center">
-          Loading...
+          {tc("loading")}
         </div>
       ) : (
         <DataTable
@@ -166,5 +171,6 @@ export default function PaymentsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

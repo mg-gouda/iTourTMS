@@ -4,6 +4,7 @@ import { use } from "react";
 
 import { PaymentTermForm } from "@/components/finance/payment-term-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function EditPaymentTermPage({
   params,
@@ -30,6 +31,7 @@ export default function EditPaymentTermPage({
   }
 
   return (
+    <PermissionGuard permission="finance:paymentTerm:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
@@ -57,5 +59,6 @@ export default function EditPaymentTermPage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Bell, CheckCheck, ChevronDown, LogOut, Search, User } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, CircleHelp, LogOut, Search, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -30,7 +30,9 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { moduleRoutes } from "@/components/layout/app-sidebar";
+import { useTranslations } from "next-intl";
+
+import { getModuleRoutes } from "@/components/layout/app-sidebar";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 
@@ -45,6 +47,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ title = "Dashboard", user, installedModules = [] }: TopbarProps) {
+  const tNav = useTranslations("nav");
   const router = useRouter();
   const pathname = usePathname();
   const { state: sidebarState } = useSidebar();
@@ -57,6 +60,7 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
     return pathname === prefix || pathname.startsWith(prefix + "/");
   })?.name ?? null;
 
+  const moduleRoutes = getModuleRoutes(tNav);
   const activeModuleConfig = activeModuleName ? moduleRoutes[activeModuleName] : null;
   // Only real groups (no dividers) shown in topbar
   const topbarGroups = activeModuleConfig?.groups.filter((g) => !g.divider) ?? [];
@@ -168,7 +172,7 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="flex items-center justify-between border-b px-4 py-2.5">
-              <span className="text-sm font-semibold">Notifications</span>
+              <span className="text-sm font-semibold">{tNav("notifications")}</span>
               {(unreadCount ?? 0) > 0 && (
                 <Button
                   variant="ghost"
@@ -177,14 +181,14 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
                   onClick={() => markAllReadMutation.mutate()}
                 >
                   <CheckCheck className="mr-1 h-3 w-3" />
-                  Mark all read
+                  {tNav("markAllRead")}
                 </Button>
               )}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
               {!notifications || notifications.length === 0 ? (
                 <p className="py-8 text-center text-xs text-muted-foreground">
-                  No notifications
+                  {tNav("noNotifications")}
                 </p>
               ) : (
                 notifications.map((n) => (
@@ -222,6 +226,13 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
           </PopoverContent>
         </Popover>
 
+        {/* Help */}
+        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+          <Link href="/help" title={tNav("help")}>
+            <CircleHelp className="h-4 w-4" />
+          </Link>
+        </Button>
+
         {/* User profile */}
         {user && (
           <DropdownMenu>
@@ -247,13 +258,13 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
               <DropdownMenuItem asChild>
                 <Link href="/profile">
                   <User className="mr-2 h-4 w-4" />
-                  Profile
+                  {tNav("profile")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+                {tNav("signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

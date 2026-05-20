@@ -29,10 +29,15 @@ import {
   BOOKING_STATUS_VARIANTS,
 } from "@/lib/constants/reservations";
 import { trpc } from "@/lib/trpc";
+import { useTranslations } from "next-intl";
+
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function GuestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const t = useTranslations("reservations");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -47,14 +52,14 @@ export default function GuestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="py-10 text-center text-muted-foreground">Loading...</div>
+      <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>
     );
   }
 
   if (!guest) {
     return (
       <div className="py-10 text-center text-muted-foreground">
-        Guest not found
+        {t("guestNotFound")}
       </div>
     );
   }
@@ -81,7 +86,7 @@ export default function GuestDetailPage() {
             onClick={() => router.push(`/reservations/guests/${id}/edit`)}
           >
             <Pencil className="mr-1 size-3.5" />
-            Edit
+            {tc("edit")}
           </Button>
           <Button
             variant="destructive"
@@ -89,7 +94,7 @@ export default function GuestDetailPage() {
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 className="mr-1 size-3.5" />
-            Delete
+            {tc("delete")}
           </Button>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,21 +15,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { TT_DRIVER_STATUS_LABELS, TT_DRIVER_STATUS_VARIANTS, TT_JOB_STATUS_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function DriverDetailPage() {
+  const t = useTranslations("traffic");
+  const tCommon = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: driver, isLoading } = trpc.traffic.driver.getById.useQuery({ id });
 
   const deleteMutation = trpc.traffic.driver.delete.useMutation({
-    onSuccess: () => { toast.success("Driver deleted"); router.push("/traffic/drivers"); },
+    onSuccess: () => { toast.success(tCommon("deleted")); router.push("/traffic/drivers"); },
     onError: (err) => toast.error(err.message),
   });
 
   const unassignMutation = trpc.traffic.driver.unassignVehicle.useMutation({
     onSuccess: () => {
-      toast.success("Vehicle unassigned");
+      toast.success(tCommon("updated"));
       utils.traffic.driver.getById.invalidate({ id });
     },
     onError: (err) => toast.error(err.message),
@@ -51,27 +55,27 @@ export default function DriverDetailPage() {
 
       <Tabs defaultValue="info">
         <TabsList>
-          <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="vehicles">Vehicles ({driver.driverVehicles.length})</TabsTrigger>
-          <TabsTrigger value="history">Recent Jobs ({driver.assignments.length})</TabsTrigger>
+          <TabsTrigger value="info">{tCommon("details")}</TabsTrigger>
+          <TabsTrigger value="vehicles">{t("vehicles")} ({driver.driverVehicles.length})</TabsTrigger>
+          <TabsTrigger value="history">{t("trafficJobs")} ({driver.assignments.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card><CardContent className="space-y-2 pt-6 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-medium">{driver.user.name ?? "—"}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="font-medium">{driver.user.email}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-medium">{driver.phone ?? "—"}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">License</span><span className="font-medium">{driver.licenseNumber ?? "—"}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">License Expiry</span><span className="font-medium">{driver.licenseExpiry ? new Date(driver.licenseExpiry).toLocaleDateString() : "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tCommon("name")}</span><span className="font-medium">{driver.user.name ?? "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tCommon("email")}</span><span className="font-medium">{driver.user.email}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tCommon("phone")}</span><span className="font-medium">{driver.phone ?? "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("licenseNumber")}</span><span className="font-medium">{driver.licenseNumber ?? "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("licenseExpiry")}</span><span className="font-medium">{driver.licenseExpiry ? new Date(driver.licenseExpiry).toLocaleDateString() : "—"}</span></div>
           </CardContent></Card>
         </TabsContent>
         <TabsContent value="vehicles">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Assigned Vehicles</CardTitle>
+              <CardTitle>{t("assignedVehicles")}</CardTitle>
               <AssignVehicleDialog driverId={id} onSuccess={() => utils.traffic.driver.getById.invalidate({ id })} />
             </CardHeader>
             <CardContent>
-              {driver.driverVehicles.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No vehicles assigned.</p> : (
+              {driver.driverVehicles.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">{t("noVehiclesAssigned")}</p> : (
                 <div className="space-y-2">{driver.driverVehicles.map((dv) => (
                   <div key={dv.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
                     <span>{dv.vehicle.plateNumber} ({dv.vehicle.vehicleType.name})</span>
@@ -82,12 +86,12 @@ export default function DriverDetailPage() {
                         size="sm"
                         className="h-7 text-destructive hover:text-destructive"
                         onClick={() => {
-                          if (confirm("Unassign this vehicle?")) {
+                          if (confirm(tCommon("confirmDelete"))) {
                             unassignMutation.mutate({ driverId: id, vehicleId: dv.vehicle.id });
                           }
                         }}
                       >
-                        Unassign
+                        {t("unassign")}
                       </Button>
                     </div>
                   </div>
@@ -98,7 +102,7 @@ export default function DriverDetailPage() {
         </TabsContent>
         <TabsContent value="history">
           <Card><CardContent className="pt-6">
-            {driver.assignments.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No recent assignments.</p> : (
+            {driver.assignments.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">{t("noRecentAssignments")}</p> : (
               <div className="space-y-2">{driver.assignments.map((a) => (
                 <div key={a.id} className="flex cursor-pointer items-center justify-between rounded-md border p-3 text-sm hover:bg-muted/50" onClick={() => router.push(`/traffic/jobs/${a.job.id}`)}>
                   <span>{a.job.code} &middot; {new Date(a.job.serviceDate).toLocaleDateString()}</span>
@@ -111,21 +115,23 @@ export default function DriverDetailPage() {
       </Tabs>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={() => router.back()}>Back</Button>
-        <Button variant="destructive" onClick={() => { if (confirm("Delete this driver?")) deleteMutation.mutate({ id }); }}>Delete</Button>
+        <Button variant="outline" onClick={() => router.back()}>{tCommon("back")}</Button>
+        <Button variant="destructive" onClick={() => { if (confirm(tCommon("confirmDelete"))) deleteMutation.mutate({ id }); }}>{tCommon("delete")}</Button>
       </div>
     </div>
   );
 }
 
 function AssignVehicleDialog({ driverId, onSuccess }: { driverId: string; onSuccess: () => void }) {
+  const t = useTranslations("traffic");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [vehicleId, setVehicleId] = useState("");
   const { data: vehicles } = trpc.traffic.vehicle.list.useQuery(undefined, { enabled: open });
 
   const assignMutation = trpc.traffic.driver.assignVehicle.useMutation({
     onSuccess: () => {
-      toast.success("Vehicle assigned");
+      toast.success(tCommon("updated"));
       setOpen(false);
       setVehicleId("");
       onSuccess();
@@ -135,24 +141,26 @@ function AssignVehicleDialog({ driverId, onSuccess }: { driverId: string; onSucc
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!vehicleId) { toast.error("Select a vehicle"); return; }
+    if (!vehicleId) { toast.error(tCommon("required")); return; }
     assignMutation.mutate({ driverId, vehicleId });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+
+    <PermissionGuard permission="traffic:driver:read">
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">Assign Vehicle</Button>
+        <Button size="sm">{t("assignVehicle")}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Assign Vehicle</DialogTitle>
+          <DialogTitle>{t("assignVehicle")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Vehicle</Label>
+            <Label>{t("vehicle")}</Label>
             <Select value={vehicleId} onValueChange={setVehicleId}>
-              <SelectTrigger><SelectValue placeholder="Select vehicle..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={tCommon("select")} /></SelectTrigger>
               <SelectContent>
                 {vehicles?.map((v) => (
                   <SelectItem key={v.id} value={v.id}>
@@ -163,13 +171,17 @@ function AssignVehicleDialog({ driverId, onSuccess }: { driverId: string; onSucc
             </Select>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>{tCommon("cancel")}</Button>
             <Button type="submit" disabled={assignMutation.isPending}>
-              {assignMutation.isPending ? "Assigning..." : "Assign"}
+              {assignMutation.isPending ? tCommon("saving") : t("assignDriver")}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -4,13 +4,13 @@ import {
   markupRuleCreateSchema,
   markupRuleUpdateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const markupRuleRouter = createTRPCRouter({
   // ── List all markup rules ──
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:markup:read").query(async ({ ctx }) => {
     return ctx.db.markupRule.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -26,7 +26,7 @@ export const markupRuleRouter = createTRPCRouter({
   }),
 
   // ── Get by ID ──
-  getById: proc
+  getById: p("contracting:markup:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.markupRule.findFirstOrThrow({
@@ -53,7 +53,7 @@ export const markupRuleRouter = createTRPCRouter({
     }),
 
   // ── Create ──
-  create: proc
+  create: p("contracting:markup:create")
     .input(markupRuleCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.markupRule.create({
@@ -76,7 +76,7 @@ export const markupRuleRouter = createTRPCRouter({
     }),
 
   // ── Update ──
-  update: proc
+  update: p("contracting:markup:update")
     .input(z.object({ id: z.string(), data: markupRuleUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
@@ -100,7 +100,7 @@ export const markupRuleRouter = createTRPCRouter({
     }),
 
   // ── Delete ──
-  delete: proc
+  delete: p("contracting:markup:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.markupRule.delete({
@@ -109,7 +109,7 @@ export const markupRuleRouter = createTRPCRouter({
     }),
 
   // ── Resolve: find best-matching rule for a given context ──
-  resolve: proc
+  resolve: p("contracting:markup:read")
     .input(
       z.object({
         contractId: z.string(),

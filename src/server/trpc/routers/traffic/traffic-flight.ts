@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { trafficFlightCreateSchema, trafficFlightUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const trafficFlightRouter = createTRPCRouter({
-  list: proc
+  list: p("traffic:airport:read")
     .input(z.object({ flightDate: z.coerce.date().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.findMany({
@@ -23,7 +23,7 @@ export const trafficFlightRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("traffic:airport:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.findFirstOrThrow({
@@ -41,7 +41,7 @@ export const trafficFlightRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:airport:create")
     .input(trafficFlightCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.create({
@@ -49,7 +49,7 @@ export const trafficFlightRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:airport:update")
     .input(z.object({ id: z.string(), data: trafficFlightUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.update({
@@ -58,7 +58,7 @@ export const trafficFlightRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:airport:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.delete({

@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 function buildMonthlySchedule(amount: Decimal, startDate: Date, endDate: Date) {
   const lines: { date: Date; amount: Decimal }[] = [];
@@ -24,7 +24,7 @@ function buildMonthlySchedule(amount: Decimal, startDate: Date, endDate: Date) {
 }
 
 export const deferredRevenueRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:deferred:read")
     .input(z.object({ state: z.enum(["DRAFT", "RUNNING", "CLOSED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.deferredRevenue.findMany({
@@ -37,7 +37,7 @@ export const deferredRevenueRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:deferred:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const rec = await (ctx.db.deferredRevenue as any).findFirst({
@@ -52,7 +52,7 @@ export const deferredRevenueRouter = createTRPCRouter({
       return rec;
     }),
 
-  create: financeProcedure
+  create: p("finance:deferred:create")
     .input(z.object({
       name: z.string().min(1),
       amount: z.number().positive(),
@@ -85,7 +85,7 @@ export const deferredRevenueRouter = createTRPCRouter({
       return rec;
     }),
 
-  recognize: financeProcedure
+  recognize: p("finance:deferred:update")
     .input(z.object({ scheduleId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const line = await ctx.db.deferredRevenueSchedule.findFirst({ where: { id: input.scheduleId } });
@@ -100,7 +100,7 @@ export const deferredRevenueRouter = createTRPCRouter({
       }
     }),
 
-  close: financeProcedure
+  close: p("finance:deferred:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.deferredRevenue.update({

@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { activityCreateSchema, activityUpdateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const activityRouter = createTRPCRouter({
-  list: proc
+  list: p("crm:activity:read")
     .input(
       z.object({
         leadId: z.string().optional(),
@@ -34,7 +34,7 @@ export const activityRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("crm:activity:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmActivity.findFirstOrThrow({
@@ -48,7 +48,7 @@ export const activityRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:activity:create")
     .input(activityCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmActivity.create({
@@ -67,7 +67,7 @@ export const activityRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:activity:update")
     .input(z.object({ id: z.string(), data: activityUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
@@ -85,7 +85,7 @@ export const activityRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:activity:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmActivity.delete({

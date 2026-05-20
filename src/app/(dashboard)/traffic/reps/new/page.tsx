@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,49 +14,58 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { repCreateSchema } from "@/lib/validations/traffic";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof repCreateSchema>;
 
 export default function NewRepPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
   const form = useForm<FormValues>({ resolver: zodResolver(repCreateSchema), defaultValues: { isActive: true } });
 
   const { data: users } = trpc.traffic.driver.listCompanyUsers.useQuery();
   const createMutation = trpc.traffic.rep.create.useMutation({
-    onSuccess: (data) => { toast.success("Rep created"); utils.traffic.rep.invalidate(); router.push(`/traffic/reps/${data.id}`); },
+    onSuccess: (data) => { toast.success(tc("created")); utils.traffic.rep.invalidate(); router.push(`/traffic/reps/${data.id}`); },
     onError: (err) => toast.error(err.message),
   });
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <div className="page-header"><h1 className="text-2xl font-bold">New Representative</h1></div>
+
+    <PermissionGuard permission="traffic:driver:read">
+      <div className="animate-fade-in space-y-6">
+      <div className="page-header"><h1 className="text-2xl font-bold">{t("newRepresentative")}</h1></div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit((v) => createMutation.mutate(v))} className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Rep Details</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("repDetails")}</CardTitle></CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="userId" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>User Account</FormLabel>
+                  <FormLabel>{t("userAccount")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder={tc("select")} /></SelectTrigger></FormControl>
                     <SelectContent>{users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="phone" render={({ field }) => (
-                <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>{tc("phone")}</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
               )} />
             </CardContent>
           </Card>
           <div className="flex gap-3">
-            <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? "Creating..." : "Create Rep"}</Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+            <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? tc("creating") : t("createRep")}</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>{tc("cancel")}</Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

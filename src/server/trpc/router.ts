@@ -7,6 +7,7 @@ import { b2cSiteRouter } from "@/server/trpc/routers/b2c-site";
 import { b2bPortalRouter } from "@/server/trpc/routers/b2b-portal";
 import { crmRouter } from "@/server/trpc/routers/crm";
 import { tourOpsRouter } from "@/server/trpc/routers/tour-ops";
+import { adminRouter } from "@/server/trpc/routers/shared/admin";
 import { apiIntegrationRouter } from "@/server/trpc/routers/shared/api-integration";
 import { settingsRouter } from "@/server/trpc/routers/shared/settings";
 import { setupRouter } from "@/server/trpc/routers/shared/setup";
@@ -15,6 +16,7 @@ import { notificationRouter } from "@/server/trpc/routers/shared/notification";
 import { giataRouter } from "@/server/trpc/routers/shared/giata";
 
 export const appRouter = createTRPCRouter({
+  admin: adminRouter,
   setup: setupRouter,
   settings: settingsRouter,
   user: userRouter,

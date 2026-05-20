@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -30,10 +31,13 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { markupRuleCreateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof markupRuleCreateSchema>;
 
 export default function NewMarkupRulePage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -71,7 +75,9 @@ export default function NewMarkupRulePage() {
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="contracting:markup:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/contracting/markups">
@@ -79,9 +85,9 @@ export default function NewMarkupRulePage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">New Markup Rule</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("newMarkupRule")}</h1>
           <p className="text-muted-foreground">
-            Create a new markup rule for tariff generation
+            {t("markupRulesDesc")}
           </p>
         </div>
       </div>
@@ -92,7 +98,7 @@ export default function NewMarkupRulePage() {
             {/* Basic Info */}
             <Card>
               <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+                <CardTitle>{t("basicInfo")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -238,7 +244,7 @@ export default function NewMarkupRulePage() {
             {/* Scope */}
             <Card>
               <CardHeader>
-                <CardTitle>Scope Targets</CardTitle>
+                <CardTitle>{t("scopeTargets")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
@@ -398,14 +404,18 @@ export default function NewMarkupRulePage() {
               type="submit"
               disabled={createMutation.isPending}
             >
-              {createMutation.isPending ? "Creating..." : "Create Markup Rule"}
+              {createMutation.isPending ? tc("creating") : t("newMarkupRule")}
             </Button>
             <Button type="button" variant="outline" asChild>
-              <Link href="/contracting/markups">Cancel</Link>
+              <Link href="/contracting/markups">{tc("cancel")}</Link>
             </Button>
           </div>
         </form>
       </Form>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

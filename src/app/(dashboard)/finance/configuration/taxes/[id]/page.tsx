@@ -4,6 +4,7 @@ import { use } from "react";
 
 import { TaxForm } from "@/components/finance/tax-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function EditTaxPage({
   params,
@@ -28,6 +29,7 @@ export default function EditTaxPage({
   }
 
   return (
+    <PermissionGuard permission="finance:tax:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Edit Tax</h1>
@@ -56,5 +58,6 @@ export default function EditTaxPage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

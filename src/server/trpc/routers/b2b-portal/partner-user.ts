@@ -1,12 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("b2b-portal");
+const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const partnerUserRouter = createTRPCRouter({
-  list: proc
+  list: p("b2b-portal:partnerUser:read")
     .input(z.object({ tourOperatorId: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.user.findMany({
@@ -26,7 +26,7 @@ export const partnerUserRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("b2b-portal:partnerUser:create")
     .input(
       z.object({
         name: z.string().min(1),
@@ -56,7 +56,7 @@ export const partnerUserRouter = createTRPCRouter({
       });
     }),
 
-  toggleActive: proc
+  toggleActive: p("b2b-portal:partnerUser:update")
     .input(z.object({ id: z.string(), isActive: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.user.update({
@@ -65,7 +65,7 @@ export const partnerUserRouter = createTRPCRouter({
       });
     }),
 
-  resetPassword: proc
+  resetPassword: p("b2b-portal:partnerUser:manage")
     .input(z.object({ id: z.string(), newPassword: z.string().min(6) }))
     .mutation(async ({ ctx, input }) => {
       const bcrypt = await import("bcryptjs");

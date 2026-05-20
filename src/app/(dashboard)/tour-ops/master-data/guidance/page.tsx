@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { OPS_DESTINATION_CODES, OPS_GUIDE_TYPE_LABELS } from "@/lib/constants/tour-ops";
 import type { OpsGuideType } from "@prisma/client";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type RateDialog = { open: boolean; id?: string; destinationCode: string; guideType: string; currency: string };
 const emptyDialog = (): RateDialog => ({ open: false, destinationCode: "", guideType: "", currency: "EGP" });
@@ -105,7 +106,8 @@ export default function GuidanceMasterDataPage() {
               {items.map((rate) => {
                 const activeSeason = rate.seasons.find((s) => s.isActive);
                 return (
-                  <div key={rate.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
+                  <PermissionGuard permission="tour-ops:component:read">
+                    <div key={rate.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="font-medium text-sm">{OPS_GUIDE_TYPE_LABELS[rate.guideType as OpsGuideType]}</span>
                       <Badge variant="secondary" className="text-xs">{rate.currency}</Badge>
@@ -128,6 +130,7 @@ export default function GuidanceMasterDataPage() {
                       </Button>
                     </div>
                   </div>
+                  </PermissionGuard>
                 );
               })}
             </div>

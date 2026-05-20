@@ -21,6 +21,7 @@ import {
 import { BUDGET_MONTH_LABELS } from "@/lib/constants/finance";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 function fmt(val: number): string {
   return val.toFixed(2);
@@ -190,6 +191,7 @@ function MonthCells({
   variance: number;
 }) {
   return (
+    <PermissionGuard permission="finance:report:read">
     <>
       <TableCell className="text-right font-mono border-l">
         {fmt(planned)}
@@ -199,5 +201,6 @@ function MonthCells({
         {fmt(variance)}
       </TableCell>
     </>
+    </PermissionGuard>
   );
 }

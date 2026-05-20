@@ -22,8 +22,12 @@ import {
   CRM_PIPELINE_STAGE_ORDER,
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 export default function PipelinePage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data: opportunities, isLoading } = trpc.crm.opportunity.list.useQuery();
@@ -51,8 +55,8 @@ export default function PipelinePage() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
-          <p className="text-muted-foreground">Kanban view of your sales pipeline</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("pipeline")}</h1>
+          <p className="text-muted-foreground">{t("kanbanView")}</p>
         </div>
         <div className="grid grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -68,11 +72,12 @@ export default function PipelinePage() {
   }
 
   return (
+    <PermissionGuard permission="crm:opportunity:read">
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
-          <p className="text-muted-foreground">Kanban view of your sales pipeline</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("pipeline")}</h1>
+          <p className="text-muted-foreground">{t("kanbanView")}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -83,11 +88,11 @@ export default function PipelinePage() {
             }}
             disabled={!opportunities?.length}
           >
-            Export Excel
+            {t("exportExcel")}
           </Button>
           <Button asChild>
             <Link href="/crm/pipeline/new">
-              <Plus className="mr-2 size-4" /> New Opportunity
+              <Plus className="mr-2 size-4" /> {t("newOpportunity")}
             </Link>
           </Button>
         </div>
@@ -166,5 +171,6 @@ export default function PipelinePage() {
         })}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

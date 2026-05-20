@@ -18,6 +18,7 @@ import {
   OPS_QUOTATION_STATUS_VARIANTS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +46,9 @@ export default function QuotationDetailPage() {
   const marginPct = Number(quotation.marginPct);
 
   return (
-    <div className="space-y-4 p-6">
+
+    <PermissionGuard permission="tour-ops:quotation:read">
+      <div className="space-y-4 p-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -195,5 +198,9 @@ export default function QuotationDetailPage() {
         </CardContent>
       </Card>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

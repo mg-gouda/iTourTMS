@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OPS_DESTINATION_CODES } from "@/lib/constants/tour-ops";
 import { exportTransportRatesExcel } from "@/lib/export/tour-ops-transport-excel";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function TransportMasterDataPage() {
   const utils = trpc.useUtils();
@@ -240,7 +241,8 @@ export default function TransportMasterDataPage() {
                   {dest.routes.map((route) => {
                     const activeSeason = route.seasons.find((s) => s.isActive);
                     return (
-                      <div key={route.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
+                      <PermissionGuard permission="tour-ops:component:read">
+                        <div key={route.id} className="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/40 transition-colors">
                         <div className="flex items-center gap-3">
                           <span className="font-medium text-sm">{route.nameEn}</span>
                           {route.nameAr && <span className="text-xs text-muted-foreground" dir="rtl">{route.nameAr}</span>}
@@ -265,6 +267,7 @@ export default function TransportMasterDataPage() {
                           </Button>
                         </div>
                       </div>
+                      </PermissionGuard>
                     );
                   })}
                 </div>

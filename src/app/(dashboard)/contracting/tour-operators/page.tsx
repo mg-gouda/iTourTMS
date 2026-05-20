@@ -5,6 +5,7 @@ import { Plus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -31,6 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type TORow = {
   id: string;
@@ -44,55 +46,9 @@ type TORow = {
   _count: { contractAssignments: number; hotelAssignments: number };
 };
 
-const columns: ColumnDef<TORow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
-    ),
-  },
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => (
-      <span className="font-mono">{row.original.code}</span>
-    ),
-  },
-  {
-    id: "country",
-    header: "Country",
-    cell: ({ row }) => row.original.country?.name ?? "—",
-  },
-  {
-    id: "market",
-    header: "Market",
-    cell: ({ row }) => row.original.market?.name ?? "—",
-  },
-  {
-    id: "contracts",
-    header: "Contracts",
-    cell: ({ row }) => row.original._count.contractAssignments,
-  },
-  {
-    id: "hotels",
-    header: "Hotels",
-    cell: ({ row }) => row.original._count.hotelAssignments,
-  },
-  {
-    accessorKey: "active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.active ? "default" : "secondary"}>
-        {row.original.active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
-
 export default function TourOperatorsPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.contracting.tourOperator.list.useQuery();
@@ -102,6 +58,54 @@ export default function TourOperatorsPage() {
   const [selectedTOs, setSelectedTOs] = useState<string[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
   const [cascade, setCascade] = useState(true);
+
+  const columns: ColumnDef<TORow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={tc("name")} />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "code",
+      header: tc("code"),
+      cell: ({ row }) => (
+        <span className="font-mono">{row.original.code}</span>
+      ),
+    },
+    {
+      id: "country",
+      header: t("country"),
+      cell: ({ row }) => row.original.country?.name ?? "—",
+    },
+    {
+      id: "market",
+      header: t("market"),
+      cell: ({ row }) => row.original.market?.name ?? "—",
+    },
+    {
+      id: "contracts",
+      header: t("contractsCol"),
+      cell: ({ row }) => row.original._count.contractAssignments,
+    },
+    {
+      id: "hotels",
+      header: t("hotelsCol"),
+      cell: ({ row }) => row.original._count.hotelAssignments,
+    },
+    {
+      accessorKey: "active",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "default" : "secondary"}>
+          {row.original.active ? tc("active") : tc("inactive")}
+        </Badge>
+      ),
+    },
+  ];
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery(
     undefined,
@@ -124,8 +128,8 @@ export default function TourOperatorsPage() {
   const filteredData = useMemo(() => {
     let result = (data ?? []) as TORow[];
     if (activeFilter !== "ALL") {
-      result = result.filter((t) =>
-        activeFilter === "ACTIVE" ? t.active : !t.active,
+      result = result.filter((row) =>
+        activeFilter === "ACTIVE" ? row.active : !row.active,
       );
     }
     return result;
@@ -137,40 +141,41 @@ export default function TourOperatorsPage() {
     <div className="flex items-center gap-2">
       <Select value={activeFilter} onValueChange={setActiveFilter}>
         <SelectTrigger className="h-9 w-[120px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={tc("status")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Status</SelectItem>
-          <SelectItem value="ACTIVE">Active</SelectItem>
-          <SelectItem value="INACTIVE">Inactive</SelectItem>
+          <SelectItem value="ALL">{t("allStatus")}</SelectItem>
+          <SelectItem value="ACTIVE">{tc("active")}</SelectItem>
+          <SelectItem value="INACTIVE">{tc("inactive")}</SelectItem>
         </SelectContent>
       </Select>
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={() => setActiveFilter("ALL")}>
           <X className="mr-1 h-3 w-3" />
-          Clear
+          {tc("clear")}
         </Button>
       )}
     </div>
   );
 
   return (
+    <PermissionGuard permission="contracting:contract:read">
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Tour Operators</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("tourOperators")}</h1>
           <p className="text-muted-foreground">
-            Manage tour operators and their contract/hotel assignments
+            {t("manageTourOperators")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setBulkOpen(true)}>
-            <Users className="mr-2 size-4" /> Bulk Assign
+            <Users className="mr-2 size-4" /> {t("bulkAssign")}
           </Button>
           <Button asChild>
             <Link href="/contracting/tour-operators/new">
-              <Plus className="mr-2 size-4" /> New Tour Operator
+              <Plus className="mr-2 size-4" /> {t("newTourOperatorBtn")}
             </Link>
           </Button>
         </div>
@@ -199,7 +204,7 @@ export default function TourOperatorsPage() {
           columns={columns}
           data={filteredData}
           searchKey="name"
-          searchPlaceholder="Search tour operators..."
+          searchPlaceholder={t("searchTourOperators")}
           toolbar={filterToolbar}
           onRowClick={(row) => router.push(`/contracting/tour-operators/${row.id}`)}
         />
@@ -209,16 +214,16 @@ export default function TourOperatorsPage() {
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Bulk Assign Tour Operators to Hotels</DialogTitle>
+            <DialogTitle>{t("bulkAssignTitle")}</DialogTitle>
             <DialogDescription>
-              Select tour operators and hotels. Assignments cascade to published contracts by default.
+              {t("bulkAssignDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Tour Operator selection */}
             <div>
-              <h4 className="mb-2 text-sm font-medium">Tour Operators</h4>
+              <h4 className="mb-2 text-sm font-medium">{t("tourOperators")}</h4>
               <div className="max-h-[160px] space-y-1 overflow-y-auto rounded border p-2">
                 {((data ?? []) as TORow[])
                   .filter((to) => to.active)
@@ -241,13 +246,13 @@ export default function TourOperatorsPage() {
                   ))}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {selectedTOs.length} selected
+                {selectedTOs.length} {tc("selected")}
               </p>
             </div>
 
             {/* Hotel selection */}
             <div>
-              <h4 className="mb-2 text-sm font-medium">Hotels</h4>
+              <h4 className="mb-2 text-sm font-medium">{t("hotels")}</h4>
               <div className="max-h-[160px] space-y-1 overflow-y-auto rounded border p-2">
                 {(hotels ?? []).map((h) => (
                   <label
@@ -268,7 +273,7 @@ export default function TourOperatorsPage() {
                 ))}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {selectedHotels.length} selected
+                {selectedHotels.length} {tc("selected")}
               </p>
             </div>
 
@@ -280,14 +285,14 @@ export default function TourOperatorsPage() {
                 onCheckedChange={(v) => setCascade(!!v)}
               />
               <label htmlFor="bulk-cascade" className="text-sm">
-                Also assign to published contracts for these hotels
+                {t("cascadeToContracts")}
               </label>
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               disabled={
@@ -303,11 +308,12 @@ export default function TourOperatorsPage() {
                 })
               }
             >
-              Assign ({selectedTOs.length} × {selectedHotels.length})
+              {t("assignBtn")} ({selectedTOs.length} × {selectedHotels.length})
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { guestBookingCreateSchema, guestBookingUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const guestBookingRouter = createTRPCRouter({
-  list: proc
+  list: p("traffic:guestBooking:read")
     .input(z.object({ status: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.ttGuestBooking.findMany({
@@ -24,7 +24,7 @@ export const guestBookingRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("traffic:guestBooking:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttGuestBooking.findFirstOrThrow({
@@ -37,7 +37,7 @@ export const guestBookingRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:guestBooking:create")
     .input(guestBookingCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const code = await generateSequenceNumber(ctx.db, ctx.companyId, "guest_booking");
@@ -46,7 +46,7 @@ export const guestBookingRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:guestBooking:update")
     .input(z.object({ id: z.string(), data: guestBookingUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttGuestBooking.update({
@@ -55,7 +55,7 @@ export const guestBookingRouter = createTRPCRouter({
       });
     }),
 
-  getQuote: proc
+  getQuote: p("traffic:guestBooking:read")
     .input(z.object({
       vehicleTypeId: z.string(),
       serviceType: z.string(),
@@ -79,7 +79,7 @@ export const guestBookingRouter = createTRPCRouter({
       return priceItem;
     }),
 
-  confirmPayment: proc
+  confirmPayment: p("traffic:guestBooking:confirm")
     .input(z.object({
       bookingId: z.string(),
       amount: z.number().min(0),

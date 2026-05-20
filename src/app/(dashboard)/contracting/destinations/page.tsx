@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type DestRow = {
   id: string;
@@ -31,55 +33,57 @@ type DestRow = {
   _count: { hotels: number; cities: number };
 };
 
-const columns: ColumnDef<DestRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
-    ),
-  },
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => (
-      <span className="font-mono">{row.original.code}</span>
-    ),
-  },
-  {
-    accessorKey: "country",
-    header: "Country",
-    cell: ({ row }) => row.original.country?.name ?? "—",
-  },
-  {
-    id: "cities",
-    header: "Cities",
-    cell: ({ row }) => row.original._count.cities,
-  },
-  {
-    id: "hotels",
-    header: "Hotels",
-    cell: ({ row }) => row.original._count.hotels,
-  },
-  {
-    accessorKey: "active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.active ? "default" : "secondary"}>
-        {row.original.active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
-
 export default function DestinationsPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.contracting.destination.list.useQuery();
 
   const [countryFilter, setCountryFilter] = useState("ALL");
   const [activeFilter, setActiveFilter] = useState("ALL");
+
+  const columns: ColumnDef<DestRow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={tc("name")} />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "code",
+      header: tc("code"),
+      cell: ({ row }) => (
+        <span className="font-mono">{row.original.code}</span>
+      ),
+    },
+    {
+      accessorKey: "country",
+      header: t("country"),
+      cell: ({ row }) => row.original.country?.name ?? "—",
+    },
+    {
+      id: "cities",
+      header: t("citiesCol"),
+      cell: ({ row }) => row.original._count.cities,
+    },
+    {
+      id: "hotels",
+      header: t("hotelsCol"),
+      cell: ({ row }) => row.original._count.hotels,
+    },
+    {
+      accessorKey: "active",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "default" : "secondary"}>
+          {row.original.active ? tc("active") : tc("inactive")}
+        </Badge>
+      ),
+    },
+  ];
 
   const countries = useMemo(() => {
     const countryMap = new Map<string, string>();
@@ -115,10 +119,10 @@ export default function DestinationsPage() {
     <div className="flex items-center gap-2">
       <Select value={countryFilter} onValueChange={setCountryFilter}>
         <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Country" />
+          <SelectValue placeholder={t("country")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Countries</SelectItem>
+          <SelectItem value="ALL">{t("allCountries")}</SelectItem>
           {countries.map(([id, name]) => (
             <SelectItem key={id} value={id}>
               {name}
@@ -129,36 +133,37 @@ export default function DestinationsPage() {
 
       <Select value={activeFilter} onValueChange={setActiveFilter}>
         <SelectTrigger className="h-9 w-[120px]">
-          <SelectValue placeholder="Status" />
+          <SelectValue placeholder={tc("status")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">All Status</SelectItem>
-          <SelectItem value="ACTIVE">Active</SelectItem>
-          <SelectItem value="INACTIVE">Inactive</SelectItem>
+          <SelectItem value="ALL">{t("allStatus")}</SelectItem>
+          <SelectItem value="ACTIVE">{tc("active")}</SelectItem>
+          <SelectItem value="INACTIVE">{tc("inactive")}</SelectItem>
         </SelectContent>
       </Select>
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters}>
           <X className="mr-1 h-3 w-3" />
-          Clear
+          {tc("clear")}
         </Button>
       )}
     </div>
   );
 
   return (
+    <PermissionGuard permission="contracting:destination:read">
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Destinations</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("destinations")}</h1>
           <p className="text-muted-foreground">
-            City and region groupings for hotel locations
+            {t("manageDestinations")}
           </p>
         </div>
         <Button asChild>
           <Link href="/contracting/destinations/new">
-            <Plus className="mr-2 size-4" /> New Destination
+            <Plus className="mr-2 size-4" /> {t("newDestination")}
           </Link>
         </Button>
       </div>
@@ -185,7 +190,7 @@ export default function DestinationsPage() {
           columns={columns}
           data={filteredData}
           searchKey="name"
-          searchPlaceholder="Search destinations..."
+          searchPlaceholder={t("searchDestinations")}
           toolbar={filterToolbar}
           onRowClick={(row) =>
             router.push(`/contracting/destinations/${row.id}`)
@@ -193,5 +198,6 @@ export default function DestinationsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

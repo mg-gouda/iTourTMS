@@ -1,23 +1,19 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { usePermissions } from "@/components/providers/permissions-provider";
 
 export function usePermission(permissionCode: string): boolean {
-  const { data: session } = useSession();
-  if (!session?.user) return false;
-
-  // Super admin has all permissions
-  if (session.user.roles?.includes("super_admin")) return true;
-
-  return session.user.permissions?.includes(permissionCode) ?? false;
+  const { isSuperAdmin, permissions } = usePermissions();
+  if (isSuperAdmin) return true;
+  return permissions.includes(permissionCode);
 }
 
 export function useHasRole(roleName: string): boolean {
-  const { data: session } = useSession();
-  if (!session?.user) return false;
-  return session.user.roles?.includes(roleName) ?? false;
+  const { roles } = usePermissions();
+  return roles.includes(roleName);
 }
 
 export function useIsSuperAdmin(): boolean {
-  return useHasRole("super_admin");
+  const { isSuperAdmin } = usePermissions();
+  return isSuperAdmin;
 }

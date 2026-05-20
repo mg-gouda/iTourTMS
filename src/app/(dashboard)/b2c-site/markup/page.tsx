@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Tag } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const MARKUP_TYPE_LABEL: Record<string, string> = {
   PERCENTAGE: "%",
@@ -24,28 +26,30 @@ function scopeLabel(rule: { destination?: { name: string } | null; hotel?: { nam
 export default function B2cMarkupListPage() {
   const { data: rules, isLoading } = trpc.b2cSite.b2cMarkup.list.useQuery();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2cSite");
+  const tc = useTranslations("common");
 
   const deleteMutation = trpc.b2cSite.b2cMarkup.delete.useMutation({
     onSuccess: () => {
-      toast.success("Markup rule deleted");
+      toast.success(tc("deleted"));
       utils.b2cSite.b2cMarkup.list.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="b2c-site:markup:read">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">B2C Markup Rules</h1>
-          <p className="text-muted-foreground">
-            Manage markup applied to B2C customer-facing prices
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("markupRules")}</h1>
+          <p className="text-muted-foreground">{t("markupRulesDesc")}</p>
         </div>
         <Button asChild>
           <Link href="/b2c-site/markup/new">
             <Plus className="mr-1.5 h-4 w-4" />
-            Add Rule
+            {t("newMarkupRule")}
           </Link>
         </Button>
       </div>
@@ -53,13 +57,13 @@ export default function B2cMarkupListPage() {
       {isLoading ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            Loading...
+            {tc("loading")}
           </CardContent>
         </Card>
       ) : !rules?.length ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No markup rules yet. Create one to add markup to B2C prices.
+            {t("noMarkupRules")}
           </CardContent>
         </Card>
       ) : (
@@ -77,14 +81,14 @@ export default function B2cMarkupListPage() {
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {scopeLabel(rule)}
-                  {rule.tiers.length > 0 && ` · ${rule.tiers.length} period tier(s)`}
+                  {rule.tiers.length > 0 && ` · ${rule.tiers.length} ${t("periodTiers").toLowerCase()}`}
                 </p>
               </div>
               <Badge variant={rule.active ? "default" : "secondary"}>
-                {rule.active ? "Active" : "Inactive"}
+                {rule.active ? t("active") : t("inactive")}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                Priority: {rule.priority}
+                {t("priority")}: {rule.priority}
               </span>
               <Button variant="ghost" size="icon" asChild>
                 <Link href={`/b2c-site/markup/${rule.id}`}>
@@ -106,5 +110,9 @@ export default function B2cMarkupListPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

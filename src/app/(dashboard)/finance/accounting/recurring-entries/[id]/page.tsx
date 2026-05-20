@@ -3,6 +3,7 @@
 import { Pause, Play, RotateCcw, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
   RECURRING_STATE_LABELS,
 } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const stateVariant: Record<string, "default" | "secondary" | "outline"> = {
   ACTIVE: "default",
@@ -45,6 +47,8 @@ const stateVariant: Record<string, "default" | "secondary" | "outline"> = {
 };
 
 export default function RecurringEntryDetailPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -79,7 +83,7 @@ export default function RecurringEntryDetailPage() {
 
   const updateMutation = trpc.finance.recurringEntry.update.useMutation({
     onSuccess: () => {
-      toast.success("Recurring entry updated");
+      toast.success(tc("updated"));
       utils.finance.recurringEntry.getById.invalidate({ id });
       setEditOpen(false);
     },
@@ -96,14 +100,14 @@ export default function RecurringEntryDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Loading...
+        {tc("loading")}
       </div>
     );
   }
   if (!entry) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Recurring entry not found
+        {t("recurringEntryNotFound")}
       </div>
     );
   }
@@ -126,7 +130,7 @@ export default function RecurringEntryDetailPage() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {RECURRING_FREQUENCY_LABELS[entry.frequency]} recurring entry
+            {RECURRING_FREQUENCY_LABELS[entry.frequency]} {t("recurringEntryLabel")}
             {entry.ref && ` — ${entry.ref}`}
           </p>
         </div>
@@ -140,14 +144,14 @@ export default function RecurringEntryDetailPage() {
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 {generateNextMutation.isPending
-                  ? "Generating..."
-                  : "Generate Next"}
+                  ? t("generating")
+                  : t("generateNext")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setGenerateAllDialogOpen(true)}
               >
-                Generate All Due
+                {t("generateAllDue")}
               </Button>
               <Button
                 variant="secondary"
@@ -155,7 +159,7 @@ export default function RecurringEntryDetailPage() {
                 disabled={pauseMutation.isPending}
               >
                 <Pause className="mr-2 h-4 w-4" />
-                Pause
+                {t("pause")}
               </Button>
             </>
           )}
@@ -165,7 +169,7 @@ export default function RecurringEntryDetailPage() {
               disabled={resumeMutation.isPending}
             >
               <Play className="mr-2 h-4 w-4" />
-              Resume
+              {t("resume")}
             </Button>
           )}
           {!isDone && (
@@ -174,14 +178,14 @@ export default function RecurringEntryDetailPage() {
                 variant="outline"
                 onClick={() => setEditOpen(true)}
               >
-                Edit
+                {tc("edit")}
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => setDeleteDialogOpen(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                {tc("delete")}
               </Button>
             </>
           )}
@@ -191,7 +195,7 @@ export default function RecurringEntryDetailPage() {
       {/* Success message from generate */}
       {generateNextMutation.data && (
         <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          Draft journal entry generated successfully.
+          {t("draftEntryGenerated")}
         </div>
       )}
       {generateNextMutation.error && (
@@ -204,11 +208,11 @@ export default function RecurringEntryDetailPage() {
       <div className="grid grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{tc("details")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Journal</span>
+              <span className="text-muted-foreground">{t("journal")}</span>
               <span>
                 {entry.journal
                   ? `${entry.journal.code} — ${entry.journal.name}`
@@ -216,18 +220,18 @@ export default function RecurringEntryDetailPage() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Partner</span>
+              <span className="text-muted-foreground">{t("partner")}</span>
               <span>{entry.partner?.name ?? "—"}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Frequency</span>
+              <span className="text-muted-foreground">{t("frequency")}</span>
               <span>
                 {RECURRING_FREQUENCY_LABELS[entry.frequency] ??
                   entry.frequency}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Reference</span>
+              <span className="text-muted-foreground">{t("reference")}</span>
               <span>{entry.ref ?? "—"}</span>
             </div>
           </CardContent>
@@ -235,33 +239,33 @@ export default function RecurringEntryDetailPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Schedule</CardTitle>
+            <CardTitle>{t("schedule")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Next Run Date</span>
+              <span className="text-muted-foreground">{t("nextRunDate")}</span>
               <span>
                 {new Date(entry.nextRunDate).toLocaleDateString()}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">End Date</span>
+              <span className="text-muted-foreground">{t("endDate")}</span>
               <span>
                 {entry.endDate
                   ? new Date(entry.endDate).toLocaleDateString()
-                  : "No end date"}
+                  : t("noEndDate")}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Last Run</span>
+              <span className="text-muted-foreground">{t("lastRun")}</span>
               <span>
                 {entry.lastRunDate
                   ? new Date(entry.lastRunDate).toLocaleDateString()
-                  : "Never"}
+                  : t("never")}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Generated</span>
+              <span className="text-muted-foreground">{t("totalGenerated")}</span>
               <span className="font-mono">{entry.totalGenerated}</span>
             </div>
           </CardContent>
@@ -271,17 +275,17 @@ export default function RecurringEntryDetailPage() {
       {/* Line Templates */}
       <Card>
         <CardHeader>
-          <CardTitle>Line Templates</CardTitle>
+          <CardTitle>{t("lineTemplates")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Seq</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Label</TableHead>
-                <TableHead className="text-right">Debit</TableHead>
-                <TableHead className="text-right">Credit</TableHead>
+                <TableHead>{t("seq")}</TableHead>
+                <TableHead>{t("accountName")}</TableHead>
+                <TableHead>{t("label")}</TableHead>
+                <TableHead className="text-right">{t("debit")}</TableHead>
+                <TableHead className="text-right">{t("credit")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -306,7 +310,7 @@ export default function RecurringEntryDetailPage() {
               ))}
               <TableRow className="font-medium">
                 <TableCell colSpan={3} className="text-right">
-                  Total
+                  {tc("total")}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {entry.lineTemplates
@@ -328,11 +332,9 @@ export default function RecurringEntryDetailPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Recurring Entry</DialogTitle>
+            <DialogTitle>{t("deleteRecurringEntry")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{entry.name}&quot;? This
-              action cannot be undone. Previously generated journal entries will
-              not be affected.
+              {tc("confirmDelete")} &quot;{entry.name}&quot;? {tc("confirmDeleteDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -340,14 +342,14 @@ export default function RecurringEntryDetailPage() {
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteMutation.mutate({ id })}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? tc("deleting") : tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -360,16 +362,14 @@ export default function RecurringEntryDetailPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Generate All Due Entries</DialogTitle>
+            <DialogTitle>{t("generateAllDueEntries")}</DialogTitle>
             <DialogDescription>
-              This will generate draft journal entries for all active recurring
-              templates that are due as of today. Continue?
+              {t("generateAllDueDesc")}
             </DialogDescription>
           </DialogHeader>
           {generateAllMutation.data && (
             <p className="text-sm text-green-600">
-              Generated {generateAllMutation.data.count} journal{" "}
-              {generateAllMutation.data.count === 1 ? "entry" : "entries"}.
+              {t("generatedCount", { count: generateAllMutation.data.count })}
             </p>
           )}
           {generateAllMutation.error && (
@@ -382,15 +382,15 @@ export default function RecurringEntryDetailPage() {
               variant="outline"
               onClick={() => setGenerateAllDialogOpen(false)}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               onClick={() => generateAllMutation.mutate({})}
               disabled={generateAllMutation.isPending}
             >
               {generateAllMutation.isPending
-                ? "Generating..."
-                : "Generate All"}
+                ? t("generating")
+                : t("generateAllDue")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -401,7 +401,7 @@ export default function RecurringEntryDetailPage() {
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Recurring Entry</DialogTitle>
+              <DialogTitle>{t("editRecurringEntry")}</DialogTitle>
             </DialogHeader>
             <RecurringEditForm
               entry={entry}
@@ -424,6 +424,8 @@ function RecurringEditForm({
   onSave: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const [name, setName] = useState(entry.name);
   const [frequency, setFrequency] = useState(entry.frequency);
   const [nextRunDate, setNextRunDate] = useState(
@@ -434,29 +436,30 @@ function RecurringEditForm({
   );
 
   return (
+    <PermissionGuard permission="finance:move:read">
     <div className="space-y-4">
       <div>
-        <Label>Name</Label>
+        <Label>{tc("name")}</Label>
         <Input value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div>
-        <Label>Frequency</Label>
+        <Label>{t("frequency")}</Label>
         <Combobox
           options={[
-            { value: "MONTHLY", label: "Monthly" },
-            { value: "QUARTERLY", label: "Quarterly" },
-            { value: "YEARLY", label: "Yearly" },
+            { value: "MONTHLY", label: RECURRING_FREQUENCY_LABELS["MONTHLY"] ?? "Monthly" },
+            { value: "QUARTERLY", label: RECURRING_FREQUENCY_LABELS["QUARTERLY"] ?? "Quarterly" },
+            { value: "YEARLY", label: RECURRING_FREQUENCY_LABELS["YEARLY"] ?? "Yearly" },
           ]}
           value={frequency}
           onValueChange={setFrequency}
         />
       </div>
       <div>
-        <Label>Next Run Date</Label>
+        <Label>{t("nextRunDate")}</Label>
         <Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
       </div>
       <div>
-        <Label>End Date (optional)</Label>
+        <Label>{t("endDateOptional")}</Label>
         <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
       </div>
       <Button
@@ -471,8 +474,9 @@ function RecurringEditForm({
           })
         }
       >
-        {isPending ? "Saving..." : "Save Changes"}
+        {isPending ? tc("saving") : tc("saveChanges")}
       </Button>
     </div>
+    </PermissionGuard>
   );
 }

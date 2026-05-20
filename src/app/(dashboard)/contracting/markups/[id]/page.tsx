@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -50,10 +51,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { markupRuleUpdateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof markupRuleUpdateSchema>;
 
 export default function MarkupRuleDetailPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -135,7 +139,9 @@ export default function MarkupRuleDetailPage() {
   if (!data) return null;
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="contracting:markup:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
@@ -164,9 +170,9 @@ export default function MarkupRuleDetailPage() {
 
       <Tabs defaultValue="info">
         <TabsList>
-          <TabsTrigger value="info">Information</TabsTrigger>
+          <TabsTrigger value="info">{t("basicInfo")}</TabsTrigger>
           <TabsTrigger value="tariffs">
-            Tariffs ({data.tariffs?.length ?? 0})
+            {t("tariffs")} ({data.tariffs?.length ?? 0})
           </TabsTrigger>
         </TabsList>
 
@@ -176,7 +182,7 @@ export default function MarkupRuleDetailPage() {
               <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
+                    <CardTitle>{t("basicInfo")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <FormField
@@ -328,7 +334,7 @@ export default function MarkupRuleDetailPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Scope Targets</CardTitle>
+                    <CardTitle>{t("scopeTargets")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <FormField
@@ -490,7 +496,7 @@ export default function MarkupRuleDetailPage() {
               </div>
 
               <Button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateMutation.isPending ? tc("saving") : tc("saveChanges")}
               </Button>
             </form>
           </Form>
@@ -499,18 +505,18 @@ export default function MarkupRuleDetailPage() {
         <TabsContent value="tariffs" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Generated Tariffs</CardTitle>
+              <CardTitle>{t("generatedTariffs")}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.tariffs && data.tariffs.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contract</TableHead>
-                      <TableHead>Tour Operator</TableHead>
-                      <TableHead>Currency</TableHead>
-                      <TableHead>Generated</TableHead>
+                      <TableHead>{tc("name")}</TableHead>
+                      <TableHead>{t("contract")}</TableHead>
+                      <TableHead>{t("tourOperator")}</TableHead>
+                      <TableHead>{tc("currency")}</TableHead>
+                      <TableHead>{t("generated")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -537,7 +543,7 @@ export default function MarkupRuleDetailPage() {
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No tariffs have been generated with this rule yet.
+                  {t("noTariffsGenerated")}
                 </p>
               )}
             </CardContent>
@@ -548,25 +554,28 @@ export default function MarkupRuleDetailPage() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Markup Rule</DialogTitle>
+            <DialogTitle>{tc("confirmDelete")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{data.name}&quot;? This
-              action cannot be undone.
+              {tc("confirmDeleteDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteMutation.mutate({ id })}
             >
-              Delete
+              {tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

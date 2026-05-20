@@ -1,12 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const taxReturnRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:tax:read")
     .input(z.object({ state: z.enum(["DRAFT", "CONFIRMED", "FILED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.taxReturn.findMany({
@@ -16,7 +16,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:tax:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const ret = await ctx.db.taxReturn.findFirst({
@@ -30,7 +30,7 @@ export const taxReturnRouter = createTRPCRouter({
       return ret;
     }),
 
-  create: financeProcedure
+  create: p("finance:tax:create")
     .input(z.object({
       name: z.string().min(1),
       periodId: z.string().optional(),
@@ -49,7 +49,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  compute: financeProcedure
+  compute: p("finance:tax:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const ret = await ctx.db.taxReturn.findFirst({
@@ -102,7 +102,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  confirm: financeProcedure
+  confirm: p("finance:tax:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxReturn.update({
@@ -111,7 +111,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  file: financeProcedure
+  file: p("finance:tax:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxReturn.update({
@@ -120,7 +120,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:tax:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const ret = await ctx.db.taxReturn.findFirst({ where: { id: input.id, companyId: ctx.session.user.companyId } });

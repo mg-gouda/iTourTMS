@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { childPolicyCreateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const childPolicyRouter = createTRPCRouter({
-  list: proc
+  list: p("contracting:policy:read")
     .input(z.object({ hotelId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -18,7 +18,7 @@ export const childPolicyRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:policy:create")
     .input(childPolicyCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -28,7 +28,7 @@ export const childPolicyRouter = createTRPCRouter({
       return ctx.db.childPolicy.create({ data: input });
     }),
 
-  update: proc
+  update: p("contracting:policy:update")
     .input(
       z.object({
         id: z.string().min(1),
@@ -57,7 +57,7 @@ export const childPolicyRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("contracting:policy:delete")
     .input(z.object({ id: z.string(), hotelId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({

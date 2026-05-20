@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const STATE_VARIANTS: Record<string, "outline" | "default" | "secondary"> = { DRAFT: "outline", IN_PROGRESS: "default", COMPLETED: "secondary" };
 const STATE_LABELS: Record<string, string> = { DRAFT: "Draft", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
@@ -63,6 +64,7 @@ export default function WorkingFilesPage() {
   ];
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -92,5 +94,6 @@ export default function WorkingFilesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

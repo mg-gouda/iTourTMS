@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { Calculator, FileDown, FileSpreadsheet, Filter } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/constants/contracting";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 /** Format a season's dates as "dd MMM — dd MMM yyyy" */
 function fmtSeasonDates(dateFrom: string, dateTo: string): string {
@@ -38,6 +40,8 @@ function fmtSeasonDates(dateFrom: string, dateTo: string): string {
 }
 
 export default function RatesPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const [contractId, setContractId] = useState("");
   const [seasonFilter, setSeasonFilter] = useState("__all__");
   const [roomFilter, setRoomFilter] = useState("__all__");
@@ -143,10 +147,10 @@ export default function RatesPage() {
         <div className="page-header">
           <h1 className="page-title flex items-center gap-2">
             <Calculator className="h-6 w-6" />
-            Calculated Rates
+            {t("calculatedRates")}
           </h1>
           <p className="page-description">
-            Full rate grid with all occupancy variations
+            {t("fullRateGrid")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -158,7 +162,7 @@ export default function RatesPage() {
             }
           >
             <FileDown className="mr-1 h-4 w-4" />
-            Export PDF
+            {tc("exportPdf")}
           </Button>
           <Button
             variant="outline"
@@ -166,7 +170,7 @@ export default function RatesPage() {
             onClick={handleExportExcel}
           >
             <FileSpreadsheet className="mr-1 h-4 w-4" />
-            {exporting ? "Exporting..." : "Export Excel"}
+            {exporting ? tc("exporting") : tc("exportExcel")}
           </Button>
         </div>
       </div>
@@ -176,15 +180,15 @@ export default function RatesPage() {
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label className="text-sm font-medium">Select Contract</label>
+              <label className="text-sm font-medium">{t("selectContractLabel")}</label>
               <Select value={contractId} onValueChange={handleContractChange}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a contract..." />
+                  <SelectValue placeholder={t("selectContractPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {loadingContracts ? (
                     <SelectItem value="__loading__" disabled>
-                      Loading...
+                      {tc("loading")}
                     </SelectItem>
                   ) : (
                     contracts?.map((c) => (
@@ -216,7 +220,7 @@ export default function RatesPage() {
       {!contractId && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Select a contract above to view the full rate grid.
+            {t("selectContractFirst")}
           </CardContent>
         </Card>
       )}
@@ -225,7 +229,7 @@ export default function RatesPage() {
       {grid && grid.seasons.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            This contract has no seasons or base rates configured. Please set up seasons and base rates on the contract detail page first.
+            {t("noSeasonsConfigured")}
           </CardContent>
         </Card>
       )}
@@ -238,17 +242,17 @@ export default function RatesPage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Filters</span>
+                <span className="text-sm font-medium text-muted-foreground">{tc("filters")}</span>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="text-sm font-medium">Season</label>
+                  <label className="text-sm font-medium">{t("season")}</label>
                   <Select value={seasonFilter} onValueChange={setSeasonFilter}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All Seasons</SelectItem>
+                      <SelectItem value="__all__">{t("allSeasons")}</SelectItem>
                       {grid.seasons.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           {fmtSeasonDates(s.dateFrom, s.dateTo)}
@@ -258,13 +262,13 @@ export default function RatesPage() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Room Type</label>
+                  <label className="text-sm font-medium">{t("roomType")}</label>
                   <Select value={roomFilter} onValueChange={setRoomFilter}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All Room Types</SelectItem>
+                      <SelectItem value="__all__">{t("allRoomTypes")}</SelectItem>
                       {grid.roomTypes.map((rt) => (
                         <SelectItem key={rt.id} value={rt.id}>
                           {rt.name}
@@ -274,13 +278,13 @@ export default function RatesPage() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Meal Plan</label>
+                  <label className="text-sm font-medium">{t("mealPlan")}</label>
                   <Select value={mealFilter} onValueChange={setMealFilter}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All Meal Plans</SelectItem>
+                      <SelectItem value="__all__">{t("allMealPlans")}</SelectItem>
                       {grid.mealBases.map((mb) => (
                         <SelectItem key={mb.id} value={mb.id}>
                           {mb.name}
@@ -321,22 +325,22 @@ export default function RatesPage() {
           {/* Main Rate Grid */}
           <Card>
             <CardHeader>
-              <CardTitle>Rate Grid</CardTitle>
+              <CardTitle>{t("rateGrid")}</CardTitle>
             </CardHeader>
             <CardContent>
               {filteredCells.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  No rates match the current filters.
+                  {t("noRatesMatchFilters")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[160px]">Room Type</TableHead>
+                        <TableHead className="min-w-[160px]">{t("roomType")}</TableHead>
                         <TableHead className="min-w-[60px]">Occ</TableHead>
                         {seasonFilter === "__all__" && (
-                          <TableHead className="min-w-[100px]">Season</TableHead>
+                          <TableHead className="min-w-[100px]">{t("season")}</TableHead>
                         )}
                         {visibleMeals.map((mb) => (
                           <TableHead key={mb.id} className="text-right min-w-[120px]">
@@ -439,18 +443,18 @@ export default function RatesPage() {
           {childRowKeys.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Child Rates</CardTitle>
+                <CardTitle>{t("childRatesSection")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[120px]">Category</TableHead>
-                        <TableHead className="min-w-[80px]">Age</TableHead>
-                        <TableHead className="min-w-[100px]">Bedding</TableHead>
+                        <TableHead className="min-w-[120px]">{tc("category")}</TableHead>
+                        <TableHead className="min-w-[80px]">{tc("age")}</TableHead>
+                        <TableHead className="min-w-[100px]">{tc("bedding")}</TableHead>
                         {seasonFilter === "__all__" && (
-                          <TableHead className="min-w-[100px]">Season</TableHead>
+                          <TableHead className="min-w-[100px]">{t("season")}</TableHead>
                         )}
                         {visibleMeals.map((mb) => (
                           <TableHead key={mb.id} className="text-right min-w-[100px]">

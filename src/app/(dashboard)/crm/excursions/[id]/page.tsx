@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Clock, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,10 +60,13 @@ import {
   programCreateSchema,
   programItemCreateSchema,
 } from "@/lib/validations/crm";
+import { useTranslations } from "next-intl";
 
 type ExcursionFormValues = z.input<typeof excursionUpdateSchema>;
 
 export default function ExcursionDetailPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -239,7 +243,7 @@ export default function ExcursionDetailPage() {
     );
   }
 
-  if (!excursion) return <p>Excursion not found</p>;
+  if (!excursion) return <p>{t("excursion")} not found</p>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -248,7 +252,7 @@ export default function ExcursionDetailPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">{excursion.name}</h1>
             <Badge variant={excursion.active ? "default" : "secondary"}>
-              {excursion.active ? "Active" : "Inactive"}
+              {excursion.active ? tc("active") : tc("inactive")}
             </Badge>
           </div>
           <p className="font-mono text-sm text-muted-foreground">{excursion.code}</p>
@@ -807,7 +811,8 @@ export default function ExcursionDetailPage() {
             excursion.costSheets.map((sheet) => {
               const isEditing = editingSheetId === sheet.id;
               return (
-                <Card key={sheet.id}>
+                <PermissionGuard permission="crm:excursion:read">
+                  <Card key={sheet.id}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <div>
@@ -895,6 +900,7 @@ export default function ExcursionDetailPage() {
                     )}
                   </CardContent>
                 </Card>
+                </PermissionGuard>
               );
             })
           )}

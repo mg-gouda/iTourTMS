@@ -39,6 +39,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -79,6 +81,8 @@ type PartnerUserRow = {
 
 export default function PartnerUsersPage() {
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.b2bPortal.partnerUser.list.useQuery();
   const { data: tourOperators } = trpc.b2bPortal.tourOperator.list.useQuery();
 
@@ -147,12 +151,12 @@ export default function PartnerUsersPage() {
     () => [
       {
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={tc("name")} />,
         cell: ({ row }) => <span className="font-medium">{row.original.name ?? "—"}</span>,
       },
       {
         accessorKey: "email",
-        header: "Email",
+        header: tc("email"),
       },
       {
         id: "partner",
@@ -170,7 +174,7 @@ export default function PartnerUsersPage() {
       },
       {
         id: "status",
-        header: "Status",
+        header: tc("status"),
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Switch
@@ -181,14 +185,14 @@ export default function PartnerUsersPage() {
               disabled={toggleMutation.isPending}
             />
             <Badge variant={row.original.isActive ? "default" : "secondary"}>
-              {row.original.isActive ? "Active" : "Inactive"}
+              {row.original.isActive ? tc("active") : tc("inactive")}
             </Badge>
           </div>
         ),
       },
       {
         id: "created",
-        header: "Created",
+        header: tc("createdAt"),
         cell: ({ row }) =>
           new Date(row.original.createdAt).toLocaleDateString("en-GB", {
             day: "2-digit",
@@ -213,7 +217,7 @@ export default function PartnerUsersPage() {
             }}
           >
             <KeyRound className="mr-1 size-3.5" />
-            Reset Password
+            {t("resetPassword")}
           </Button>
         ),
       },
@@ -231,16 +235,18 @@ export default function PartnerUsersPage() {
   }, [data, statusFilter]);
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:partnerUser:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Partner Users</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("partnerUsers")}</h1>
           <p className="text-muted-foreground">
-            Manage login accounts for tour operator and travel agent partners
+            {t("partnerUsersDesc")}
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 size-4" /> New Partner User
+          <Plus className="mr-2 size-4" /> {t("newPartnerUser")}
         </Button>
       </div>
 
@@ -265,16 +271,16 @@ export default function PartnerUsersPage() {
           columns={columns}
           data={filtered}
           searchKey="name"
-          searchPlaceholder="Search partner users..."
+          searchPlaceholder={`${tc("search")} ${t("partnerUsers").toLowerCase()}...`}
           toolbar={
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9 w-[150px]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={t("allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">{tc("all")}</SelectItem>
+                <SelectItem value="active">{tc("active")}</SelectItem>
+                <SelectItem value="inactive">{tc("inactive")}</SelectItem>
               </SelectContent>
             </Select>
           }
@@ -291,7 +297,7 @@ export default function PartnerUsersPage() {
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Partner User</DialogTitle>
+            <DialogTitle>{t("newPartnerUser")}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -300,7 +306,7 @@ export default function PartnerUsersPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{tc("name")}</FormLabel>
                     <FormControl>
                       <Input placeholder="Full name" {...field} />
                     </FormControl>
@@ -313,7 +319,7 @@ export default function PartnerUsersPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{tc("email")}</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="user@partner.com" {...field} />
                     </FormControl>
@@ -326,7 +332,7 @@ export default function PartnerUsersPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("password")}</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="Min. 6 characters" {...field} />
                     </FormControl>
@@ -339,11 +345,11 @@ export default function PartnerUsersPage() {
                 name="tourOperatorId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tour Operator / Travel Agent</FormLabel>
+                    <FormLabel>{t("tourOperator")} / {t("travelAgent")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select partner..." />
+                          <SelectValue placeholder={`${tc("select")}...`} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -366,7 +372,7 @@ export default function PartnerUsersPage() {
                     <FormControl>
                       <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
-                    <FormLabel>Active</FormLabel>
+                    <FormLabel>{tc("active")}</FormLabel>
                   </FormItem>
                 )}
               />
@@ -377,10 +383,10 @@ export default function PartnerUsersPage() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating..." : "Create Partner User"}
+                  {createMutation.isPending ? tc("creating") : t("newPartnerUser")}
                 </Button>
                 <Button type="button" variant="outline" onClick={closeDialog}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </form>
@@ -400,7 +406,7 @@ export default function PartnerUsersPage() {
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
+            <DialogTitle>{t("resetPassword")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Set a new password for <strong>{resetDialog.userName}</strong>.
@@ -412,7 +418,7 @@ export default function PartnerUsersPage() {
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password</FormLabel>
+                    <FormLabel>{t("newPassword")}</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="Min. 6 characters" {...field} />
                     </FormControl>
@@ -427,7 +433,7 @@ export default function PartnerUsersPage() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={resetMutation.isPending}>
-                  {resetMutation.isPending ? "Resetting..." : "Reset Password"}
+                  {resetMutation.isPending ? t("resetting") : t("resetPassword")}
                 </Button>
                 <Button
                   type="button"
@@ -437,7 +443,7 @@ export default function PartnerUsersPage() {
                     resetForm.reset();
                   }}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </form>
@@ -445,5 +451,9 @@ export default function PartnerUsersPage() {
         </DialogContent>
       </Dialog>
     </div>
+
+
+    </PermissionGuard>
+
   );
 }

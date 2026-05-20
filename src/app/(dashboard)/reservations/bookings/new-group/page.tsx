@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { useTranslations } from "next-intl";
+
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const roomBlockSchema = z.object({
   roomTypeId: z.string().min(1, "Room type is required"),
@@ -57,6 +60,8 @@ type FormValues = z.infer<typeof groupBookingSchema>;
 
 export default function NewGroupBookingPage() {
   const router = useRouter();
+  const t = useTranslations("reservations");
+  const tc = useTranslations("common");
 
   const { data: hotels } = trpc.contracting.hotel.list.useQuery();
   const { data: currencies } = trpc.finance.currency.list.useQuery();
@@ -65,7 +70,7 @@ export default function NewGroupBookingPage() {
 
   const createGroup = trpc.reservations.booking.createGroup.useMutation({
     onSuccess: (data) => {
-      toast.success("Group booking created successfully");
+      toast.success(tc("created"));
       router.push(`/reservations/bookings/${data.id}`);
     },
   });
@@ -143,6 +148,7 @@ export default function NewGroupBookingPage() {
   }
 
   return (
+    <PermissionGuard permission="reservations:booking:read">
     <div className="mx-auto max-w-4xl space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -155,10 +161,10 @@ export default function NewGroupBookingPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Create Group Booking
+            {t("newGroupBooking")}
           </h1>
           <p className="text-muted-foreground">
-            Book multiple rooms for a group in one go
+            {t("groupBooking")}
           </p>
         </div>
       </div>
@@ -168,7 +174,7 @@ export default function NewGroupBookingPage() {
           {/* Card 1: Group Information */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Group Information</CardTitle>
+              <CardTitle className="text-base">{t("groupBooking")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -177,7 +183,7 @@ export default function NewGroupBookingPage() {
                   name="groupName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Group Name *</FormLabel>
+                      <FormLabel>{tc("name")} *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g. Smith Wedding Party" {...field} />
                       </FormControl>
@@ -190,7 +196,7 @@ export default function NewGroupBookingPage() {
                   name="hotelId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hotel *</FormLabel>
+                      <FormLabel>{t("hotel")} *</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
@@ -335,7 +341,7 @@ export default function NewGroupBookingPage() {
           {/* Card 2: Stay Details */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Stay Details</CardTitle>
+              <CardTitle className="text-base">{t("checkIn")} & {t("checkOut")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -344,7 +350,7 @@ export default function NewGroupBookingPage() {
                   name="checkIn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Check-in *</FormLabel>
+                      <FormLabel>{t("checkIn")} *</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -357,7 +363,7 @@ export default function NewGroupBookingPage() {
                   name="checkOut"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Check-out *</FormLabel>
+                      <FormLabel>{t("checkOut")} *</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -373,7 +379,7 @@ export default function NewGroupBookingPage() {
                   name="leadGuestName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Lead Guest Name</FormLabel>
+                      <FormLabel>{t("guestName")}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="Full name of lead guest"
@@ -408,7 +414,7 @@ export default function NewGroupBookingPage() {
                 name="specialRequests"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Special Requests</FormLabel>
+                    <FormLabel>{t("specialRequests")}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Any special requests for the group..."
@@ -425,7 +431,7 @@ export default function NewGroupBookingPage() {
                 name="internalNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Internal Notes</FormLabel>
+                    <FormLabel>{t("internalRemarks")}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Notes visible only to staff..."
@@ -443,7 +449,7 @@ export default function NewGroupBookingPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Room Allocation</CardTitle>
+                <CardTitle className="text-base">{t("rooms")}</CardTitle>
                 <Button
                   type="button"
                   variant="outline"
@@ -459,7 +465,7 @@ export default function NewGroupBookingPage() {
                   }
                 >
                   <Plus className="mr-1 h-3 w-3" />
-                  Add Room Type
+                  {t("addRoom")}
                 </Button>
               </div>
             </CardHeader>
@@ -629,18 +635,19 @@ export default function NewGroupBookingPage() {
               {createGroup.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Create Group Booking
+              {createGroup.isPending ? tc("creating") : t("newGroupBooking")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/reservations/bookings")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

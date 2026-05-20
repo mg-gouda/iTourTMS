@@ -33,6 +33,7 @@ import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const BASIS_LABELS: Record<string, string> = {
   FREESALE: "Free Sale",
@@ -105,7 +106,9 @@ export default function AllotmentUtilizationPage() {
   const avgUtilization = totalRooms > 0 ? Math.round((totalSold / totalRooms) * 100) : 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="contracting:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -319,5 +322,9 @@ export default function AllotmentUtilizationPage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

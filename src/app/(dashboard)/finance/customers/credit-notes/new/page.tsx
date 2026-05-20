@@ -1,14 +1,18 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MoveForm } from "@/components/finance/move-form";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function NewCreditNotePage() {
+  const t = useTranslations("finance");
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Credit Note</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("newCreditNote")}</h1>
         <p className="text-muted-foreground">
-          Create a new customer credit note.
+          {t("creditNote")}
         </p>
       </div>
       <MoveForm
@@ -16,5 +20,6 @@ export default function NewCreditNotePage() {
         returnPath="/finance/customers/credit-notes"
       />
     </div>
+    </PermissionGuard>
   );
 }

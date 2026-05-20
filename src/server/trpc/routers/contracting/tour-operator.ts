@@ -4,13 +4,13 @@ import {
   tourOperatorCreateSchema,
   tourOperatorUpdateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const tourOperatorRouter = createTRPCRouter({
   // ── List all tour operators ──
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:contract:read").query(async ({ ctx }) => {
     return ctx.db.tourOperator.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -29,7 +29,7 @@ export const tourOperatorRouter = createTRPCRouter({
   }),
 
   // ── Get by ID with assignments ──
-  getById: proc
+  getById: p("contracting:contract:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.tourOperator.findFirstOrThrow({
@@ -73,7 +73,7 @@ export const tourOperatorRouter = createTRPCRouter({
     }),
 
   // ── Create ──
-  create: proc
+  create: p("contracting:contract:create")
     .input(tourOperatorCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.$transaction(async (tx) => {
@@ -95,7 +95,7 @@ export const tourOperatorRouter = createTRPCRouter({
     }),
 
   // ── Update ──
-  update: proc
+  update: p("contracting:contract:update")
     .input(z.object({ id: z.string(), data: tourOperatorUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const to = await ctx.db.tourOperator.findFirst({
@@ -120,7 +120,7 @@ export const tourOperatorRouter = createTRPCRouter({
     }),
 
   // ── Delete ──
-  delete: proc
+  delete: p("contracting:contract:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const to = await ctx.db.tourOperator.findFirst({
@@ -136,7 +136,7 @@ export const tourOperatorRouter = createTRPCRouter({
 
   // ── Contract Assignments ──
 
-  listByContract: proc
+  listByContract: p("contracting:contract:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -164,7 +164,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  assignToContract: proc
+  assignToContract: p("contracting:contract:update")
     .input(
       z.object({
         contractId: z.string(),
@@ -221,7 +221,7 @@ export const tourOperatorRouter = createTRPCRouter({
       return { assigned: newIds.length, hotelsAssigned: newHotelIds.length };
     }),
 
-  unassignFromContract: proc
+  unassignFromContract: p("contracting:contract:update")
     .input(z.object({ contractId: z.string(), tourOperatorId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -238,7 +238,7 @@ export const tourOperatorRouter = createTRPCRouter({
 
   // ── Hotel Assignments ──
 
-  listByHotel: proc
+  listByHotel: p("contracting:contract:read")
     .input(z.object({ hotelId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -263,7 +263,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  assignToHotel: proc
+  assignToHotel: p("contracting:contract:update")
     .input(
       z.object({
         hotelId: z.string(),
@@ -343,7 +343,7 @@ export const tourOperatorRouter = createTRPCRouter({
       };
     }),
 
-  unassignFromHotel: proc
+  unassignFromHotel: p("contracting:contract:update")
     .input(z.object({ hotelId: z.string(), tourOperatorId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.hotel.findFirstOrThrow({
@@ -359,7 +359,7 @@ export const tourOperatorRouter = createTRPCRouter({
     }),
 
   // ── Bulk Assign: multiple hotels × multiple TOs ──
-  bulkAssign: proc
+  bulkAssign: p("contracting:contract:import")
     .input(
       z.object({
         hotelIds: z.array(z.string()).min(1),

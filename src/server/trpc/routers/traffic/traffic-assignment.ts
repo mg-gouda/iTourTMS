@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { trafficAssignmentCreateSchema, trafficAssignmentUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const trafficAssignmentRouter = createTRPCRouter({
-  list: proc
+  list: p("traffic:dispatch:read")
     .input(z.object({ jobId: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.ttTrafficAssignment.findMany({
@@ -26,7 +26,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:dispatch:create")
     .input(trafficAssignmentCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const assignment = await ctx.db.ttTrafficAssignment.create({
@@ -45,7 +45,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
       return assignment;
     }),
 
-  update: proc
+  update: p("traffic:dispatch:update")
     .input(z.object({ id: z.string(), data: trafficAssignmentUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficAssignment.update({
@@ -54,7 +54,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:dispatch:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficAssignment.delete({

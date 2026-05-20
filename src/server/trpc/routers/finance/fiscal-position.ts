@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { fiscalPositionSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const fiscalPositionRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:settings:read")
     .input(
       z.object({
         isActive: z.boolean().optional(),
@@ -26,7 +26,7 @@ export const fiscalPositionRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:settings:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.fiscalPosition.findFirstOrThrow({
@@ -49,7 +49,7 @@ export const fiscalPositionRouter = createTRPCRouter({
       });
     }),
 
-  create: financeProcedure
+  create: p("finance:settings:create")
     .input(fiscalPositionSchema)
     .mutation(async ({ ctx, input }) => {
       const { taxMaps, accountMaps, ...data } = input;
@@ -75,7 +75,7 @@ export const fiscalPositionRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:settings:update")
     .input(z.object({ id: z.string() }).merge(fiscalPositionSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, taxMaps, accountMaps, ...data } = input;
@@ -127,7 +127,7 @@ export const fiscalPositionRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:settings:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.fiscalPosition.delete({ where: { id: input.id } });

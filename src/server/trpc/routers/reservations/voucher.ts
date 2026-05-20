@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 import { voucherCreateSchema, voucherStatusSchema } from "@/lib/validations/reservations";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 
-const proc = moduleProcedure("reservations");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const voucherRouter = createTRPCRouter({
-  list: proc
+  list: p("voucher.read")
     .input(
       z
         .object({
@@ -46,7 +46,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("voucher.read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.voucher.findFirstOrThrow({
@@ -75,7 +75,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("voucher.create")
     .input(voucherCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -110,7 +110,7 @@ export const voucherRouter = createTRPCRouter({
       return voucher;
     }),
 
-  transition: proc
+  transition: p("voucher.read")
     .input(voucherStatusSchema)
     .mutation(async ({ ctx, input }) => {
       const voucher = await ctx.db.voucher.findFirstOrThrow({

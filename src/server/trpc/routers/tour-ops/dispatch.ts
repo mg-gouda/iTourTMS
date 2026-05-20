@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { dispatchOpsFile } from "@/server/services/tour-ops/dispatch";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsDispatchRouter = createTRPCRouter({
-  dispatchFile: tourOpsProcedure
+  dispatchFile: p("tour-ops:dispatch:manage")
     .input(z.object({ fileId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const file = await ctx.db.opsFile.findFirst({

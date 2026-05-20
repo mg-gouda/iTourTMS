@@ -4,15 +4,15 @@ import {
   hotelCreditCreateSchema,
   hotelCreditApplySchema,
 } from "@/lib/validations/reservations";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { createHotelCreditFinanceRecord } from "@/server/services/reservations/finance-bridge";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 
-const proc = moduleProcedure("reservations");
+const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const hotelCreditRouter = createTRPCRouter({
-  list: proc
+  list: p("hotelCredit.read")
     .input(
       z
         .object({
@@ -47,7 +47,7 @@ export const hotelCreditRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc.input(z.string()).query(async ({ ctx, input }) => {
+  getById: p("hotelCredit.read").input(z.string()).query(async ({ ctx, input }) => {
     return ctx.db.hotelCreditNote.findFirst({
       where: { id: input, companyId: ctx.companyId },
       include: {
@@ -66,7 +66,7 @@ export const hotelCreditRouter = createTRPCRouter({
     });
   }),
 
-  getAvailableByHotel: proc.input(z.string()).query(async ({ ctx, input }) => {
+  getAvailableByHotel: p("hotelCredit.read").input(z.string()).query(async ({ ctx, input }) => {
     return ctx.db.hotelCreditNote.findMany({
       where: {
         companyId: ctx.companyId,
@@ -81,7 +81,7 @@ export const hotelCreditRouter = createTRPCRouter({
     });
   }),
 
-  getByBooking: proc.input(z.string()).query(async ({ ctx, input }) => {
+  getByBooking: p("hotelCredit.read").input(z.string()).query(async ({ ctx, input }) => {
     const issued = await ctx.db.hotelCreditNote.findFirst({
       where: { sourceBookingId: input, companyId: ctx.companyId },
       include: {
@@ -112,7 +112,7 @@ export const hotelCreditRouter = createTRPCRouter({
     return { issued, consumed };
   }),
 
-  create: proc.input(hotelCreditCreateSchema).mutation(async ({ ctx, input }) => {
+  create: p("hotelCredit.create").input(hotelCreditCreateSchema).mutation(async ({ ctx, input }) => {
     const booking = await ctx.db.booking.findFirstOrThrow({
       where: { id: input.bookingId, companyId: ctx.companyId },
       select: {
@@ -176,7 +176,7 @@ export const hotelCreditRouter = createTRPCRouter({
     return creditNote;
   }),
 
-  consume: proc.input(hotelCreditApplySchema).mutation(async ({ ctx, input }) => {
+  consume: p("hotelCredit.update").input(hotelCreditApplySchema).mutation(async ({ ctx, input }) => {
     const creditNote = await ctx.db.hotelCreditNote.findFirstOrThrow({
       where: { id: input.creditNoteId, companyId: ctx.companyId },
       select: {
@@ -241,7 +241,7 @@ export const hotelCreditRouter = createTRPCRouter({
     return { ok: true };
   }),
 
-  cancel: proc.input(z.string()).mutation(async ({ ctx, input }) => {
+  cancel: p("hotelCredit.update").input(z.string()).mutation(async ({ ctx, input }) => {
     const creditNote = await ctx.db.hotelCreditNote.findFirstOrThrow({
       where: { id: input, companyId: ctx.companyId },
       select: { id: true, code: true, status: true },

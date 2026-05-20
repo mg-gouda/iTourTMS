@@ -33,6 +33,7 @@ import {
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const OFFER_TYPE_LABELS: Record<string, string> = {
   EARLY_BIRD: "Early Bird",
@@ -76,7 +77,9 @@ export default function SeasonalOffersReportPage() {
   const totalOffers = data?.reduce((s, c) => s + c.offers.length, 0) ?? 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="contracting:report:read">
+      <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
           <h1 className="text-2xl font-bold tracking-tight">Seasonal Offers</h1>
@@ -291,5 +294,9 @@ export default function SeasonalOffersReportPage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -6,14 +6,12 @@ import { generateApiKey } from "@/server/api-auth";
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
 
-const proc = protectedProcedure;
-
 function hashKey(key: string): string {
   return crypto.createHash("sha256").update(key).digest("hex");
 }
 
 export const apiIntegrationRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.apiIntegration.findMany({
       where: { companyId: ctx.session.user.companyId! },
       include: {
@@ -28,7 +26,7 @@ export const apiIntegrationRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.apiIntegration.findFirstOrThrow({
@@ -47,7 +45,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: protectedProcedure
     .input(
       z.object({
         tourOperatorId: z.string(),
@@ -93,7 +91,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       };
     }),
 
-  update: proc
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -153,7 +151,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -171,7 +169,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  regenerateKey: proc
+  regenerateKey: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -200,7 +198,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       return { plainKey: keyResult.plainKey, keyPrefix: keyResult.keyPrefix };
     }),
 
-  testWebhook: proc
+  testWebhook: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -228,7 +226,7 @@ export const apiIntegrationRouter = createTRPCRouter({
    * Hotels assigned to a specific TO, with their contract markets.
    * Used to populate & filter the hotel list in the Create Integration dialog.
    */
-  getHotelsForTO: proc
+  getHotelsForTO: protectedProcedure
     .input(z.object({ tourOperatorId: z.string() }))
     .query(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -273,7 +271,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       });
     }),
 
-  listIncomingWebhooks: proc
+  listIncomingWebhooks: protectedProcedure
     .input(
       z.object({
         integrationId: z.string(),
@@ -293,7 +291,7 @@ export const apiIntegrationRouter = createTRPCRouter({
       });
     }),
 
-  listDeliveries: proc
+  listDeliveries: protectedProcedure
     .input(
       z.object({
         integrationId: z.string(),

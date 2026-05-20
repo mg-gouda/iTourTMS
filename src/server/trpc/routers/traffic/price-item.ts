@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { priceItemCreateSchema, priceItemUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const priceItemRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("traffic:pricing:read").query(async ({ ctx }) => {
     return ctx.db.ttPriceItem.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -19,7 +19,7 @@ export const priceItemRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("traffic:pricing:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttPriceItem.findFirstOrThrow({
@@ -36,7 +36,7 @@ export const priceItemRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:pricing:create")
     .input(priceItemCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttPriceItem.create({
@@ -44,7 +44,7 @@ export const priceItemRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:pricing:update")
     .input(z.object({ id: z.string(), data: priceItemUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttPriceItem.update({
@@ -53,7 +53,7 @@ export const priceItemRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:pricing:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttPriceItem.delete({

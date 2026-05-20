@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const auditTrailRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:auditTrail:read")
     .input(z.object({
       modelName: z.string().optional(),
       recordId: z.string().optional(),
@@ -38,7 +38,7 @@ export const auditTrailRouter = createTRPCRouter({
       return { items, total, pages: Math.ceil(total / pageSize) };
     }),
 
-  log: financeProcedure
+  log: p("finance:auditTrail:manage")
     .input(z.object({
       modelName: z.string(),
       recordId: z.string(),

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const STATE_VARIANTS: Record<string, "default" | "outline" | "destructive"> = {
   POSTED: "default",
@@ -81,6 +82,7 @@ export default function JournalAuditPage() {
   const { data, isLoading } = trpc.finance.review.journalAudit.useQuery({ pageSize: 100 });
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Journal Audit</h1>
@@ -92,5 +94,6 @@ export default function JournalAuditPage() {
         <DataTable columns={columns} data={(data?.items as any) ?? []} searchKey="name" searchPlaceholder="Search entries..." />
       )}
     </div>
+    </PermissionGuard>
   );
 }

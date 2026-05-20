@@ -25,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 const updateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -46,6 +48,8 @@ export default function TourOperatorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
 
   const { data, isLoading } = trpc.b2bPortal.tourOperator.getById.useQuery({ id });
 
@@ -118,7 +122,9 @@ export default function TourOperatorDetailPage() {
   const tariffs = data.tariffs ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:tourOperator:read">
+      <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -136,7 +142,7 @@ export default function TourOperatorDetailPage() {
                 {data.code}
               </Badge>
               <Badge variant={data.active ? "default" : "secondary"}>
-                {data.active ? "Active" : "Inactive"}
+                {data.active ? tc("active") : tc("inactive")}
               </Badge>
             </div>
             <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
@@ -150,28 +156,28 @@ export default function TourOperatorDetailPage() {
           variant="destructive"
           size="sm"
           onClick={() => {
-            if (confirm("Delete this tour operator? This cannot be undone."))
+            if (confirm(tc("confirmDelete")))
               deleteMutation.mutate({ id });
           }}
         >
-          Delete
+          {tc("delete")}
         </Button>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="contracts">Contracts ({contracts.length})</TabsTrigger>
-          <TabsTrigger value="hotels">Hotels ({hotels.length})</TabsTrigger>
-          <TabsTrigger value="tariffs">Rate Sheets ({tariffs.length})</TabsTrigger>
+          <TabsTrigger value="details">{tc("details")}</TabsTrigger>
+          <TabsTrigger value="contracts">{t("contracts")} ({contracts.length})</TabsTrigger>
+          <TabsTrigger value="hotels">{t("hotels")} ({hotels.length})</TabsTrigger>
+          <TabsTrigger value="tariffs">{t("rateSheets")} ({tariffs.length})</TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
         <TabsContent value="details" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Tour Operator Details</CardTitle>
+              <CardTitle>{t("tourOperator")}</CardTitle>
             </CardHeader>
             <CardContent>
               <Form {...form}>
@@ -187,7 +193,7 @@ export default function TourOperatorDetailPage() {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Name</FormLabel>
+                          <FormLabel>{tc("name")}</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -200,7 +206,7 @@ export default function TourOperatorDetailPage() {
                       name="code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Code</FormLabel>
+                          <FormLabel>{tc("code")}</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -215,7 +221,7 @@ export default function TourOperatorDetailPage() {
                     name="contactPerson"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
+                        <FormLabel>{t("contactPerson")}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -229,7 +235,7 @@ export default function TourOperatorDetailPage() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>{tc("email")}</FormLabel>
                           <FormControl>
                             <Input type="email" {...field} />
                           </FormControl>
@@ -242,7 +248,7 @@ export default function TourOperatorDetailPage() {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Phone</FormLabel>
+                          <FormLabel>{tc("phone")}</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -257,9 +263,9 @@ export default function TourOperatorDetailPage() {
                       name="countryId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Country ID</FormLabel>
+                          <FormLabel>{t("countryId")}</FormLabel>
                           <FormControl>
-                            <Input placeholder="Country ID" {...field} />
+                            <Input placeholder={t("countryId")} {...field} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -269,9 +275,9 @@ export default function TourOperatorDetailPage() {
                       name="marketId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Market ID</FormLabel>
+                          <FormLabel>{t("marketId")}</FormLabel>
                           <FormControl>
-                            <Input placeholder="Market ID" {...field} />
+                            <Input placeholder={t("marketId")} {...field} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -284,7 +290,7 @@ export default function TourOperatorDetailPage() {
                       name="creditLimit"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Credit Limit</FormLabel>
+                          <FormLabel>{t("creditLimit")}</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -300,7 +306,7 @@ export default function TourOperatorDetailPage() {
                       name="paymentTermDays"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Payment Terms (days)</FormLabel>
+                          <FormLabel>{t("paymentTerms")}</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -316,7 +322,7 @@ export default function TourOperatorDetailPage() {
                       name="commissionPct"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Commission %</FormLabel>
+                          <FormLabel>{t("commissionPct")}</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -341,7 +347,7 @@ export default function TourOperatorDetailPage() {
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
-                        <FormLabel>Active</FormLabel>
+                        <FormLabel>{tc("active")}</FormLabel>
                       </FormItem>
                     )}
                   />
@@ -353,7 +359,7 @@ export default function TourOperatorDetailPage() {
                   )}
 
                   <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateMutation.isPending ? tc("saving") : tc("saveChanges")}
                   </Button>
                 </form>
               </Form>
@@ -366,7 +372,7 @@ export default function TourOperatorDetailPage() {
           {contracts.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No contracts assigned to this tour operator
+                {t("noContractsAssigned")}
               </CardContent>
             </Card>
           ) : (
@@ -375,10 +381,10 @@ export default function TourOperatorDetailPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
-                      Contract Code
+                      {t("contractCode")}
                     </th>
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
-                      Hotel
+                      {t("hotelName")}
                     </th>
                   </tr>
                 </thead>
@@ -416,7 +422,7 @@ export default function TourOperatorDetailPage() {
           {hotels.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No hotels assigned to this tour operator
+                {t("noHotelsAssigned")}
               </CardContent>
             </Card>
           ) : (
@@ -425,7 +431,7 @@ export default function TourOperatorDetailPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
-                      Hotel Name
+                      {t("hotelName")}
                     </th>
                   </tr>
                 </thead>
@@ -451,7 +457,7 @@ export default function TourOperatorDetailPage() {
           {tariffs.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No rate sheets for this tour operator
+                {t("noRateSheetsFor")}
               </CardContent>
             </Card>
           ) : (
@@ -460,16 +466,16 @@ export default function TourOperatorDetailPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
-                      Name
+                      {tc("name")}
                     </th>
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
                       Contract
                     </th>
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
-                      Currency
+                      {tc("currency")}
                     </th>
                     <th className="px-3 py-1.5 text-left text-xs font-medium">
-                      Generated
+                      {t("generated")}
                     </th>
                   </tr>
                 </thead>
@@ -511,5 +517,9 @@ export default function TourOperatorDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

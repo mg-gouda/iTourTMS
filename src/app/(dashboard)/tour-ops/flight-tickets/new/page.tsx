@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ const schema = z.object({
   ticketNumber: z.string().optional(),
   legs: z.array(legSchema).optional(),
   // Pricing
+  currencyId: z.string().optional(),
   transactionType: z.enum(["ISSUE", "REISSUE", "REFUND", "VOID", "REVALIDATE"]),
   vendorId: z.string().optional(),
   customerPartnerId: z.string().optional(),
@@ -102,6 +104,7 @@ const schema = z.object({
   cancellationFees: z.number().optional(),
   voidFee: z.number().optional(),
   createAccountingMoves: z.boolean().default(false),
+  parentTicketId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -195,67 +198,45 @@ function FareLineRow({
   employees,
   onRemove,
   canRemove,
+  currencyCode,
 }: {
   index: number;
   control: any;
   employees: { id: string; name: string | null; email: string }[];
   onRemove: () => void;
   canRemove: boolean;
+  currencyCode?: string;
 }) {
   const watched = useWatch({ control, name: `fareLines.${index}` }) as FareLineValues;
-  const { aviComm, empComm, totalCost, profit, margin } = computeFareLine(watched ?? blankFareLine());
+  const { aviComm, empComm, totalCost, profit } = computeFareLine(watched ?? blankFareLine());
+  const ccy = currencyCode || undefined;
 
   return (
-    <div className="grid gap-1 items-end py-1.5 border-b last:border-b-0" style={{ gridTemplateColumns: "100px 60px 90px 80px 70px 90px 70px 140px 70px 90px 70px 80px 80px 70px 32px" }}>
-      {/* Pax Label */}
+    <div className="grid gap-1 items-end py-1.5 border-b last:border-b-0" style={{ gridTemplateColumns: "100px 60px 115px 105px 70px 115px 70px 140px 70px 115px 70px 105px 80px 70px 32px" }}>
       <CI name={`fareLines.${index}.passengerLabel`} control={control} placeholder="Pax 1" />
-      {/* Class */}
       <CI name={`fareLines.${index}.classCode`} control={control} placeholder="Y" />
-      {/* Base Fare */}
-      <div>
-        <NumCI name={`fareLines.${index}.baseFare`} control={control} />
-      </div>
-      {/* Taxes */}
-      <div>
-        <NumCI name={`fareLines.${index}.taxes`} control={control} />
-      </div>
-      {/* Avia Comm Type */}
+      <NumCIWithCcy name={`fareLines.${index}.baseFare`} control={control} ccy={ccy} />
+      <NumCIWithCcy name={`fareLines.${index}.taxes`} control={control} ccy={ccy} />
       <CommTypeCI name={`fareLines.${index}.aviationCommType`} control={control} />
-      {/* Avia Comm Value */}
-      <div>
-        <NumCI name={`fareLines.${index}.aviationCommValue`} control={control} />
-      </div>
-      {/* Avia Comm Amount (computed) */}
+      <NumCIWithCcy name={`fareLines.${index}.aviationCommValue`} control={control} ccy={ccy} />
       <div className="flex items-end pb-0.5">
         <span className="text-xs text-green-600 font-medium whitespace-nowrap">-{numFmt(aviComm)}</span>
       </div>
-      {/* Employee */}
       <EmployeeCI name={`fareLines.${index}.employeeId`} control={control} employees={employees} />
-      {/* Emp Comm Type */}
       <CommTypeCI name={`fareLines.${index}.empCommType`} control={control} />
-      {/* Emp Comm Value */}
-      <div>
-        <NumCI name={`fareLines.${index}.empCommValue`} control={control} />
-      </div>
-      {/* Emp Comm Amount (computed) */}
+      <NumCIWithCcy name={`fareLines.${index}.empCommValue`} control={control} ccy={ccy} />
       <div className="flex items-end pb-0.5">
         <span className="text-xs text-orange-600 font-medium whitespace-nowrap">+{numFmt(empComm)}</span>
       </div>
-      {/* Selling Price */}
-      <div>
-        <NumCI name={`fareLines.${index}.sellingPrice`} control={control} />
-      </div>
-      {/* Total Cost (computed) */}
+      <NumCIWithCcy name={`fareLines.${index}.sellingPrice`} control={control} ccy={ccy} />
       <div className="flex items-end pb-0.5">
         <span className="text-xs text-red-600 font-medium whitespace-nowrap">{numFmt(totalCost)}</span>
       </div>
-      {/* Profit (computed) */}
       <div className="flex items-end pb-0.5">
         <span className={`text-xs font-medium whitespace-nowrap ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
           {numFmt(profit)}
         </span>
       </div>
-      {/* Delete */}
       <div className="flex items-end">
         <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove} disabled={!canRemove}>
           <Trash2 className="h-3.5 w-3.5" />
@@ -276,6 +257,25 @@ function NumCI({ name, control }: { name: string; control: any }) {
       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
       className="h-7 text-xs px-1.5"
     />
+  );
+}
+
+function NumCIWithCcy({ name, control, ccy }: { name: string; control: any; ccy?: string }) {
+  const { field } = useController({ name, control });
+  return (
+    <div className="flex items-stretch">
+      {ccy && (
+        <span className="flex items-center px-1 bg-muted border border-r-0 rounded-l text-[9px] font-mono text-muted-foreground shrink-0">
+          {ccy}
+        </span>
+      )}
+      <Input
+        type="number" min={0} step="0.01"
+        value={field.value ?? 0}
+        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+        className={`h-7 text-xs px-1.5 min-w-0 ${ccy ? "rounded-l-none border-l-0" : ""}`}
+      />
+    </div>
   );
 }
 
@@ -322,6 +322,7 @@ function NewFlightTicketForm() {
   const { data: vendors = [] } = trpc.tourOps.flightTicket.listVendors.useQuery();
   const { data: customers = [] } = trpc.tourOps.flightTicket.listCustomers.useQuery();
   const { data: employees = [] } = trpc.tourOps.flightTicket.listEmployees.useQuery();
+  const { data: currencies = [] } = trpc.tourOps.flightTicket.listCurrencies.useQuery();
 
   // Also need opsFiles list for linked file dropdown
   const { data: opsFilesData } = trpc.tourOps.file.list.useQuery({ pageSize: 200 });
@@ -347,14 +348,23 @@ function NewFlightTicketForm() {
         { sequence: 1, origin: "", destination: "", date: "", takeOffTime: "", airline: "", flightNumber: "", terminal: "" },
         { sequence: 2, origin: "", destination: "", date: "", takeOffTime: "", airline: "", flightNumber: "", terminal: "" },
       ],
+      currencyId: "",
       transactionType: "ISSUE",
       vendorId: "",
       customerPartnerId: "",
       fareLines: [blankFareLine()],
       createAccountingMoves: false,
+      parentTicketId: "",
       notes: "",
     },
   });
+
+  const watchedOpsFileIdForLink = form.watch("opsFileId");
+  const { data: linkableTickets = [] } = trpc.tourOps.flightTicket.listForLinking.useQuery(
+    { opsFileId: watchedOpsFileIdForLink || undefined },
+  );
+  const watchedCurrencyId = form.watch("currencyId");
+  const selectedCurrencyCode = currencies.find((c) => c.id === watchedCurrencyId)?.code ?? "";
 
   const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({ control: form.control, name: "ticketEntries" });
   const { fields: legFields, append: appendLeg, remove: removeLeg } = useFieldArray({ control: form.control, name: "legs" });
@@ -382,10 +392,43 @@ function NewFlightTicketForm() {
 
   const isPending = createMutation.isPending || batchPending;
 
+  function handleParentSelect(parentId: string) {
+    const parent = linkableTickets.find((t) => t.id === parentId);
+    if (!parent) return;
+    const fmt = (d: Date | string | null | undefined) =>
+      d ? new Date(d).toISOString().split("T")[0] : "";
+    const flightType = form.getValues("flightType");
+    if (flightType === "MULTI_LEG") {
+      form.setValue("clientName", parent.clientName ?? "");
+      form.setValue("origin", parent.origin);
+      form.setValue("destination", parent.destination);
+      form.setValue("departureDate", fmt(parent.departureDate));
+      form.setValue("takeOffTime", parent.takeOffTime ?? "");
+      form.setValue("airline", parent.airline ?? "");
+      form.setValue("flightNumber", parent.flightNumber ?? "");
+      form.setValue("terminal", parent.terminal ?? "");
+    } else {
+      form.setValue("ticketEntries.0.clientName", parent.clientName ?? "");
+      form.setValue("ticketEntries.0.origin", parent.origin);
+      form.setValue("ticketEntries.0.destination", parent.destination);
+      form.setValue("ticketEntries.0.departureDate", fmt(parent.departureDate));
+      form.setValue("ticketEntries.0.takeOffTime", parent.takeOffTime ?? "");
+      form.setValue("ticketEntries.0.airline", parent.airline ?? "");
+      form.setValue("ticketEntries.0.flightNumber", parent.flightNumber ?? "");
+      form.setValue("ticketEntries.0.terminal", parent.terminal ?? "");
+      if (parent.returnDate) form.setValue("ticketEntries.0.returnDate", fmt(parent.returnDate));
+      if (parent.returnFlightNumber) form.setValue("ticketEntries.0.returnFlightNumber", parent.returnFlightNumber ?? "");
+      if (parent.returnAirline) form.setValue("ticketEntries.0.returnAirline", parent.returnAirline ?? "");
+      if (parent.returnTakeOffTime) form.setValue("ticketEntries.0.returnTakeOffTime", parent.returnTakeOffTime ?? "");
+      if (parent.returnTerminal) form.setValue("ticketEntries.0.returnTerminal", parent.returnTerminal ?? "");
+    }
+  }
+
   async function buildShared(values: FormValues) {
     return {
       opsFileId: values.opsFileId || undefined,
       issueDate: values.issueDate || undefined,
+      currencyId: values.currencyId || undefined,
       transactionType: values.transactionType,
       vendorId: values.vendorId || undefined,
       customerPartnerId: values.customerPartnerId || undefined,
@@ -395,6 +438,7 @@ function NewFlightTicketForm() {
       cancellationFees: values.cancellationFees,
       voidFee: values.voidFee,
       createAccountingMoves: values.createAccountingMoves,
+      parentTicketId: values.parentTicketId || undefined,
       notes: values.notes || undefined,
       // legacy fields (aggregated from fare lines)
       pricingBasis: "PER_PERSON" as const,
@@ -637,8 +681,58 @@ function NewFlightTicketForm() {
             <CardHeader className="pb-3"><CardTitle className="text-sm">Pricing</CardTitle></CardHeader>
             <CardContent className="space-y-5">
 
-              {/* Row 1: Transaction Type | Vendor | Customer */}
-              <div className="grid grid-cols-3 gap-4">
+              {/* Row 0: Links to Original Ticket */}
+              <FormField control={form.control} name="parentTicketId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Links to Ticket (Original)</FormLabel>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={(v) => {
+                      const val = v === "_none" ? "" : v;
+                      field.onChange(val);
+                      if (val) handleParentSelect(val);
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="— None (independent ticket) —" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="_none">— None (independent ticket) —</SelectItem>
+                      {linkableTickets.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.code}{t.ticketNumber ? ` (${t.ticketNumber})` : ""} — {t.origin}→{t.destination}{t.clientName ? ` — ${t.clientName}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Select the original ticket this transaction relates to — auto-fills flight details
+                    {!watchedOpsFileIdForLink && " (link an Ops File above to filter tickets)"}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Row 1: Currency | Transaction Type | Vendor | Customer */}
+              <div className="grid grid-cols-4 gap-4">
+                <FormField control={form.control} name="currencyId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v === "_none" ? "" : v)}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select currency..." /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="_none">— None —</SelectItem>
+                        {currencies.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
                 <FormField control={form.control} name="transactionType" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Transaction Type</FormLabel>
@@ -693,11 +787,19 @@ function NewFlightTicketForm() {
                   <FormField control={form.control} name="changeFees" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Change Fees</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={0} step="0.01" placeholder="0.00"
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                      </FormControl>
+                      <div className="flex">
+                        {selectedCurrencyCode && (
+                          <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                            {selectedCurrencyCode}
+                          </span>
+                        )}
+                        <FormControl>
+                          <Input type="number" min={0} step="0.01" placeholder="0.00"
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                        </FormControl>
+                      </div>
                       <p className="text-[10px] text-muted-foreground">Fee charged by airline for reissue</p>
                       <FormMessage />
                     </FormItem>
@@ -705,11 +807,19 @@ function NewFlightTicketForm() {
                   <FormField control={form.control} name="priceDifference" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Price Difference</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.00 (+ or -)"
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                      </FormControl>
+                      <div className="flex">
+                        {selectedCurrencyCode && (
+                          <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                            {selectedCurrencyCode}
+                          </span>
+                        )}
+                        <FormControl>
+                          <Input type="number" step="0.01" placeholder="0.00 (+ or -)"
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                        </FormControl>
+                      </div>
                       <p className="text-[10px] text-muted-foreground">New fare minus old fare (can be negative)</p>
                       <FormMessage />
                     </FormItem>
@@ -725,11 +835,19 @@ function NewFlightTicketForm() {
                   <FormField control={form.control} name="cancellationFees" render={({ field }) => (
                     <FormItem className="max-w-xs">
                       <FormLabel>Cancellation Fees (charged to customer)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={0} step="0.01" placeholder="0.00"
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                      </FormControl>
+                      <div className="flex">
+                        {selectedCurrencyCode && (
+                          <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                            {selectedCurrencyCode}
+                          </span>
+                        )}
+                        <FormControl>
+                          <Input type="number" min={0} step="0.01" placeholder="0.00"
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                        </FormControl>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -744,11 +862,19 @@ function NewFlightTicketForm() {
                   <FormField control={form.control} name="voidFee" render={({ field }) => (
                     <FormItem className="max-w-xs">
                       <FormLabel>Admin Fee (charged to customer)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={0} step="0.01" placeholder="0.00"
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
-                      </FormControl>
+                      <div className="flex">
+                        {selectedCurrencyCode && (
+                          <span className="flex items-center px-2 bg-muted border border-r-0 rounded-l text-xs font-mono text-muted-foreground shrink-0">
+                            {selectedCurrencyCode}
+                          </span>
+                        )}
+                        <FormControl>
+                          <Input type="number" min={0} step="0.01" placeholder="0.00"
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            className={selectedCurrencyCode ? "rounded-l-none border-l-0" : ""} />
+                        </FormControl>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -766,8 +892,8 @@ function NewFlightTicketForm() {
                 {/* Table header */}
                 <div className="overflow-x-auto">
                   <div className="min-w-[900px]">
-                    <div className="grid gap-1 px-1 pb-1 border-b" style={{ gridTemplateColumns: "100px 60px 90px 80px 70px 90px 70px 140px 70px 90px 70px 80px 80px 70px 32px" }}>
-                      {["Pax / Label", "Class", "Base Fare", "Taxes", "Avia.%/$", "Avia.Val", "Avia.Disc", "Employee", "Emp.%/$", "Emp.Val", "Emp.Comm", "Sell Price", "Total Cost", "Profit", ""].map((h) => (
+                    <div className="grid gap-1 px-1 pb-1 border-b" style={{ gridTemplateColumns: "100px 60px 115px 105px 70px 115px 70px 140px 70px 115px 70px 105px 80px 70px 32px" }}>
+                      {["Pax / Label", "Class", `Base Fare${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, `Taxes${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Avia.%/$", `Avia.Val${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Avia.Disc", "Employee", "Emp.%/$", `Emp.Val${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Emp.Comm", `Sell Price${selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}`, "Total Cost", "Profit", ""].map((h) => (
                         <span key={h} className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</span>
                       ))}
                     </div>
@@ -780,6 +906,7 @@ function NewFlightTicketForm() {
                         employees={employees}
                         onRemove={() => removeFareLine(idx)}
                         canRemove={fareLineFields.length > 1}
+                        currencyCode={selectedCurrencyCode}
                       />
                     ))}
                   </div>
@@ -799,15 +926,15 @@ function NewFlightTicketForm() {
               {/* Aggregate Totals */}
               <div className="grid grid-cols-4 gap-3 p-3 bg-muted/40 rounded-md border text-sm">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Cost</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Cost{selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}</p>
                   <p className="font-semibold text-red-600">{numFmt(aggTotals.totalCost)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Revenue</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Revenue{selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}</p>
                   <p className="font-semibold">{numFmt(aggTotals.totalRevenue)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Profit</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Profit{selectedCurrencyCode ? ` (${selectedCurrencyCode})` : ""}</p>
                   <p className={`font-semibold ${aggTotals.profit >= 0 ? "text-green-600" : "text-red-600"}`}>{numFmt(aggTotals.profit)}</p>
                 </div>
                 <div>
@@ -859,8 +986,10 @@ function NewFlightTicketForm() {
 
 export default function NewFlightTicketPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading...</div>}>
+    <PermissionGuard permission="tour-ops:flightTicket:read">
+      <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading...</div>}>
       <NewFlightTicketForm />
     </Suspense>
+    </PermissionGuard>
   );
 }

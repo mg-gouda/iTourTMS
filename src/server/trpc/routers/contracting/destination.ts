@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { cityCreateSchema, cityUpdateSchema, destinationCreateSchema, destinationUpdateSchema, zoneCreateSchema, zoneUpdateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { withCache, invalidateCache } from "@/server/redis";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const destinationRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:destination:read").query(async ({ ctx }) => {
     return withCache(
       `destinations:${ctx.companyId}`,
       () =>
@@ -23,7 +23,7 @@ export const destinationRouter = createTRPCRouter({
     );
   }),
 
-  getById: proc
+  getById: p("contracting:destination:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.destination.findFirstOrThrow({
@@ -50,7 +50,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:destination:create")
     .input(destinationCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.destination.findFirst({
@@ -66,7 +66,7 @@ export const destinationRouter = createTRPCRouter({
       return dest;
     }),
 
-  update: proc
+  update: p("contracting:destination:update")
     .input(z.object({ id: z.string(), data: destinationUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const dest = await ctx.db.destination.update({
@@ -77,7 +77,7 @@ export const destinationRouter = createTRPCRouter({
       return dest;
     }),
 
-  delete: proc
+  delete: p("contracting:destination:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const hotelCount = await ctx.db.hotel.count({
@@ -95,7 +95,7 @@ export const destinationRouter = createTRPCRouter({
 
   // ── City CRUD ──
 
-  listAllCities: proc.query(async ({ ctx }) => {
+  listAllCities: p("contracting:destination:read").query(async ({ ctx }) => {
     return ctx.db.city.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true },
@@ -103,7 +103,7 @@ export const destinationRouter = createTRPCRouter({
     });
   }),
 
-  listCities: proc
+  listCities: p("contracting:destination:read")
     .input(z.object({ destinationId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.city.findMany({
@@ -115,7 +115,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  createCity: proc
+  createCity: p("contracting:destination:create")
     .input(cityCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.destination.findFirstOrThrow({
@@ -126,7 +126,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  updateCity: proc
+  updateCity: p("contracting:destination:update")
     .input(z.object({ id: z.string(), data: cityUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.city.findFirstOrThrow({
@@ -138,7 +138,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  deleteCity: proc
+  deleteCity: p("contracting:destination:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const hotelCount = await ctx.db.hotel.count({
@@ -154,7 +154,7 @@ export const destinationRouter = createTRPCRouter({
 
   // ── Zone CRUD ──
 
-  listAllZones: proc.query(async ({ ctx }) => {
+  listAllZones: p("contracting:destination:read").query(async ({ ctx }) => {
     return ctx.db.zone.findMany({
       where: { companyId: ctx.companyId, active: true },
       select: { id: true, name: true, code: true },
@@ -162,7 +162,7 @@ export const destinationRouter = createTRPCRouter({
     });
   }),
 
-  listZones: proc
+  listZones: p("contracting:destination:read")
     .input(z.object({ cityId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.zone.findMany({
@@ -174,7 +174,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  createZone: proc
+  createZone: p("contracting:destination:create")
     .input(zoneCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.city.findFirstOrThrow({
@@ -185,7 +185,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  updateZone: proc
+  updateZone: p("contracting:destination:update")
     .input(z.object({ id: z.string(), data: zoneUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.zone.findFirstOrThrow({
@@ -197,7 +197,7 @@ export const destinationRouter = createTRPCRouter({
       });
     }),
 
-  deleteZone: proc
+  deleteZone: p("contracting:destination:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const hotelCount = await ctx.db.hotel.count({

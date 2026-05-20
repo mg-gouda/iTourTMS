@@ -10,9 +10,9 @@ import {
   REPORT_EQUITY_TYPES,
   ACCOUNT_TYPE_LABELS,
 } from "@/lib/constants/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 /** Convert Prisma Decimal to number */
 function d(val: any): number {
@@ -36,7 +36,7 @@ async function getBaseCurrency(db: any, companyId: string) {
 
 export const reportRouter = createTRPCRouter({
   // ── Dashboard KPIs ──
-  dashboard: financeProcedure.query(async ({ ctx }) => {
+  dashboard: p("finance:report:read").query(async ({ ctx }) => {
     const companyId = ctx.companyId;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -193,7 +193,7 @@ export const reportRouter = createTRPCRouter({
   }),
 
   // ── Profit & Loss ──
-  profitAndLoss: financeProcedure
+  profitAndLoss: p("finance:report:read")
     .input(z.object({ dateFrom: z.coerce.date(), dateTo: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const lines = await ctx.db.moveLineItem.findMany({
@@ -291,7 +291,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Balance Sheet ──
-  balanceSheet: financeProcedure
+  balanceSheet: p("finance:report:read")
     .input(z.object({ asOfDate: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const allTypes = [
@@ -463,7 +463,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Trial Balance ──
-  trialBalance: financeProcedure
+  trialBalance: p("finance:report:read")
     .input(z.object({ dateFrom: z.coerce.date(), dateTo: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       // Fetch all accounts
@@ -574,7 +574,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── General Ledger ──
-  generalLedger: financeProcedure
+  generalLedger: p("finance:report:read")
     .input(z.object({
       accountId: z.string(),
       dateFrom: z.coerce.date().optional(),
@@ -670,7 +670,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Aged Receivable ──
-  agedReceivable: financeProcedure
+  agedReceivable: p("finance:report:read")
     .input(z.object({ asOfDate: z.coerce.date().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const asOfDate = input?.asOfDate ?? new Date();
@@ -697,7 +697,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Aged Payable ──
-  agedPayable: financeProcedure
+  agedPayable: p("finance:report:read")
     .input(z.object({ asOfDate: z.coerce.date().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const asOfDate = input?.asOfDate ?? new Date();
@@ -724,7 +724,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Cash Flow Statement (Indirect Method) ──
-  cashFlow: financeProcedure
+  cashFlow: p("finance:report:read")
     .input(z.object({ dateFrom: z.coerce.date(), dateTo: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const { companyId } = ctx;
@@ -889,7 +889,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Partner Ledger ──
-  partnerLedger: financeProcedure
+  partnerLedger: p("finance:report:read")
     .input(z.object({
       partnerId: z.string(),
       dateFrom: z.coerce.date().optional(),
@@ -976,7 +976,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Tax Report ──
-  taxReport: financeProcedure
+  taxReport: p("finance:report:read")
     .input(z.object({ dateFrom: z.coerce.date(), dateTo: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       // Tax lines: MoveLineItems where taxLineId is set
@@ -1056,7 +1056,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Fiscal Report (P&L by month within fiscal year) ──
-  fiscalReport: financeProcedure
+  fiscalReport: p("finance:report:read")
     .input(z.object({ year: z.number().int() }))
     .query(async ({ ctx, input }) => {
       const dateFrom = new Date(input.year, 0, 1);
@@ -1117,7 +1117,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── 1099 Report ──
-  report1099: financeProcedure
+  report1099: p("finance:report:read")
     .input(z.object({ year: z.number().int(), threshold: z.number().default(600) }))
     .query(async ({ ctx, input }) => {
       const dateFrom = new Date(input.year, 0, 1);
@@ -1185,7 +1185,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Invoice Analysis ──
-  invoiceAnalysis: financeProcedure
+  invoiceAnalysis: p("finance:report:read")
     .input(z.object({
       dateFrom: z.coerce.date(),
       dateTo: z.coerce.date(),
@@ -1282,7 +1282,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Analytic Report (P&L by Journal) ──
-  analyticReport: financeProcedure
+  analyticReport: p("finance:report:read")
     .input(z.object({ dateFrom: z.coerce.date(), dateTo: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const lines = await ctx.db.moveLineItem.findMany({
@@ -1350,7 +1350,7 @@ export const reportRouter = createTRPCRouter({
     }),
 
   // ── Executive Summary ──
-  executiveSummary: financeProcedure
+  executiveSummary: p("finance:report:read")
     .input(z.object({ dateFrom: z.coerce.date(), dateTo: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const { companyId } = ctx;

@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { leadCreateSchema, leadUpdateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const leadRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("crm:lead:read").query(async ({ ctx }) => {
     return ctx.db.crmLead.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -17,7 +17,7 @@ export const leadRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("crm:lead:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.crmLead.findFirstOrThrow({
@@ -38,7 +38,7 @@ export const leadRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:lead:create")
     .input(leadCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Auto-generate lead code using Sequence
@@ -71,7 +71,7 @@ export const leadRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:lead:update")
     .input(z.object({ id: z.string(), data: leadUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmLead.update({
@@ -86,7 +86,7 @@ export const leadRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("crm:lead:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.crmLead.delete({
@@ -94,7 +94,7 @@ export const leadRouter = createTRPCRouter({
       });
     }),
 
-  convertToCustomer: proc
+  convertToCustomer: p("crm:lead:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const lead = await ctx.db.crmLead.findFirstOrThrow({
@@ -134,7 +134,7 @@ export const leadRouter = createTRPCRouter({
       return customer;
     }),
 
-  dashboard: proc.query(async ({ ctx }) => {
+  dashboard: p("crm:lead:read").query(async ({ ctx }) => {
     const [totalLeads, newLeads, qualifiedLeads, wonLeads] = await Promise.all([
       ctx.db.crmLead.count({ where: { companyId: ctx.companyId } }),
       ctx.db.crmLead.count({ where: { companyId: ctx.companyId, status: "NEW" } }),

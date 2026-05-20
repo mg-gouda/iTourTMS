@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   Archive, ArrowLeft, Building2, ExternalLink, User,
 } from "lucide-react";
@@ -24,8 +25,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { MOVE_STATE_LABELS } from "@/lib/constants/finance";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { id } = use(params);
   const utils = trpc.useUtils();
 
@@ -44,7 +48,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
   const update = trpc.finance.partner.update.useMutation({
     onSuccess: () => {
-      toast.success("Vendor saved");
+      toast.success(t("vendorSaved"));
       utils.finance.partner.getById.invalidate({ id });
     },
     onError: (err) => toast.error(err.message),
@@ -52,7 +56,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
   const toggleActive = trpc.finance.partner.toggleActive.useMutation({
     onSuccess: () => {
-      toast.success(partner?.isActive ? "Vendor archived" : "Vendor restored");
+      toast.success(partner?.isActive ? t("vendorArchived") : t("vendorRestored"));
       utils.finance.partner.getById.invalidate({ id });
       utils.finance.partner.list.invalidate();
     },
@@ -73,15 +77,16 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
   if (!partner) {
     return (
       <div className="p-6">
-        <p className="text-muted-foreground">Vendor not found.</p>
+        <p className="text-muted-foreground">{t("vendorNotFound")}</p>
         <Button variant="link" asChild className="px-0 mt-2">
-          <Link href="/finance/vendors">← Back to vendors</Link>
+          <Link href="/finance/vendors">{t("backToVendors")}</Link>
         </Button>
       </div>
     );
   }
 
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="p-6 space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
@@ -98,11 +103,11 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                 : <User className="size-5 text-muted-foreground" />}
               <h1 className="text-2xl font-semibold">{partner.name}</h1>
               {!partner.isActive && (
-                <Badge variant="secondary">Archived</Badge>
+                <Badge variant="secondary">{t("archived")}</Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {partner.isCompany ? "Company" : "Individual"} · Vendor
+              {partner.isCompany ? t("company") : t("individual")} · {t("vendor")}
             </p>
           </div>
         </div>
@@ -111,31 +116,31 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           <Button variant="outline" asChild size="sm">
             <Link href={`/finance/vendors/bills?partnerId=${id}`}>
               <ExternalLink className="size-3.5 mr-1.5" />
-              Bills
+              {t("billsLink")}
             </Link>
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <Archive className="size-3.5 mr-1.5" />
-                {partner.isActive ? "Archive" : "Restore"}
+                {partner.isActive ? tc("archive") : tc("restore")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {partner.isActive ? "Archive vendor?" : "Restore vendor?"}
+                  {partner.isActive ? t("archiveVendor") : t("restoreVendor")}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {partner.isActive
-                    ? "Archived vendors won't appear in new bills or lookups."
-                    : "This will restore the vendor to active status."}
+                    ? t("archiveVendorDesc")
+                    : t("restoreVendorDesc")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
                 <AlertDialogAction onClick={() => toggleActive.mutate({ id })}>
-                  {partner.isActive ? "Archive" : "Restore"}
+                  {partner.isActive ? tc("archive") : tc("restore")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -316,5 +321,6 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
         </TabsContent>
       </Tabs>
     </div>
+    </PermissionGuard>
   );
 }

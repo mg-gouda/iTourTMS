@@ -34,6 +34,7 @@ import { OPS_COMPONENT_TYPE_LABELS, OPS_MARKUP_TYPE_LABELS } from "@/lib/constan
 import { opsComponentBulkSaveSchema } from "@/lib/validations/tour-ops";
 import { trpc } from "@/lib/trpc";
 import { AccommodationPickerDialog } from "@/components/tour-ops/accommodation-picker-dialog";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type BulkSaveForm = z.input<typeof opsComponentBulkSaveSchema>;
 
@@ -225,7 +226,8 @@ export default function TemplateDetailPage() {
                     const totalCostBase = comp ? computeTotalCost(comp.type, comp.pricingBasis, Number(comp.unitCost || 0), Number(comp.qty || 0), Number(comp.nights || 1), Number(comp.exchangeRate || 1)).toNumber() : 0;
                     const selling = comp ? computeSellingPrice(comp.type, Number(comp.unitCost || 0), Number(comp.qty || 0), Number(comp.nights || 1), Number(comp.exchangeRate || 1), comp.markupType, Number(comp.markupValue || 0), comp.pricingBasis) : 0;
                     return (
-                      <div key={field.id} className="rounded-md border p-3 space-y-2">
+                      <PermissionGuard permission="tour-ops:package:read">
+                        <div key={field.id} className="rounded-md border p-3 space-y-2">
                         {/* Row 1: type / description / hotel picker / delete */}
                         <div className="flex items-center gap-2">
                           <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -422,6 +424,7 @@ export default function TemplateDetailPage() {
                           </div>
                         </div>
                       </div>
+                      </PermissionGuard>
                     );
                   })}
                 </div>

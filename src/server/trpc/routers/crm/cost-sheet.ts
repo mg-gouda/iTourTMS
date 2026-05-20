@@ -2,12 +2,12 @@ import { z } from "zod";
 import { Decimal } from "decimal.js";
 
 import { costSheetCreateSchema, costSheetUpdateSchema, costComponentBulkSaveSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const costSheetRouter = createTRPCRouter({
-  listByExcursion: proc
+  listByExcursion: p("crm:costSheet:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -20,7 +20,7 @@ export const costSheetRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("crm:costSheet:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findFirstOrThrow({
@@ -37,7 +37,7 @@ export const costSheetRouter = createTRPCRouter({
       return sheet;
     }),
 
-  create: proc
+  create: p("crm:costSheet:create")
     .input(costSheetCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -59,7 +59,7 @@ export const costSheetRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:costSheet:update")
     .input(z.object({ id: z.string(), data: costSheetUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findFirstOrThrow({
@@ -74,7 +74,7 @@ export const costSheetRouter = createTRPCRouter({
       return ctx.db.crmCostSheet.update({ where: { id: input.id }, data });
     }),
 
-  delete: proc
+  delete: p("crm:costSheet:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findFirstOrThrow({
@@ -85,7 +85,7 @@ export const costSheetRouter = createTRPCRouter({
       return ctx.db.crmCostSheet.delete({ where: { id: input.id } });
     }),
 
-  saveComponents: proc
+  saveComponents: p("crm:costSheet:update")
     .input(costComponentBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findFirstOrThrow({
@@ -134,7 +134,7 @@ export const costSheetRouter = createTRPCRouter({
     }),
 
   // Recalculate totalCost for a different pax count (used by selling price editor)
-  calculateCost: proc
+  calculateCost: p("crm:costSheet:read")
     .input(z.object({ id: z.string(), paxCount: z.number().int().min(1) }))
     .query(async ({ ctx, input }) => {
       const sheet = await ctx.db.crmCostSheet.findFirstOrThrow({

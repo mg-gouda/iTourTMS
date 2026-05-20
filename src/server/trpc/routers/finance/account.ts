@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { accountGroupSchema, accountSchema } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const accountRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:account:read")
     .input(
       z.object({
         search: z.string().optional(),
@@ -48,7 +48,7 @@ export const accountRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  getById: financeProcedure
+  getById: p("finance:account:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.finAccount.findFirstOrThrow({
@@ -57,7 +57,7 @@ export const accountRouter = createTRPCRouter({
       });
     }),
 
-  create: financeProcedure
+  create: p("finance:account:create")
     .input(accountSchema)
     .mutation(async ({ ctx, input }) => {
       const { tagIds, ...data } = input;
@@ -71,7 +71,7 @@ export const accountRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:account:update")
     .input(z.object({ id: z.string() }).merge(accountSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, tagIds, ...data } = input;
@@ -87,7 +87,7 @@ export const accountRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.finAccount.delete({ where: { id: input.id } });
@@ -95,7 +95,7 @@ export const accountRouter = createTRPCRouter({
 
   // ── Account Groups ──
 
-  listGroups: financeProcedure.query(async ({ ctx }) => {
+  listGroups: p("finance:account:read").query(async ({ ctx }) => {
     return ctx.db.accountGroup.findMany({
       where: { companyId: ctx.companyId },
       include: { parent: true, _count: { select: { accounts: true } } },
@@ -103,7 +103,7 @@ export const accountRouter = createTRPCRouter({
     });
   }),
 
-  createGroup: financeProcedure
+  createGroup: p("finance:account:create")
     .input(accountGroupSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountGroup.create({
@@ -111,14 +111,14 @@ export const accountRouter = createTRPCRouter({
       });
     }),
 
-  updateGroup: financeProcedure
+  updateGroup: p("finance:account:update")
     .input(z.object({ id: z.string() }).merge(accountGroupSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       return ctx.db.accountGroup.update({ where: { id }, data });
     }),
 
-  deleteGroup: financeProcedure
+  deleteGroup: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountGroup.delete({ where: { id: input.id } });
@@ -126,17 +126,17 @@ export const accountRouter = createTRPCRouter({
 
   // ── Account Tags ──
 
-  listTags: financeProcedure.query(async ({ ctx }) => {
+  listTags: p("finance:account:read").query(async ({ ctx }) => {
     return ctx.db.accountTag.findMany({ orderBy: { name: "asc" } });
   }),
 
-  createTag: financeProcedure
+  createTag: p("finance:account:create")
     .input(z.object({ name: z.string().min(1), color: z.number().default(0) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountTag.create({ data: input });
     }),
 
-  deleteTag: financeProcedure
+  deleteTag: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountTag.delete({ where: { id: input.id } });
@@ -144,7 +144,7 @@ export const accountRouter = createTRPCRouter({
 
   // ── Tree (all accounts, no pagination) ──
 
-  listTree: financeProcedure.query(async ({ ctx }) => {
+  listTree: p("finance:account:read").query(async ({ ctx }) => {
     return ctx.db.finAccount.findMany({
       where: { companyId: ctx.companyId, deprecated: false },
       select: {
@@ -164,7 +164,7 @@ export const accountRouter = createTRPCRouter({
 
   // ── Relink accounts to groups by code range ──
 
-  relinkByRange: financeProcedure
+  relinkByRange: p("finance:account:update")
     .input(z.object({ force: z.boolean().default(false) }))
     .mutation(async ({ ctx, input }) => {
       const allGroups = await ctx.db.accountGroup.findMany({
@@ -210,7 +210,7 @@ export const accountRouter = createTRPCRouter({
 
   // ── Bulk Import ──
 
-  bulkImport: financeProcedure
+  bulkImport: p("finance:account:create")
     .input(
       z.object({
         groups: z.array(
@@ -313,7 +313,7 @@ export const accountRouter = createTRPCRouter({
 
   // ── Partner list for invoice/bill partner selection ──
 
-  listPartners: financeProcedure
+  listPartners: p("finance:account:read")
     .input(
       z.object({
         type: z.string().optional(),

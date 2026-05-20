@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
@@ -78,7 +79,8 @@ export default function DeadlinesPage() {
   const upcoming = deadlines?.filter((d) => getDisplayStatus(d) === "UPCOMING").length ?? 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <PermissionGuard permission="reservations:booking:read">
+      <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Deadlines Dashboard</h1>
@@ -221,6 +223,7 @@ export default function DeadlinesPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

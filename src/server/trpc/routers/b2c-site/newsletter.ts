@@ -1,7 +1,9 @@
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+
+const p = (code: string) => modulePermissionProcedure("b2c-site", code);
 
 export const newsletterRouter = createTRPCRouter({
-  listSubscribers: protectedProcedure.query(async ({ ctx }) => {
+  listSubscribers: p("b2c-site:newsletter:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId!;
     return ctx.db.newsletterSubscriber.findMany({
       where: { companyId },
@@ -9,7 +11,7 @@ export const newsletterRouter = createTRPCRouter({
     });
   }),
 
-  exportCsv: protectedProcedure.query(async ({ ctx }) => {
+  exportCsv: p("b2c-site:newsletter:read").query(async ({ ctx }) => {
     const companyId = ctx.session.user.companyId!;
     const subs = await ctx.db.newsletterSubscriber.findMany({
       where: { companyId, active: true },

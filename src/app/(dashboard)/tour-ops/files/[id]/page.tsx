@@ -39,6 +39,7 @@ import {
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
 import type { OpsFileStatus } from "@prisma/client";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function OpsFileDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -373,7 +374,9 @@ function PnLTab({ fileId }: { fileId: string }) {
   ];
 
   return (
-    <div className="space-y-4">
+
+    <PermissionGuard permission="tour-ops:file:read">
+      <div className="space-y-4">
       <div className="flex justify-between items-center">
         <Badge variant={pnl.status === "CLOSED" ? "secondary" : "outline"}>{pnl.status}</Badge>
         <div className="flex gap-2">
@@ -404,5 +407,9 @@ function PnLTab({ fileId }: { fileId: string }) {
         </CardContent>
       </Card>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

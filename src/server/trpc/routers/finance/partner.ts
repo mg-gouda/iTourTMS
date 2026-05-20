@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 const partnerCreateSchema = z.object({
   type: z.enum(["customer", "supplier"]),
@@ -28,7 +28,7 @@ const partnerCreateSchema = z.object({
 const partnerUpdateSchema = partnerCreateSchema.partial().omit({ type: true });
 
 export const partnerRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:partner:read")
     .input(z.object({
       type: z.enum(["customer", "supplier"]),
       search: z.string().optional(),
@@ -57,7 +57,7 @@ export const partnerRouter = createTRPCRouter({
       });
     }),
 
-  listAll: financeProcedure
+  listAll: p("finance:partner:read")
     .input(z.object({ search: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.partner.findMany({
@@ -73,7 +73,7 @@ export const partnerRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:partner:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const partner = await ctx.db.partner.findFirst({
@@ -91,7 +91,7 @@ export const partnerRouter = createTRPCRouter({
       return partner;
     }),
 
-  create: financeProcedure
+  create: p("finance:partner:create")
     .input(partnerCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.partner.create({
@@ -108,7 +108,7 @@ export const partnerRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:partner:update")
     .input(z.object({ id: z.string(), data: partnerUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const partner = await ctx.db.partner.findFirst({
@@ -129,7 +129,7 @@ export const partnerRouter = createTRPCRouter({
       });
     }),
 
-  toggleActive: financeProcedure
+  toggleActive: p("finance:partner:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const partner = await ctx.db.partner.findFirst({
@@ -143,7 +143,7 @@ export const partnerRouter = createTRPCRouter({
     }),
 
   // Aggregate stats across ALL partners of a given type (for list pages)
-  getAggregateStats: financeProcedure
+  getAggregateStats: p("finance:partner:read")
     .input(z.object({ partnerType: z.enum(["customer", "supplier"]) }))
     .query(async ({ ctx, input }) => {
       const cid = ctx.companyId;
@@ -203,7 +203,7 @@ export const partnerRouter = createTRPCRouter({
     }),
 
   // Rich stats for a partner — 6 KPI cards
-  getStats: financeProcedure
+  getStats: p("finance:partner:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const cid = ctx.companyId;

@@ -67,6 +67,7 @@ import {
   childPolicyCreateSchema,
   mealBasisCreateSchema,
 } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 // ============================================================================
 // Main Page
@@ -264,6 +265,7 @@ export default function HotelDetailPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:hotel:read">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -378,6 +380,7 @@ export default function HotelDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }
 

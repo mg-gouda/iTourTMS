@@ -17,6 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import type { HotelPin } from "@/components/crm/dispatch-map";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 // SSR-safe map import
 const DispatchMap = dynamic(() => import("@/components/crm/dispatch-map"), {
@@ -44,6 +46,8 @@ let runIdCounter = 0;
 function newRunId() { return `run-${++runIdCounter}`; }
 
 export default function ExcursionDispatchPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   // Filters
   const [excursionId, setExcursionId] = useState("");
   const [date, setDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
@@ -218,14 +222,14 @@ export default function ExcursionDispatchPage() {
       {/* Header */}
       <div className="flex items-center justify-between border-b px-6 py-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Exc. Dispatch</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("dispatch")}</h1>
           <p className="text-sm text-muted-foreground">
             Group hotel pickups into runs · place assembly point · generate traffic jobs
           </p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={handleSave} disabled={(saveMutation.isPending && !pendingGenerate) || !excursionId}>
-            {saveMutation.isPending && !pendingGenerate ? "Saving…" : "Save"}
+            {saveMutation.isPending && !pendingGenerate ? tc("saving") : tc("save")}
           </Button>
           <Button
             size="sm"
@@ -428,7 +432,8 @@ export default function ExcursionDispatchPage() {
                         {run.stops.map((stop, si) => {
                           const hotel = hotelData?.find((h) => h.id === stop.hotelId);
                           return (
-                            <div key={stop.hotelId} className="flex items-center gap-1.5 rounded border bg-background px-2 py-1.5">
+                            <PermissionGuard permission="crm:booking:read">
+                              <div key={stop.hotelId} className="flex items-center gap-1.5 rounded border bg-background px-2 py-1.5">
                               <span className={cn("text-[10px] font-bold w-4 shrink-0", color.text)}>{si + 1}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium truncate">{hotel?.name ?? stop.hotelId}</p>
@@ -446,6 +451,7 @@ export default function ExcursionDispatchPage() {
                                 </Button>
                               </div>
                             </div>
+                            </PermissionGuard>
                           );
                         })}
                       </div>

@@ -6,7 +6,7 @@ import {
   recurringEntryCreateSchema,
   recurringEntryUpdateSchema,
 } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import {
   computeNextRunDate,
   collectDueDates,
@@ -14,10 +14,10 @@ import {
   type RecurringTemplateWithLines,
 } from "@/server/services/finance/recurring-engine";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const recurringEntryRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:journal:read")
     .input(
       z
         .object({
@@ -40,7 +40,7 @@ export const recurringEntryRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:journal:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const entry = await ctx.db.recurringEntry.findFirst({
@@ -64,7 +64,7 @@ export const recurringEntryRouter = createTRPCRouter({
       return entry;
     }),
 
-  create: financeProcedure
+  create: p("finance:journal:create")
     .input(recurringEntryCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Validate balance
@@ -108,7 +108,7 @@ export const recurringEntryRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:journal:update")
     .input(recurringEntryUpdateSchema.extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { id, lineTemplates, ...data } = input;
@@ -171,7 +171,7 @@ export const recurringEntryRouter = createTRPCRouter({
       });
     }),
 
-  delete: financeProcedure
+  delete: p("finance:journal:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.recurringEntry.findFirst({
@@ -185,7 +185,7 @@ export const recurringEntryRouter = createTRPCRouter({
       return ctx.db.recurringEntry.delete({ where: { id: input.id } });
     }),
 
-  pause: financeProcedure
+  pause: p("finance:journal:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const entry = await ctx.db.recurringEntry.findFirst({
@@ -205,7 +205,7 @@ export const recurringEntryRouter = createTRPCRouter({
       });
     }),
 
-  resume: financeProcedure
+  resume: p("finance:journal:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const entry = await ctx.db.recurringEntry.findFirst({
@@ -225,7 +225,7 @@ export const recurringEntryRouter = createTRPCRouter({
       });
     }),
 
-  generateNext: financeProcedure
+  generateNext: p("finance:journal:create")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const entry = await ctx.db.recurringEntry.findFirst({
@@ -282,7 +282,7 @@ export const recurringEntryRouter = createTRPCRouter({
       return move;
     }),
 
-  generateAllDue: financeProcedure
+  generateAllDue: p("finance:journal:create")
     .input(z.object({ asOfDate: z.coerce.date().optional() }).optional())
     .mutation(async ({ ctx, input }) => {
       const targetDate = input?.asOfDate ?? new Date();

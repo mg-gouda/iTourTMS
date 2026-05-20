@@ -210,7 +210,7 @@ export const setupRouter = createTRPCRouter({
           }
         }
 
-        // 3. Create super_admin role with all permissions
+        // 3. Create super_admin role and assign ALL seeded permissions to it
         const adminRole = await tx.role.create({
           data: {
             companyId: company.id,
@@ -220,6 +220,15 @@ export const setupRouter = createTRPCRouter({
             isSystem: true,
           },
         });
+
+        // Assign every permission in the global Permission table to super_admin
+        const allPerms = await tx.permission.findMany({ select: { id: true } });
+        if (allPerms.length > 0) {
+          await tx.rolePermission.createMany({
+            data: allPerms.map((p) => ({ roleId: adminRole.id, permissionId: p.id })),
+            skipDuplicates: true,
+          });
+        }
 
         // 4. Create admin user
         const hashedPassword = await bcrypt.hash(input.admin.password, 12);
@@ -249,6 +258,9 @@ export const setupRouter = createTRPCRouter({
           { code: "payment", prefix: "PAY", padding: 5 },
           { code: "voucher", prefix: "VCH", padding: 5 },
           { code: "lead", prefix: "LD", padding: 5 },
+          { code: "traffic_job", prefix: "TJ", padding: 5 },
+          { code: "ops_file", prefix: "FI", padding: 5 },
+          { code: "ops_quotation", prefix: "QT", padding: 5 },
         ];
 
         for (const seq of sequenceDefaults) {

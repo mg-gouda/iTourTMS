@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { OPS_DESTINATION_CODES, OPS_GUIDE_TYPE_LABELS } from "@/lib/constants/tour-ops";
 import type { OpsGuideType } from "@prisma/client";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type SeasonDialog = { open: boolean; id?: string; name: string; dateFrom: string; dateTo: string; isActive: boolean; pricePerDay: number };
 const emptyDialog = (): SeasonDialog => ({ open: false, name: "", dateFrom: "", dateTo: "", isActive: true, pricePerDay: 0 });
@@ -58,7 +59,9 @@ export default function GuidanceRateDetailPage() {
   const dest = OPS_DESTINATION_CODES.find((d) => d.code === rate.destinationCode);
 
   return (
-    <div className="p-6 space-y-6">
+
+    <PermissionGuard permission="tour-ops:component:read">
+      <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="size-4" />
@@ -160,5 +163,9 @@ export default function GuidanceRateDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

@@ -4,13 +4,13 @@ import {
   marketingContributionCreateSchema,
   marketingContributionUpdateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const marketingContributionRouter = createTRPCRouter({
   // ── List by contract ──
-  listByContract: proc
+  listByContract: p("contracting:contract:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -28,7 +28,7 @@ export const marketingContributionRouter = createTRPCRouter({
     }),
 
   // ── Create ──
-  create: proc
+  create: p("contracting:contract:create")
     .input(marketingContributionCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -48,7 +48,7 @@ export const marketingContributionRouter = createTRPCRouter({
     }),
 
   // ── Update ──
-  update: proc
+  update: p("contracting:contract:update")
     .input(z.object({ id: z.string(), data: marketingContributionUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.contractMarketingContribution.findFirstOrThrow({
@@ -66,7 +66,7 @@ export const marketingContributionRouter = createTRPCRouter({
     }),
 
   // ── Delete ──
-  delete: proc
+  delete: p("contracting:contract:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.contractMarketingContribution.findFirstOrThrow({

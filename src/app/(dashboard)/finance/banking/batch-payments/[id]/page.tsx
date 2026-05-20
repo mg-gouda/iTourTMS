@@ -1,9 +1,11 @@
 "use client";
 
 import { use } from "react";
+import { useTranslations } from "next-intl";
 
 import { BatchPaymentForm } from "@/components/finance/batch-payment-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function ViewBatchPaymentPage({
   params,
@@ -11,32 +13,35 @@ export default function ViewBatchPaymentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.finance.batchPayment.getById.useQuery({
     id,
   });
 
   if (isLoading) {
     return (
-      <div className="text-muted-foreground py-10 text-center">Loading...</div>
+      <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
     );
   }
 
   if (!data) {
     return (
       <div className="text-muted-foreground py-10 text-center">
-        Batch payment not found.
+        {t("batchPaymentNotFound")}
       </div>
     );
   }
 
   return (
+    <PermissionGuard permission="finance:payment:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {data.name ?? "Draft Batch"}
+          {data.name ?? t("draftBatchTitle")}
         </h1>
         <p className="text-muted-foreground">
-          {data.journal?.name ?? "Batch Payment"}
+          {data.journal?.name ?? t("batchPayments")}
         </p>
       </div>
       <BatchPaymentForm
@@ -67,5 +72,6 @@ export default function ViewBatchPaymentPage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

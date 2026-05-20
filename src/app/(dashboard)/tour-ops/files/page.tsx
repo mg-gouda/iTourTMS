@@ -30,6 +30,7 @@ import {
   OPS_FILE_STATUS_VARIANTS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function OpsFilesPage() {
   const [search, setSearch] = useState("");
@@ -122,7 +123,8 @@ export default function OpsFilesPage() {
                     : file.tourOperator?.name ?? file.guestName ?? "—";
                 const revenue = file.quotations[0] ? Number(file.quotations[0].totalSelling) : null;
                 return (
-                  <TableRow
+                  <PermissionGuard permission="tour-ops:file:read">
+                    <TableRow
                     key={file.id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => (window.location.href = `/tour-ops/files/${file.id}`)}
@@ -145,6 +147,7 @@ export default function OpsFilesPage() {
                       </Badge>
                     </TableCell>
                   </TableRow>
+                  </PermissionGuard>
                 );
               })
             )}

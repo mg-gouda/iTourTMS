@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   Users,
@@ -13,27 +16,32 @@ import {
   ClipboardList,
 } from "lucide-react";
 
-const sections = [
-  { href: "/b2b-portal/tour-operators", label: "Tour Operators", desc: "Manage tour operator partners and accounts", icon: Users },
-  { href: "/b2b-portal/travel-agents", label: "Travel Agents", desc: "Manage travel agent partners and credentials", icon: UserCheck },
-  { href: "/b2b-portal/search", label: "Search & Book", desc: "Search availability and create bookings", icon: Search },
-  { href: "/b2b-portal/reservations", label: "Reservations", desc: "View and manage partner reservations", icon: CalendarCheck },
-  { href: "/b2b-portal/vouchers", label: "Vouchers", desc: "Generate and manage booking vouchers", icon: FileText },
-  { href: "/b2b-portal/rate-sheets", label: "Rate Sheets", desc: "Publish and distribute rate sheets to partners", icon: DollarSign },
-  { href: "/b2b-portal/markups", label: "Markup Rules", desc: "Configure partner-specific markup and pricing", icon: TrendingUp },
-  { href: "/b2b-portal/credit", label: "Credit Management", desc: "Partner credit limits, balances, and payments", icon: CreditCard },
-  { href: "/b2b-portal/reports/bookings", label: "Booking Reports", desc: "Booking volume and status analytics", icon: BarChart3 },
-  { href: "/b2b-portal/reports/revenue", label: "Revenue", desc: "Revenue breakdown by partner and period", icon: Receipt },
-  { href: "/b2b-portal/reports/statements", label: "Statements", desc: "Generate partner account statements", icon: ClipboardList },
-];
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function B2bPortalDashboardPage() {
+  const t = useTranslations("b2bPortal");
+
+  const sections = [
+    { href: "/b2b-portal/tour-operators", label: t("tourOperators"), desc: t("tourOperator"), icon: Users },
+    { href: "/b2b-portal/travel-agents", label: t("travelAgents"), desc: t("travelAgent"), icon: UserCheck },
+    { href: "/b2b-portal/search", label: t("searchBook"), desc: t("reservations"), icon: Search },
+    { href: "/b2b-portal/reservations", label: t("reservations"), desc: t("reservations"), icon: CalendarCheck },
+    { href: "/b2b-portal/vouchers", label: t("vouchers"), desc: t("vouchers"), icon: FileText },
+    { href: "/b2b-portal/rate-sheets", label: t("rateSheets"), desc: t("rateSheet"), icon: DollarSign },
+    { href: "/b2b-portal/markups", label: t("markupRules"), desc: t("markupRule"), icon: TrendingUp },
+    { href: "/b2b-portal/credit", label: t("creditManagement"), desc: t("credit"), icon: CreditCard },
+    { href: "/b2b-portal/reports/bookings", label: t("bookingReports"), desc: t("totalBookings"), icon: BarChart3 },
+    { href: "/b2b-portal/reports/revenue", label: t("revenue"), desc: t("totalRevenue"), icon: Receipt },
+    { href: "/b2b-portal/reports/statements", label: t("statements"), desc: t("balance"), icon: ClipboardList },
+  ];
+
   return (
+    <PermissionGuard permission="b2b-portal:tourOperator:read">
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">B2B Portal</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Manage partner relationships, bookings, rate distribution, and commercial terms
+          {t("activePartners")}
         </p>
       </div>
 
@@ -56,5 +64,6 @@ export default function B2bPortalDashboardPage() {
         ))}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

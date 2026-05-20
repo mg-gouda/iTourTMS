@@ -1,12 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const unrealizedCurrencyRouter = createTRPCRouter({
-  list: financeProcedure.query(async ({ ctx }) => {
+  list: p("finance:move:read").query(async ({ ctx }) => {
     return ctx.db.unrealizedCurrencyEntry.findMany({
       where: { companyId: ctx.session.user.companyId },
       include: { currency: { select: { id: true, code: true, name: true, symbol: true } } },
@@ -14,7 +14,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
     });
   }),
 
-  getById: financeProcedure
+  getById: p("finance:settings:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const rec = await ctx.db.unrealizedCurrencyEntry.findFirst({
@@ -25,7 +25,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
       return rec;
     }),
 
-  create: financeProcedure
+  create: p("finance:settings:create")
     .input(z.object({
       name: z.string().min(1),
       date: z.string(),
@@ -44,7 +44,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
       });
     }),
 
-  reverse: financeProcedure
+  reverse: p("finance:settings:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const rec = await ctx.db.unrealizedCurrencyEntry.findFirst({
@@ -59,7 +59,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
     }),
 
   // Compute open FX positions for company
-  computePositions: financeProcedure.query(async ({ ctx }) => {
+  computePositions: p("finance:move:read").query(async ({ ctx }) => {
     const lines = await ctx.db.moveLineItem.findMany({
       where: {
         move: { companyId: ctx.session.user.companyId, state: "POSTED" },

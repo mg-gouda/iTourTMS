@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 import { seasonSpoBulkSaveSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 const SPO_INCLUDE = {
   roomSupplements: {
@@ -20,7 +20,7 @@ async function verifyContract(db: PrismaClient, contractId: string, companyId: s
 }
 
 export const seasonSpoRouter = createTRPCRouter({
-  getById: proc
+  getById: p("contracting:offer:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const spo = await ctx.db.contractSeasonSpo.findFirstOrThrow({
@@ -41,7 +41,7 @@ export const seasonSpoRouter = createTRPCRouter({
       return spo;
     }),
 
-  listByContract: proc
+  listByContract: p("contracting:offer:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -54,7 +54,7 @@ export const seasonSpoRouter = createTRPCRouter({
 
   // Smart upsert: update existing SPOs (preserving their IDs), create new ones,
   // delete removed ones. This keeps SPO codes stable across saves.
-  bulkSave: proc
+  bulkSave: p("contracting:offer:import")
     .input(seasonSpoBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -163,7 +163,7 @@ export const seasonSpoRouter = createTRPCRouter({
       });
     }),
 
-  toggleActive: proc
+  toggleActive: p("contracting:offer:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const row = await ctx.db.contractSeasonSpo.findFirstOrThrow({
@@ -177,7 +177,7 @@ export const seasonSpoRouter = createTRPCRouter({
       });
     }),
 
-  deleteRow: proc
+  deleteRow: p("contracting:offer:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const row = await ctx.db.contractSeasonSpo.findFirstOrThrow({

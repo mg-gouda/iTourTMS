@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 // ─── Status helpers ───────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -38,6 +40,8 @@ interface BookingFormProps {
 }
 
 function BookingForm({ onDone, editId }: BookingFormProps) {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
 
   const { data: tourOperators } = trpc.crm.excursionTicket.listTourOperators.useQuery();
@@ -186,16 +190,16 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <Ticket className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-semibold text-primary">{editId ? "Edit Ticket" : "New Ticket"}</span>
+          <span className="text-xs font-semibold text-primary">{editId ? t("editTicket") : t("newTicket")}</span>
           {!editId && <span className="text-[11px] text-muted-foreground">— No. auto-generated</span>}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
           <span className="text-[11px] text-muted-foreground"><span className="text-destructive">*</span> required</span>
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onDone(false)}>
-            {editId ? "Cancel" : "Clear"}
+            {editId ? tc("cancel") : tc("clear")}
           </Button>
           <Button type="submit" disabled={isPending} size="sm" className="h-7 px-3 text-xs min-w-[100px]">
-            {isPending ? "Saving…" : editId ? "Update" : "Save Ticket"}
+            {isPending ? tc("saving") : editId ? tc("save") : t("newTicket")}
           </Button>
         </div>
       </div>
@@ -350,6 +354,8 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
 
 // ─── Main Page ────────────────────────────────────────────────────
 export default function ExcursionBookingsPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const [editId, setEditId] = useState<string | undefined>();
   const [formKey, setFormKey] = useState(0); // bump to reset form
   const [search, setSearch] = useState("");
@@ -399,13 +405,13 @@ export default function ExcursionBookingsPage() {
       {/* ── Page Header ── */}
       <div className="flex items-center justify-between border-b bg-background px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Excursion Bookings</h1>
-          <p className="text-sm text-muted-foreground">Central ticket pool — Manual, B2C, Hotel Guide & B2B</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("excursionBookings")}</h1>
+          <p className="text-sm text-muted-foreground">{t("excursionBookingsCentral")}</p>
         </div>
         {editId && (
           <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5">
             <PencilLine className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs font-semibold text-primary">Editing mode</span>
+            <span className="text-xs font-semibold text-primary">{t("editingMode")}</span>
             <button onClick={() => handleDone(false)} className="ml-1 rounded-full p-0.5 hover:bg-primary/10">
               <X className="h-3.5 w-3.5 text-primary" />
             </button>
@@ -494,7 +500,8 @@ export default function ExcursionBookingsPage() {
                   const Icon = sc.icon;
                   const isEditing = editId === t.id;
                   return (
-                    <tr key={t.id} className={cn(
+                    <PermissionGuard permission="crm:booking:read">
+                      <tr key={t.id} className={cn(
                       "transition-colors",
                       isEditing ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : "hover:bg-muted/20",
                     )}>
@@ -565,6 +572,7 @@ export default function ExcursionBookingsPage() {
                         </div>
                       </td>
                     </tr>
+                    </PermissionGuard>
                   );
                 })}
               </tbody>

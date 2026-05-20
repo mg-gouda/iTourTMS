@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { ArrowLeft, Printer } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -22,6 +23,7 @@ import { trpc } from "@/lib/trpc";
 import { formatSeasonLabel } from "@/lib/utils";
 import type { AppRouter } from "@/server/trpc/router";
 import type { inferRouterOutputs } from "@trpc/server";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +51,8 @@ function fmtDecimal(v: unknown): string {
 // ---------------------------------------------------------------------------
 
 export default function ContractPrintPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const params = useParams();
   const router = useRouter();
   const contractId = params.id as string;
@@ -68,7 +72,7 @@ export default function ContractPrintPage() {
   if (isLoading || !contract) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading contract data...</p>
+        <p className="text-muted-foreground">{t("loading")}</p>
       </div>
     );
   }
@@ -79,7 +83,7 @@ export default function ContractPrintPage() {
       <div className="mb-6 flex items-center gap-3" data-print="hide">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="mr-1 h-4 w-4" />
-          Back
+          {t("backBtn")}
         </Button>
         <Button
           variant="default"
@@ -87,7 +91,7 @@ export default function ContractPrintPage() {
           onClick={() => window.print()}
         >
           <Printer className="mr-1 h-4 w-4" />
-          Print / Save as PDF
+          {t("printSaveAsPdf")}
         </Button>
       </div>
 
@@ -641,7 +645,8 @@ function MarketingContributionsTable({ contract }: { contract: ExportContract })
 function TermsAndNotes({ contract }: { contract: ExportContract }) {
   if (!contract.terms && !contract.internalNotes && !contract.hotelNotes) return null;
   return (
-    <div className="print-break-before">
+    <PermissionGuard permission="contracting:contract:read">
+      <div className="print-break-before">
       <SectionTitle>Terms & Notes</SectionTitle>
       {contract.terms && (
         <div className="mb-4 print-avoid-break">
@@ -662,5 +667,6 @@ function TermsAndNotes({ contract }: { contract: ExportContract }) {
         </div>
       )}
     </div>
+    </PermissionGuard>
   );
 }

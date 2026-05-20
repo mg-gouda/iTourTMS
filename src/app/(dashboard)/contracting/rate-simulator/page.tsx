@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Calculator, AlertTriangle, CheckCircle, Save } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +19,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function RateSimulatorPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const [contractId, setContractId] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -89,10 +93,9 @@ export default function RateSimulatorPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Rate Simulator</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("rateSimulator")}</h1>
         <p className="text-muted-foreground">
-          Verify rate calculations for any contract, dates, and guest
-          configuration
+          {t("rateSimulatorDesc")}
         </p>
       </div>
 
@@ -101,14 +104,14 @@ export default function RateSimulatorPage() {
         <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
             <div className="md:col-span-2">
-              <Label>Contract</Label>
+              <Label>{t("contract")}</Label>
               <Select value={contractId || "none"} onValueChange={(v) => setContractId(v === "none" ? "" : v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select contract..." />
+                  <SelectValue placeholder={t("selectContractPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none" disabled>
-                    Select contract
+                    {t("selectContract")}
                   </SelectItem>
                   {contracts.map((c: { id: string; code: string; name: string; hotel?: { name: string } }) => (
                     <SelectItem key={c.id} value={c.id}>
@@ -120,7 +123,7 @@ export default function RateSimulatorPage() {
               </Select>
             </div>
             <div>
-              <Label>Check-in</Label>
+              <Label>{tc("checkIn")}</Label>
               <Input
                 type="date"
                 value={checkIn}
@@ -128,7 +131,7 @@ export default function RateSimulatorPage() {
               />
             </div>
             <div>
-              <Label>Check-out</Label>
+              <Label>{tc("checkOut")}</Label>
               <Input
                 type="date"
                 value={checkOut}
@@ -137,7 +140,7 @@ export default function RateSimulatorPage() {
               />
             </div>
             <div>
-              <Label>Adults</Label>
+              <Label>{tc("adults")}</Label>
               <Input
                 type="number"
                 min={1}
@@ -147,7 +150,7 @@ export default function RateSimulatorPage() {
               />
             </div>
             <div>
-              <Label>Booking Date</Label>
+              <Label>{t("bookingDate")}</Label>
               <Input
                 type="date"
                 value={bookingDate}
@@ -159,7 +162,7 @@ export default function RateSimulatorPage() {
           {/* Child ages */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button variant="outline" size="sm" onClick={addChild}>
-              + Add Child
+              + {t("addChild")}
             </Button>
             {childAges.map((age, i) => (
               <div key={i} className="flex items-center gap-1">
@@ -195,11 +198,11 @@ export default function RateSimulatorPage() {
                 onChange={(e) => setShowOffers(e.target.checked)}
                 className="rounded"
               />
-              Show offer eligibility
+              {t("showOfferEligibility")}
             </label>
             <Button disabled={!enabled} onClick={() => refetch()}>
               <Calculator className="mr-2 h-4 w-4" />
-              Simulate
+              {t("simulate")}
             </Button>
           </div>
         </CardContent>
@@ -245,7 +248,7 @@ export default function RateSimulatorPage() {
                   disabled={saveMutation.isPending}
                 >
                   <Save className="mr-1 h-4 w-4" />
-                  Save
+                  {tc("save")}
                 </Button>
               </div>
             </CardHeader>
@@ -257,7 +260,7 @@ export default function RateSimulatorPage() {
               <CardContent className="pt-4">
                 <h3 className="mb-2 flex items-center gap-2 font-semibold text-yellow-800">
                   <AlertTriangle className="h-4 w-4" />
-                  Warnings
+                  {tc("warnings")}
                 </h3>
                 <ul className="space-y-1">
                   {result.warnings.map((w, i) => (
@@ -275,7 +278,7 @@ export default function RateSimulatorPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Nightly Breakdown
+                  {t("nightlyBreakdown")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -284,9 +287,9 @@ export default function RateSimulatorPage() {
                     <thead>
                       <tr className="border-b text-left text-xs text-muted-foreground">
                         <th className="pb-2">Night</th>
-                        <th className="pb-2">Date</th>
-                        <th className="pb-2">Season</th>
-                        <th className="pb-2 text-right">Rate</th>
+                        <th className="pb-2">{tc("date")}</th>
+                        <th className="pb-2">{t("season")}</th>
+                        <th className="pb-2 text-right">{t("rate")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -313,15 +316,15 @@ export default function RateSimulatorPage() {
           {result.rateMatrix && result.rateMatrix.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Rate Matrix</CardTitle>
+                <CardTitle className="text-base">{t("rateMatrix")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b text-left text-xs text-muted-foreground">
-                        <th className="pb-2">Room Type</th>
-                        <th className="pb-2">Meal Plan</th>
+                        <th className="pb-2">{t("roomType")}</th>
+                        <th className="pb-2">{t("mealPlan")}</th>
                         <th className="pb-2 text-right">Total Rate</th>
                         <th className="pb-2 text-right">Avg/Night</th>
                         <th className="pb-2 text-right font-bold">After Offers</th>
@@ -358,7 +361,7 @@ export default function RateSimulatorPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Special Offer Eligibility
+                  {t("specialOfferEligibility")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -389,7 +392,7 @@ export default function RateSimulatorPage() {
                                 offer.eligible ? "default" : "secondary"
                               }
                             >
-                              {offer.eligible ? "Eligible" : "Not Eligible"}
+                              {offer.eligible ? tc("eligible") : tc("notEligible")}
                             </Badge>
                             <span className="font-medium">
                               {offer.offerName}
@@ -435,12 +438,20 @@ export default function RateSimulatorPage() {
       )}
 
       {/* Saved Results */}
-      {contractId && <SavedResults contractId={contractId} />}
+      {contractId && <SavedResults contractId={contractId} t={t} tc={tc} />}
     </div>
   );
 }
 
-function SavedResults({ contractId }: { contractId: string }) {
+function SavedResults({
+  contractId,
+  t,
+  tc,
+}: {
+  contractId: string;
+  t: (key: string) => string;
+  tc: (key: string) => string;
+}) {
   const utils = trpc.useUtils();
   const { data: results } = trpc.contracting.rateVerification.listResults.useQuery({ contractId });
   const deleteMutation = trpc.contracting.rateVerification.deleteResult.useMutation({
@@ -456,7 +467,7 @@ function SavedResults({ contractId }: { contractId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Saved Simulations</CardTitle>
+        <CardTitle className="text-base">{t("savedSimulations")}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">

@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,7 @@ import {
 import { BUDGET_MONTH_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
 import { budgetCreateSchema } from "@/lib/validations/finance";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof budgetCreateSchema>;
 
@@ -45,6 +47,8 @@ const amountKeys = [
 ] as const;
 
 export default function NewBudgetPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -95,11 +99,12 @@ export default function NewBudgetPage() {
   }
 
   return (
+    <PermissionGuard permission="finance:budget:read">
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">New Budget</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("newBudget")}</h1>
         <p className="text-sm text-muted-foreground">
-          Create a budget with monthly amounts per account
+          {t("newBudgetDesc")}
         </p>
       </div>
 
@@ -111,7 +116,7 @@ export default function NewBudgetPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Budget Name</FormLabel>
+                  <FormLabel>{t("budgetName")}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="e.g. Operating Budget 2026"
@@ -127,14 +132,14 @@ export default function NewBudgetPage() {
               name="fiscalYearId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fiscal Year</FormLabel>
+                  <FormLabel>{t("fiscalYears")}</FormLabel>
                   <FormControl>
                     <Combobox
                       options={(fiscalYears ?? []).map((fy: any) => ({ value: fy.id, label: fy.name }))}
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
-                      placeholder="Select fiscal year"
-                      searchPlaceholder="Search fiscal years..."
+                      placeholder={tc("select")}
+                      searchPlaceholder={tc("search")}
                     />
                   </FormControl>
                   <FormMessage />
@@ -146,14 +151,14 @@ export default function NewBudgetPage() {
           {/* Budget Lines - Spreadsheet Style */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium">Budget Lines</h2>
+              <h2 className="text-lg font-medium">{t("budgetLines")}</h2>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => append({ ...emptyLine })}
               >
-                <Plus className="mr-1 h-4 w-4" /> Add Line
+                <Plus className="mr-1 h-4 w-4" /> {t("addLine")}
               </Button>
             </div>
 
@@ -162,7 +167,7 @@ export default function NewBudgetPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 z-10 min-w-[200px] bg-background">
-                      Account
+                      {t("accountName")}
                     </TableHead>
                     {BUDGET_MONTH_LABELS.map((m) => (
                       <TableHead
@@ -173,7 +178,7 @@ export default function NewBudgetPage() {
                       </TableHead>
                     ))}
                     <TableHead className="min-w-[100px] text-right">
-                      Annual
+                      {t("annualTotal")}
                     </TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
@@ -190,8 +195,8 @@ export default function NewBudgetPage() {
                               options={((accounts as any) ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
                               value={f.value ?? ""}
                               onValueChange={f.onChange}
-                              placeholder="Account"
-                              searchPlaceholder="Search accounts..."
+                              placeholder={t("accountName")}
+                              searchPlaceholder={tc("search")}
                             />
                           )}
                         />
@@ -227,7 +232,7 @@ export default function NewBudgetPage() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            title="Distribute evenly"
+                            title={t("distributeEvenly")}
                             onClick={() => distributeEvenly(lineIdx)}
                           >
                             =
@@ -264,18 +269,19 @@ export default function NewBudgetPage() {
 
           <div className="flex gap-3">
             <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Budget"}
+              {createMutation.isPending ? tc("creating") : t("newBudget")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/finance/accounting/budgets")}
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           </div>
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

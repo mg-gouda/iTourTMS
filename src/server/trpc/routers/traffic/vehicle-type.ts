@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { vehicleTypeCreateSchema, vehicleTypeUpdateSchema } from "@/lib/validations/traffic";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("traffic");
+const p = (code: string) => modulePermissionProcedure("traffic", code);
 
 export const vehicleTypeRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("traffic:vehicle:read").query(async ({ ctx }) => {
     return ctx.db.ttVehicleType.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -16,7 +16,7 @@ export const vehicleTypeRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("traffic:vehicle:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.ttVehicleType.findFirstOrThrow({
@@ -27,7 +27,7 @@ export const vehicleTypeRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("traffic:vehicle:create")
     .input(vehicleTypeCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.ttVehicleType.findFirst({
@@ -41,7 +41,7 @@ export const vehicleTypeRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("traffic:vehicle:update")
     .input(z.object({ id: z.string(), data: vehicleTypeUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttVehicleType.update({
@@ -50,7 +50,7 @@ export const vehicleTypeRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("traffic:vehicle:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const vehicleCount = await ctx.db.ttVehicle.count({

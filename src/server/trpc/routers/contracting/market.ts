@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { marketCreateSchema, marketUpdateSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const marketRouter = createTRPCRouter({
-  list: proc.query(async ({ ctx }) => {
+  list: p("contracting:market:read").query(async ({ ctx }) => {
     return ctx.db.market.findMany({
       where: { companyId: ctx.companyId },
       include: {
@@ -16,7 +16,7 @@ export const marketRouter = createTRPCRouter({
     });
   }),
 
-  getById: proc
+  getById: p("contracting:market:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.market.findFirstOrThrow({
@@ -41,7 +41,7 @@ export const marketRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("contracting:market:create")
     .input(marketCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.market.create({
@@ -52,7 +52,7 @@ export const marketRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("contracting:market:update")
     .input(z.object({ id: z.string(), data: marketUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.market.update({
@@ -61,7 +61,7 @@ export const marketRouter = createTRPCRouter({
       });
     }),
 
-  delete: proc
+  delete: p("contracting:market:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.market.delete({
@@ -69,7 +69,7 @@ export const marketRouter = createTRPCRouter({
       });
     }),
 
-  listByContract: proc
+  listByContract: p("contracting:market:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -85,7 +85,7 @@ export const marketRouter = createTRPCRouter({
       });
     }),
 
-  assign: proc
+  assign: p("contracting:market:manage")
     .input(z.object({ contractId: z.string(), marketIds: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -112,7 +112,7 @@ export const marketRouter = createTRPCRouter({
       return { assigned: newMarketIds.length };
     }),
 
-  unassign: proc
+  unassign: p("contracting:market:manage")
     .input(z.object({ contractId: z.string(), marketId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({

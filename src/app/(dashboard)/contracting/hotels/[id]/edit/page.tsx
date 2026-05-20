@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -29,12 +30,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { STAR_RATING_LABELS } from "@/lib/constants/contracting";
 import { trpc } from "@/lib/trpc";
 import { hotelUpdateSchema } from "@/lib/validations/contracting";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type FormValues = z.input<typeof hotelUpdateSchema>;
 
 const STAR_OPTIONS = Object.entries(STAR_RATING_LABELS) as [string, string][];
 
 export default function EditHotelPage() {
+  const t = useTranslations("contracting");
+  const tc = useTranslations("common");
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -144,6 +148,7 @@ export default function EditHotelPage() {
   }
 
   return (
+    <PermissionGuard permission="contracting:hotel:read">
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Edit Hotel</h1>
@@ -654,5 +659,6 @@ export default function EditHotelPage() {
         </form>
       </Form>
     </div>
+    </PermissionGuard>
   );
 }

@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type PaymentTerm = {
   id: string;
@@ -93,6 +94,7 @@ export default function PaymentTermsPage() {
   const { data, isLoading } = trpc.finance.paymentTerm.list.useQuery();
 
   return (
+    <PermissionGuard permission="finance:paymentTerm:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -125,5 +127,6 @@ export default function PaymentTermsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

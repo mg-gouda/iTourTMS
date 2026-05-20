@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function RevenueAnalyticsPage() {
   const currentYear = new Date().getFullYear();
@@ -27,7 +28,9 @@ export default function RevenueAnalyticsPage() {
   const avgMarginPct = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
 
   return (
-    <div className="space-y-6 p-6">
+
+    <PermissionGuard permission="tour-ops:report:read">
+      <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">Revenue Analytics</h1>
         <p className="text-sm text-muted-foreground">Revenue, cost and margin trends</p>
@@ -131,5 +134,9 @@ export default function RevenueAnalyticsPage() {
         </Card>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

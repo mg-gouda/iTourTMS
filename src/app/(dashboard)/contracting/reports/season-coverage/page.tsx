@@ -32,6 +32,7 @@ import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
 import { cn, formatSeasonLabel } from "@/lib/utils";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function SeasonCoveragePage() {
   const router = useRouter();
@@ -86,6 +87,7 @@ export default function SeasonCoveragePage() {
   const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
 
   return (
+    <PermissionGuard permission="contracting:report:read">
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="page-header">
@@ -294,5 +296,6 @@ export default function SeasonCoveragePage() {
         </Card>
       )}
     </div>
+    </PermissionGuard>
   );
 }

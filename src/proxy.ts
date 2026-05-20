@@ -70,12 +70,19 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
-  // Check for session token (next-auth v5 JWT cookie)
+  // Check for session token (next-auth v5 JWT cookie).
+  // Auth.js chunks large JWTs into authjs.session-token.0 / .1 / .2 etc.
+  // when the payload exceeds the 4 KB cookie limit (happens when the JWT
+  // carries many permission codes). We only need existence, not validity.
   const token =
     request.cookies.get("authjs.session-token") ??
+    request.cookies.get("authjs.session-token.0") ??
     request.cookies.get("__Secure-authjs.session-token") ??
+    request.cookies.get("__Secure-authjs.session-token.0") ??
     request.cookies.get("next-auth.session-token") ??
-    request.cookies.get("__Secure-next-auth.session-token");
+    request.cookies.get("next-auth.session-token.0") ??
+    request.cookies.get("__Secure-next-auth.session-token") ??
+    request.cookies.get("__Secure-next-auth.session-token.0");
 
   if (!token) {
     const loginUrl = new URL("/login", request.url);

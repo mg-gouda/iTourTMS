@@ -6,6 +6,7 @@ import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type InvRow = {
   id: string;
@@ -30,6 +31,7 @@ export default function InvoicesToBeIssuedPage() {
   const { data, isLoading } = trpc.finance.review.invoicesToBeIssued.useQuery({ page: 1, pageSize: 100 });
 
   return (
+    <PermissionGuard permission="finance:auditTrail:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -42,5 +44,6 @@ export default function InvoicesToBeIssuedPage() {
         <DataTable columns={columns} data={(data?.items as any) ?? []} searchKey="name" searchPlaceholder="Search invoices..." />
       )}
     </div>
+    </PermissionGuard>
   );
 }

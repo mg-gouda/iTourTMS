@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 export default function EditMarkupPage({
   params,
@@ -20,6 +22,8 @@ export default function EditMarkupPage({
   const { id } = use(params);
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useTranslations("b2bPortal");
+  const tc = useTranslations("common");
   const { data: markup, isLoading } = trpc.b2bPortal.markup.getById.useQuery({ id });
 
   const [name, setName] = useState("");
@@ -40,7 +44,7 @@ export default function EditMarkupPage({
 
   const updateMutation = trpc.b2bPortal.markup.update.useMutation({
     onSuccess: () => {
-      toast.success("Markup rule updated");
+      toast.success(t("markupRuleUpdated"));
       utils.b2bPortal.markup.list.invalidate();
       router.push("/b2b-portal/markups");
     },
@@ -48,67 +52,69 @@ export default function EditMarkupPage({
   });
 
   if (isLoading) {
-    return <div className="py-10 text-center text-muted-foreground">Loading...</div>;
+    return <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>;
   }
 
   if (!markup) {
-    return <div className="py-10 text-center text-muted-foreground">Markup rule not found.</div>;
+    return <div className="py-10 text-center text-muted-foreground">{tc("noData")}</div>;
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+
+    <PermissionGuard permission="b2b-portal:markup:read">
+      <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Edit Markup Rule</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("editMarkupRule")}</h1>
         <p className="text-muted-foreground">{markup.name}</p>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Markup Details</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("markupDetails")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Name</Label>
+            <Label>{tc("name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Markup Type</Label>
+              <Label>{t("markupType")}</Label>
               <Select value={markupType} onValueChange={setMarkupType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                  <SelectItem value="FIXED_PER_NIGHT">Fixed Per Night</SelectItem>
-                  <SelectItem value="FIXED_PER_BOOKING">Fixed Per Booking</SelectItem>
+                  <SelectItem value="PERCENTAGE">{tc("percentage")}</SelectItem>
+                  <SelectItem value="FIXED_PER_NIGHT">{t("fixedPerNight")}</SelectItem>
+                  <SelectItem value="FIXED_PER_BOOKING">{t("fixedPerBooking")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Value</Label>
+              <Label>{tc("value")}</Label>
               <Input type="number" min={0} step="0.01" value={value} onChange={(e) => setValue(e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Priority</Label>
+              <Label>{t("priority")}</Label>
               <Input type="number" value={priority} onChange={(e) => setPriority(Number(e.target.value))} />
             </div>
             <div className="flex items-center gap-2 pt-6">
               <Switch checked={active} onCheckedChange={setActive} />
-              <Label>Active</Label>
+              <Label>{tc("active")}</Label>
             </div>
           </div>
 
           {/* Read-only scope info */}
           <div className="rounded-md border p-3 text-sm space-y-1">
-            <p className="font-medium">Scope</p>
+            <p className="font-medium">{t("scope")}</p>
             {markup.contract && <p>Contract: {markup.contract.name}</p>}
             {markup.hotel && <p>Hotel: {markup.hotel.name}</p>}
             {markup.destination && <p>Destination: {markup.destination.name}</p>}
             {markup.market && <p>Market: {markup.market.name}</p>}
             {markup.tourOperator && <p>Tour Operator: {markup.tourOperator.name}</p>}
             {!markup.contract && !markup.hotel && !markup.destination && !markup.market && !markup.tourOperator && (
-              <p className="text-muted-foreground">Global (no scope filter)</p>
+              <p className="text-muted-foreground">{t("global")}</p>
             )}
           </div>
 
@@ -128,12 +134,16 @@ export default function EditMarkupPage({
                 })
               }
             >
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isPending ? tc("saving") : tc("saveChanges")}
             </Button>
-            <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+            <Button variant="outline" onClick={() => router.back()}>{tc("cancel")}</Button>
           </div>
         </CardContent>
       </Card>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

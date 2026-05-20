@@ -1,9 +1,11 @@
 "use client";
 
 import { use } from "react";
+import { useTranslations } from "next-intl";
 
 import { BankStatementForm } from "@/components/finance/bank-statement-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function ViewBankStatementPage({
   params,
@@ -11,33 +13,36 @@ export default function ViewBankStatementPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.finance.bankStatement.getById.useQuery({
     id,
   });
 
   if (isLoading) {
     return (
-      <div className="text-muted-foreground py-10 text-center">Loading...</div>
+      <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
     );
   }
 
   if (!data) {
     return (
       <div className="text-muted-foreground py-10 text-center">
-        Bank statement not found.
+        {t("bankStatementNotFound")}
       </div>
     );
   }
 
   return (
+    <PermissionGuard permission="finance:bankStatement:read">
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {data.name ?? "Draft Statement"}
+            {data.name ?? t("draftStatementTitle")}
           </h1>
           <p className="text-muted-foreground">
-            {data.journal?.name ?? "Bank Statement"}
+            {data.journal?.name ?? t("bankStatement")}
           </p>
         </div>
         <button
@@ -63,7 +68,7 @@ export default function ViewBankStatementPage({
             pdf.save(`${data.name ?? "statement"}.pdf`);
           }}
         >
-          Download PDF
+          {t("downloadPdf")}
         </button>
       </div>
       <BankStatementForm
@@ -90,5 +95,6 @@ export default function ViewBankStatementPage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

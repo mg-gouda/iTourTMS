@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { addonCreateSchema, addonUpdateSchema } from "@/lib/validations/crm";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("crm");
+const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const addonRouter = createTRPCRouter({
-  listByExcursion: proc
+  listByExcursion: p("crm:excursion:read")
     .input(z.object({ excursionId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -18,7 +18,7 @@ export const addonRouter = createTRPCRouter({
       });
     }),
 
-  create: proc
+  create: p("crm:excursion:create")
     .input(addonCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({
@@ -35,7 +35,7 @@ export const addonRouter = createTRPCRouter({
       });
     }),
 
-  update: proc
+  update: p("crm:excursion:update")
     .input(z.object({ id: z.string(), data: addonUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const addon = await ctx.db.crmExcursionAddon.findFirstOrThrow({
@@ -51,7 +51,7 @@ export const addonRouter = createTRPCRouter({
       return ctx.db.crmExcursionAddon.update({ where: { id: input.id }, data });
     }),
 
-  delete: proc
+  delete: p("crm:excursion:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const addon = await ctx.db.crmExcursionAddon.findFirstOrThrow({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   CheckCircle,
   Clock,
@@ -22,8 +23,11 @@ import {
   OPS_FILE_STATUS_VARIANTS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function TourOpsDashboardPage() {
+  const t = useTranslations("tourOps");
+  const tCommon = useTranslations("common");
   const { data, isLoading } = trpc.tourOps.file.dashboard.useQuery();
 
   const statusMap = Object.fromEntries(
@@ -38,12 +42,12 @@ export default function TourOpsDashboardPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Tour Operations</h1>
-          <p className="text-sm text-muted-foreground">File management, packages & quotations</p>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("tourFiles")}</p>
         </div>
         <Button asChild>
           <Link href="/tour-ops/files/new">
-            <Plus className="mr-2 h-4 w-4" /> New File
+            <Plus className="mr-2 h-4 w-4" /> {t("newFile")}
           </Link>
         </Button>
       </div>
@@ -51,10 +55,10 @@ export default function TourOpsDashboardPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { label: "Open Files", value: (statusMap.DRAFT ?? 0) + (statusMap.QUOTED ?? 0), icon: FolderOpen, color: "text-blue-500" },
-          { label: "Confirmed", value: (statusMap.CONFIRMED ?? 0) + (statusMap.IN_PROGRESS ?? 0), icon: CheckCircle, color: "text-green-500" },
-          { label: "Confirmed Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-emerald-500" },
-          { label: "Margin", value: totalCost > 0 ? `${((totalMargin / totalRevenue) * 100).toFixed(1)}%` : "—", icon: TrendingUp, color: "text-violet-500" },
+          { label: t("openFiles"), value: (statusMap.DRAFT ?? 0) + (statusMap.QUOTED ?? 0), icon: FolderOpen, color: "text-blue-500" },
+          { label: tCommon("confirmed"), value: (statusMap.CONFIRMED ?? 0) + (statusMap.IN_PROGRESS ?? 0), icon: CheckCircle, color: "text-green-500" },
+          { label: t("quotations"), value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-emerald-500" },
+          { label: t("marginPct"), value: totalCost > 0 ? `${((totalMargin / totalRevenue) * 100).toFixed(1)}%` : "—", icon: TrendingUp, color: "text-violet-500" },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="pt-4">
@@ -77,9 +81,9 @@ export default function TourOpsDashboardPage() {
       {/* Recent Files */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Recent Files</CardTitle>
+          <CardTitle className="text-base">{t("tourFiles")}</CardTitle>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/tour-ops/files">View All</Link>
+            <Link href="/tour-ops/files">{tCommon("view")}</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -90,9 +94,9 @@ export default function TourOpsDashboardPage() {
           ) : !data?.recentFiles.length ? (
             <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
               <FileText className="h-8 w-8" />
-              <p className="text-sm">No files yet</p>
+              <p className="text-sm">{tCommon("noData")}</p>
               <Button asChild size="sm">
-                <Link href="/tour-ops/files/new">Create your first file</Link>
+                <Link href="/tour-ops/files/new">{t("newFile")}</Link>
               </Button>
             </div>
           ) : (
@@ -104,7 +108,8 @@ export default function TourOpsDashboardPage() {
                     : file.tourOperator?.name ?? file.guestName ?? "—";
                 const latestQuotation = file.quotations[0];
                 return (
-                  <Link
+                  <PermissionGuard permission="tour-ops:read">
+                    <Link
                     key={file.id}
                     href={`/tour-ops/files/${file.id}`}
                     className="flex items-center justify-between py-3 hover:bg-muted/50 px-2 rounded transition-colors"
@@ -130,6 +135,7 @@ export default function TourOpsDashboardPage() {
                       </Badge>
                     </div>
                   </Link>
+                  </PermissionGuard>
                 );
               })}
             </div>

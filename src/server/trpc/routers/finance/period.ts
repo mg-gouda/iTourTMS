@@ -7,16 +7,16 @@ import {
   fiscalPeriodLockSchema,
   fiscalPeriodUnlockSchema,
 } from "@/lib/validations/finance";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generatePeriods } from "@/server/services/finance/period-engine";
 import { executeYearEndClose } from "@/server/services/finance/closing-engine";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const periodRouter = createTRPCRouter({
   // ── Fiscal Year CRUD ──
 
-  listYears: financeProcedure
+  listYears: p("finance:period:read")
     .input(
       z
         .object({ state: z.enum(["OPEN", "CLOSED"]).optional() })
@@ -36,7 +36,7 @@ export const periodRouter = createTRPCRouter({
       });
     }),
 
-  getYear: financeProcedure
+  getYear: p("finance:period:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const year = await ctx.db.fiscalYear.findFirst({
@@ -60,7 +60,7 @@ export const periodRouter = createTRPCRouter({
       return year;
     }),
 
-  createYear: financeProcedure
+  createYear: p("finance:period:create")
     .input(fiscalYearCreateSchema)
     .mutation(async ({ ctx, input }) => {
       // Check for overlapping fiscal years
@@ -112,7 +112,7 @@ export const periodRouter = createTRPCRouter({
       });
     }),
 
-  deleteYear: financeProcedure
+  deleteYear: p("finance:period:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const year = await ctx.db.fiscalYear.findFirst({
@@ -151,7 +151,7 @@ export const periodRouter = createTRPCRouter({
 
   // ── Period Locking ──
 
-  lockPeriod: financeProcedure
+  lockPeriod: p("finance:period:update")
     .input(fiscalPeriodLockSchema)
     .mutation(async ({ ctx, input }) => {
       const period = await ctx.db.fiscalPeriod.findFirst({
@@ -181,7 +181,7 @@ export const periodRouter = createTRPCRouter({
       });
     }),
 
-  unlockPeriod: financeProcedure
+  unlockPeriod: p("finance:period:update")
     .input(fiscalPeriodUnlockSchema)
     .mutation(async ({ ctx, input }) => {
       const period = await ctx.db.fiscalPeriod.findFirst({
@@ -220,7 +220,7 @@ export const periodRouter = createTRPCRouter({
       });
     }),
 
-  lockAllPeriods: financeProcedure
+  lockAllPeriods: p("finance:period:update")
     .input(z.object({ fiscalYearId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const year = await ctx.db.fiscalYear.findFirst({
@@ -253,7 +253,7 @@ export const periodRouter = createTRPCRouter({
 
   // ── Year-End Close ──
 
-  closeYear: financeProcedure
+  closeYear: p("finance:period:confirm")
     .input(fiscalYearCloseSchema)
     .mutation(async ({ ctx, input }) => {
       const year = await ctx.db.fiscalYear.findFirst({
@@ -324,7 +324,7 @@ export const periodRouter = createTRPCRouter({
       );
     }),
 
-  reopenYear: financeProcedure
+  reopenYear: p("finance:period:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const year = await ctx.db.fiscalYear.findFirst({
@@ -388,7 +388,7 @@ export const periodRouter = createTRPCRouter({
 
   // ── Helper Queries ──
 
-  checkDraftMoves: financeProcedure
+  checkDraftMoves: p("finance:period:read")
     .input(z.object({ periodId: z.string() }))
     .query(async ({ ctx, input }) => {
       const period = await ctx.db.fiscalPeriod.findFirst({

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 // cell state: key = `${hotelId}::${excursionId}`, value = "HH:MM" | ""
 type CellMap = Record<string, string>;
@@ -39,6 +41,8 @@ function TimeCell({
 }
 
 export default function PickupTimeSheetPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const [selectedDestId, setSelectedDestId] = useState<string | null>(null);
   const [cells, setCells] = useState<CellMap>({});
   const [dirty, setDirty] = useState(false);
@@ -114,11 +118,13 @@ export default function PickupTimeSheetPage() {
   const selectedDest = destinations?.find((d) => d.id === selectedDestId);
 
   return (
-    <div className="flex flex-1 flex-col gap-0 overflow-hidden">
+
+    <PermissionGuard permission="crm:booking:read">
+      <div className="flex flex-1 flex-col gap-0 overflow-hidden">
       {/* ── Header ── */}
       <div className="flex items-center justify-between border-b px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pick Up Time Sheet</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("pickUpTimeSheet")}</h1>
           <p className="text-sm text-muted-foreground">
             Set hotel pickup times per excursion, grouped by destination
           </p>
@@ -130,7 +136,7 @@ export default function PickupTimeSheetPage() {
           className="gap-1.5"
         >
           <Save className="h-3.5 w-3.5" />
-          {saveMutation.isPending ? "Saving…" : "Save Sheet"}
+          {saveMutation.isPending ? tc("saving") : tc("save")}
         </Button>
       </div>
 
@@ -284,5 +290,9 @@ export default function PickupTimeSheetPage() {
         </main>
       </div>
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

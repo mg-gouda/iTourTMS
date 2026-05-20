@@ -23,6 +23,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const VOUCHER_STATUS_LABELS: Record<string, string> = {
   ISSUED: "Issued",
@@ -173,7 +174,9 @@ function GenerateVoucherButton() {
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+
+    <PermissionGuard permission="b2b-portal:voucher:read">
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>Generate Voucher</Button>
       </DialogTrigger>
@@ -207,5 +210,9 @@ function GenerateVoucherButton() {
         </div>
       </DialogContent>
     </Dialog>
+  
+
+    </PermissionGuard>
+
   );
 }

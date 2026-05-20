@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { opsPackageCreateSchema, opsPackageUpdateSchema } from "@/lib/validations/tour-ops";
 
-const tourOpsProcedure = moduleProcedure("tour-ops");
+const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
 export const opsPackageRouter = createTRPCRouter({
-  list: tourOpsProcedure
+  list: p("tour-ops:package:read")
     .input(z.object({ fileId: z.string().optional(), isTemplate: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsPackage.findMany({
@@ -22,7 +22,7 @@ export const opsPackageRouter = createTRPCRouter({
       });
     }),
 
-  listTemplates: tourOpsProcedure
+  listTemplates: p("tour-ops:package:read")
     .input(z.object({ search: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.opsPackage.findMany({
@@ -39,7 +39,7 @@ export const opsPackageRouter = createTRPCRouter({
       });
     }),
 
-  getById: tourOpsProcedure
+  getById: p("tour-ops:package:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const pkg = await ctx.db.opsPackage.findFirst({
@@ -56,7 +56,7 @@ export const opsPackageRouter = createTRPCRouter({
       return pkg;
     }),
 
-  create: tourOpsProcedure
+  create: p("tour-ops:package:create")
     .input(opsPackageCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.opsPackage.create({
@@ -72,7 +72,7 @@ export const opsPackageRouter = createTRPCRouter({
       });
     }),
 
-  update: tourOpsProcedure
+  update: p("tour-ops:package:update")
     .input(z.object({ id: z.string(), data: opsPackageUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const pkg = await ctx.db.opsPackage.findFirst({
@@ -88,7 +88,7 @@ export const opsPackageRouter = createTRPCRouter({
       });
     }),
 
-  delete: tourOpsProcedure
+  delete: p("tour-ops:package:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const pkg = await ctx.db.opsPackage.findFirst({
@@ -98,7 +98,7 @@ export const opsPackageRouter = createTRPCRouter({
       return ctx.db.opsPackage.delete({ where: { id: input.id } });
     }),
 
-  cloneFromTemplate: tourOpsProcedure
+  cloneFromTemplate: p("tour-ops:package:create")
     .input(z.object({ templateId: z.string(), fileId: z.string(), name: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const template = await ctx.db.opsPackage.findFirst({
@@ -145,7 +145,7 @@ export const opsPackageRouter = createTRPCRouter({
       });
     }),
 
-  recalcTotalCost: tourOpsProcedure
+  recalcTotalCost: p("tour-ops:package:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const agg = await ctx.db.opsPackageComponent.aggregate({

@@ -1,40 +1,45 @@
 "use client";
 
 import { use } from "react";
+import { useTranslations } from "next-intl";
 
 import { MoveForm } from "@/components/finance/move-form";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function EditJournalEntryPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const { id } = use(params);
   const { data, isLoading } = trpc.finance.move.getById.useQuery({ id });
 
   if (isLoading) {
     return (
-      <div className="text-muted-foreground py-10 text-center">Loading...</div>
+      <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
     );
   }
 
   if (!data) {
     return (
       <div className="text-muted-foreground py-10 text-center">
-        Journal entry not found.
+        {t("journalEntryNotFound")}
       </div>
     );
   }
 
   return (
+    <PermissionGuard permission="finance:move:read">
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {data.name ?? "Draft Entry"}
+          {data.name ?? t("draftEntryTitle")}
         </h1>
         <p className="text-muted-foreground">
-          {data.ref ?? data.journal?.name ?? "Journal Entry"}
+          {data.ref ?? data.journal?.name ?? t("journalEntry")}
         </p>
       </div>
       <MoveForm
@@ -73,5 +78,6 @@ export default function EditJournalEntryPage({
         }}
       />
     </div>
+    </PermissionGuard>
   );
 }

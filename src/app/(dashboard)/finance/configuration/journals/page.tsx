@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { JOURNAL_TYPE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type Journal = {
   id: string;
@@ -108,6 +109,7 @@ export default function JournalsPage() {
   const { data, isLoading } = trpc.finance.journal.list.useQuery();
 
   return (
+    <PermissionGuard permission="finance:journal:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -140,5 +142,6 @@ export default function JournalsPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

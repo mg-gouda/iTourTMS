@@ -5,7 +5,7 @@ import {
   specialOfferCreateSchema,
   specialOfferUpdateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
 import {
   evaluateCombinability as evaluateOfferCombinability,
@@ -14,7 +14,7 @@ import {
 import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 async function verifyContract(
   db: PrismaClient,
@@ -27,7 +27,7 @@ async function verifyContract(
 }
 
 export const specialOfferRouter = createTRPCRouter({
-  listByContract: proc
+  listByContract: p("contracting:offer:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -37,7 +37,7 @@ export const specialOfferRouter = createTRPCRouter({
       });
     }),
 
-  getById: proc
+  getById: p("contracting:offer:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
@@ -50,7 +50,7 @@ export const specialOfferRouter = createTRPCRouter({
       return offer;
     }),
 
-  create: proc
+  create: p("contracting:offer:create")
     .input(specialOfferCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -96,7 +96,7 @@ export const specialOfferRouter = createTRPCRouter({
       return created;
     }),
 
-  update: proc
+  update: p("contracting:offer:update")
     .input(z.object({ id: z.string(), data: specialOfferUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
@@ -150,7 +150,7 @@ export const specialOfferRouter = createTRPCRouter({
       return updated;
     }),
 
-  delete: proc
+  delete: p("contracting:offer:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
@@ -179,7 +179,7 @@ export const specialOfferRouter = createTRPCRouter({
       return deleted;
     }),
 
-  toggleActive: proc
+  toggleActive: p("contracting:offer:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
@@ -209,7 +209,7 @@ export const specialOfferRouter = createTRPCRouter({
 
   // ── Offer Tiers ──
 
-  listTiers: proc
+  listTiers: p("contracting:offer:read")
     .input(z.object({ offerId: z.string() }))
     .query(async ({ ctx, input }) => {
       const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
@@ -225,7 +225,7 @@ export const specialOfferRouter = createTRPCRouter({
       });
     }),
 
-  saveTiers: proc
+  saveTiers: p("contracting:offer:update")
     .input(offerTierSaveSchema)
     .mutation(async ({ ctx, input }) => {
       const offer = await ctx.db.contractSpecialOffer.findFirstOrThrow({
@@ -269,7 +269,7 @@ export const specialOfferRouter = createTRPCRouter({
 
   // ── Offer Combinability Engine ──
 
-  evaluateCombinability: proc
+  evaluateCombinability: p("contracting:offer:read")
     .input(
       z.object({
         contractId: z.string(),

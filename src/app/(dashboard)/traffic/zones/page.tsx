@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function ZonesPage() {
   const utils = trpc.useUtils();
@@ -61,7 +62,9 @@ export default function ZonesPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:zone:read">
+      <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Transport Zones</h1><p className="text-muted-foreground">Manage pricing and coverage zones</p></div>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -123,5 +126,9 @@ export default function ZonesPage() {
         </div>
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

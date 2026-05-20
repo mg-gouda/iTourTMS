@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   DataTable,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MOVE_STATE_LABELS, PAYMENT_STATE_LABELS } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type MoveRow = {
   id: string;
@@ -128,30 +130,33 @@ function InvoiceActions({ move }: { move: MoveRow }) {
 }
 
 export default function CustomerInvoicesPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
   const router = useRouter();
   const { data, isLoading } = trpc.finance.move.list.useQuery({
     moveType: "OUT_INVOICE",
   });
 
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Customer Invoices</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("customerInvoices")}</h1>
           <p className="text-muted-foreground">
-            Manage customer invoices and track payments.
+            {t("customerInvoicesDesc")}
           </p>
         </div>
         <Button asChild>
           <Link href="/finance/customers/invoices/new">
             <Plus className="mr-2 size-4" />
-            New Invoice
+            {t("newInvoice")}
           </Link>
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-10 text-center">Loading...</div>
+        <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
       ) : (
         <DataTable
           columns={columns}
@@ -164,5 +169,6 @@ export default function CustomerInvoicesPage() {
         />
       )}
     </div>
+    </PermissionGuard>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Activity,
   AlertTriangle,
@@ -27,8 +28,11 @@ import {
   CRM_OPPORTUNITY_STAGE_LABELS,
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function CrmDashboardPage() {
+  const t = useTranslations("crm");
+  const tCommon = useTranslations("common");
   const { data: leadData, isLoading: leadLoading } = trpc.crm.lead.dashboard.useQuery();
   const { data: bookingData, isLoading: bookingLoading } = trpc.crm.booking.dashboard.useQuery();
   const { data: alertData } = trpc.crm.booking.alerts.useQuery();
@@ -39,8 +43,8 @@ export default function CrmDashboardPage() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Excursions</h1>
-          <p className="text-muted-foreground">Overview of your sales pipeline and leads</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("excursions")}</h1>
+          <p className="text-muted-foreground">{t("leads")}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -55,10 +59,10 @@ export default function CrmDashboardPage() {
   }
 
   const leadKpis = [
-    { title: "Total Leads", value: leadData?.totalLeads ?? 0, icon: Users, color: "text-blue-600" },
-    { title: "New Leads", value: leadData?.newLeads ?? 0, icon: UserPlus, color: "text-green-600" },
-    { title: "Qualified", value: leadData?.qualifiedLeads ?? 0, icon: TrendingUp, color: "text-amber-600" },
-    { title: "Pipeline Value", value: `$${Number(leadData?.pipelineValue ?? 0).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600" },
+    { title: t("leads"), value: leadData?.totalLeads ?? 0, icon: Users, color: "text-blue-600" },
+    { title: t("newLead"), value: leadData?.newLeads ?? 0, icon: UserPlus, color: "text-green-600" },
+    { title: t("qualified"), value: leadData?.qualifiedLeads ?? 0, icon: TrendingUp, color: "text-amber-600" },
+    { title: t("opportunities"), value: `$${Number(leadData?.pipelineValue ?? 0).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600" },
   ];
 
   const totalRevenue = bookingData?.totalRevenue ?? 0;
@@ -67,29 +71,29 @@ export default function CrmDashboardPage() {
   const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue * 100) : 0;
 
   const bookingKpis = [
-    { title: "Total Bookings", value: bookingData?.total ?? 0, icon: FileText, color: "text-blue-600" },
-    { title: "Confirmed", value: bookingData?.confirmed ?? 0, icon: CalendarCheck, color: "text-green-600" },
-    { title: "Draft", value: bookingData?.draft ?? 0, icon: FileText, color: "text-amber-600" },
-    { title: "Upcoming", value: bookingData?.upcoming ?? 0, icon: CalendarCheck, color: "text-purple-600" },
+    { title: t("bookings"), value: bookingData?.total ?? 0, icon: FileText, color: "text-blue-600" },
+    { title: t("confirmed"), value: bookingData?.confirmed ?? 0, icon: CalendarCheck, color: "text-green-600" },
+    { title: t("draft"), value: bookingData?.draft ?? 0, icon: FileText, color: "text-amber-600" },
+    { title: tCommon("pending"), value: bookingData?.upcoming ?? 0, icon: CalendarCheck, color: "text-purple-600" },
   ];
 
   const revenueKpis = [
-    { title: "Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: Receipt, color: "text-green-600" },
-    { title: "Cost", value: `$${totalCost.toLocaleString()}`, icon: Wallet, color: "text-red-500" },
-    { title: "Profit", value: `$${totalProfit.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600" },
-    { title: "Margin", value: `${overallMargin.toFixed(1)}%`, icon: TrendingUp, color: "text-blue-600" },
+    { title: t("totalRevenue"), value: `$${totalRevenue.toLocaleString()}`, icon: Receipt, color: "text-green-600" },
+    { title: t("totalCost"), value: `$${totalCost.toLocaleString()}`, icon: Wallet, color: "text-red-500" },
+    { title: t("totalProfit"), value: `$${totalProfit.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600" },
+    { title: t("margin"), value: `${overallMargin.toFixed(1)}%`, icon: TrendingUp, color: "text-blue-600" },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Excursions</h1>
-        <p className="text-muted-foreground">Overview of your sales pipeline, leads, and bookings</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("excursions")}</h1>
+        <p className="text-muted-foreground">{t("title")}</p>
       </div>
 
       {/* Lead KPIs */}
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Leads & Pipeline</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("leads")}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {leadKpis.map((kpi) => (
             <Card key={kpi.title}>
@@ -107,7 +111,7 @@ export default function CrmDashboardPage() {
 
       {/* Booking KPIs */}
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Bookings</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("bookings")}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {bookingKpis.map((kpi) => (
             <Card key={kpi.title}>
@@ -125,7 +129,7 @@ export default function CrmDashboardPage() {
 
       {/* Revenue KPIs */}
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Revenue (Confirmed & Completed)</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("totalRevenue")}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {revenueKpis.map((kpi) => (
             <Card key={kpi.title}>
@@ -150,7 +154,7 @@ export default function CrmDashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Clock className="h-4 w-4 text-blue-600" />
-                  Upcoming Bookings (Next 7 Days)
+                  {t("bookings")}
                   <Badge variant="secondary" className="ml-auto">{alertData!.upcomingBookings.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -196,7 +200,7 @@ export default function CrmDashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Overdue Activities
+                  {t("activities")}
                   <Badge variant="destructive" className="ml-auto">{alertData!.overdueActivities.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -214,7 +218,8 @@ export default function CrmDashboardPage() {
                           ? activity.booking.code
                           : null;
                     return (
-                      <div key={activity.id} className="flex items-center justify-between rounded-md border p-3">
+                      <PermissionGuard permission="crm:read">
+                        <div key={activity.id} className="flex items-center justify-between rounded-md border p-3">
                         <div>
                           <p className="text-sm font-medium">{activity.subject}</p>
                           <div className="flex items-center gap-2">
@@ -227,6 +232,7 @@ export default function CrmDashboardPage() {
                         </div>
                         <Badge variant="destructive">{daysOverdue}d overdue</Badge>
                       </div>
+                      </PermissionGuard>
                     );
                   })}
                 </div>
@@ -241,13 +247,13 @@ export default function CrmDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
-              <span className="flex items-center gap-2"><UserPlus className="h-4 w-4" /> Recent Leads</span>
-              <Link href="/crm/leads" className="text-xs text-muted-foreground hover:underline">View all</Link>
+              <span className="flex items-center gap-2"><UserPlus className="h-4 w-4" /> {t("leads")}</span>
+              <Link href="/crm/leads" className="text-xs text-muted-foreground hover:underline">{tCommon("view")}</Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {(leadData?.recentLeads?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No leads yet</p>
+              <p className="text-sm text-muted-foreground">{tCommon("noData")}</p>
             ) : (
               <div className="space-y-3">
                 {leadData?.recentLeads.map((lead) => (
@@ -270,13 +276,13 @@ export default function CrmDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
-              <span className="flex items-center gap-2"><Activity className="h-4 w-4" /> Pipeline by Stage</span>
-              <Link href="/crm/pipeline" className="text-xs text-muted-foreground hover:underline">View all</Link>
+              <span className="flex items-center gap-2"><Activity className="h-4 w-4" /> {t("pipeline")}</span>
+              <Link href="/crm/pipeline" className="text-xs text-muted-foreground hover:underline">{tCommon("view")}</Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {(leadData?.stageBreakdown?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No opportunities yet</p>
+              <p className="text-sm text-muted-foreground">{tCommon("noData")}</p>
             ) : (
               <div className="space-y-3">
                 {leadData?.stageBreakdown.map((stage) => (
@@ -284,7 +290,7 @@ export default function CrmDashboardPage() {
                     <div>
                       <p className="text-sm font-medium">{CRM_OPPORTUNITY_STAGE_LABELS[stage.stage]}</p>
                       <p className="text-xs text-muted-foreground">
-                        {stage._count} {stage._count === 1 ? "opportunity" : "opportunities"}
+                        {stage._count} {stage._count === 1 ? t("opportunity") : t("opportunities")}
                       </p>
                     </div>
                     <p className="text-sm font-medium">${Number(stage._sum?.value ?? 0).toLocaleString()}</p>
@@ -299,13 +305,13 @@ export default function CrmDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
-              <span className="flex items-center gap-2"><CalendarCheck className="h-4 w-4" /> Recent Bookings</span>
-              <Link href="/crm/bookings" className="text-xs text-muted-foreground hover:underline">View all</Link>
+              <span className="flex items-center gap-2"><CalendarCheck className="h-4 w-4" /> {t("bookings")}</span>
+              <Link href="/crm/bookings" className="text-xs text-muted-foreground hover:underline">{tCommon("view")}</Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {(bookingData?.recentBookings?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No bookings yet</p>
+              <p className="text-sm text-muted-foreground">{tCommon("noData")}</p>
             ) : (
               <div className="space-y-3">
                 {bookingData?.recentBookings.map((booking) => (

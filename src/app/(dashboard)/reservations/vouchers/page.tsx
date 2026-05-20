@@ -25,6 +25,7 @@ import {
   VOUCHER_STATUS_LABELS,
   VOUCHER_STATUS_VARIANTS,
 } from "@/lib/constants/reservations";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { trpc } from "@/lib/trpc";
 
 type VoucherRow = {
@@ -219,34 +220,36 @@ export default function VouchersPage() {
   );
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div className="page-header">
-          <h1 className="text-2xl font-bold tracking-tight">Vouchers</h1>
-          <p className="text-muted-foreground">
-            Accommodation vouchers issued for confirmed bookings
-          </p>
+    <PermissionGuard permission="reservations:voucher:read">
+      <div className="space-y-4 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div className="page-header">
+            <h1 className="text-2xl font-bold tracking-tight">Vouchers</h1>
+            <p className="text-muted-foreground">
+              Accommodation vouchers issued for confirmed bookings
+            </p>
+          </div>
         </div>
-      </div>
 
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredData as VoucherRow[]}
-          searchKey="code"
-          searchPlaceholder="Search vouchers..."
-          toolbar={filterToolbar}
-          onRowClick={(row) =>
-            router.push(`/reservations/bookings/${row.booking.id}`)
-          }
-        />
-      )}
-    </div>
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredData as VoucherRow[]}
+            searchKey="code"
+            searchPlaceholder="Search vouchers..."
+            toolbar={filterToolbar}
+            onRowClick={(row) =>
+              router.push(`/reservations/bookings/${row.booking.id}`)
+            }
+          />
+        )}
+      </div>
+    </PermissionGuard>
   );
 }

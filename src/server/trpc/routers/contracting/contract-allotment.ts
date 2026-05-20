@@ -4,11 +4,11 @@ import {
   allotmentBulkSaveSchema,
   stopSaleCreateSchema,
 } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 import type { PrismaClient } from "@prisma/client";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 async function verifyContract(
   db: PrismaClient,
@@ -23,7 +23,7 @@ async function verifyContract(
 export const contractAllotmentRouter = createTRPCRouter({
   // ── Allotment Grid ──
 
-  listByContract: proc
+  listByContract: p("contracting:allotment:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -36,7 +36,7 @@ export const contractAllotmentRouter = createTRPCRouter({
       });
     }),
 
-  bulkSave: proc
+  bulkSave: p("contracting:allotment:import")
     .input(allotmentBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -67,7 +67,7 @@ export const contractAllotmentRouter = createTRPCRouter({
 
   // ── Cross-Contract Calendar ──
 
-  calendar: proc
+  calendar: p("contracting:allotment:read")
     .input(
       z.object({
         hotelId: z.string().optional(),
@@ -124,7 +124,7 @@ export const contractAllotmentRouter = createTRPCRouter({
 
   // ── Cross-Contract Stop Sales ──
 
-  allStopSales: proc
+  allStopSales: p("contracting:allotment:read")
     .input(
       z.object({
         hotelId: z.string().optional(),
@@ -177,7 +177,7 @@ export const contractAllotmentRouter = createTRPCRouter({
 
   // ── Stop Sales ──
 
-  listStopSales: proc
+  listStopSales: p("contracting:allotment:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -190,7 +190,7 @@ export const contractAllotmentRouter = createTRPCRouter({
       });
     }),
 
-  createStopSale: proc
+  createStopSale: p("contracting:allotment:create")
     .input(stopSaleCreateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -209,7 +209,7 @@ export const contractAllotmentRouter = createTRPCRouter({
       return stopSale;
     }),
 
-  deleteStopSale: proc
+  deleteStopSale: p("contracting:allotment:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const stopSale = await ctx.db.contractStopSale.findFirstOrThrow({

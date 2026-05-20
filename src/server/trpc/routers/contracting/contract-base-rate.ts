@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 import { contractBaseRateBulkSaveSchema } from "@/lib/validations/contracting";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { logContractAction } from "@/server/services/contracting/audit-logger";
 import { maybeDispatchContractWebhook } from "@/server/services/contracting/webhook-dispatcher";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const contractBaseRateRouter = createTRPCRouter({
-  listByContract: proc
+  listByContract: p("contracting:rate:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({
@@ -23,7 +23,7 @@ export const contractBaseRateRouter = createTRPCRouter({
       });
     }),
 
-  bulkSave: proc
+  bulkSave: p("contracting:rate:create")
     .input(contractBaseRateBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.contract.findFirstOrThrow({

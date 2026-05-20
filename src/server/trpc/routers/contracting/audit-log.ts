@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const auditLogRouter = createTRPCRouter({
-  listByContract: proc
+  listByContract: p("contracting:contract:read")
     .input(
       z.object({
         contractId: z.string(),

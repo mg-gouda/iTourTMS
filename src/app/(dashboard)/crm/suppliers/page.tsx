@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PermissionGuard } from "@/components/shared/permission-guard";
+import { useTranslations } from "next-intl";
 
 type SupplierRow = {
   id: string;
@@ -25,52 +27,54 @@ type SupplierRow = {
   _count: { costComponents: number };
 };
 
-const columns: ColumnDef<SupplierRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  },
-  {
-    accessorKey: "contactName",
-    header: "Contact",
-    cell: ({ row }) => row.original.contactName ?? "—",
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => row.original.email ?? "—",
-  },
-  {
-    accessorKey: "phone",
-    header: "Phone",
-    cell: ({ row }) => row.original.phone ?? "—",
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => row.original.type ?? "—",
-  },
-  {
-    id: "costComponents",
-    header: "Components",
-    cell: ({ row }) => row.original._count.costComponents,
-  },
-  {
-    accessorKey: "active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.active ? "default" : "secondary"}>
-        {row.original.active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
-
 export default function SuppliersPage() {
+  const t = useTranslations("crm");
+  const tc = useTranslations("common");
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.crm.supplier.list.useQuery();
+
+  const columns: ColumnDef<SupplierRow>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title={tc("name")} />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: "contactName",
+      header: t("contactPerson"),
+      cell: ({ row }) => row.original.contactName ?? "—",
+    },
+    {
+      accessorKey: "email",
+      header: tc("email"),
+      cell: ({ row }) => row.original.email ?? "—",
+    },
+    {
+      accessorKey: "phone",
+      header: tc("phone"),
+      cell: ({ row }) => row.original.phone ?? "—",
+    },
+    {
+      accessorKey: "type",
+      header: tc("type"),
+      cell: ({ row }) => row.original.type ?? "—",
+    },
+    {
+      id: "costComponents",
+      header: t("components"),
+      cell: ({ row }) => row.original._count.costComponents,
+    },
+    {
+      accessorKey: "active",
+      header: tc("status"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "default" : "secondary"}>
+          {row.original.active ? tc("active") : tc("inactive")}
+        </Badge>
+      ),
+    },
+  ];
 
   const deleteMutation = trpc.crm.supplier.delete.useMutation({
     onSuccess: () => {
@@ -81,7 +85,9 @@ export default function SuppliersPage() {
   });
 
   return (
-    <div className="space-y-4 animate-fade-in">
+
+    <PermissionGuard permission="crm:supplier:read">
+      <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
@@ -136,5 +142,9 @@ export default function SuppliersPage() {
         />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

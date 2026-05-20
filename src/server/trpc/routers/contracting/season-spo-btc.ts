@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const proc = moduleProcedure("contracting");
+const p = (code: string) => modulePermissionProcedure("contracting", code);
 
 export const seasonSpoBtcRouter = createTRPCRouter({
-  listBySpo: proc
+  listBySpo: p("contracting:offer:read")
     .input(z.object({ spoId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify ownership via SPO → contract → company
@@ -20,7 +20,7 @@ export const seasonSpoBtcRouter = createTRPCRouter({
       });
     }),
 
-  upsert: proc
+  upsert: p("contracting:offer:manage")
     .input(z.object({
       id: z.string().nullish(),
       spoId: z.string().min(1),
@@ -50,7 +50,7 @@ export const seasonSpoBtcRouter = createTRPCRouter({
       return ctx.db.contractSeasonSpoBtc.create({ data });
     }),
 
-  delete: proc
+  delete: p("contracting:offer:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const row = await ctx.db.contractSeasonSpoBtc.findFirstOrThrow({

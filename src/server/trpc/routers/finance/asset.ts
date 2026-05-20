@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
-import { createTRPCRouter, moduleProcedure } from "@/server/trpc";
+import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
-const financeProcedure = moduleProcedure("finance");
+const p = (code: string) => modulePermissionProcedure("finance", code);
 
 function buildDepreciationSchedule(
   originalValue: Decimal,
@@ -26,7 +26,7 @@ function buildDepreciationSchedule(
 }
 
 export const assetRouter = createTRPCRouter({
-  list: financeProcedure
+  list: p("finance:asset:read")
     .input(z.object({ state: z.enum(["DRAFT", "OPEN", "CLOSED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.accountAsset.findMany({
@@ -40,7 +40,7 @@ export const assetRouter = createTRPCRouter({
       });
     }),
 
-  getById: financeProcedure
+  getById: p("finance:asset:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const asset = await (ctx.db.accountAsset as any).findFirst({
@@ -57,7 +57,7 @@ export const assetRouter = createTRPCRouter({
       return asset;
     }),
 
-  create: financeProcedure
+  create: p("finance:asset:create")
     .input(z.object({
       name: z.string().min(1),
       code: z.string().optional(),
@@ -86,7 +86,7 @@ export const assetRouter = createTRPCRouter({
       });
     }),
 
-  update: financeProcedure
+  update: p("finance:asset:update")
     .input(z.object({
       id: z.string(),
       name: z.string().min(1).optional(),
@@ -107,7 +107,7 @@ export const assetRouter = createTRPCRouter({
       });
     }),
 
-  compute: financeProcedure
+  compute: p("finance:asset:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const asset = await (ctx.db.accountAsset as any).findFirst({
@@ -140,7 +140,7 @@ export const assetRouter = createTRPCRouter({
       });
     }),
 
-  close: financeProcedure
+  close: p("finance:asset:confirm")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountAsset.update({

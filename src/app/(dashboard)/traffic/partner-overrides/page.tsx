@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/shared/data-table";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type Override = {
   id: string;
@@ -30,6 +32,8 @@ type Override = {
 
 export default function PartnerOverridesPage() {
   const utils = trpc.useUtils();
+  const t = useTranslations("traffic");
+  const tc = useTranslations("common");
   const { data, isLoading } = trpc.traffic.partnerPriceOverride.list.useQuery();
   const { data: partners } = trpc.b2bPortal.tourOperator.list.useQuery();
   const { data: priceItems } = trpc.traffic.priceItem.list.useQuery();
@@ -70,11 +74,11 @@ export default function PartnerOverridesPage() {
   }
 
   const columns: ColumnDef<Override>[] = [
-    { id: "partner", header: "Partner", accessorFn: (r) => r.partner.name },
-    { id: "vehicleType", header: "Vehicle Type", accessorFn: (r) => r.priceItem.vehicleType.name },
-    { id: "fromZone", header: "From", accessorFn: (r) => r.priceItem.fromZone?.name ?? "Any" },
-    { id: "toZone", header: "To", accessorFn: (r) => r.priceItem.toZone?.name ?? "Any" },
-    { id: "price", header: "Override Price", accessorFn: (r) => `${r.priceItem.currency.symbol}${Number(r.price).toFixed(2)}` },
+    { id: "partner", header: t("partnerPriceOverrides").split(" ")[0], accessorFn: (r) => r.partner.name },
+    { id: "vehicleType", header: t("vehicleType"), accessorFn: (r) => r.priceItem.vehicleType.name },
+    { id: "fromZone", header: t("fromZone"), accessorFn: (r) => r.priceItem.fromZone?.name ?? tc("all") },
+    { id: "toZone", header: t("toZone"), accessorFn: (r) => r.priceItem.toZone?.name ?? tc("all") },
+    { id: "price", header: t("overridePrice"), accessorFn: (r) => `${r.priceItem.currency.symbol}${Number(r.price).toFixed(2)}` },
     {
       id: "actions",
       header: "",
@@ -91,27 +95,29 @@ export default function PartnerOverridesPage() {
   ];
 
   return (
-    <div className="animate-fade-in space-y-6">
+
+    <PermissionGuard permission="traffic:pricing:read">
+      <div className="animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold">Partner Price Overrides</h1>
-          <p className="text-muted-foreground">Custom pricing per agent/customer</p>
+          <h1 className="text-2xl font-bold">{t("partnerPriceOverrides")}</h1>
+          <p className="text-muted-foreground">{t("partnerOverridesDesc")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> Add Override
+              <Plus className="mr-2 h-4 w-4" /> {t("addOverride")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Partner Override</DialogTitle>
+              <DialogTitle>{t("addPartnerOverride")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Partner</Label>
+                <Label>{t("partnerPriceOverrides").split(" ")[0]}</Label>
                 <Select value={partnerId} onValueChange={setPartnerId}>
-                  <SelectTrigger><SelectValue placeholder="Select partner..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("select") + "..."} /></SelectTrigger>
                   <SelectContent>
                     {(partners ?? []).map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -120,9 +126,9 @@ export default function PartnerOverridesPage() {
                 </Select>
               </div>
               <div>
-                <Label>Price Item</Label>
+                <Label>{t("priceItem")}</Label>
                 <Select value={priceItemId} onValueChange={setPriceItemId}>
-                  <SelectTrigger><SelectValue placeholder="Select price item..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tc("select") + "..."} /></SelectTrigger>
                   <SelectContent>
                     {(priceItems ?? []).map((pi) => (
                       <SelectItem key={pi.id} value={pi.id}>
@@ -133,7 +139,7 @@ export default function PartnerOverridesPage() {
                 </Select>
               </div>
               <div>
-                <Label>Override Price</Label>
+                <Label>{t("overridePrice")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -148,7 +154,7 @@ export default function PartnerOverridesPage() {
                 disabled={createMutation.isPending}
                 className="w-full"
               >
-                {createMutation.isPending ? "Adding..." : "Add Override"}
+                {createMutation.isPending ? tc("saving") : t("addOverride")}
               </Button>
             </div>
           </DialogContent>
@@ -165,5 +171,9 @@ export default function PartnerOverridesPage() {
         <DataTable columns={columns} data={(data ?? []) as Override[]} />
       )}
     </div>
+  
+
+    </PermissionGuard>
+
   );
 }

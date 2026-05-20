@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Building2, Plus, Search, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type PartnerRow = {
   id: string;
@@ -24,11 +26,12 @@ type PartnerRow = {
   paymentTerm: { id: string; name: string } | null;
 };
 
-const columns: ColumnDef<PartnerRow, unknown>[] = [
+function buildVendorColumns(t: ReturnType<typeof useTranslations<"finance">>, tc: ReturnType<typeof useTranslations<"common">>): ColumnDef<PartnerRow, unknown>[] {
+  return [
   {
     id: "name",
     accessorFn: (row) => row.name,
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title={tc("name")} />,
     cell: ({ row }) => (
       <Link href={`/finance/vendors/${row.original.id}`} className="flex items-center gap-2 hover:underline font-medium">
         {row.original.isCompany ? <Building2 className="size-3.5 text-muted-foreground" /> : <User className="size-3.5 text-muted-foreground" />}
@@ -38,50 +41,54 @@ const columns: ColumnDef<PartnerRow, unknown>[] = [
   },
   {
     accessorKey: "email",
-    header: "Email",
+    header: tc("email"),
     cell: ({ row }) => row.getValue("email") || "—",
   },
   {
     accessorKey: "phone",
-    header: "Phone",
+    header: tc("phone"),
     cell: ({ row }) => row.getValue("phone") || "—",
   },
   {
     id: "country",
     accessorFn: (row) => row.country?.name ?? "—",
-    header: "Country",
+    header: tc("country"),
   },
   {
     id: "paymentTerm",
     accessorFn: (row) => row.paymentTerm?.name ?? "—",
-    header: "Payment Terms",
+    header: t("paymentTerms"),
   },
   {
     id: "type",
-    accessorFn: (row) => (row.isCompany ? "Company" : "Individual"),
-    header: "Type",
+    accessorFn: (row) => (row.isCompany ? t("company") : t("individual")),
+    header: tc("type"),
     cell: ({ row }) => (
       <Badge variant="outline" className="text-xs">
-        {row.original.isCompany ? "Company" : "Individual"}
+        {row.original.isCompany ? t("company") : t("individual")}
       </Badge>
     ),
   },
   {
     accessorKey: "isActive",
-    header: "Status",
+    header: tc("status"),
     cell: ({ row }) => (
       <Badge variant={row.getValue("isActive") ? "default" : "secondary"}>
-        {row.getValue("isActive") ? "Active" : "Archived"}
+        {row.getValue("isActive") ? tc("active") : t("archived")}
       </Badge>
     ),
   },
 ];
+}
 
 function fmt(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function VendorsPage() {
+  const t = useTranslations("finance");
+  const tc = useTranslations("common");
+  const columns = buildVendorColumns(t, tc);
   const [search, setSearch] = useState("");
 
   const { data: vendors = [], isLoading } = trpc.finance.partner.list.useQuery({
@@ -93,25 +100,26 @@ export default function VendorsPage() {
   });
 
   const statCards = [
-    { label: "Sales",        primary: stats?.salesCount ?? 0,           secondary: stats ? fmt(stats.salesAmount) : null,     isCount: true },
-    { label: "Invoiced",     primary: stats ? fmt(stats.invoicedAmount) : "—",    secondary: null,                                      isCount: false },
-    { label: "Vendor Bills", primary: stats ? fmt(stats.vendorBillsAmount) : "—", secondary: null,                                      isCount: false },
-    { label: "Due",          primary: stats ? fmt(stats.dueAmount) : "—",         secondary: null,                                      isCount: false, warn: (stats?.dueAmount ?? 0) > 0 },
-    { label: "Purchases",    primary: stats?.purchasesCount ?? 0,        secondary: stats ? fmt(stats.purchasesAmount) : null, isCount: true },
-    { label: "Contracts",    primary: stats?.contractsCount ?? 0,        secondary: null,                                      isCount: true },
+    { label: t("sales"),           primary: stats?.salesCount ?? 0,           secondary: stats ? fmt(stats.salesAmount) : null,     isCount: true },
+    { label: t("invoiced"),        primary: stats ? fmt(stats.invoicedAmount) : "—",    secondary: null,                                      isCount: false },
+    { label: t("vendorBillsStat"), primary: stats ? fmt(stats.vendorBillsAmount) : "—", secondary: null,                                      isCount: false },
+    { label: t("due"),             primary: stats ? fmt(stats.dueAmount) : "—",         secondary: null,                                      isCount: false, warn: (stats?.dueAmount ?? 0) > 0 },
+    { label: t("purchases"),       primary: stats?.purchasesCount ?? 0,        secondary: stats ? fmt(stats.purchasesAmount) : null, isCount: true },
+    { label: t("contracts"),       primary: stats?.contractsCount ?? 0,        secondary: null,                                      isCount: true },
   ];
 
   return (
+    <PermissionGuard permission="finance:partner:read">
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Vendors</h1>
-          <p className="text-sm text-muted-foreground">{vendors.length} vendor{vendors.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-semibold">{t("vendors")}</h1>
+          <p className="text-sm text-muted-foreground">{vendors.length} {t("vendor")}{vendors.length !== 1 ? "s" : ""}</p>
         </div>
         <Button asChild>
           <Link href="/finance/vendors/new">
             <Plus className="size-4 mr-2" />
-            New Vendor
+            {t("newVendor")}
           </Link>
         </Button>
       </div>
@@ -142,7 +150,7 @@ export default function VendorsPage() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name, email, phone, tax ID..."
+          placeholder={t("searchByName")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -155,5 +163,6 @@ export default function VendorsPage() {
         isLoading={isLoading}
       />
     </div>
+    </PermissionGuard>
   );
 }

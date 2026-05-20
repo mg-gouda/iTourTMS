@@ -5,7 +5,9 @@ import { db } from "@/server/db";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { BackButton } from "@/components/shared/back-button";
+import { PermissionsProvider } from "@/components/providers/permissions-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { MODULE_REGISTRY } from "@/lib/constants/modules";
 
 export default async function DashboardLayout({
   children,
@@ -61,17 +63,22 @@ export default async function DashboardLayout({
   ]);
 
   // Map modules to include icon from registry
-  const { MODULE_REGISTRY } = await import("@/lib/constants/modules");
   const modulesWithIcons = installedModules.map((m) => ({
     ...m,
     icon: MODULE_REGISTRY.find((r) => r.name === m.name)?.icon ?? "FileText",
   }));
 
   return (
+    <PermissionsProvider
+      roles={session.user.roles ?? []}
+      permissions={session.user.permissions ?? []}
+    >
     <SidebarProvider>
       <AppSidebar
         installedModules={modulesWithIcons}
         sidebarLogoUrl={companyBranding?.sidebarLogoUrl}
+        roles={session.user.roles ?? []}
+        permissions={session.user.permissions ?? []}
       />
       <SidebarInset>
         <Topbar
@@ -108,5 +115,6 @@ export default async function DashboardLayout({
         </main>
       </SidebarInset>
     </SidebarProvider>
+    </PermissionsProvider>
   );
 }
