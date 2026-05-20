@@ -624,7 +624,14 @@
     "draftPaymentTitle": "دفعة مسودة",
     "draftStatementTitle": "كشف مسودة",
     "draftBatchTitle": "حزمة مسودة",
-    "draftEntryTitle": "قيد مسودة"
+    "draftEntryTitle": "قيد مسودة",
+    "template": "قالب",
+    "saveAsTemplate": "حفظ كقالب",
+    "searchByCodeOrName": "بحث بالكود أو الاسم...",
+    "saveCoaAsTemplate": "حفظ دليل الحسابات كقالب",
+    "templateName": "اسم القالب",
+    "saveTemplateHint": "احفظ هيكل دليل الحسابات الحالي كقالب قابل لإعادة الاستخدام.",
+    "saveTemplate": "حفظ القالب"
   },
   "contracting": {
     "title": "التعاقدات",

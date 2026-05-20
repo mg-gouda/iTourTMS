@@ -624,7 +624,14 @@
     "draftPaymentTitle": "Draft Payment",
     "draftStatementTitle": "Draft Statement",
     "draftBatchTitle": "Draft Batch",
-    "draftEntryTitle": "Draft Entry"
+    "draftEntryTitle": "Draft Entry",
+    "template": "Template",
+    "saveAsTemplate": "Save as Template",
+    "searchByCodeOrName": "Search by code or name...",
+    "saveCoaAsTemplate": "Save Chart of Accounts as Template",
+    "templateName": "Template Name",
+    "saveTemplateHint": "Save the current chart of accounts structure as a reusable template.",
+    "saveTemplate": "Save Template"
   },
   "contracting": {
     "title": "Contracting",

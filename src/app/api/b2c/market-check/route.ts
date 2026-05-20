@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (!countryCode) {
-      // Can't determine country → allow access (no filtering)
-      return NextResponse.json({ hasMarket: true, country: null });
+    if (!countryCode || countryCode === "EG") {
+      // Can't determine country, or Egypt → allow access
+      return NextResponse.json({ hasMarket: true, country: countryCode });
     }
 
     const market = await resolveMarketByCountry(company.id, countryCode);

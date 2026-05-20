@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
-import { useTranslations } from "next-intl";
 
 import { PermissionGuard } from "@/components/shared/permission-guard";
 

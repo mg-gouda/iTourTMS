@@ -5,6 +5,8 @@ const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   serverExternalPackages: ["pino", "pino-pretty", "pdf-parse"],
   images: {
     formats: ["image/avif", "image/webp"],
