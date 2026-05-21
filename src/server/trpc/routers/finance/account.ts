@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { accountGroupSchema, accountSchema } from "@/lib/validations/finance";
@@ -90,6 +91,15 @@ export const accountRouter = createTRPCRouter({
   delete: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const lineItemCount = await ctx.db.finMoveLineItem.count({
+        where: { accountId: input.id },
+      });
+      if (lineItemCount > 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Cannot delete this account — it has ${lineItemCount} journal entr${lineItemCount === 1 ? "y" : "ies"} posted to it. Archive the account instead by marking it as deprecated.`,
+        });
+      }
       return ctx.db.finAccount.delete({ where: { id: input.id } });
     }),
 
