@@ -1,0 +1,11 @@
+.git
+.gitignore
+.next
+node_modules
+docker
+*.md
+.env.local
+.env.*.local
+.DS_Store
+*.log
+coverage
