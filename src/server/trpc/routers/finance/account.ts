@@ -91,7 +91,7 @@ export const accountRouter = createTRPCRouter({
   delete: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const lineItemCount = await ctx.db.finMoveLineItem.count({
+      const lineItemCount = await ctx.db.moveLineItem.count({
         where: { accountId: input.id },
       });
       if (lineItemCount > 0) {
