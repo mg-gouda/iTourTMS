@@ -6,7 +6,7 @@ const p = (code: string) => modulePermissionProcedure("finance", code);
 export const lockDateRouter = createTRPCRouter({
   get: p("finance:lockDate:read").query(async ({ ctx }) => {
     return ctx.db.accountLockDate.findUnique({
-      where: { companyId: ctx.session.user.companyId },
+      where: { companyId: ctx.companyId },
     });
   }),
 
@@ -25,8 +25,8 @@ export const lockDateRouter = createTRPCRouter({
         hardLockDate: input.hardLockDate ? new Date(input.hardLockDate) : null,
       };
       return ctx.db.accountLockDate.upsert({
-        where: { companyId: ctx.session.user.companyId },
-        create: { companyId: ctx.session.user.companyId, ...data },
+        where: { companyId: ctx.companyId },
+        create: { companyId: ctx.companyId, ...data },
         update: data,
       });
     }),

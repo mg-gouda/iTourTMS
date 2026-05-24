@@ -10,7 +10,7 @@ export const taxReturnRouter = createTRPCRouter({
     .input(z.object({ state: z.enum(["DRAFT", "CONFIRMED", "FILED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.taxReturn.findMany({
-        where: { companyId: ctx.session.user.companyId, ...(input.state ? { state: input.state } : {}) },
+        where: { companyId: ctx.companyId, ...(input.state ? { state: input.state } : {}) },
         include: { period: { select: { id: true, name: true, code: true } } },
         orderBy: { dateFrom: "desc" },
       });
@@ -20,7 +20,7 @@ export const taxReturnRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const ret = await ctx.db.taxReturn.findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         include: {
           period: { select: { id: true, name: true } },
           lines: { include: { tax: { select: { id: true, name: true, amount: true } } } },
@@ -42,7 +42,7 @@ export const taxReturnRouter = createTRPCRouter({
       return ctx.db.taxReturn.create({
         data: {
           ...input,
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           dateFrom: new Date(input.dateFrom),
           dateTo: new Date(input.dateTo),
         },
@@ -53,7 +53,7 @@ export const taxReturnRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const ret = await ctx.db.taxReturn.findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
       });
       if (!ret) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -61,7 +61,7 @@ export const taxReturnRouter = createTRPCRouter({
       const moveLines = await ctx.db.moveLineItem.findMany({
         where: {
           move: {
-            companyId: ctx.session.user.companyId,
+            companyId: ctx.companyId,
             state: "POSTED",
             date: { gte: ret.dateFrom, lte: ret.dateTo },
           },
@@ -106,7 +106,7 @@ export const taxReturnRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxReturn.update({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         data: { state: "CONFIRMED" },
       });
     }),
@@ -115,15 +115,15 @@ export const taxReturnRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxReturn.update({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
-        data: { state: "FILED", filedAt: new Date(), filedBy: ctx.session.user.name ?? ctx.session.user.email },
+        where: { id: input.id, companyId: ctx.companyId },
+        data: { state: "FILED", filedAt: new Date(), filedBy: ctx.session.user.name ?? ctx.session.user.email ?? undefined },
       });
     }),
 
   delete: p("finance:tax:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const ret = await ctx.db.taxReturn.findFirst({ where: { id: input.id, companyId: ctx.session.user.companyId } });
+      const ret = await ctx.db.taxReturn.findFirst({ where: { id: input.id, companyId: ctx.companyId } });
       if (!ret) throw new TRPCError({ code: "NOT_FOUND" });
       if (ret.state !== "DRAFT") throw new TRPCError({ code: "BAD_REQUEST", message: "Only DRAFT returns can be deleted" });
       return ctx.db.taxReturn.delete({ where: { id: input.id } });

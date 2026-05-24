@@ -12,6 +12,7 @@ import {
   Landmark,
   Settings,
   Shield,
+  Ship,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -43,6 +44,7 @@ const iconMap: Record<string, React.ElementType> = {
   Globe,
   Briefcase,
   FolderOpen,
+  Ship,
 };
 
 interface InstalledModule {
@@ -479,6 +481,59 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
           routes: [
             { label: "P&L Reports", href: "/tour-ops/reports/pnl" },
             { label: "Revenue Analytics", href: "/tour-ops/reports/revenue" },
+          ],
+        },
+      ],
+    },
+    "nile-cruises": {
+      topLevel: [{ label: dashboard, href: "/nile-cruises" }],
+      groups: [
+        {
+          label: "Operations",
+          routes: [
+            { label: "Departure Board", href: "/nile-cruises/departures" },
+            { label: "Bookings", href: "/nile-cruises/bookings" },
+            { label: "Cabin Chart", href: "/nile-cruises/cabin-chart" },
+            { label: "Embarkation", href: "/nile-cruises/embarkation" },
+            { label: "Manifests", href: "/nile-cruises/manifests" },
+          ],
+        },
+        {
+          label: "Master Data",
+          routes: [
+            { label: "Boats", href: "/nile-cruises/boats" },
+            { label: "Cruise Types", href: "/nile-cruises/cruise-types" },
+            { label: "Itineraries", href: "/nile-cruises/itineraries" },
+          ],
+        },
+        {
+          label: "Commercial",
+          routes: [
+            { label: "Contracts", href: "/nile-cruises/contracts" },
+            { label: "Stop Sales", href: "/nile-cruises/stop-sales" },
+            { label: "Special Offers", href: "/nile-cruises/offers" },
+            { label: "Cancellation Policies", href: "/nile-cruises/cancellation-policies" },
+            { label: "Markups & Tariff", href: "/nile-cruises/markups" },
+          ],
+        },
+        {
+          label: "Reports",
+          routes: [
+            { label: "Materialization", href: "/nile-cruises/reports/materialization" },
+            { label: "Occupancy", href: "/nile-cruises/reports/occupancy" },
+            { label: "Sales by Boat", href: "/nile-cruises/reports/sales-by-boat" },
+            { label: "Sales by TO", href: "/nile-cruises/reports/sales-by-to" },
+            { label: "Cabin Utilization", href: "/nile-cruises/reports/cabin-utilization" },
+            { label: "Cancellation", href: "/nile-cruises/reports/cancellation" },
+            { label: "Revenue by Departure", href: "/nile-cruises/reports/revenue-by-departure" },
+            { label: "Guide Roster", href: "/nile-cruises/reports/guide-roster" },
+          ],
+        },
+        {
+          label: "Configuration",
+          routes: [
+            { label: "Settings", href: "/nile-cruises/settings" },
+            { label: "Templates", href: "/nile-cruises/templates" },
           ],
         },
       ],

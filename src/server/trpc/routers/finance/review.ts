@@ -19,7 +19,7 @@ export const reviewRouter = createTRPCRouter({
       const { journalId, accountId, dateFrom, dateTo, unreconciled, page, pageSize } = input;
       const where: Record<string, unknown> = {
         move: {
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           state: "POSTED",
           ...(journalId ? { journalId } : {}),
           ...(dateFrom || dateTo ? {
@@ -62,7 +62,7 @@ export const reviewRouter = createTRPCRouter({
       const [items, total] = await Promise.all([
         ctx.db.move.findMany({
           where: {
-            companyId: ctx.session.user.companyId,
+            companyId: ctx.companyId,
             ...(journalId ? { journalId } : {}),
             ...(dateFrom || dateTo ? { date: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } } : {}),
           },
@@ -77,7 +77,7 @@ export const reviewRouter = createTRPCRouter({
         }),
         ctx.db.move.count({
           where: {
-            companyId: ctx.session.user.companyId,
+            companyId: ctx.companyId,
             ...(journalId ? { journalId } : {}),
           },
         }),
@@ -92,7 +92,7 @@ export const reviewRouter = createTRPCRouter({
       const { page, pageSize } = input;
       const [items, total] = await Promise.all([
         ctx.db.move.findMany({
-          where: { companyId: ctx.session.user.companyId, moveType: "IN_INVOICE", state: "DRAFT" },
+          where: { companyId: ctx.companyId, moveType: "IN_INVOICE", state: "DRAFT" },
           include: {
             journal: { select: { code: true, name: true } },
             partner: { select: { id: true, name: true } },
@@ -101,7 +101,7 @@ export const reviewRouter = createTRPCRouter({
           skip: (page - 1) * pageSize,
           take: pageSize,
         }),
-        ctx.db.move.count({ where: { companyId: ctx.session.user.companyId, moveType: "IN_INVOICE", state: "DRAFT" } }),
+        ctx.db.move.count({ where: { companyId: ctx.companyId, moveType: "IN_INVOICE", state: "DRAFT" } }),
       ]);
       return { items, total, pages: Math.ceil(total / pageSize) };
     }),
@@ -114,7 +114,7 @@ export const reviewRouter = createTRPCRouter({
       const [items, total] = await Promise.all([
         ctx.db.move.findMany({
           where: {
-            companyId: ctx.session.user.companyId,
+            companyId: ctx.companyId,
             moveType: "IN_INVOICE",
             state: "POSTED",
             paymentState: { in: ["NOT_PAID", "PARTIAL"] },
@@ -128,7 +128,7 @@ export const reviewRouter = createTRPCRouter({
           take: pageSize,
         }),
         ctx.db.move.count({
-          where: { companyId: ctx.session.user.companyId, moveType: "IN_INVOICE", state: "POSTED", paymentState: { in: ["NOT_PAID", "PARTIAL"] } },
+          where: { companyId: ctx.companyId, moveType: "IN_INVOICE", state: "POSTED", paymentState: { in: ["NOT_PAID", "PARTIAL"] } },
         }),
       ]);
       return { items, total, pages: Math.ceil(total / pageSize) };
@@ -141,7 +141,7 @@ export const reviewRouter = createTRPCRouter({
       const { page, pageSize } = input;
       const [items, total] = await Promise.all([
         ctx.db.move.findMany({
-          where: { companyId: ctx.session.user.companyId, moveType: "OUT_INVOICE", state: "DRAFT" },
+          where: { companyId: ctx.companyId, moveType: "OUT_INVOICE", state: "DRAFT" },
           include: {
             journal: { select: { code: true, name: true } },
             partner: { select: { id: true, name: true } },
@@ -150,7 +150,7 @@ export const reviewRouter = createTRPCRouter({
           skip: (page - 1) * pageSize,
           take: pageSize,
         }),
-        ctx.db.move.count({ where: { companyId: ctx.session.user.companyId, moveType: "OUT_INVOICE", state: "DRAFT" } }),
+        ctx.db.move.count({ where: { companyId: ctx.companyId, moveType: "OUT_INVOICE", state: "DRAFT" } }),
       ]);
       return { items, total, pages: Math.ceil(total / pageSize) };
     }),
@@ -163,7 +163,7 @@ export const reviewRouter = createTRPCRouter({
       const [items, total] = await Promise.all([
         ctx.db.move.findMany({
           where: {
-            companyId: ctx.session.user.companyId,
+            companyId: ctx.companyId,
             moveType: "OUT_INVOICE",
             state: "POSTED",
             paymentState: { in: ["NOT_PAID", "PARTIAL"] },
@@ -177,7 +177,7 @@ export const reviewRouter = createTRPCRouter({
           take: pageSize,
         }),
         ctx.db.move.count({
-          where: { companyId: ctx.session.user.companyId, moveType: "OUT_INVOICE", state: "POSTED", paymentState: { in: ["NOT_PAID", "PARTIAL"] } },
+          where: { companyId: ctx.companyId, moveType: "OUT_INVOICE", state: "POSTED", paymentState: { in: ["NOT_PAID", "PARTIAL"] } },
         }),
       ]);
       return { items, total, pages: Math.ceil(total / pageSize) };
@@ -185,7 +185,7 @@ export const reviewRouter = createTRPCRouter({
 
   // Summary counts for dashboard badges
   counts: p("finance:auditTrail:read").query(async ({ ctx }) => {
-    const companyId = ctx.session.user.companyId;
+    const companyId = ctx.companyId;
     const [billToReceive, billedNotReceived, invoicesToBeIssued, invoicedNotDelivered] = await Promise.all([
       ctx.db.move.count({ where: { companyId, moveType: "IN_INVOICE", state: "DRAFT" } }),
       ctx.db.move.count({ where: { companyId, moveType: "IN_INVOICE", state: "POSTED", paymentState: { in: ["NOT_PAID", "PARTIAL"] } } }),

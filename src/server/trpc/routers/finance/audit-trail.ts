@@ -16,7 +16,7 @@ export const auditTrailRouter = createTRPCRouter({
     }))
     .query(async ({ ctx, input }) => {
       const { modelName, recordId, action, dateFrom, dateTo, page, pageSize } = input;
-      const where: Record<string, unknown> = { companyId: ctx.session.user.companyId };
+      const where: Record<string, unknown> = { companyId: ctx.companyId };
       if (modelName) where.modelName = modelName;
       if (recordId) where.recordId = recordId;
       if (action) where.action = action;
@@ -44,18 +44,18 @@ export const auditTrailRouter = createTRPCRouter({
       recordId: z.string(),
       recordName: z.string().optional(),
       action: z.string(),
-      changes: z.record(z.unknown()).optional(),
+      changes: z.record(z.string(), z.unknown()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { recordName, changes, ...rest } = input;
       return ctx.db.auditTrailEntry.create({
         data: {
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           userId: ctx.session.user.id,
           userName: ctx.session.user.name ?? ctx.session.user.email ?? "Unknown",
           ...rest,
           ...(recordName ? { recordName } : {}),
-          ...(changes ? { changes } : {}),
+          ...(changes ? { changes: changes as never } : {}),
         },
       });
     }),

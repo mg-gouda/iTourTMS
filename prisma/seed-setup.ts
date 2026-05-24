@@ -39,6 +39,7 @@ const MODULES = [
   { name: "b2c-site", displayName: "B2C Website" },
   { name: "b2b-portal", displayName: "B2B Portal" },
   { name: "tour-ops", displayName: "Tour Operations" },
+  { name: "nile-cruises", displayName: "Nile Cruises" },
 ];
 
 const SEQUENCES = [
@@ -51,6 +52,10 @@ const SEQUENCES = [
   { code: "traffic_job", prefix: "TJ", padding: 5 },
   { code: "ops_file", prefix: "FI", padding: 5 },
   { code: "ops_quotation", prefix: "QT", padding: 5 },
+  { code: "cruise_contract", prefix: "NC-CT", padding: 5 },
+  { code: "cruise_departure", prefix: "NC-DEP", padding: 5 },
+  { code: "cruise_booking", prefix: "NC-BK", padding: 5 },
+  { code: "cruise_voucher", prefix: "NC-VC", padding: 5 },
 ];
 
 async function main() {

@@ -30,7 +30,7 @@ export const assetRouter = createTRPCRouter({
     .input(z.object({ state: z.enum(["DRAFT", "OPEN", "CLOSED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.accountAsset.findMany({
-        where: { companyId: ctx.session.user.companyId, ...(input.state ? { state: input.state as any } : {}) },
+        where: { companyId: ctx.companyId, ...(input.state ? { state: input.state as any } : {}) },
         include: {
           account: { select: { id: true, code: true, name: true } },
           partner: { select: { id: true, name: true } },
@@ -44,7 +44,7 @@ export const assetRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const asset = await (ctx.db.accountAsset as any).findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         include: {
           account: { select: { id: true, code: true, name: true } },
           depreciationAccount: { select: { id: true, code: true, name: true } },
@@ -77,7 +77,7 @@ export const assetRouter = createTRPCRouter({
       return ctx.db.accountAsset.create({
         data: {
           ...rest,
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           acquisitionDate: new Date(acquisitionDate),
           originalValue: new Decimal(originalValue),
           salvageValue: new Decimal(salvageValue),
@@ -97,7 +97,7 @@ export const assetRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, notes, depreciationAccountId, accumulationAccountId, ...rest } = input;
       return ctx.db.accountAsset.update({
-        where: { id, companyId: ctx.session.user.companyId },
+        where: { id, companyId: ctx.companyId },
         data: {
           ...rest,
           notes: notes ?? undefined,
@@ -111,7 +111,7 @@ export const assetRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const asset = await (ctx.db.accountAsset as any).findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
       });
       if (!asset) throw new TRPCError({ code: "NOT_FOUND" });
       if (asset.state !== "DRAFT") throw new TRPCError({ code: "BAD_REQUEST", message: "Asset must be in DRAFT state" });
@@ -144,7 +144,7 @@ export const assetRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountAsset.update({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         data: { state: "CLOSED" },
       });
     }),

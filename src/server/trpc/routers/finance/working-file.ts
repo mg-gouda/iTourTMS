@@ -9,7 +9,7 @@ export const workingFileRouter = createTRPCRouter({
     .input(z.object({ state: z.enum(["DRAFT", "IN_PROGRESS", "COMPLETED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.workingFile.findMany({
-        where: { companyId: ctx.session.user.companyId, ...(input.state ? { state: input.state } : {}) },
+        where: { companyId: ctx.companyId, ...(input.state ? { state: input.state } : {}) },
         include: { period: { select: { id: true, name: true, code: true } } },
         orderBy: { createdAt: "desc" },
       });
@@ -19,7 +19,7 @@ export const workingFileRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const wf = await ctx.db.workingFile.findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         include: { period: { select: { id: true, name: true } } },
       });
       if (!wf) throw new TRPCError({ code: "NOT_FOUND" });
@@ -38,7 +38,7 @@ export const workingFileRouter = createTRPCRouter({
       return ctx.db.workingFile.create({
         data: {
           ...input,
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
         },
       });
@@ -58,7 +58,7 @@ export const workingFileRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, dueDate, ...rest } = input;
       return ctx.db.workingFile.update({
-        where: { id, companyId: ctx.session.user.companyId },
+        where: { id, companyId: ctx.companyId },
         data: { ...rest, ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}) },
       });
     }),
@@ -66,6 +66,6 @@ export const workingFileRouter = createTRPCRouter({
   delete: p("finance:settings:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.workingFile.delete({ where: { id: input.id, companyId: ctx.session.user.companyId } });
+      return ctx.db.workingFile.delete({ where: { id: input.id, companyId: ctx.companyId } });
     }),
 });

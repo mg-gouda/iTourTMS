@@ -65,6 +65,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     dependencies: [],
     isAvailable: true,
   },
+  {
+    name: "nile-cruises",
+    displayName: "Nile Cruises",
+    description: "Own-fleet and contracted cruise management: boats, cabins, itineraries, departures, bookings, manifests",
+    icon: "Ship",
+    dependencies: ["finance"],
+    isAvailable: true,
+  },
 ];
 
 export function getModule(name: string): ModuleDefinition | undefined {

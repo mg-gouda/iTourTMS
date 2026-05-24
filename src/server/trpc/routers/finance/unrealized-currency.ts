@@ -8,7 +8,7 @@ const p = (code: string) => modulePermissionProcedure("finance", code);
 export const unrealizedCurrencyRouter = createTRPCRouter({
   list: p("finance:move:read").query(async ({ ctx }) => {
     return ctx.db.unrealizedCurrencyEntry.findMany({
-      where: { companyId: ctx.session.user.companyId },
+      where: { companyId: ctx.companyId },
       include: { currency: { select: { id: true, code: true, name: true, symbol: true } } },
       orderBy: { date: "desc" },
     });
@@ -18,7 +18,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const rec = await ctx.db.unrealizedCurrencyEntry.findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         include: { currency: true },
       });
       if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
@@ -37,7 +37,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
       return ctx.db.unrealizedCurrencyEntry.create({
         data: {
           ...input,
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           date: new Date(input.date),
           gainLoss: new Decimal(input.gainLoss),
         },
@@ -48,7 +48,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const rec = await ctx.db.unrealizedCurrencyEntry.findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
       });
       if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
       if (rec.isReversed) throw new TRPCError({ code: "BAD_REQUEST", message: "Already reversed" });
@@ -62,7 +62,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
   computePositions: p("finance:move:read").query(async ({ ctx }) => {
     const lines = await ctx.db.moveLineItem.findMany({
       where: {
-        move: { companyId: ctx.session.user.companyId, state: "POSTED" },
+        move: { companyId: ctx.companyId, state: "POSTED" },
         currencyId: { not: null },
         balance: { not: 0 },
       },

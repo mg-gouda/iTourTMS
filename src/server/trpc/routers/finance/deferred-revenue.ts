@@ -28,7 +28,7 @@ export const deferredRevenueRouter = createTRPCRouter({
     .input(z.object({ state: z.enum(["DRAFT", "RUNNING", "CLOSED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.deferredRevenue.findMany({
-        where: { companyId: ctx.session.user.companyId, ...(input.state ? { state: input.state as any } : {}) },
+        where: { companyId: ctx.companyId, ...(input.state ? { state: input.state as any } : {}) },
         include: {
           account: { select: { id: true, code: true, name: true } },
           revenueAccount: { select: { id: true, code: true, name: true } },
@@ -41,7 +41,7 @@ export const deferredRevenueRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const rec = await (ctx.db.deferredRevenue as any).findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         include: {
           account: { select: { id: true, code: true, name: true } },
           revenueAccount: { select: { id: true, code: true, name: true } },
@@ -70,7 +70,7 @@ export const deferredRevenueRouter = createTRPCRouter({
       const rec = await ctx.db.deferredRevenue.create({
         data: {
           ...rest,
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           amount: amountDec,
           startDate: start,
           endDate: end,
@@ -104,7 +104,7 @@ export const deferredRevenueRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.deferredRevenue.update({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         data: { state: "CLOSED" },
       });
     }),

@@ -206,6 +206,16 @@ model Company {
   // License
   license              License?
 
+  // Nile Cruises relations
+  cruiseBoats              CruiseBoat[]
+  cruiseTypes              CruiseType[]
+  cruiseCancellationPolicies CruiseCancellationPolicy[]
+  cruiseContracts          CruiseContract[]
+  cruiseDepartures         CruiseDeparture[]
+  cruiseDeparturePatterns  CruiseDeparturePattern[]
+  cruiseBookings           CruiseBooking[]
+  cruiseStopSales          CruiseStopSale[]
+
   @@index([countryId])
   @@index([baseCurrencyId])
 }
@@ -414,6 +424,11 @@ model Country {
   // Traffic relations
   airports Airport[]
 
+  // Nile Cruises relations
+  cruiseBookingLeads   CruiseBooking[]    @relation("CruiseBookingLeadNationality")
+  cruisePaxNationalities CruisePassenger[] @relation("PaxNationality")
+  cruisePaxPassportCountries CruisePassenger[] @relation("PaxPassportCountry")
+
   @@index([code])
   @@index([name])
 }
@@ -514,7 +529,8 @@ model PartnerTitle {
   nameAr   String?
   isActive Boolean @default(true)
 
-  partners Partner[]
+  partners         Partner[]
+  cruisePassengers CruisePassenger[]
 }
 
 // ============================================================================
@@ -576,6 +592,7 @@ model Partner {
   tourOperator           TourOperator? @relation("TourOperatorPartner")
   vendorFlightTickets    OpsFlightTicket[] @relation("FlightTicketVendor")
   customerFlightTickets  OpsFlightTicket[] @relation("FlightTicketCustomer")
+  operatedCruiseBoats    CruiseBoat[]  @relation("CruiseBoatOperator")
 
   // Finance new relations
   analyticAccounts       AnalyticAccount[]
@@ -2682,6 +2699,13 @@ model Market {
   publicBrandings         PublicSiteBranding[]
   crmProgramPlans         CrmProgramPlan[]
 
+  // Nile Cruises relations
+  cruiseBaseRates      CruiseBaseRate[]          @relation("CruiseBaseRateMarket")
+  cruiseSupplements    CruiseSupplement[]        @relation("CruiseSupplementMarket")
+  cruiseContractMarkets CruiseContractMarket[]   @relation("CruiseContractMarket")
+  cruiseStopSales      CruiseStopSale[]          @relation("CruiseStopSaleMarket")
+  cruiseBookings       CruiseBooking[]           @relation("CruiseBookingMarket")
+
   @@unique([companyId, code])
   @@index([companyId])
   @@map("ct_market")
@@ -2737,9 +2761,11 @@ model TourOperator {
   bookings            Booking[]
   creditTransactions  B2bCreditTransaction[]
   partnerUsers        User[]   @relation("PartnerUser")
-  crmProgramAssignments CrmProgramTourOperator[]
-  excursionTickets   CrmExcursionTicket[]
-  opsFiles           OpsFile[]
+  crmProgramAssignments  CrmProgramTourOperator[]
+  excursionTickets       CrmExcursionTicket[]
+  opsFiles               OpsFile[]
+  cruiseContractTOs      CruiseContractTourOperator[]
+  cruiseBookings         CruiseBooking[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -4823,10 +4849,11 @@ model CrmCustomer {
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   partner  Partner? @relation(fields: [partnerId], references: [id])
 
-  activities    CrmActivity[]
-  opportunities CrmOpportunity[]
-  bookings      CrmBooking[]
-  opsFiles      OpsFile[]
+  activities      CrmActivity[]
+  opportunities   CrmOpportunity[]
+  bookings        CrmBooking[]
+  opsFiles        OpsFile[]
+  cruiseBookings  CruiseBooking[]
 
   @@index([companyId])
   @@index([companyId, email])
@@ -4891,6 +4918,7 @@ model CrmExcursion {
   excursionTickets  CrmExcursionTicket[]
   excursionBreakdowns CrmExcursionBreakdown[]
   excursionDispatches CrmExcursionDispatch[]
+  cruiseDayExcursions CruiseItineraryDayExcursion[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -5591,11 +5619,12 @@ model OpsFile {
   tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
   createdBy    User          @relation("OpsFileCreatedBy", fields: [createdById], references: [id])
 
-  packages       OpsPackage[]
-  quotations     OpsQuotation[]
-  pnl            OpsPnL?
-  opsPayments    Payment[]         @relation("OpsFilePayments")
-  flightTickets  OpsFlightTicket[] @relation("OpsFileFlightTickets")
+  packages        OpsPackage[]
+  quotations      OpsQuotation[]
+  pnl             OpsPnL?
+  opsPayments     Payment[]         @relation("OpsFilePayments")
+  flightTickets   OpsFlightTicket[] @relation("OpsFileFlightTickets")
+  cruiseBookings  CruiseBooking[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -6088,4 +6117,1216 @@ model CoaTemplateAccount {
   @@index([templateId])
   @@index([templateId, code])
   @@map("coa_template_account")
+}
+
+// =============================================================================
+// NILE CRUISES MODULE
+// =============================================================================
+
+// ── Enums ──
+
+enum CruiseOwnershipMode {
+  OWN_FLEET
+  CONTRACTED
+}
+
+enum CruiseBoatClass {
+  STEAMER
+  DAHABIYA
+  LAKE_CRUISER
+  LONG_NILE_CRUISER
+}
+
+enum CruiseStarRating {
+  THREE
+  FOUR
+  FIVE
+  FIVE_DELUXE
+}
+
+enum CruiseDeckLevel {
+  LOWER_DECK
+  MAIN_DECK
+  UPPER_DECK
+  SUN_DECK
+}
+
+enum CabinView {
+  NILE_VIEW
+  CITY_VIEW
+  INSIDE
+  PANORAMIC
+}
+
+enum CabinBedType {
+  TWIN
+  DOUBLE
+  TWIN_OR_DOUBLE
+  KING
+  SUITE_CONFIG
+}
+
+enum CruiseTypeCode {
+  NILE_3N_LUX_ASW
+  NILE_4N_ASW_LUX
+  NILE_7N_ROUNDTRIP
+  LONG_NILE_CAIRO_ASW
+  LAKE_NASSER
+  DAHABIYA_CUSTOM
+  OTHER
+}
+
+enum CruiseItineraryMode {
+  FIXED
+  VARIABLE
+}
+
+enum CruisePortOfCall {
+  LUXOR
+  ASWAN
+  ESNA
+  EDFU
+  KOM_OMBO
+  ABU_SIMBEL
+  CAIRO
+  EL_MINYA
+  ASYUT
+  SOHAG
+  QENA
+  DENDERA
+  ABYDOS
+  WADI_EL_SEBOUA
+  AMADA
+  KASR_IBRIM
+  OTHER
+}
+
+enum CruiseContractStatus {
+  DRAFT
+  POSTED
+  PUBLISHED
+}
+
+enum CruiseRateBasis {
+  PER_PERSON
+  PER_CABIN
+}
+
+enum CruiseAllocationBasis {
+  FREESALE
+  ON_REQUEST
+  COMMITMENT
+  ALLOCATION
+}
+
+enum CruiseSupplementType {
+  CABIN_CATEGORY
+  OCCUPANCY
+  DECK
+  VIEW
+  GALA_MEAL
+}
+
+enum CruiseSupplementValueType {
+  FIXED
+  PERCENTAGE
+}
+
+enum CruiseOfferType {
+  EARLY_BIRD
+  LONG_STAY
+  FREE_NIGHTS
+  HONEYMOON
+  GROUP_DISCOUNT
+  SINGLE_SUPPLEMENT_WAIVER
+  FREE_DOMESTIC_FLIGHT
+  MARKETING_CONTRIBUTION
+  COMBINABLE_DISCOUNT
+}
+
+enum CruiseOfferValueType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_NIGHTS
+  UPGRADE
+  COMPLIMENTARY
+}
+
+enum CruiseGalaMealType {
+  NEW_YEARS_EVE
+  CHRISTMAS_EVE
+  CHRISTMAS_DAY
+  EASTER_SUNDAY
+  RAMADAN_IFTAR
+  OTHER
+}
+
+enum CruiseDepartureStatus {
+  SCHEDULED
+  OPEN_FOR_SALE
+  CLOSED_FOR_SALE
+  EMBARKING
+  SAILING
+  DISEMBARKED
+  CANCELLED
+}
+
+enum CruiseRecurrencePattern {
+  NONE
+  WEEKLY
+  BI_WEEKLY
+  CUSTOM_DAYS_OF_WEEK
+}
+
+enum CruiseBookingStatus {
+  DRAFT
+  OPTION
+  ON_REQUEST
+  CONFIRMED
+  EMBARKED
+  DISEMBARKED
+  FINALIZED
+  CANCELLED
+  NO_SHOW
+}
+
+enum CruiseBookingSource {
+  DIRECT
+  CRM
+  TOUR_OPS
+  B2C_WEBSITE
+  B2B_PORTAL
+  TOUR_OPERATOR
+}
+
+enum CruiseBillingType {
+  GUEST_DIRECT
+  TOUR_OPERATOR
+  TRAVEL_AGENT
+}
+
+enum CabinAssignmentStatus {
+  UNASSIGNED
+  PROVISIONAL
+  CONFIRMED
+  LOCKED
+}
+
+enum CruisePaxType {
+  ADULT
+  CHILD
+  INFANT
+  TEEN
+}
+
+enum CruisePaxRole {
+  LEAD
+  COMPANION
+  CHILD
+  INFANT
+}
+
+enum ManifestStatus {
+  PENDING
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  AMENDED
+}
+
+enum CruiseStopSaleScope {
+  ALL
+  CABIN_CATEGORY
+  DEPARTURE
+  MARKET
+}
+
+enum CruiseCancellationChargeType {
+  PERCENTAGE
+  FIXED
+  FIRST_NIGHT
+  FULL_AMOUNT
+}
+
+enum CruiseSpecialRequestType {
+  DIETARY
+  ACCESSIBILITY
+  BED_CONFIG
+  CELEBRATION
+  ADJACENT_CABINS
+  CONNECTING_CABINS
+  HIGH_DECK
+  LOW_DECK
+  EARLY_CHECK_IN
+  LATE_CHECK_OUT
+  PORTERAGE
+  TRANSPORT
+  GUIDE_LANGUAGE
+  OTHER
+}
+
+enum CruiseSpecialRequestStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  FULFILLED
+}
+
+enum ManifestSubmissionMethod {
+  ONLINE_PORTAL
+  EMAIL
+  PHYSICAL_DELIVERY
+  FAX
+}
+
+// ── Boat Master Data ──
+
+model CruiseBoat {
+  id                  String              @id @default(cuid())
+  companyId           String
+  code                String
+  name                String
+  ownershipMode       CruiseOwnershipMode
+  boatClass           CruiseBoatClass
+  starRating          CruiseStarRating
+  operatorPartnerId   String?
+  yearBuilt           Int?
+  yearRenovated       Int?
+  totalCabins         Int
+  totalDecks          Int
+  maxPax              Int
+  lengthMeters        Decimal?            @db.Decimal(8, 2)
+  beamMeters          Decimal?            @db.Decimal(8, 2)
+  cruisingSpeedKnots  Decimal?            @db.Decimal(5, 2)
+  hasPool             Boolean             @default(false)
+  hasSpa              Boolean             @default(false)
+  hasGym              Boolean             @default(false)
+  description         String?             @db.Text
+  shortDescription    String?
+  homePortCode        CruisePortOfCall    @default(LUXOR)
+  active              Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  operatorPartner   Partner?             @relation("CruiseBoatOperator", fields: [operatorPartnerId], references: [id])
+
+  cabinCategories   CruiseCabinCategory[]
+  cabins            CruiseCabin[]
+  decks             CruiseDeck[]
+  itineraries       CruiseItinerary[]
+  contracts         CruiseContract[]
+  departures        CruiseDeparture[]
+  stopSales         CruiseStopSale[]
+  amenities         CruiseBoatAmenity[]
+  images            CruiseBoatImage[]
+
+  @@unique([companyId, code])
+  @@index([companyId, ownershipMode])
+  @@index([companyId, boatClass])
+  @@map("nc_boat")
+}
+
+model CruiseBoatAmenity {
+  id        String     @id @default(cuid())
+  boatId    String
+  name      String
+  iconKey   String?
+  createdAt DateTime   @default(now())
+
+  boat CruiseBoat @relation(fields: [boatId], references: [id], onDelete: Cascade)
+
+  @@index([boatId])
+  @@map("nc_boat_amenity")
+}
+
+model CruiseBoatImage {
+  id        String     @id @default(cuid())
+  boatId    String
+  url       String
+  caption   String?
+  sortOrder Int        @default(0)
+  isPrimary Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  boat CruiseBoat @relation(fields: [boatId], references: [id], onDelete: Cascade)
+
+  @@index([boatId])
+  @@map("nc_boat_image")
+}
+
+model CruiseDeck {
+  id          String          @id @default(cuid())
+  boatId      String
+  level       CruiseDeckLevel
+  name        String
+  sortOrder   Int             @default(0)
+  planLayout  Json?
+  createdAt   DateTime        @default(now())
+
+  boat   CruiseBoat  @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  cabins CruiseCabin[]
+
+  @@unique([boatId, level])
+  @@index([boatId])
+  @@map("nc_deck")
+}
+
+model CruiseCabinCategory {
+  id                String   @id @default(cuid())
+  boatId            String
+  code              String
+  name              String
+  description       String?  @db.Text
+  bedConfiguration  String?
+  minOccupancy      Int      @default(1)
+  baseOccupancy     Int      @default(2)
+  maxAdults         Int      @default(2)
+  maxChildren       Int      @default(1)
+  maxInfants        Int      @default(1)
+  maxOccupancy      Int      @default(2)
+  extraBedAvailable Boolean  @default(false)
+  maxExtraBeds      Int      @default(0)
+  sizeM2            Decimal? @db.Decimal(6, 2)
+  hasBalcony        Boolean  @default(false)
+  hasBathtub        Boolean  @default(false)
+  sortOrder         Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  boat        CruiseBoat       @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  cabins      CruiseCabin[]
+  baseRates   CruiseBaseRate[]
+  supplements CruiseSupplement[]
+  allotments  CruiseAllotment[]
+  cabinLines  CruiseBookingCabinLine[]
+
+  @@unique([boatId, code])
+  @@index([boatId])
+  @@map("nc_cabin_category")
+}
+
+model CruiseCabin {
+  id              String              @id @default(cuid())
+  boatId          String
+  deckId          String
+  categoryId      String
+  cabinNumber     String
+  view            CabinView
+  bedType         CabinBedType
+  isAccessible    Boolean             @default(false)
+  isConnecting    Boolean             @default(false)
+  connectingTo    String?
+  positionX       Int?
+  positionY       Int?
+  notes           String?
+  active          Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  boat        CruiseBoat          @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  deck        CruiseDeck          @relation(fields: [deckId], references: [id])
+  category    CruiseCabinCategory @relation(fields: [categoryId], references: [id])
+  assignments CabinAssignment[]
+  outOfOrder  CabinOutOfOrder[]
+
+  @@unique([boatId, cabinNumber])
+  @@index([boatId, categoryId])
+  @@index([boatId, deckId])
+  @@map("nc_cabin")
+}
+
+model CabinOutOfOrder {
+  id          String      @id @default(cuid())
+  cabinId     String
+  fromDate    DateTime
+  toDate      DateTime
+  reason      String
+  createdById String
+  createdAt   DateTime    @default(now())
+
+  cabin CruiseCabin @relation(fields: [cabinId], references: [id], onDelete: Cascade)
+
+  @@index([cabinId])
+  @@index([fromDate, toDate])
+  @@map("nc_cabin_ooo")
+}
+
+// ── Cruise Types & Itineraries ──
+
+model CruiseType {
+  id              String            @id @default(cuid())
+  companyId       String
+  code            CruiseTypeCode
+  name            String
+  durationNights  Int
+  itineraryMode   CruiseItineraryMode
+  embarkPort      CruisePortOfCall
+  disembarkPort   CruisePortOfCall
+  description     String?           @db.Text
+  active          Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itineraries CruiseItinerary[]
+  departures  CruiseDeparture[]
+
+  @@unique([companyId, code])
+  @@map("nc_type")
+}
+
+model CruiseItinerary {
+  id           String              @id @default(cuid())
+  companyId    String
+  boatId       String?
+  cruiseTypeId String
+  departureId  String?             @unique
+  mode         CruiseItineraryMode
+  name         String
+  description  String?             @db.Text
+  active       Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  boat       CruiseBoat?     @relation(fields: [boatId], references: [id])
+  cruiseType CruiseType      @relation(fields: [cruiseTypeId], references: [id])
+  departure  CruiseDeparture? @relation(fields: [departureId], references: [id])
+  days       CruiseItineraryDay[]
+
+  @@index([boatId, cruiseTypeId])
+  @@index([departureId])
+  @@map("nc_itinerary")
+}
+
+model CruiseItineraryDay {
+  id                String   @id @default(cuid())
+  itineraryId       String
+  dayNumber         Int
+  portOfCall        CruisePortOfCall
+  arrivalTime       String?
+  departureTime     String?
+  sailingTime       String?
+  title             String
+  description       String?  @db.Text
+  meals             String?
+  includesBreakfast Boolean  @default(true)
+  includesLunch     Boolean  @default(true)
+  includesDinner    Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  itinerary  CruiseItinerary              @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  excursions CruiseItineraryDayExcursion[]
+
+  @@unique([itineraryId, dayNumber])
+  @@index([itineraryId])
+  @@map("nc_itinerary_day")
+}
+
+model CruiseItineraryDayExcursion {
+  id               String   @id @default(cuid())
+  dayId            String
+  excursionId      String
+  isIncluded       Boolean  @default(true)
+  optionalPricePax Decimal? @db.Decimal(12, 2)
+  optionalCurrency String?
+  sortOrder        Int      @default(0)
+  notes            String?
+
+  day       CruiseItineraryDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  excursion CrmExcursion       @relation(fields: [excursionId], references: [id])
+
+  @@unique([dayId, excursionId])
+  @@index([dayId])
+  @@index([excursionId])
+  @@map("nc_itinerary_day_excursion")
+}
+
+// ── Cruise Contract ──
+
+model CruiseCancellationPolicy {
+  id                   String   @id @default(cuid())
+  companyId            String
+  name                 String
+  description          String?  @db.Text
+  freeCancellationDays Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  company   Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tiers     CruiseCancellationPolicyTier[]
+  contracts CruiseContract[]
+
+  @@index([companyId])
+  @@map("nc_cancellation_policy")
+}
+
+model CruiseCancellationPolicyTier {
+  id          String                       @id @default(cuid())
+  policyId    String
+  daysBefore  Int
+  chargeType  CruiseCancellationChargeType
+  chargeValue Decimal                      @db.Decimal(12, 4)
+  sortOrder   Int                          @default(0)
+  createdAt   DateTime                     @default(now())
+
+  policy CruiseCancellationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([policyId])
+  @@map("nc_cancellation_tier")
+}
+
+model CruiseContract {
+  id                       String               @id @default(cuid())
+  companyId                String
+  code                     String
+  name                     String
+  boatId                   String
+  ownershipMode            CruiseOwnershipMode
+  validFrom                DateTime
+  validTo                  DateTime
+  status                   CruiseContractStatus @default(DRAFT)
+  rateBasis                CruiseRateBasis      @default(PER_PERSON)
+  allocationBasis          CruiseAllocationBasis @default(ALLOCATION)
+  defaultReleaseDays       Int                  @default(7)
+  includesFullBoard        Boolean              @default(true)
+  includesSightseeing      Boolean              @default(true)
+  includesSoftDrinks       Boolean              @default(false)
+  includesVisitFees        Boolean              @default(false)
+  includesTransfers        Boolean              @default(false)
+  includesDomesticFlight   Boolean              @default(false)
+  flightRouting            String?
+  baseCurrency             String               @default("USD")
+  cancellationPolicyId     String?
+  termsAndConditions       String?              @db.Text
+  notes                    String?              @db.Text
+  isTemplate               Boolean              @default(false)
+  parentContractId         String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  postedAt                 DateTime?
+  publishedAt              DateTime?
+
+  company            Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  boat               CruiseBoat                  @relation(fields: [boatId], references: [id])
+  cancellationPolicy CruiseCancellationPolicy?   @relation(fields: [cancellationPolicyId], references: [id])
+  parentContract     CruiseContract?             @relation("CruiseContractLineage", fields: [parentContractId], references: [id])
+  childContracts     CruiseContract[]            @relation("CruiseContractLineage")
+
+  seasons            CruiseSeason[]
+  baseRates          CruiseBaseRate[]
+  supplements        CruiseSupplement[]
+  offers             CruiseOffer[]
+  galaMeals          CruiseGalaMeal[]
+  stopSales          CruiseStopSale[]
+  allotments         CruiseAllotment[]
+  marketAssignments  CruiseContractMarket[]
+  tourOperators      CruiseContractTourOperator[]
+  childPolicies      CruiseChildPolicy[]
+  departures         CruiseDeparture[]
+  bookings           CruiseBooking[]
+
+  @@unique([companyId, code])
+  @@index([companyId, boatId])
+  @@index([companyId, status])
+  @@index([validFrom, validTo])
+  @@map("nc_contract")
+}
+
+model CruiseSeason {
+  id         String   @id @default(cuid())
+  contractId String
+  name       String
+  code       String
+  dateFrom   DateTime
+  dateTo     DateTime
+  releaseDays Int?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  contract    CruiseContract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  baseRates   CruiseBaseRate[]
+  supplements CruiseSupplement[]
+  allotments  CruiseAllotment[]
+
+  @@unique([contractId, code])
+  @@index([contractId])
+  @@map("nc_season")
+}
+
+model CruiseBaseRate {
+  id                 String   @id @default(cuid())
+  contractId         String
+  seasonId           String
+  cabinCategoryId    String
+  ratePerPaxPerNight Decimal  @db.Decimal(12, 2)
+  currency           String
+  marketId           String?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  contract      CruiseContract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  season        CruiseSeason        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  cabinCategory CruiseCabinCategory @relation(fields: [cabinCategoryId], references: [id])
+  market        Market?             @relation("CruiseBaseRateMarket", fields: [marketId], references: [id])
+
+  @@unique([contractId, seasonId, cabinCategoryId, marketId])
+  @@index([contractId])
+  @@map("nc_base_rate")
+}
+
+model CruiseSupplement {
+  id              String                    @id @default(cuid())
+  contractId      String
+  seasonId        String
+  type            CruiseSupplementType
+  cabinCategoryId String?
+  deckLevel       CruiseDeckLevel?
+  view            CabinView?
+  childAgeCategory ChildAgeCategory?
+  occupancyKey    String?
+  valueType       CruiseSupplementValueType
+  value           Decimal                   @db.Decimal(12, 4)
+  perPaxPerNight  Boolean                   @default(true)
+  marketId        String?
+  createdAt       DateTime                  @default(now())
+
+  contract      CruiseContract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  season        CruiseSeason         @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  cabinCategory CruiseCabinCategory? @relation(fields: [cabinCategoryId], references: [id])
+  market        Market?              @relation("CruiseSupplementMarket", fields: [marketId], references: [id])
+
+  @@index([contractId, type])
+  @@index([contractId, seasonId])
+  @@map("nc_supplement")
+}
+
+model CruiseChildPolicy {
+  id              String           @id @default(cuid())
+  contractId      String
+  category        ChildAgeCategory
+  ageFrom         Int
+  ageTo           Int
+  bedding         ChildBedding
+  isFree          Boolean          @default(false)
+  discountPercent Decimal?         @db.Decimal(5, 2)
+  fixedRate       Decimal?         @db.Decimal(12, 2)
+  maxFreeChildren Int              @default(0)
+  sortOrder       Int              @default(0)
+  createdAt       DateTime         @default(now())
+
+  contract CruiseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, category])
+  @@index([contractId])
+  @@map("nc_child_policy")
+}
+
+model CruiseContractMarket {
+  id         String  @id @default(cuid())
+  contractId String
+  marketId   String
+  markup     Decimal? @db.Decimal(8, 4)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  contract CruiseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  market   Market         @relation("CruiseContractMarket", fields: [marketId], references: [id])
+
+  @@unique([contractId, marketId])
+  @@map("nc_contract_market")
+}
+
+model CruiseContractTourOperator {
+  id                    String  @id @default(cuid())
+  contractId            String
+  tourOperatorId        String
+  markup                Decimal? @db.Decimal(8, 4)
+  marketingContribution Decimal? @db.Decimal(12, 2)
+  commissionPercent     Decimal? @db.Decimal(5, 2)
+  paymentTermDays       Int?
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+
+  contract     CruiseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator   @relation(fields: [tourOperatorId], references: [id])
+
+  @@unique([contractId, tourOperatorId])
+  @@map("nc_contract_to")
+}
+
+model CruiseOffer {
+  id                         String              @id @default(cuid())
+  contractId                 String
+  type                       CruiseOfferType
+  name                       String
+  description                String?             @db.Text
+  valueType                  CruiseOfferValueType
+  value                      Decimal?            @db.Decimal(12, 4)
+  freeNightsPay              Int?
+  freeNightsGet              Int?
+  bookingFromDate            DateTime?
+  bookingToDate              DateTime?
+  travelFromDate             DateTime?
+  travelToDate               DateTime?
+  daysBeforeDeparture        Int?
+  minNights                  Int?
+  minPax                     Int?
+  applicableCabinCategoryIds String[]
+  applicableMarketIds        String[]
+  isCombinable               Boolean             @default(false)
+  notCombinableWith          String[]
+  active                     Boolean             @default(true)
+  sortOrder                  Int                 @default(0)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+
+  contract CruiseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, type])
+  @@map("nc_offer")
+}
+
+model CruiseGalaMeal {
+  id              String             @id @default(cuid())
+  contractId      String
+  type            CruiseGalaMealType
+  applicableDate  DateTime
+  pricePerPax     Decimal            @db.Decimal(12, 2)
+  childPricePerPax Decimal?          @db.Decimal(12, 2)
+  isMandatory     Boolean            @default(true)
+  currency        String
+  notes           String?
+  createdAt       DateTime           @default(now())
+
+  contract CruiseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, applicableDate])
+  @@map("nc_gala_meal")
+}
+
+// ── Stop Sales ──
+
+model CruiseStopSale {
+  id              String              @id @default(cuid())
+  companyId       String
+  contractId      String?
+  boatId          String?
+  departureId     String?
+  scope           CruiseStopSaleScope
+  cabinCategoryId String?
+  marketId        String?
+  fromDate        DateTime
+  toDate          DateTime
+  reason          String
+  createdById     String
+  active          Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract  CruiseContract?  @relation(fields: [contractId], references: [id])
+  boat      CruiseBoat?      @relation(fields: [boatId], references: [id])
+  departure CruiseDeparture? @relation(fields: [departureId], references: [id])
+  market    Market?          @relation("CruiseStopSaleMarket", fields: [marketId], references: [id])
+
+  @@index([companyId, fromDate, toDate])
+  @@index([boatId])
+  @@index([contractId])
+  @@map("nc_stop_sale")
+}
+
+// ── Departure & Allotment ──
+
+model CruiseDeparturePattern {
+  id           String                  @id @default(cuid())
+  companyId    String
+  boatId       String
+  cruiseTypeId String
+  pattern      CruiseRecurrencePattern
+  daysOfWeek   Int[]
+  startDate    DateTime
+  endDate      DateTime
+  embarkPort   CruisePortOfCall
+  disembarkPort CruisePortOfCall
+  contractId   String?
+  active       Boolean                 @default(true)
+  generatedCount Int                   @default(0)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departures CruiseDeparture[]
+
+  @@index([companyId, boatId])
+  @@map("nc_departure_pattern")
+}
+
+model CruiseDeparture {
+  id                       String                @id @default(cuid())
+  companyId                String
+  code                     String
+  boatId                   String
+  cruiseTypeId             String
+  contractId               String?
+  embarkDate               DateTime
+  disembarkDate            DateTime
+  embarkPort               CruisePortOfCall
+  disembarkPort            CruisePortOfCall
+  status                   CruiseDepartureStatus @default(SCHEDULED)
+  cutoffDate               DateTime?
+  notes                    String?
+  manifestStatus           ManifestStatus        @default(PENDING)
+  manifestSubmittedAt      DateTime?
+  manifestNumber           String?
+  totalCabins              Int
+  totalPaxCapacity         Int
+  generatedFromPatternId   String?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+
+  company              Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  boat                 CruiseBoat               @relation(fields: [boatId], references: [id])
+  cruiseType           CruiseType               @relation(fields: [cruiseTypeId], references: [id])
+  contract             CruiseContract?          @relation(fields: [contractId], references: [id])
+  generatedFromPattern CruiseDeparturePattern?  @relation(fields: [generatedFromPatternId], references: [id])
+
+  itinerary        CruiseItinerary?
+  allotments       CruiseAllotment[]
+  bookings         CruiseBooking[]
+  cabinAssignments CabinAssignment[]
+  stopSales        CruiseStopSale[]
+  manifest         CruiseManifest?
+
+  @@unique([companyId, code])
+  @@index([companyId, embarkDate])
+  @@index([boatId, embarkDate])
+  @@index([status])
+  @@map("nc_departure")
+}
+
+model CruiseAllotment {
+  id              String                @id @default(cuid())
+  contractId      String
+  departureId     String?
+  seasonId        String?
+  cabinCategoryId String
+  allocationBasis CruiseAllocationBasis
+  totalCabins     Int
+  soldCabins      Int                   @default(0)
+  releaseDate     DateTime?
+  isFreesale      Boolean               @default(false)
+  notes           String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  contract      CruiseContract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  departure     CruiseDeparture?    @relation(fields: [departureId], references: [id])
+  season        CruiseSeason?       @relation(fields: [seasonId], references: [id])
+  cabinCategory CruiseCabinCategory @relation(fields: [cabinCategoryId], references: [id])
+
+  @@unique([contractId, departureId, cabinCategoryId])
+  @@index([contractId])
+  @@index([departureId])
+  @@map("nc_allotment")
+}
+
+// ── Bookings ──
+
+model CruiseBooking {
+  id                     String              @id @default(cuid())
+  companyId              String
+  code                   String
+  status                 CruiseBookingStatus @default(DRAFT)
+  source                 CruiseBookingSource @default(DIRECT)
+  billingType            CruiseBillingType   @default(GUEST_DIRECT)
+  departureId            String
+  contractId             String
+  marketId               String?
+  adults                 Int                 @default(2)
+  children               Int                 @default(0)
+  infants                Int                 @default(0)
+  cabinCount             Int                 @default(1)
+  customerId             String?
+  leadGuestName          String
+  leadGuestEmail         String?
+  leadGuestPhone         String?
+  leadGuestNationalityId String?
+  tourOperatorId         String?
+  baseCurrency           String              @default("USD")
+  netTotal               Decimal             @db.Decimal(14, 2)
+  markup                 Decimal             @db.Decimal(14, 2) @default(0)
+  discounts              Decimal             @db.Decimal(14, 2) @default(0)
+  galaSupplement         Decimal             @db.Decimal(14, 2) @default(0)
+  grossTotal             Decimal             @db.Decimal(14, 2)
+  paidAmount             Decimal             @db.Decimal(14, 2) @default(0)
+  balanceDue             Decimal             @db.Decimal(14, 2)
+  optionExpiryAt         DateTime?
+  confirmedAt            DateTime?
+  cancelledAt            DateTime?
+  cancelledReason        String?
+  cancellationPenalty    Decimal?            @db.Decimal(14, 2)
+  embarkedAt             DateTime?
+  disembarkedAt          DateTime?
+  finalizedAt            DateTime?
+  opsFileId              String?
+  hotelReservationIds    String[]
+  trafficJobIds          String[]
+  flightTicketIds        String[]
+  invoiceMoveId          String?
+  refundMoveId           String?
+  voucherGeneratedAt     DateTime?
+  createdById            String
+  updatedById            String?
+  notes                  String?             @db.Text
+  internalNotes          String?             @db.Text
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  company              Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departure            CruiseDeparture  @relation(fields: [departureId], references: [id])
+  contract             CruiseContract   @relation(fields: [contractId], references: [id])
+  market               Market?          @relation("CruiseBookingMarket", fields: [marketId], references: [id])
+  customer             CrmCustomer?     @relation(fields: [customerId], references: [id])
+  leadGuestNationality Country?         @relation("CruiseBookingLeadNationality", fields: [leadGuestNationalityId], references: [id])
+  tourOperator         TourOperator?    @relation(fields: [tourOperatorId], references: [id])
+  opsFile              OpsFile?         @relation(fields: [opsFileId], references: [id])
+
+  passengers        CruisePassenger[]
+  cabinLines        CruiseBookingCabinLine[]
+  payments          CruiseBookingPayment[]
+  specialRequests   CruiseSpecialRequest[]
+  communications    CruiseBookingCommunication[]
+  cabinAssignments  CabinAssignment[]
+  vouchers          CruiseVoucher[]
+  amendments        CruiseBookingAmendment[]
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([departureId])
+  @@index([customerId])
+  @@index([tourOperatorId])
+  @@index([opsFileId])
+  @@map("nc_booking")
+}
+
+model CruiseBookingCabinLine {
+  id                 String   @id @default(cuid())
+  bookingId          String
+  cabinCategoryId    String
+  occupancy          Int
+  adults             Int      @default(2)
+  children           Int      @default(0)
+  childAges          Int[]
+  ratePerPaxPerNight Decimal  @db.Decimal(12, 2)
+  nights             Int
+  sglSupplement      Decimal? @db.Decimal(12, 2)
+  childDiscounts     Decimal? @db.Decimal(12, 2)
+  deckPreference     CruiseDeckLevel?
+  viewPreference     CabinView?
+  lineTotal          Decimal  @db.Decimal(14, 2)
+  sortOrder          Int      @default(0)
+
+  booking       CruiseBooking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  cabinCategory CruiseCabinCategory @relation(fields: [cabinCategoryId], references: [id])
+  passengers    CruisePassenger[]   @relation("PaxToCabinLine")
+
+  @@index([bookingId])
+  @@map("nc_booking_cabin")
+}
+
+model CruisePassenger {
+  id                     String        @id @default(cuid())
+  bookingId              String
+  cabinLineId            String?
+  paxType                CruisePaxType
+  paxRole                CruisePaxRole @default(COMPANION)
+  titleId                String?
+  firstName              String
+  lastName               String
+  dateOfBirth            DateTime?
+  age                    Int?
+  gender                 String?
+  nationalityId          String?
+  passportNumber         String?
+  passportIssueDate      DateTime?
+  passportExpiryDate     DateTime?
+  passportIssueCountryId String?
+  email                  String?
+  phone                  String?
+  dietary                String?
+  medicalNotes           String?
+  isLead                 Boolean       @default(false)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  booking              CruiseBooking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  cabinLine            CruiseBookingCabinLine? @relation("PaxToCabinLine", fields: [cabinLineId], references: [id])
+  title                PartnerTitle?        @relation(fields: [titleId], references: [id])
+  nationality          Country?             @relation("PaxNationality", fields: [nationalityId], references: [id])
+  passportIssueCountry Country?             @relation("PaxPassportCountry", fields: [passportIssueCountryId], references: [id])
+
+  @@index([bookingId])
+  @@map("nc_passenger")
+}
+
+model CabinAssignment {
+  id          String                @id @default(cuid())
+  departureId String
+  bookingId   String
+  cabinId     String
+  status      CabinAssignmentStatus @default(PROVISIONAL)
+  assignedById String
+  assignedAt  DateTime              @default(now())
+  confirmedAt DateTime?
+  notes       String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  departure CruiseDeparture @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  booking   CruiseBooking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  cabin     CruiseCabin     @relation(fields: [cabinId], references: [id])
+
+  @@unique([departureId, cabinId])
+  @@index([bookingId])
+  @@map("nc_cabin_assignment")
+}
+
+model CruiseBookingPayment {
+  id          String   @id @default(cuid())
+  bookingId   String
+  amount      Decimal  @db.Decimal(14, 2)
+  currency    String
+  paidAt      DateTime
+  method      String
+  reference   String?
+  paymentId   String?
+  notes       String?
+  recordedById String
+  createdAt   DateTime @default(now())
+
+  booking CruiseBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("nc_booking_payment")
+}
+
+model CruiseSpecialRequest {
+  id            String                     @id @default(cuid())
+  bookingId     String
+  type          CruiseSpecialRequestType
+  description   String                     @db.Text
+  status        CruiseSpecialRequestStatus @default(PENDING)
+  response      String?                    @db.Text
+  fulfilledAt   DateTime?
+  fulfilledById String?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  booking CruiseBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("nc_special_request")
+}
+
+model CruiseBookingCommunication {
+  id          String   @id @default(cuid())
+  bookingId   String
+  direction   String
+  channel     String
+  subject     String?
+  body        String   @db.Text
+  occurredAt  DateTime @default(now())
+  recordedById String
+  createdAt   DateTime @default(now())
+
+  booking CruiseBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("nc_booking_comm")
+}
+
+model CruiseBookingAmendment {
+  id            String   @id @default(cuid())
+  bookingId     String
+  type          String
+  description   String   @db.Text
+  oldValue      Json?
+  newValue      Json?
+  priceImpact   Decimal? @db.Decimal(14, 2)
+  penaltyApplied Decimal? @db.Decimal(14, 2)
+  performedById String
+  performedAt   DateTime @default(now())
+
+  booking CruiseBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("nc_booking_amendment")
+}
+
+model CruiseVoucher {
+  id          String   @id @default(cuid())
+  bookingId   String
+  code        String   @unique
+  status      String   @default("ISSUED")
+  issuedAt    DateTime @default(now())
+  usedAt      DateTime?
+  cancelledAt DateTime?
+  pdfUrl      String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  booking CruiseBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("nc_voucher")
+}
+
+// ── Manifest ──
+
+model CruiseManifest {
+  id                 String                   @id @default(cuid())
+  departureId        String                   @unique
+  status             ManifestStatus           @default(PENDING)
+  submissionMethod   ManifestSubmissionMethod?
+  submittedAt        DateTime?
+  acceptedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  submissionRef      String?
+  totalPax           Int
+  totalAdults        Int
+  totalChildren      Int
+  totalInfants       Int
+  pdfUrl             String?
+  excelUrl           String?
+  versionNumber      Int                      @default(1)
+  createdById        String
+  submittedById      String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  departure  CruiseDeparture          @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  amendments CruiseManifestAmendment[]
+
+  @@index([departureId])
+  @@map("nc_manifest")
+}
+
+model CruiseManifestAmendment {
+  id            String   @id @default(cuid())
+  manifestId    String
+  versionNumber Int
+  changeSummary String   @db.Text
+  pdfUrl        String?
+  performedById String
+  performedAt   DateTime @default(now())
+
+  manifest CruiseManifest @relation(fields: [manifestId], references: [id], onDelete: Cascade)
+
+  @@index([manifestId])
+  @@map("nc_manifest_amendment")
 }

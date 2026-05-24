@@ -8,7 +8,7 @@ export const analyticRouter = createTRPCRouter({
     .input(z.object({ isActive: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.analyticAccount.findMany({
-        where: { companyId: ctx.session.user.companyId, ...(input.isActive !== undefined && input.isActive !== null ? { isActive: input.isActive } : {}) },
+        where: { companyId: ctx.companyId, ...(input.isActive !== undefined && input.isActive !== null ? { isActive: input.isActive } : {}) },
         include: { partner: { select: { id: true, name: true } } },
         orderBy: [{ code: "asc" }, { name: "asc" }],
       });
@@ -19,7 +19,7 @@ export const analyticRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { code, partnerId, ...rest } = input;
       return ctx.db.analyticAccount.create({
-        data: { ...rest, ...(code ? { code } : {}), ...(partnerId ? { partnerId } : {}), companyId: ctx.session.user.companyId },
+        data: { ...rest, ...(code ? { code } : {}), ...(partnerId ? { partnerId } : {}), companyId: ctx.companyId },
       });
     }),
 
@@ -28,7 +28,7 @@ export const analyticRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, partnerId, ...rest } = input;
       return ctx.db.analyticAccount.update({
-        where: { id, companyId: ctx.session.user.companyId },
+        where: { id, companyId: ctx.companyId },
         data: { ...rest, partnerId: partnerId ?? undefined },
       });
     }),
@@ -44,7 +44,7 @@ export const analyticRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { analyticAccountId, dateFrom, dateTo, page, pageSize } = input;
       const where: Record<string, unknown> = {
-        move: { companyId: ctx.session.user.companyId, state: "POSTED" },
+        move: { companyId: ctx.companyId, state: "POSTED" },
         analyticAccountId: analyticAccountId ?? { not: null },
       };
       if (dateFrom || dateTo) {

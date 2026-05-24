@@ -37,7 +37,7 @@ export const coaTemplateRouter = createTRPCRouter({
       overwrite: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
-      const companyId = ctx.session.user.companyId;
+      const companyId = ctx.companyId;
 
       const existing = await ctx.db.coaTemplate.findUnique({ where: { name: input.name } });
       if (existing && !input.overwrite) {
@@ -112,7 +112,7 @@ export const coaTemplateRouter = createTRPCRouter({
       skipExisting: z.boolean().default(true),
     }))
     .mutation(async ({ ctx, input }) => {
-      const companyId = ctx.session.user.companyId;
+      const companyId = ctx.companyId;
 
       const tpl = await ctx.db.coaTemplate.findUnique({
         where: { id: input.templateId },

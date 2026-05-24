@@ -37,7 +37,7 @@ export const loanRouter = createTRPCRouter({
     .input(z.object({ state: z.enum(["DRAFT", "OPEN", "CLOSED"]).optional(), loanType: z.enum(["RECEIVED", "GIVEN"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.accountLoan.findMany({
-        where: { companyId: ctx.session.user.companyId, ...input },
+        where: { companyId: ctx.companyId, ...input },
         include: {
           account: { select: { id: true, code: true, name: true } },
           partner: { select: { id: true, name: true } },
@@ -51,7 +51,7 @@ export const loanRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const loan = await ctx.db.accountLoan.findFirst({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         include: {
           account: { select: { id: true, code: true, name: true } },
           interestAccount: { select: { id: true, code: true, name: true } },
@@ -81,7 +81,7 @@ export const loanRouter = createTRPCRouter({
       const loan = await ctx.db.accountLoan.create({
         data: {
           ...rest,
-          companyId: ctx.session.user.companyId,
+          companyId: ctx.companyId,
           startDate: new Date(startDate),
           amount: new Decimal(amount),
           rate: new Decimal(rate),
@@ -106,7 +106,7 @@ export const loanRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountLoan.update({
-        where: { id: input.id, companyId: ctx.session.user.companyId },
+        where: { id: input.id, companyId: ctx.companyId },
         data: { state: "CLOSED", outstanding: new Decimal(0) },
       });
     }),
