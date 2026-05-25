@@ -47,7 +47,7 @@ function PassengersTab({ bookingId }: { bookingId: string }) {
   });
 
   const { data: passengers } = trpc.nileCruises.passenger.listByBooking.useQuery({ bookingId });
-  const { data: countries } = trpc.shared.setup.getCountries.useQuery();
+  const { data: countries } = trpc.setup.getCountries.useQuery();
 
   const create = trpc.nileCruises.passenger.create.useMutation({
     onSuccess: () => { toast.success("Passenger added"); utils.nileCruises.passenger.listByBooking.invalidate({ bookingId }); setOpen(false); },

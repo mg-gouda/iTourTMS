@@ -6726,6 +6726,7 @@ model CruiseContract {
   marketAssignments  CruiseContractMarket[]
   tourOperators      CruiseContractTourOperator[]
   childPolicies      CruiseChildPolicy[]
+  embarkDays         CruiseContractEmbarkDay[]
   departures         CruiseDeparture[]
   bookings           CruiseBooking[]
 
@@ -6824,6 +6825,19 @@ model CruiseChildPolicy {
   @@unique([contractId, category])
   @@index([contractId])
   @@map("nc_child_policy")
+}
+
+model CruiseContractEmbarkDay {
+  id              String   @id @default(cuid())
+  contractId      String
+  durationNights  Int
+  dayOfWeek       Int
+
+  contract CruiseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, durationNights, dayOfWeek])
+  @@index([contractId])
+  @@map("nc_contract_embark_day")
 }
 
 model CruiseContractMarket {

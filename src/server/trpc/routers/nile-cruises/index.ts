@@ -24,6 +24,8 @@ import { cruiseCommunicationRouter } from "./communication";
 import { cruiseAmendmentRouter } from "./amendment";
 import { cruiseVoucherRouter } from "./voucher";
 import { cruiseManifestRouter } from "./manifest";
+import { cruiseChildPolicyRouter } from "./child-policy";
+import { cruiseEmbarkDayRouter } from "./embark-day";
 import { cruiseMarkupRouter } from "./markup";
 import { cruiseDashboardRouter } from "./dashboard";
 import { cruiseReportsRouter } from "./reports";
@@ -58,6 +60,8 @@ export const nileCruisesRouter = createTRPCRouter({
   amendment: cruiseAmendmentRouter,
   voucher: cruiseVoucherRouter,
   manifest: cruiseManifestRouter,
+  childPolicy: cruiseChildPolicyRouter,
+  embarkDay: cruiseEmbarkDayRouter,
   markup: cruiseMarkupRouter,
   dashboard: cruiseDashboardRouter,
   reports: cruiseReportsRouter,

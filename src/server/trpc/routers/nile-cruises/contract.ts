@@ -255,6 +255,30 @@ export const cruiseContractRouter = createTRPCRouter({
       };
     }),
 
+  getForExport: p("nile-cruises:contract:read")
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.cruiseContract.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: {
+          boat: {
+            include: {
+              cabinCategories: { orderBy: { sortOrder: "asc" } },
+            },
+          },
+          cancellationPolicy: { include: { tiers: { orderBy: { daysBefore: "desc" } } } },
+          seasons: { orderBy: { dateFrom: "asc" } },
+          baseRates: { include: { season: true, cabinCategory: true } },
+          supplements: { include: { season: true, cabinCategory: true } },
+          offers: { orderBy: { sortOrder: "asc" } },
+          galaMeals: { orderBy: { applicableDate: "asc" } },
+          childPolicies: { orderBy: { sortOrder: "asc" } },
+          embarkDays: { orderBy: [{ durationNights: "asc" }, { dayOfWeek: "asc" }] },
+          marketAssignments: { include: { market: true } },
+        },
+      });
+    }),
+
   listVerificationResults: p("nile-cruises:contract:read")
     .input(z.object({ contractId: z.string() }))
     .query(async ({ ctx, input }) => {

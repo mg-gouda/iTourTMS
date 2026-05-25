@@ -482,3 +482,30 @@ export const cruiseManifestUpdateSchema = z.object({
   submissionRef: z.string().optional(),
   rejectionReason: z.string().optional(),
 });
+
+// ── Child Policy ──
+
+export const cruiseChildPolicyUpsertSchema = z.object({
+  category: z.enum(["INFANT","CHILD","TEEN"]),
+  ageFrom: z.number().int().min(0),
+  ageTo: z.number().int().min(0),
+  bedding: z.enum(["SHARING_WITH_PARENTS","EXTRA_BED","OWN_BED"]),
+  isFree: z.boolean().default(false),
+  discountPercent: z.number().min(0).max(100).optional().nullable(),
+  fixedRate: z.number().min(0).optional().nullable(),
+  maxFreeChildren: z.number().int().min(0).default(0),
+  sortOrder: z.number().int().min(0).default(0),
+});
+
+export const cruiseChildPolicyBulkSaveSchema = z.object({
+  contractId: z.string().min(1),
+  policies: z.array(cruiseChildPolicyUpsertSchema),
+});
+
+// ── Embarkation Days ──
+
+export const cruiseEmbarkDaySaveSchema = z.object({
+  contractId: z.string().min(1),
+  durationNights: z.number().int().min(1),
+  days: z.array(z.number().int().min(1).max(7)),
+});

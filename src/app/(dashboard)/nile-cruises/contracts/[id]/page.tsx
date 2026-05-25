@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, X, Download, FileText } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,15 +24,20 @@ import {
   CRUISE_SUPPLEMENT_TYPE_LABELS,
   CRUISE_GALA_MEAL_TYPE_LABELS,
   CRUISE_OFFER_TYPE_LABELS,
+  CRUISE_CANCELLATION_CHARGE_TYPE_LABELS,
 } from "@/lib/constants/nile-cruises";
+import { CHILD_AGE_CATEGORY_LABELS, CHILD_BEDDING_LABELS } from "@/lib/constants/contracting";
 import {
   cruiseSeasonCreateSchema,
   cruiseBaseRateItemSchema,
   cruiseOfferCreateSchema,
   cruiseGalaMealCreateSchema,
   cruiseSupplementItemSchema,
+  cruiseChildPolicyUpsertSchema,
 } from "@/lib/validations/nile-cruises";
 import { trpc } from "@/lib/trpc";
+import { generateCruiseContractPdf } from "@/lib/export/cruise-contract-pdf";
+import { generateCruiseContractExcel } from "@/lib/export/cruise-contract-excel";
 import type { z } from "zod";
 
 // ── Season form ──────────────────────────────────────────────────────────────
@@ -309,7 +314,7 @@ function SupplementsTab({ contractId }: { contractId: string }) {
       cabinCategoryId: v.cabinCategoryId,
       valueType: v.valueType,
       value: v.value,
-      perPaxPerNight: v.perPaxPerNight,
+      perPaxPerNight: v.perPaxPerNight ?? false,
     };
     bulkSave.mutate({ contractId, type: v.type as never, supplements: [...existing.map((s) => ({ seasonId: s.seasonId ?? matrix?.seasons[0]?.id ?? "", type: s.type as never, cabinCategoryId: s.cabinCategoryId ?? undefined, valueType: s.valueType as "FIXED" | "PERCENTAGE", value: Number(s.value), perPaxPerNight: s.perPaxPerNight })), newItem] });
   }
@@ -369,7 +374,7 @@ function SupplementsTab({ contractId }: { contractId: string }) {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-sm font-medium">Type *</label>
-                <Select value={form.watch("type")} onValueChange={(v) => form.setValue("type", v)}>
+                <Select value={form.watch("type")} onValueChange={(v) => form.setValue("type", v as z.infer<typeof cruiseSupplementItemSchema>["type"])}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {SUPP_TYPES.map((t) => <SelectItem key={t} value={t}>{CRUISE_SUPPLEMENT_TYPE_LABELS[t]}</SelectItem>)}
@@ -818,6 +823,403 @@ function MarkupTab({ contractId }: { contractId: string }) {
   );
 }
 
+// ── Child Policies tab ──────────────────────────────────────────────────────
+
+type ChildPolicyForm = z.input<typeof cruiseChildPolicyUpsertSchema>;
+
+function ChildPoliciesTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const { data: policies } = trpc.nileCruises.childPolicy.listByContract.useQuery({ contractId });
+  const [open, setOpen] = useState<"add" | string | null>(null);
+
+  const bulkSave = trpc.nileCruises.childPolicy.bulkSave.useMutation({
+    onSuccess: () => {
+      toast.success("Child policies saved");
+      utils.nileCruises.childPolicy.listByContract.invalidate({ contractId });
+      setOpen(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const editing = policies?.find((p) => p.id === open);
+
+  const form = useForm<ChildPolicyForm>({
+    resolver: zodResolver(cruiseChildPolicyUpsertSchema),
+    defaultValues: { category: "CHILD", ageFrom: 2, ageTo: 11, bedding: "SHARING_WITH_PARENTS", isFree: false, discountPercent: undefined, fixedRate: undefined, maxFreeChildren: 0, sortOrder: 0 },
+  });
+
+  const isFreeWatch = form.watch("isFree");
+
+  function openAdd() {
+    form.reset({ category: "CHILD", ageFrom: 2, ageTo: 11, bedding: "SHARING_WITH_PARENTS", isFree: false, discountPercent: undefined, fixedRate: undefined, maxFreeChildren: 0, sortOrder: (policies?.length ?? 0) });
+    setOpen("add");
+  }
+
+  function openEdit(p: NonNullable<typeof editing>) {
+    form.reset({
+      category: p.category as ChildPolicyForm["category"],
+      ageFrom: p.ageFrom,
+      ageTo: p.ageTo,
+      bedding: p.bedding as ChildPolicyForm["bedding"],
+      isFree: p.isFree,
+      discountPercent: p.discountPercent ? Number(p.discountPercent) : undefined,
+      fixedRate: p.fixedRate ? Number(p.fixedRate) : undefined,
+      maxFreeChildren: p.maxFreeChildren,
+      sortOrder: p.sortOrder,
+    });
+    setOpen(p.id);
+  }
+
+  function onSubmit(v: ChildPolicyForm) {
+    const existing = policies ?? [];
+    if (open === "add") {
+      bulkSave.mutate({ contractId, policies: [...existing.map((p) => ({
+        category: p.category as ChildPolicyForm["category"], ageFrom: p.ageFrom, ageTo: p.ageTo,
+        bedding: p.bedding as ChildPolicyForm["bedding"], isFree: p.isFree,
+        discountPercent: p.discountPercent ? Number(p.discountPercent) : null,
+        fixedRate: p.fixedRate ? Number(p.fixedRate) : null,
+        maxFreeChildren: p.maxFreeChildren, sortOrder: p.sortOrder,
+      })), v] });
+    } else {
+      bulkSave.mutate({ contractId, policies: existing.map((p) => p.id === open ? v : {
+        category: p.category as ChildPolicyForm["category"], ageFrom: p.ageFrom, ageTo: p.ageTo,
+        bedding: p.bedding as ChildPolicyForm["bedding"], isFree: p.isFree,
+        discountPercent: p.discountPercent ? Number(p.discountPercent) : null,
+        fixedRate: p.fixedRate ? Number(p.fixedRate) : null,
+        maxFreeChildren: p.maxFreeChildren, sortOrder: p.sortOrder,
+      }) });
+    }
+  }
+
+  function deletePolicy(id: string) {
+    const remaining = (policies ?? []).filter((p) => p.id !== id).map((p) => ({
+      category: p.category as ChildPolicyForm["category"], ageFrom: p.ageFrom, ageTo: p.ageTo,
+      bedding: p.bedding as ChildPolicyForm["bedding"], isFree: p.isFree,
+      discountPercent: p.discountPercent ? Number(p.discountPercent) : null,
+      fixedRate: p.fixedRate ? Number(p.fixedRate) : null,
+      maxFreeChildren: p.maxFreeChildren, sortOrder: p.sortOrder,
+    }));
+    bulkSave.mutate({ contractId, policies: remaining });
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-base">Child Policies</CardTitle>
+        <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-3.5 w-3.5" />Add Policy</Button>
+      </CardHeader>
+      <CardContent>
+        {!policies?.length ? (
+          <p className="text-sm text-muted-foreground py-4">No child policies defined — all children billed at adult rate</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-4">Category</th>
+                  <th className="py-2 pr-4">Age Range</th>
+                  <th className="py-2 pr-4">Bedding</th>
+                  <th className="py-2 pr-4">Free?</th>
+                  <th className="py-2 pr-4">Discount</th>
+                  <th className="py-2 pr-4">Fixed Rate</th>
+                  <th className="py-2 pr-4">Max Free</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {policies.map((p) => (
+                  <tr key={p.id}>
+                    <td className="py-2 pr-4 font-medium">{CHILD_AGE_CATEGORY_LABELS[p.category] ?? p.category}</td>
+                    <td className="py-2 pr-4 text-muted-foreground">{p.ageFrom}–{p.ageTo} yrs</td>
+                    <td className="py-2 pr-4">{CHILD_BEDDING_LABELS[p.bedding] ?? p.bedding}</td>
+                    <td className="py-2 pr-4">{p.isFree ? "Yes" : "No"}</td>
+                    <td className="py-2 pr-4">{p.discountPercent ? `${Number(p.discountPercent)}%` : "—"}</td>
+                    <td className="py-2 pr-4">{p.fixedRate ? Number(p.fixedRate).toFixed(2) : "—"}</td>
+                    <td className="py-2 pr-4">{p.maxFreeChildren}</td>
+                    <td className="py-2 flex items-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => { if (confirm("Delete this policy?")) deletePolicy(p.id); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{open === "add" ? "Add Child Policy" : "Edit Child Policy"}</DialogTitle></DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <FormField control={form.control} name="category" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {(["INFANT","CHILD","TEEN"] as const).map((c) => <SelectItem key={c} value={c}>{CHILD_AGE_CATEGORY_LABELS[c]}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="bedding" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bedding *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {(["SHARING_WITH_PARENTS","EXTRA_BED","OWN_BED"] as const).map((b) => <SelectItem key={b} value={b}>{CHILD_BEDDING_LABELS[b]}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="ageFrom" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Age From *</FormLabel>
+                    <FormControl><Input type="number" min={0} max={17} {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="ageTo" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Age To *</FormLabel>
+                    <FormControl><Input type="number" min={0} max={17} {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="isFree" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 pt-5 col-span-2">
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <FormLabel className="!mt-0">Free of charge</FormLabel>
+                  </FormItem>
+                )} />
+                {!isFreeWatch && (
+                  <>
+                    <FormField control={form.control} name="discountPercent" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Discount %</FormLabel>
+                        <FormControl><Input type="number" min={0} max={100} step={0.1} {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="fixedRate" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fixed Rate</FormLabel>
+                        <FormControl><Input type="number" min={0} step={0.01} {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </>
+                )}
+                <FormField control={form.control} name="maxFreeChildren" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max Free per Cabin</FormLabel>
+                    <FormControl><Input type="number" min={0} {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(null)}>Cancel</Button>
+                <Button type="submit" disabled={bulkSave.isPending}>Save</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// ── Cancellation tab ─────────────────────────────────────────────────────────
+
+type CancellationTier = { daysBefore: number; chargeType: "PERCENTAGE" | "FIXED" | "FIRST_NIGHT" | "FULL_AMOUNT"; chargeValue: number };
+
+interface CancellationTabProps {
+  contractId: string;
+  policyId: string | null;
+  policyName: string | null;
+  initialTiers: Array<{ daysBefore: number; chargeType: string; chargeValue: unknown }>;
+}
+
+function CancellationTab({ contractId: _contractId, policyId, policyName, initialTiers }: CancellationTabProps) {
+  const utils = trpc.useUtils();
+  const [tiers, setTiers] = useState<CancellationTier[]>(
+    initialTiers.map((t) => ({ daysBefore: t.daysBefore, chargeType: (t.chargeType as CancellationTier["chargeType"]) ?? "PERCENTAGE", chargeValue: Number(t.chargeValue) }))
+  );
+
+  const saveTiers = trpc.nileCruises.cancellationPolicy.saveTiers.useMutation({
+    onSuccess: () => { toast.success("Cancellation tiers saved"); utils.nileCruises.contract.getById.invalidate(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function addRow() {
+    setTiers((prev) => [...prev, { daysBefore: 0, chargeType: "PERCENTAGE", chargeValue: 0 }]);
+  }
+
+  function removeRow(i: number) {
+    setTiers((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function updateRow<K extends keyof CancellationTier>(i: number, key: K, val: CancellationTier[K]) {
+    setTiers((prev) => prev.map((t, idx) => idx === i ? { ...t, [key]: val } : t));
+  }
+
+  if (!policyId) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-sm text-muted-foreground">
+          No cancellation policy linked to this contract. Edit the contract header to link one.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div>
+          <CardTitle className="text-base">Cancellation Policy</CardTitle>
+          {policyName && <p className="text-xs text-muted-foreground mt-0.5">{policyName}</p>}
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={addRow}><Plus className="mr-1 h-3.5 w-3.5" />Add Tier</Button>
+          <Button size="sm" onClick={() => saveTiers.mutate({ policyId, tiers })} disabled={saveTiers.isPending}>
+            <Save className="mr-1 h-3.5 w-3.5" />{saveTiers.isPending ? "Saving..." : "Save Tiers"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {tiers.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No tiers defined yet — add rows above</p>
+        ) : (
+          <div className="space-y-2">
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-xs font-medium text-muted-foreground px-1">
+              <span>Days Before Departure</span>
+              <span>Charge Type</span>
+              <span>Charge Value</span>
+              <span />
+            </div>
+            {tiers.map((tier, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+                <Input
+                  type="number"
+                  min={0}
+                  value={tier.daysBefore}
+                  onChange={(e) => updateRow(i, "daysBefore", Number(e.target.value))}
+                  placeholder="0 = no-show"
+                />
+                <Select value={tier.chargeType} onValueChange={(v) => updateRow(i, "chargeType", v as CancellationTier["chargeType"])}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(["PERCENTAGE","FIXED","FIRST_NIGHT","FULL_AMOUNT"] as const).map((ct) => (
+                      <SelectItem key={ct} value={ct}>{CRUISE_CANCELLATION_CHARGE_TYPE_LABELS[ct]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={tier.chargeValue}
+                  onChange={(e) => updateRow(i, "chargeValue", Number(e.target.value))}
+                />
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeRow(i)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Embarkation Days tab ─────────────────────────────────────────────────────
+
+const WEEKDAYS = [
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
+  { label: "Sun", value: 7 },
+];
+
+const DURATIONS = [
+  { nights: 3, label: "3-Night Cruise" },
+  { nights: 4, label: "4-Night Cruise" },
+  { nights: 7, label: "7-Night Cruise" },
+];
+
+function EmbarkDaysTab({ contractId }: { contractId: string }) {
+  const utils = trpc.useUtils();
+  const { data: embarkDays } = trpc.nileCruises.embarkDay.listByContract.useQuery({ contractId });
+
+  const saveForDuration = trpc.nileCruises.embarkDay.saveForDuration.useMutation({
+    onSuccess: () => { toast.success("Embarkation days saved"); utils.nileCruises.embarkDay.listByContract.invalidate({ contractId }); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function isDayChecked(duration: number, day: number): boolean {
+    return !!(embarkDays?.some((e) => e.durationNights === duration && e.dayOfWeek === day));
+  }
+
+  function toggleDay(duration: number, day: number) {
+    const current = (embarkDays ?? [])
+      .filter((e) => e.durationNights === duration)
+      .map((e) => e.dayOfWeek);
+    const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
+    saveForDuration.mutate({ contractId, durationNights: duration, days: next });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Embarkation Days</CardTitle>
+        <p className="text-xs text-muted-foreground">Select which weekdays this contract's boat embarks, per cruise duration. Used by tour operations, admin departure validation, and future booking engine.</p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {DURATIONS.map(({ nights, label }) => (
+          <div key={nights}>
+            <p className="text-sm font-semibold mb-3">{label}</p>
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAYS.map(({ label: dayLabel, value }) => {
+                const checked = isDayChecked(nights, value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleDay(nights, value)}
+                    disabled={saveForDuration.isPending}
+                    className={[
+                      "w-14 h-10 rounded-md border text-sm font-medium transition-colors",
+                      checked
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-foreground border-border hover:bg-muted",
+                    ].join(" ")}
+                  >
+                    {dayLabel}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function CruiseContractDetailPage() {
@@ -826,6 +1228,7 @@ export default function CruiseContractDetailPage() {
   const utils = trpc.useUtils();
 
   const { data, isLoading } = trpc.nileCruises.contract.getById.useQuery({ id });
+  const exportQuery = trpc.nileCruises.contract.getForExport.useQuery({ id }, { enabled: false });
 
   const post = trpc.nileCruises.contract.post.useMutation({
     onSuccess: () => { toast.success("Contract posted"); utils.nileCruises.contract.getById.invalidate({ id }); },
@@ -841,6 +1244,32 @@ export default function CruiseContractDetailPage() {
     onSuccess: () => { toast.success("Deleted"); router.push("/nile-cruises/contracts"); },
     onError: (err) => toast.error(err.message),
   });
+
+  async function handleExportPdf() {
+    const { data: exportData } = await exportQuery.refetch();
+    if (!exportData) return;
+    const bytes = generateCruiseContractPdf(exportData as unknown as Parameters<typeof generateCruiseContractPdf>[0], { companyName: "iTourTMS" });
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${exportData.code}-contract.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleExportExcel() {
+    const { data: exportData } = await exportQuery.refetch();
+    if (!exportData) return;
+    const bytes = generateCruiseContractExcel(exportData as unknown as Parameters<typeof generateCruiseContractExcel>[0]);
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${exportData.code}-contract.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   if (isLoading) return <div className="p-6 space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>;
   if (!data) return <div className="p-6 text-muted-foreground">Contract not found</div>;
@@ -861,6 +1290,12 @@ export default function CruiseContractDetailPage() {
           <p className="text-sm text-muted-foreground">{data.name} · {data.boat.name}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={handleExportPdf} disabled={exportQuery.isFetching}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" />PDF
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExportExcel} disabled={exportQuery.isFetching}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />Excel
+          </Button>
           {data.status === "DRAFT" && (
             <Button variant="outline" onClick={() => post.mutate({ id })} disabled={post.isPending}>Post</Button>
           )}
@@ -897,6 +1332,9 @@ export default function CruiseContractDetailPage() {
           <TabsTrigger value="supplements">Supplements</TabsTrigger>
           <TabsTrigger value="offers">Offers</TabsTrigger>
           <TabsTrigger value="gala">Gala Meals</TabsTrigger>
+          <TabsTrigger value="child-policies">Child Policies</TabsTrigger>
+          <TabsTrigger value="cancellation">Cancellation</TabsTrigger>
+          <TabsTrigger value="embark-days">Embark Days</TabsTrigger>
           <TabsTrigger value="markup">Markup</TabsTrigger>
         </TabsList>
 
@@ -905,6 +1343,16 @@ export default function CruiseContractDetailPage() {
         <TabsContent value="supplements"><SupplementsTab contractId={id} /></TabsContent>
         <TabsContent value="offers"><OffersTab contractId={id} /></TabsContent>
         <TabsContent value="gala"><GalaMealsTab contractId={id} /></TabsContent>
+        <TabsContent value="child-policies"><ChildPoliciesTab contractId={id} /></TabsContent>
+        <TabsContent value="cancellation">
+          <CancellationTab
+            contractId={id}
+            policyId={data.cancellationPolicyId ?? null}
+            policyName={data.cancellationPolicy?.name ?? null}
+            initialTiers={data.cancellationPolicy?.tiers ?? []}
+          />
+        </TabsContent>
+        <TabsContent value="embark-days"><EmbarkDaysTab contractId={id} /></TabsContent>
         <TabsContent value="markup"><MarkupTab contractId={id} /></TabsContent>
       </Tabs>
     </div>
