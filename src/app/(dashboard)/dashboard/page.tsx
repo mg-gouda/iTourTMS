@@ -6,6 +6,7 @@ import {
   FolderOpen,
   Globe,
   Landmark,
+  Ship,
   type LucideIcon,
   Users,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const iconMap: Record<string, LucideIcon> = {
   Globe,
   Briefcase,
   FolderOpen,
+  Ship,
 };
 
 const accentMap: Record<string, string> = {
@@ -36,6 +38,7 @@ const accentMap: Record<string, string> = {
   "b2c-site": "from-cyan-500/15 to-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
   "b2b-portal": "from-indigo-500/15 to-indigo-500/5 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
   "tour-ops": "from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400 border-rose-500/20",
+  "nile-cruises": "from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400 border-sky-500/20",
 };
 
 const hrefMap: Record<string, string> = {
@@ -47,6 +50,7 @@ const hrefMap: Record<string, string> = {
   "b2c-site": "/b2c-site",
   "b2b-portal": "/b2b-portal",
   "tour-ops": "/tour-ops",
+  "nile-cruises": "/nile-cruises",
 };
 
 export default async function DashboardPage() {
