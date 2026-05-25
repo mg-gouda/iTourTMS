@@ -7,6 +7,7 @@ export { trafficHelp } from "./traffic";
 export { b2cSiteHelp } from "./b2c-site";
 export { b2bPortalHelp } from "./b2b-portal";
 export { tourOpsHelp } from "./tour-ops";
+export { nileCruisesHelp } from "./nile-cruises";
 
 import { financeHelp } from "./finance";
 import { contractingHelp } from "./contracting";
@@ -16,6 +17,7 @@ import { trafficHelp } from "./traffic";
 import { b2cSiteHelp } from "./b2c-site";
 import { b2bPortalHelp } from "./b2b-portal";
 import { tourOpsHelp } from "./tour-ops";
+import { nileCruisesHelp } from "./nile-cruises";
 import type { HelpModule } from "./types";
 
 export const ALL_HELP_MODULES: HelpModule[] = [
@@ -27,6 +29,7 @@ export const ALL_HELP_MODULES: HelpModule[] = [
   b2cSiteHelp,
   b2bPortalHelp,
   tourOpsHelp,
+  nileCruisesHelp,
 ];
 
 export const HELP_MODULE_MAP: Record<string, HelpModule> = Object.fromEntries(

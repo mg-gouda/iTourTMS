@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogIn,
   Settings,
+  Ship,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +32,7 @@ const MODULE_ICONS: Record<string, React.ElementType> = {
   Globe,
   Briefcase,
   FolderOpen,
+  Ship,
 };
 
 const MODULE_COLORS: Record<string, string> = {
@@ -42,6 +44,7 @@ const MODULE_COLORS: Record<string, string> = {
   "b2c-site": "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   "b2b-portal": "bg-rose-500/10 text-rose-600 dark:text-rose-400",
   "tour-ops": "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  "nile-cruises": "bg-sky-500/10 text-sky-600 dark:text-sky-400",
 };
 
 const GETTING_STARTED_ICONS = [LogIn, LayoutDashboard, Settings, BookOpen] as const;
