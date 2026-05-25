@@ -52,7 +52,9 @@
       "picomatch@^2": "^2.3.2",
       "picomatch@^4": "^4.0.4",
       "postcss": "^8.5.14",
-      "fast-uri": "^3.1.2"
+      "fast-uri": "^3.1.2",
+      "qs": "^6.15.2",
+      "xlsx": "npm:@e965/xlsx@^0.20.3"
     }
   },
   "dependencies": {
@@ -105,7 +107,7 @@
     "sonner": "^2.0.7",
     "superjson": "^2.2.6",
     "tailwind-merge": "^3.5.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "npm:@e965/xlsx@^0.20.3",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
