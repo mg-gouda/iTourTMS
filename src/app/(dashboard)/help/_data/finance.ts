@@ -53,6 +53,7 @@ export const financeHelp: HelpModule = {
         "Manage your customer accounts and issue invoices for services rendered. Invoices follow a Draft → Posted → Paid lifecycle.",
       features: [
         "Customer master records with payment terms and fiscal positions",
+        "Credit Days, Credit Amount, and Currency — set here and enforced by Tour Operations",
         "Draft invoices — editable before posting",
         "Post invoices to generate accounting entries automatically",
         "Credit notes for refunds and adjustments",
@@ -61,9 +62,31 @@ export const financeHelp: HelpModule = {
       steps: [
         { step: 1, title: "Go to Customers", description: "Navigate to Finance → Customers → Customers to manage customer records." },
         { step: 2, title: "Create a customer", description: "Click New Customer. Fill in the name, email, payment terms, and fiscal position." },
-        { step: 3, title: "Create an invoice", description: "Go to Finance → Customers → Invoices → New Invoice. Select the customer and add invoice lines." },
-        { step: 4, title: "Post the invoice", description: "Click 'Post' to lock the invoice and generate the accounting journal entry." },
-        { step: 5, title: "Register payment", description: "Once the customer pays, click 'Register Payment' to mark the invoice as paid and reconcile the entry." },
+        { step: 3, title: "Set credit terms", description: "Open the customer record → Accounting tab → Credit section. Enter Credit Days (payment window), Credit Amount (maximum outstanding balance), and Currency. These values are enforced by the Tour Operations module when posting quotations for Tour Operator clients." },
+        { step: 4, title: "Create an invoice", description: "Go to Finance → Customers → Invoices → New Invoice. Select the customer and add invoice lines." },
+        { step: 5, title: "Post the invoice", description: "Click 'Post' to lock the invoice and generate the accounting journal entry." },
+        { step: 6, title: "Register payment", description: "Once the customer pays, click 'Register Payment' to mark the invoice as paid and reconcile the entry." },
+      ],
+    },
+    {
+      id: "credit-management",
+      title: "Credit Management",
+      description:
+        "Finance owns the credit terms for all partners. Credit limits set here are enforced in Tour Operations when creating quotations for Tour Operator clients.",
+      features: [
+        "Credit Days — the payment term window (e.g. 30 days) for the partner",
+        "Credit Amount — the maximum outstanding balance allowed",
+        "Currency — the currency the credit limit is denominated in",
+        "Credit fields are editable only in Finance → Customers (single source of truth)",
+        "B2B Portal and Contracting module show credit values as read-only",
+        "creditUsed auto-recalculates from live Tour Operation files linked to the partner",
+        "When creditUsed + new quotation > Credit Amount, Tour Operations triggers an OM override flow",
+      ],
+      steps: [
+        { step: 1, title: "Open customer record", description: "Go to Finance → Customers → find the Tour Operator's customer record and open it." },
+        { step: 2, title: "Set credit terms", description: "Click the Accounting tab. In the Credit section, fill in Credit Days, Credit Amount, and select the Currency." },
+        { step: 3, title: "Save", description: "Click Save. The values take effect immediately — the next quotation posted in Tour Operations will be checked against these limits." },
+        { step: 4, title: "Monitor usage", description: "The Credit Used value updates automatically as Tour Operation files are quoted, confirmed, completed, or cancelled." },
       ],
     },
     {
