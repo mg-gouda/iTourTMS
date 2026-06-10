@@ -130,7 +130,9 @@
     "children": "Children",
     "warnings": "Warnings",
     "eligible": "Eligible",
-    "notEligible": "Not Eligible"
+    "notEligible": "Not Eligible",
+    "country": "Country",
+    "paymentTerm": "Payment Term"
   },
   "auth": {
     "login": "Sign In",

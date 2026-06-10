@@ -54,6 +54,7 @@ export const tourOperatorRouter = createTRPCRouter({
         include: {
           country: true,
           market: true,
+          partner: { select: { creditLimit: true, creditUsed: true, creditCurrency: true } },
           contractAssignments: {
             include: { contract: { include: { hotel: { select: { id: true, name: true } } } } },
           },

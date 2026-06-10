@@ -42,6 +42,7 @@ export default function QuotationDetailPage() {
 
   const totalCost = Number(quotation.totalCost);
   const totalSelling = Number(quotation.totalSelling);
+  const totalMgmtFees = Number(quotation.totalMgmtFees ?? 0);
   const margin = Number(quotation.margin);
   const marginPct = Number(quotation.marginPct);
 
@@ -97,9 +98,10 @@ export default function QuotationDetailPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {[
           { label: "Total Cost", value: `$${totalCost.toLocaleString()}`, className: "" },
+          { label: "Mgmt Fees", value: `$${totalMgmtFees.toLocaleString()}`, className: "text-amber-600" },
           { label: "Total Selling", value: `$${totalSelling.toLocaleString()}`, className: "text-green-600" },
           { label: "Margin", value: `$${margin.toLocaleString()}`, className: margin >= 0 ? "text-green-600" : "text-red-600" },
           { label: "Margin %", value: `${marginPct.toFixed(1)}%`, className: marginPct >= 0 ? "text-green-600" : "text-red-600" },
@@ -165,6 +167,7 @@ export default function QuotationDetailPage() {
                 <th className="py-2 text-right font-medium text-muted-foreground">Total Cost</th>
                 <th className="py-2 text-right font-medium text-muted-foreground">Markup</th>
                 <th className="py-2 text-right font-medium text-muted-foreground">Selling</th>
+                <th className="py-2 text-right font-medium text-muted-foreground">Mgmt Fee</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -183,6 +186,9 @@ export default function QuotationDetailPage() {
                     {Number(c.markupValue)}{c.markupType === "PERCENTAGE" ? "%" : " fixed"}
                   </td>
                   <td className="py-2 text-right font-medium text-green-600">${Number(c.sellingPrice).toLocaleString()}</td>
+                  <td className="py-2 text-right text-amber-600">
+                    {Number(c.mgmtFeeAmount) > 0 ? `$${Number(c.mgmtFeeAmount).toLocaleString()}` : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -191,8 +197,15 @@ export default function QuotationDetailPage() {
                 <td colSpan={4} className="py-2 font-medium">Total</td>
                 <td className="py-2 text-right font-medium">${totalCost.toLocaleString()}</td>
                 <td></td>
-                <td className="py-2 text-right font-bold text-green-600">${totalSelling.toLocaleString()}</td>
+                <td className="py-2 text-right font-bold text-green-600">${(totalSelling - totalMgmtFees).toLocaleString()}</td>
+                <td className="py-2 text-right font-bold text-amber-600">${totalMgmtFees.toLocaleString()}</td>
               </tr>
+              {totalMgmtFees > 0 && (
+                <tr className="border-t">
+                  <td colSpan={6} className="py-1 text-xs text-muted-foreground">Grand Total (incl. Mgmt Fees)</td>
+                  <td colSpan={2} className="py-1 text-right font-bold text-primary">${totalSelling.toLocaleString()}</td>
+                </tr>
+              )}
             </tfoot>
           </table>
         </CardContent>

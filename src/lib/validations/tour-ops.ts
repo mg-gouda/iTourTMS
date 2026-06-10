@@ -61,6 +61,8 @@ export const opsComponentSchema = z.object({
   exchangeRate: z.number().min(0).default(1),
   markupType: z.enum(["PERCENTAGE", "FIXED"]).default("PERCENTAGE"),
   markupValue: z.number().min(0).default(0),
+  mgmtFeeType: z.enum(["PERCENTAGE", "FIXED"]).default("PERCENTAGE"),
+  mgmtFeeValue: z.number().min(0).default(0),
   refModuleEntityId: z.string().optional().or(z.literal("")),
   refModuleEntityType: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),

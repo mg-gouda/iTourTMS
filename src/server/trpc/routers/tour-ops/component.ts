@@ -15,12 +15,12 @@ function computeComponent(c: {
   exchangeRate: number;
   markupType: string;
   markupValue: number;
+  mgmtFeeType: string;
+  mgmtFeeValue: number;
 }) {
   const hasNights = c.type === "ACCOMMODATION" || c.type === "NILE_CRUISE";
   const nightsFactor = hasNights ? Math.max(1, c.nights) : 1;
 
-  // BULK: unitCost × nights × exchangeRate (qty is informational)
-  // PER_PERSON: qty × unitCost × nights × exchangeRate
   const totalCost = c.pricingBasis === "BULK"
     ? new Decimal(c.unitCost).times(nightsFactor).times(c.exchangeRate).toDecimalPlaces(2)
     : new Decimal(c.qty).times(c.unitCost).times(nightsFactor).times(c.exchangeRate).toDecimalPlaces(2);
@@ -31,7 +31,15 @@ function computeComponent(c: {
   } else {
     sellingPrice = totalCost.plus(c.markupValue).toDecimalPlaces(2);
   }
-  return { totalCost, sellingPrice };
+
+  let mgmtFeeAmount: Decimal;
+  if (c.mgmtFeeType === "PERCENTAGE") {
+    mgmtFeeAmount = sellingPrice.times(new Decimal(c.mgmtFeeValue).div(100)).toDecimalPlaces(2);
+  } else {
+    mgmtFeeAmount = new Decimal(c.mgmtFeeValue).toDecimalPlaces(2);
+  }
+
+  return { totalCost, sellingPrice, mgmtFeeAmount };
 }
 
 export const opsComponentRouter = createTRPCRouter({
@@ -49,7 +57,7 @@ export const opsComponentRouter = createTRPCRouter({
         if (input.components.length > 0) {
           await tx.opsPackageComponent.createMany({
             data: input.components.map((c, i) => {
-              const { totalCost, sellingPrice } = computeComponent(c);
+              const { totalCost, sellingPrice, mgmtFeeAmount } = computeComponent(c);
               return {
                 packageId: input.packageId,
                 type: c.type,
@@ -66,6 +74,9 @@ export const opsComponentRouter = createTRPCRouter({
                 markupType: c.markupType,
                 markupValue: c.markupValue,
                 sellingPrice: sellingPrice.toNumber(),
+                mgmtFeeType: c.mgmtFeeType,
+                mgmtFeeValue: c.mgmtFeeValue,
+                mgmtFeeAmount: mgmtFeeAmount.toNumber(),
                 refModuleEntityId: c.refModuleEntityId || null,
                 refModuleEntityType: c.refModuleEntityType || null,
                 notes: c.notes || null,

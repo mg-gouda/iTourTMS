@@ -108,9 +108,8 @@ export default function TourOpsDashboardPage() {
                     : file.tourOperator?.name ?? file.guestName ?? "—";
                 const latestQuotation = file.quotations[0];
                 return (
-                  <PermissionGuard permission="tour-ops:read">
+                  <PermissionGuard key={file.id} permission="tour-ops:read">
                     <Link
-                    key={file.id}
                     href={`/tour-ops/files/${file.id}`}
                     className="flex items-center justify-between py-3 hover:bg-muted/50 px-2 rounded transition-colors"
                   >

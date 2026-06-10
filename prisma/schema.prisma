@@ -559,6 +559,9 @@ model Partner {
   paymentTermId         String?
   accountReceivableId   String?
   accountPayableId      String?
+  creditLimit     Decimal  @default(0) @db.Decimal(12, 4)
+  creditUsed      Decimal  @default(0) @db.Decimal(12, 4)
+  creditCurrency  String?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -5679,6 +5682,9 @@ model OpsPackageComponent {
   markupType          OpsMarkupType    @default(PERCENTAGE)
   markupValue         Decimal          @default(0)  @db.Decimal(10, 2)
   sellingPrice        Decimal          @default(0)  @db.Decimal(12, 2)
+  mgmtFeeType         OpsMarkupType    @default(PERCENTAGE)
+  mgmtFeeValue        Decimal          @default(0)  @db.Decimal(10, 2)
+  mgmtFeeAmount       Decimal          @default(0)  @db.Decimal(12, 2)
   refModuleEntityId   String?
   refModuleEntityType String?
   notes               String?          @db.Text
@@ -5709,6 +5715,7 @@ model OpsQuotation {
   packageMarkupValue  Decimal?           @db.Decimal(10, 2)
   totalCost           Decimal            @default(0) @db.Decimal(12, 2)
   totalSelling        Decimal            @default(0) @db.Decimal(12, 2)
+  totalMgmtFees       Decimal            @default(0) @db.Decimal(12, 2)
   margin              Decimal            @default(0) @db.Decimal(12, 2)
   marginPct           Decimal            @default(0) @db.Decimal(6, 2)
   isFinal             Boolean            @default(false)

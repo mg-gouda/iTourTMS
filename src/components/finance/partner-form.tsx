@@ -32,6 +32,9 @@ const schema = z.object({
   paymentTermId: z.string().optional(),
   accountReceivableId: z.string().optional(),
   accountPayableId: z.string().optional(),
+  creditLimit: z.number().min(0).optional(),
+  creditUsed: z.number().min(0).optional(),
+  creditCurrency: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -60,6 +63,7 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
   const { data: countries = [] } = trpc.setup.getCountries.useQuery();
   const { data: paymentTerms = [] } = trpc.finance.paymentTerm.list.useQuery();
   const { data: allAccounts = [] } = trpc.finance.account.listTree.useQuery();
+  const { data: currencies = [] } = trpc.finance.currency.list.useQuery();
 
   const receivableAccounts = allAccounts.filter((a) => RECEIVABLE_TYPES.includes(a.accountType));
   const payableAccounts = allAccounts.filter((a) => PAYABLE_TYPES.includes(a.accountType));
@@ -82,6 +86,9 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
       paymentTermId: "",
       accountReceivableId: "",
       accountPayableId: "",
+      creditLimit: 0,
+      creditUsed: 0,
+      creditCurrency: "",
       notes: "",
       ...defaultValues,
     },
@@ -311,6 +318,48 @@ export function PartnerForm({ type, defaultValues, onSave, isSaving }: Props) {
                 <p className="text-xs text-muted-foreground">
                   Default payment terms applied to {type === "customer" ? "invoices" : "bills"}.
                 </p>
+              </div>
+
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium mb-3 text-muted-foreground">Credit</p>
+                <div className="grid grid-cols-3 gap-4 max-w-xl">
+                  <div className="space-y-1.5">
+                    <Label>Credit Days</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={String(form.watch("creditLimit") ?? 0)}
+                      onChange={(e) => form.setValue("creditLimit", Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Credit Amount</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={String(form.watch("creditUsed") ?? 0)}
+                      onChange={(e) => form.setValue("creditUsed", Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Currency</Label>
+                    <Combobox
+                      options={[
+                        { value: "", label: "— None —" },
+                        ...(currencies as { code: string; name: string; symbol: string }[]).map((c) => ({
+                          value: c.code,
+                          label: `${c.code} — ${c.name}`,
+                        })),
+                      ]}
+                      value={form.watch("creditCurrency") ?? ""}
+                      onValueChange={(v) => form.setValue("creditCurrency", v)}
+                      placeholder="Select currency"
+                      searchPlaceholder="Search currencies..."
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

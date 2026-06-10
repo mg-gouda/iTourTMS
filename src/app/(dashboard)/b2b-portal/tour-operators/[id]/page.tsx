@@ -36,7 +36,6 @@ const updateSchema = z.object({
   phone: z.string().optional(),
   countryId: z.string().optional(),
   marketId: z.string().optional(),
-  creditLimit: z.number().min(0).optional(),
   paymentTermDays: z.number().int().min(0).optional(),
   commissionPct: z.number().min(0).max(100).optional(),
   active: z.boolean().optional(),
@@ -63,7 +62,6 @@ export default function TourOperatorDetailPage() {
       phone: "",
       countryId: "",
       marketId: "",
-      creditLimit: 0,
       paymentTermDays: 30,
       commissionPct: 0,
       active: true,
@@ -80,7 +78,6 @@ export default function TourOperatorDetailPage() {
         phone: data.phone ?? "",
         countryId: data.countryId ?? "",
         marketId: data.marketId ?? "",
-        creditLimit: Number(data.creditLimit ?? 0),
         paymentTermDays: data.paymentTermDays ?? 30,
         commissionPct: Number(data.commissionPct ?? 0),
         active: data.active,
@@ -285,22 +282,21 @@ export default function TourOperatorDetailPage() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="creditLimit"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("creditLimit")}</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              value={String(field.value ?? 0)}
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-muted-foreground">Credit Days</p>
+                      <p className="text-sm font-mono border rounded-md px-3 py-2 bg-muted/40">
+                        {Number(data.partner?.creditLimit ?? 0)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Managed in Finance</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-muted-foreground">Credit Amount</p>
+                      <p className="text-sm font-mono border rounded-md px-3 py-2 bg-muted/40">
+                        {data.partner?.creditCurrency ? `${data.partner.creditCurrency} ` : ""}
+                        {Number(data.partner?.creditUsed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Managed in Finance</p>
+                    </div>
                     <FormField
                       control={form.control}
                       name="paymentTermDays"

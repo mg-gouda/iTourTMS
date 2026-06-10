@@ -53,6 +53,8 @@ export const opsCalculatorRouter = createTRPCRouter({
         components: z.array(generatedComponentSchema).min(1),
         totalCostUSD: z.number().min(0),
         totalSellingUSD: z.number().min(0),
+        totalMgmtFeesUSD: z.number().min(0).default(0),
+        mgmtFeesPct: z.number().min(0).default(0),
         pax: z.number().int().min(1),
       })
     )
@@ -97,6 +99,10 @@ export const opsCalculatorRouter = createTRPCRouter({
               c.pricingBasis === "BULK"
                 ? new Decimal(c.unitCost).times(nightsFactor).toDecimalPlaces(2).toNumber()
                 : new Decimal(c.qty).times(c.unitCost).times(nightsFactor).toDecimalPlaces(2).toNumber();
+            const mgmtFeeAmount = new Decimal(totalCost)
+              .times(new Decimal(input.mgmtFeesPct).div(100))
+              .toDecimalPlaces(2)
+              .toNumber();
 
             return {
               packageId: pkg.id,
@@ -112,6 +118,9 @@ export const opsCalculatorRouter = createTRPCRouter({
               markupType: "PERCENTAGE" as const,
               markupValue: 0,
               sellingPrice: totalCost,
+              mgmtFeeType: "PERCENTAGE" as const,
+              mgmtFeeValue: input.mgmtFeesPct,
+              mgmtFeeAmount,
               notes: c.notes ?? null,
               sortOrder: c.sortOrder ?? i,
             };
@@ -146,6 +155,7 @@ export const opsCalculatorRouter = createTRPCRouter({
             status: "DRAFT",
             totalCost,
             totalSelling,
+            totalMgmtFees: new Decimal(input.totalMgmtFeesUSD).toDecimalPlaces(2).toNumber(),
             margin,
             marginPct,
           },
@@ -215,6 +225,9 @@ export const opsCalculatorRouter = createTRPCRouter({
               markupType: "PERCENTAGE" as const,
               markupValue: 0,
               sellingPrice: totalCost.toNumber(),
+              mgmtFeeType: "PERCENTAGE" as const,
+              mgmtFeeValue: 0,
+              mgmtFeeAmount: 0,
               notes: c.notes ?? null,
               sortOrder: c.sortOrder ?? i,
             };

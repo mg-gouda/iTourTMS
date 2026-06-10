@@ -22,6 +22,9 @@ const partnerCreateSchema = z.object({
   paymentTermId: z.string().optional().or(z.literal("")),
   accountReceivableId: z.string().optional().or(z.literal("")),
   accountPayableId: z.string().optional().or(z.literal("")),
+  creditLimit: z.number().min(0).optional(),
+  creditUsed: z.number().min(0).optional(),
+  creditCurrency: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
 });
 
@@ -96,14 +99,28 @@ export const partnerRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.partner.create({
         data: {
-          ...input,
           companyId: ctx.companyId,
-          titleId: input.titleId || null,
-          stateId: input.stateId || null,
-          countryId: input.countryId || null,
-          paymentTermId: input.paymentTermId || null,
-          accountReceivableId: input.accountReceivableId || null,
-          accountPayableId: input.accountPayableId || null,
+          type: input.type,
+          isCompany: input.isCompany ?? false,
+          name: input.name,
+          email: input.email || null,
+          phone: input.phone || null,
+          mobile: input.mobile || null,
+          website: input.website || null,
+          taxId: input.taxId || null,
+          street: input.street || null,
+          city: input.city || null,
+          zip: input.zip || null,
+          notes: input.notes || null,
+          creditLimit: input.creditLimit,
+          creditUsed: input.creditUsed,
+          creditCurrency: input.creditCurrency || null,
+          title: input.titleId ? { connect: { id: input.titleId } } : undefined,
+          state: input.stateId ? { connect: { id: input.stateId } } : undefined,
+          country: input.countryId ? { connect: { id: input.countryId } } : undefined,
+          paymentTerm: input.paymentTermId ? { connect: { id: input.paymentTermId } } : undefined,
+          accountReceivable: input.accountReceivableId ? { connect: { id: input.accountReceivableId } } : undefined,
+          accountPayable: input.accountPayableId ? { connect: { id: input.accountPayableId } } : undefined,
         },
       });
     }),
@@ -115,16 +132,42 @@ export const partnerRouter = createTRPCRouter({
         where: { id: input.id, companyId: ctx.companyId },
       });
       if (!partner) throw new TRPCError({ code: "NOT_FOUND" });
+      const d = input.data;
       return ctx.db.partner.update({
         where: { id: input.id },
         data: {
-          ...input.data,
-          titleId: input.data.titleId !== undefined ? (input.data.titleId || null) : undefined,
-          stateId: input.data.stateId !== undefined ? (input.data.stateId || null) : undefined,
-          countryId: input.data.countryId !== undefined ? (input.data.countryId || null) : undefined,
-          paymentTermId: input.data.paymentTermId !== undefined ? (input.data.paymentTermId || null) : undefined,
-          accountReceivableId: input.data.accountReceivableId !== undefined ? (input.data.accountReceivableId || null) : undefined,
-          accountPayableId: input.data.accountPayableId !== undefined ? (input.data.accountPayableId || null) : undefined,
+          ...(d.isCompany !== undefined && { isCompany: d.isCompany }),
+          ...(d.name !== undefined && { name: d.name }),
+          ...(d.email !== undefined && { email: d.email || null }),
+          ...(d.phone !== undefined && { phone: d.phone || null }),
+          ...(d.mobile !== undefined && { mobile: d.mobile || null }),
+          ...(d.website !== undefined && { website: d.website || null }),
+          ...(d.taxId !== undefined && { taxId: d.taxId || null }),
+          ...(d.street !== undefined && { street: d.street || null }),
+          ...(d.city !== undefined && { city: d.city || null }),
+          ...(d.zip !== undefined && { zip: d.zip || null }),
+          ...(d.notes !== undefined && { notes: d.notes || null }),
+          ...(d.creditLimit !== undefined && { creditLimit: d.creditLimit }),
+          ...(d.creditUsed !== undefined && { creditUsed: d.creditUsed }),
+          ...(d.creditCurrency !== undefined && { creditCurrency: d.creditCurrency || null }),
+          ...(d.titleId !== undefined && {
+            title: d.titleId ? { connect: { id: d.titleId } } : { disconnect: true },
+          }),
+          ...(d.stateId !== undefined && {
+            state: d.stateId ? { connect: { id: d.stateId } } : { disconnect: true },
+          }),
+          ...(d.countryId !== undefined && {
+            country: d.countryId ? { connect: { id: d.countryId } } : { disconnect: true },
+          }),
+          ...(d.paymentTermId !== undefined && {
+            paymentTerm: d.paymentTermId ? { connect: { id: d.paymentTermId } } : { disconnect: true },
+          }),
+          ...(d.accountReceivableId !== undefined && {
+            accountReceivable: d.accountReceivableId ? { connect: { id: d.accountReceivableId } } : { disconnect: true },
+          }),
+          ...(d.accountPayableId !== undefined && {
+            accountPayable: d.accountPayableId ? { connect: { id: d.accountPayableId } } : { disconnect: true },
+          }),
         },
       });
     }),

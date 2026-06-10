@@ -216,6 +216,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               zip: partner.zip ?? "",
               countryId: partner.countryId ?? "",
               paymentTermId: partner.paymentTermId ?? "",
+              creditLimit: Number(partner.creditLimit ?? 0),
+              creditUsed: Number(partner.creditUsed ?? 0),
+              creditCurrency: partner.creditCurrency ?? "",
               notes: partner.notes ?? "",
             }}
             onSave={(values) => update.mutate({ id, data: values })}

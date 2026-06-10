@@ -112,6 +112,7 @@ interface GuidanceRow {
 interface GlobalInputs {
   totalPax: number;
   roe: number;
+  mgmtFeesPct: number;
   marginPct: number;
   vatPct: number;
   foc: number;
@@ -201,7 +202,7 @@ interface Props {
 }
 
 export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDate, onPostSuccess }: Props) {
-  const [g, setG] = useState<GlobalInputs>({ totalPax: defaultPax, roe: 50, marginPct: 0, vatPct: 0, foc: 0 });
+  const [g, setG] = useState<GlobalInputs>({ totalPax: defaultPax, roe: 50, mgmtFeesPct: 0, marginPct: 0, vatPct: 0, foc: 0 });
 
   const [transportRows, setTransportRows] = useState<TransportRow[]>([]);
   const [sightseeingRows, setSightseeingRows] = useState<SightseeingRow[]>([]);
@@ -353,6 +354,8 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
       components,
       totalCostUSD: parseFloat((calc.netPP * g.totalPax).toFixed(2)),
       totalSellingUSD: parseFloat((calc.sellingInclVAT * g.totalPax).toFixed(2)),
+      totalMgmtFeesUSD: parseFloat((calc.mgmtFeesPP * g.totalPax).toFixed(2)),
+      mgmtFeesPct: g.mgmtFeesPct,
       pax: g.totalPax,
     });
   }
@@ -569,12 +572,14 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
     const guidancePP = guidanceCalcs.reduce((s, r) => s + r.ppUSD, 0);
     const netPP = transportPP + sightseeingPP + accommodationPP + nileCruisePP + mealsPP + guidancePP;
 
-    const { marginPct, vatPct, foc, totalPax: pax } = g;
-    const sellingPP = marginPct < 100 ? netPP / (1 - marginPct / 100) : netPP;
+    const { mgmtFeesPct, marginPct, vatPct, foc, totalPax: pax } = g;
+    const mgmtFeesPP = netPP * mgmtFeesPct / 100;
+    const subtotalPP = netPP + mgmtFeesPP;
+    const sellingPP = marginPct < 100 ? subtotalPP / (1 - marginPct / 100) : subtotalPP;
     const sellingInclVAT = sellingPP * (1 + vatPct / 100);
     const focAdjusted = foc > 0 && pax > foc ? sellingInclVAT / (1 - foc / pax) : sellingInclVAT;
 
-    return { transportCalcs, sightseeingCalcs, accommodationCalcs, nileCruiseCalcs, mealCalcs, guidanceCalcs, transportPP, sightseeingPP, accommodationPP, nileCruisePP, mealsPP, guidancePP, netPP, sellingPP, sellingInclVAT, focAdjusted };
+    return { transportCalcs, sightseeingCalcs, accommodationCalcs, nileCruiseCalcs, mealCalcs, guidanceCalcs, transportPP, sightseeingPP, accommodationPP, nileCruisePP, mealsPP, guidancePP, netPP, mgmtFeesPP, subtotalPP, sellingPP, sellingInclVAT, focAdjusted };
   }, [transportRows, sightseeingRows, accommodationRows, nileCruiseRows, mealRows, guidanceRows, g]);
 
 
@@ -618,11 +623,12 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
             {(
               [
                 { key: "totalPax", label: "Total Pax", type: "int" },
                 { key: "roe", label: "ROE (EGP/USD)", type: "float" },
+                { key: "mgmtFeesPct", label: "Mgmt Fees %", type: "float" },
                 { key: "marginPct", label: "Margin %", type: "float" },
                 { key: "vatPct", label: "VAT %", type: "float" },
                 { key: "foc", label: "FOC places", type: "int" },
@@ -1407,6 +1413,20 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
                   <td className="py-2 font-semibold">Net PP $</td>
                   <td className="py-2 text-right font-mono font-semibold">{fmt(calc.netPP)}</td>
                 </tr>
+                {g.mgmtFeesPct > 0 && (
+                  <tr>
+                    <td className="py-1 text-muted-foreground">
+                      Mgmt Fees <Badge variant="outline" className="ml-1 text-[10px]">+{g.mgmtFeesPct}%</Badge>
+                    </td>
+                    <td className="py-1 text-right font-mono text-amber-600">{fmt(calc.mgmtFeesPP)}</td>
+                  </tr>
+                )}
+                {g.mgmtFeesPct > 0 && (
+                  <tr>
+                    <td className="py-1 font-medium">Subtotal PP $</td>
+                    <td className="py-1 text-right font-mono font-medium">{fmt(calc.subtotalPP)}</td>
+                  </tr>
+                )}
                 {g.marginPct > 0 && (
                   <tr>
                     <td className="py-1 text-muted-foreground">
@@ -1456,6 +1476,7 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
             <div className="flex items-center gap-3">
               <div className="flex-1 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 Cost: <span className="font-mono font-semibold text-foreground">${fmt(calc.netPP * g.totalPax)}</span>
+                {g.mgmtFeesPct > 0 && <>&nbsp;·&nbsp;Mgmt Fees: <span className="font-mono font-semibold text-amber-600">${fmt(calc.mgmtFeesPP * g.totalPax)}</span></>}
                 &nbsp;·&nbsp;
                 Selling: <span className="font-mono font-semibold text-green-600">${fmt(calc.sellingInclVAT * g.totalPax)}</span>
                 &nbsp;·&nbsp;

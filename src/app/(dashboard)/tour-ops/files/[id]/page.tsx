@@ -221,6 +221,7 @@ export default function OpsFileDetailPage() {
                     <th className="px-3 py-2 text-left">Code</th>
                     <th className="px-3 py-2 text-left">Package</th>
                     <th className="px-3 py-2 text-right">Cost</th>
+                    <th className="px-3 py-2 text-right">Mgmt Fees</th>
                     <th className="px-3 py-2 text-right">Selling</th>
                     <th className="px-3 py-2 text-right">Margin</th>
                     <th className="px-3 py-2 text-left">Status</th>
@@ -233,6 +234,9 @@ export default function OpsFileDetailPage() {
                       <td className="px-3 py-2 font-mono">{q.code}{q.isFinal && " 🔒"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{q.package.name}</td>
                       <td className="px-3 py-2 text-right">${Number(q.totalCost).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-amber-600">
+                        {Number(q.totalMgmtFees ?? 0) > 0 ? `$${Number(q.totalMgmtFees).toLocaleString()}` : "—"}
+                      </td>
                       <td className="px-3 py-2 text-right font-medium">${Number(q.totalSelling).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right text-green-600">{Number(q.marginPct).toFixed(1)}%</td>
                       <td className="px-3 py-2">

@@ -28,23 +28,34 @@ async function recalcQuotationTotals(
     (sum, c) => sum.plus(c.sellingPrice),
     new Decimal(0)
   );
+  const totalMgmtFees = quotation.package.components.reduce(
+    (sum, c) => sum.plus(c.mgmtFeeAmount),
+    new Decimal(0)
+  ).toDecimalPlaces(2);
 
-  let totalSelling = componentSelling;
+  let baseSelling = componentSelling;
   if (packageMarkupType === "PERCENTAGE" && packageMarkupValue) {
-    totalSelling = totalCost
+    baseSelling = totalCost
       .times(new Decimal(1).plus(new Decimal(packageMarkupValue).div(100)))
       .toDecimalPlaces(2);
   } else if (packageMarkupType === "FIXED" && packageMarkupValue) {
-    totalSelling = totalCost.plus(packageMarkupValue).toDecimalPlaces(2);
+    baseSelling = totalCost.plus(packageMarkupValue).toDecimalPlaces(2);
   }
 
+  const totalSelling = baseSelling.plus(totalMgmtFees).toDecimalPlaces(2);
   const margin = totalSelling.minus(totalCost).toDecimalPlaces(2);
   const marginPct =
     totalCost.isZero() ? new Decimal(0) : margin.div(totalCost).times(100).toDecimalPlaces(2);
 
   await db.opsQuotation.update({
     where: { id: quotationId },
-    data: { totalCost: totalCost.toNumber(), totalSelling: totalSelling.toNumber(), margin: margin.toNumber(), marginPct: marginPct.toNumber() },
+    data: {
+      totalCost: totalCost.toNumber(),
+      totalSelling: totalSelling.toNumber(),
+      totalMgmtFees: totalMgmtFees.toNumber(),
+      margin: margin.toNumber(),
+      marginPct: marginPct.toNumber(),
+    },
   });
 }
 

@@ -33,11 +33,15 @@ export interface QuotationPdfData {
       markupType: string;
       markupValue: number;
       sellingPrice: number;
+      mgmtFeeType?: string;
+      mgmtFeeValue?: number;
+      mgmtFeeAmount?: number;
       serviceDate?: Date | string | null;
     }>;
   };
   totalCost: number;
   totalSelling: number;
+  totalMgmtFees?: number;
   margin: number;
   marginPct: number;
   packageMarkupType?: string | null;
@@ -129,23 +133,30 @@ export function generateQuotationPdf(data: QuotationPdfData): jsPDF {
   doc.text("Package Components", margin, y);
   y += 4;
 
+  const hasMgmtFees = data.package.components.some((c) => (c.mgmtFeeAmount ?? 0) > 0);
   autoTable(doc, {
     startY: y,
-    head: [["#", "Type", "Description", "Date", "Qty", "Unit Cost", "Total Cost", "Markup", "Selling Price"]],
-    body: data.package.components.map((c, i) => [
-      String(i + 1),
-      OPS_COMPONENT_TYPE_LABELS[c.type as keyof typeof OPS_COMPONENT_TYPE_LABELS] ?? c.type,
-      c.description,
-      c.serviceDate ? format(new Date(c.serviceDate), "dd MMM") : "—",
-      String(Number(c.qty)),
-      `${c.currency} ${Number(c.unitCost).toLocaleString()}`,
-      `$${Number(c.totalCost).toLocaleString()}`,
-      `${Number(c.markupValue)}${c.markupType === "PERCENTAGE" ? "%" : " fixed"}`,
-      `$${Number(c.sellingPrice).toLocaleString()}`,
-    ]),
-    foot: [
-      ["", "", "", "", "", "Total Cost", `$${data.totalCost.toLocaleString()}`, "Selling", `$${data.totalSelling.toLocaleString()}`],
-    ],
+    head: [hasMgmtFees
+      ? ["#", "Type", "Description", "Date", "Qty", "Unit Cost", "Total Cost", "Markup", "Selling", "Mgmt Fee"]
+      : ["#", "Type", "Description", "Date", "Qty", "Unit Cost", "Total Cost", "Markup", "Selling Price"]],
+    body: data.package.components.map((c, i) => {
+      const row = [
+        String(i + 1),
+        OPS_COMPONENT_TYPE_LABELS[c.type as keyof typeof OPS_COMPONENT_TYPE_LABELS] ?? c.type,
+        c.description,
+        c.serviceDate ? format(new Date(c.serviceDate), "dd MMM") : "—",
+        String(Number(c.qty)),
+        `${c.currency} ${Number(c.unitCost).toLocaleString()}`,
+        `$${Number(c.totalCost).toLocaleString()}`,
+        `${Number(c.markupValue)}${c.markupType === "PERCENTAGE" ? "%" : " fixed"}`,
+        `$${Number(c.sellingPrice).toLocaleString()}`,
+      ];
+      if (hasMgmtFees) row.push(Number(c.mgmtFeeAmount ?? 0) > 0 ? `$${Number(c.mgmtFeeAmount).toLocaleString()}` : "—");
+      return row;
+    }),
+    foot: [hasMgmtFees
+      ? ["", "", "", "", "", "Total Cost", `$${data.totalCost.toLocaleString()}`, "Mgmt Fees", `$${(data.totalMgmtFees ?? 0).toLocaleString()}`, `Total: $${data.totalSelling.toLocaleString()}`]
+      : ["", "", "", "", "", "Total Cost", `$${data.totalCost.toLocaleString()}`, "Selling", `$${data.totalSelling.toLocaleString()}`]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: PRIMARY, textColor: 255 },
     footStyles: { fillColor: LIGHT, textColor: [0, 0, 0], fontStyle: "bold" },
@@ -156,14 +167,20 @@ export function generateQuotationPdf(data: QuotationPdfData): jsPDF {
   const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
   // Totals summary
+  const summaryRows: [string, string][] = [
+    ["Total Cost", `$${data.totalCost.toLocaleString()}`],
+  ];
+  if ((data.totalMgmtFees ?? 0) > 0) {
+    summaryRows.push(["Management Fees", `$${(data.totalMgmtFees ?? 0).toLocaleString()}`]);
+  }
+  summaryRows.push(
+    ["Total Selling Price", `$${data.totalSelling.toLocaleString()}`],
+    ["Margin", `$${data.margin.toLocaleString()}`],
+    ["Margin %", `${Number(data.marginPct).toFixed(1)}%`],
+  );
   autoTable(doc, {
     startY: finalY,
-    body: [
-      ["Total Cost", `$${data.totalCost.toLocaleString()}`],
-      ["Total Selling Price", `$${data.totalSelling.toLocaleString()}`],
-      ["Margin", `$${data.margin.toLocaleString()}`],
-      ["Margin %", `${Number(data.marginPct).toFixed(1)}%`],
-    ],
+    body: summaryRows,
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 }, 1: { halign: "right" } },
     styles: { fontSize: 9 },
     tableWidth: 80,

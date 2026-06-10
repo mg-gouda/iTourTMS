@@ -130,7 +130,9 @@
     "children": "الأطفال",
     "warnings": "تحذيرات",
     "eligible": "مؤهل",
-    "notEligible": "غير مؤهل"
+    "notEligible": "غير مؤهل",
+    "country": "الدولة",
+    "paymentTerm": "شروط الدفع"
   },
   "auth": {
     "login": "تسجيل الدخول",

@@ -463,6 +463,17 @@ export default function TourOperatorDetailPage() {
                       </Badge>
                     </dd>
                   </div>
+                  <div>
+                    <dt className="text-muted-foreground">Credit Days</dt>
+                    <dd className="font-mono">{Number(to.partner?.creditLimit ?? 0)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Credit Amount</dt>
+                    <dd className="font-mono">
+                      {to.partner?.creditCurrency ? `${to.partner.creditCurrency} ` : ""}
+                      {Number(to.partner?.creditUsed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </dd>
+                  </div>
                 </dl>
               )}
             </CardContent>
