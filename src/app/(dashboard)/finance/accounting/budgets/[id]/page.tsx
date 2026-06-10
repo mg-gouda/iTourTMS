@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -117,6 +117,14 @@ export default function BudgetDetailPage() {
         </div>
 
         <div className="flex gap-2">
+          {isDraft && (
+            <Button variant="outline" asChild>
+              <Link href={`/finance/accounting/budgets/${id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                {tc("edit")}
+              </Link>
+            </Button>
+          )}
           {isDraft && (
             <Button
               onClick={() => approveMutation.mutate({ id })}

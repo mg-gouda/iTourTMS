@@ -23,7 +23,7 @@ export function InvoiceAnalysisReport() {
   const [moveType, setMoveType] = useState<"OUT_INVOICE" | "IN_INVOICE" | "ALL">("OUT_INVOICE");
 
   const { data, isFetching } = trpc.finance.report.invoiceAnalysis.useQuery(
-    { dateFrom: range!.dateFrom, dateTo: range!.dateTo, moveType },
+    { dateFrom: range?.dateFrom ?? new Date(), dateTo: range?.dateTo ?? new Date(), moveType },
     { enabled: !!range },
   );
 

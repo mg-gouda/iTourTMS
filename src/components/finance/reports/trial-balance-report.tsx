@@ -68,7 +68,7 @@ export function TrialBalanceReport() {
         </Card>
       )}
 
-      {data && !isFetching && (
+      {data && params && !isFetching && (
         <Card>
           <CardHeader>
             <CardTitle>

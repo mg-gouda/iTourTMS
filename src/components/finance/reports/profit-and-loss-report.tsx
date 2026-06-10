@@ -131,7 +131,7 @@ export function ProfitAndLossReport() {
         </Card>
       )}
 
-      {data && !isFetching && (
+      {data && params && !isFetching && (
         <Card>
           <CardHeader>
             <CardTitle>

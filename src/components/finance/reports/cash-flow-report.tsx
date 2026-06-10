@@ -19,7 +19,7 @@ export function CashFlowReport() {
   const [range, setRange] = useState<{ dateFrom: Date; dateTo: Date } | null>(null);
 
   const { data, isFetching } = trpc.finance.report.cashFlow.useQuery(
-    { dateFrom: range!.dateFrom, dateTo: range!.dateTo },
+    { dateFrom: range?.dateFrom ?? new Date(), dateTo: range?.dateTo ?? new Date() },
     { enabled: !!range },
   );
 

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   Download,
@@ -124,51 +125,77 @@ function TreeRow({
 
   return (
     <>
-      <div
-        className="group flex items-center gap-1 rounded px-2 py-[5px] hover:bg-muted/50"
-        style={{ paddingLeft: `${depth * 20 + 8}px` }}
-      >
-        {/* Expand toggle */}
-        <button
-          className="flex size-5 shrink-0 items-center justify-center text-muted-foreground"
-          onClick={() => setExpanded((v) => !v)}
-          disabled={!hasChildren}
+      <div className="group flex items-center gap-1 rounded px-2 py-[5px] hover:bg-muted/50">
+        {/* Left: indented account info */}
+        <div
+          className="flex min-w-0 flex-1 items-center gap-1"
+          style={{ paddingLeft: `${depth * 20}px` }}
         >
-          {hasChildren ? (
-            isExpanded ? (
-              <ChevronDown className="size-3.5" />
+          {/* Expand toggle */}
+          <button
+            className="flex size-5 shrink-0 items-center justify-center text-muted-foreground"
+            onClick={() => setExpanded((v) => !v)}
+            disabled={!hasChildren}
+          >
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronRight className="size-3.5" />
+              )
             ) : (
-              <ChevronRight className="size-3.5" />
-            )
+              <span className="size-3.5" />
+            )}
+          </button>
+
+          {/* Icon */}
+          {node.isGroup ? (
+            <FolderOpen className="size-4 shrink-0 text-amber-500" />
           ) : (
-            <span className="size-3.5" />
+            <FilePlus2 className="size-4 shrink-0 text-muted-foreground/60" />
           )}
-        </button>
 
-        {/* Icon */}
-        {node.isGroup ? (
-          <FolderOpen className="size-4 shrink-0 text-amber-500" />
-        ) : (
-          <FilePlus2 className="size-4 shrink-0 text-muted-foreground/60" />
-        )}
+          {/* Code */}
+          <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
+            {node.code}
+          </span>
 
-        {/* Code + Name */}
-        <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
-          {node.code}
+          {/* Name */}
+          <span className={`min-w-0 flex-1 truncate text-sm ${node.isGroup ? "font-semibold" : ""}`}>
+            {node.name}
+          </span>
+        </div>
+
+        {/* Account Type */}
+        <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">
+          {ACCOUNT_TYPE_LABELS[node.accountType] ?? node.accountType}
         </span>
-        <span className={`flex-1 text-sm ${node.isGroup ? "font-semibold" : ""}`}>
-          {node.name}
+
+        {/* Group */}
+        <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">
+          {node.group?.name ?? <span className="text-muted-foreground/40">—</span>}
         </span>
 
-        {/* Type badge (leaves only) */}
-        {!node.isGroup && (
-          <Badge variant="outline" className="hidden text-xs sm:flex shrink-0">
-            {ACCOUNT_TYPE_LABELS[node.accountType] ?? node.accountType}
-          </Badge>
-        )}
+        {/* Reconcile */}
+        <span className="flex w-16 shrink-0 justify-center">
+          {node.reconcile ? (
+            <Check className="size-3 text-green-600" />
+          ) : (
+            <span className="text-xs text-muted-foreground/40">—</span>
+          )}
+        </span>
+
+        {/* Deprecated */}
+        <span className="flex w-16 shrink-0 justify-center">
+          {node.deprecated ? (
+            <Badge variant="outline" className="px-1 py-0 text-[10px] text-amber-600 border-amber-300 bg-amber-50">Yes</Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground/40">—</span>
+          )}
+        </span>
 
         {/* Actions */}
-        <div className="ml-2 flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex w-[68px] shrink-0 items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {node.isGroup && (
             <Button
               variant="ghost"
@@ -282,9 +309,24 @@ function CategorySection({
         </Button>
       </div>
 
-      {/* Tree rows */}
+      {/* Column headers + tree rows */}
       {open && (
         <div className="border-t pb-1">
+          {/* Column header row */}
+          <div className="flex items-center gap-1 border-b bg-muted/20 px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <span className="size-5 shrink-0" />
+              <span className="size-4 shrink-0" />
+              <span className="w-20 shrink-0">Code</span>
+              <span className="flex-1">Account Name</span>
+            </div>
+            <span className="w-28 shrink-0">Type</span>
+            <span className="w-24 shrink-0">Group</span>
+            <span className="w-16 shrink-0 text-center">Reconcile</span>
+            <span className="w-16 shrink-0 text-center">Deprecated</span>
+            <span className="w-[68px] shrink-0" />
+          </div>
+
           {nodes.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground italic">
               No accounts yet. Click Add to create one.
@@ -316,6 +358,8 @@ export default function ChartOfAccountsPage() {
   const utils = trpc.useUtils();
   const { data: flat = [], isLoading } = trpc.finance.account.listTree.useQuery();
   const { data: groups = [] } = trpc.finance.account.listGroups.useQuery();
+  const { data: companySettings } = trpc.settings.getCompanySettings.useQuery();
+  const [treeOpen, setTreeOpen] = useState(true);
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [search, setSearch] = useState("");
@@ -458,32 +502,58 @@ export default function ChartOfAccountsPage() {
         className="max-w-sm"
       />
 
-      {/* Tree */}
-      {isLoading ? (
-        <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>
-      ) : (
-        <div className="space-y-3">
-          {CATEGORY_SECTIONS.map((cat) => (
-            <CategorySection
-              key={cat.name}
-              name={cat.name}
-              types={cat.types}
-              roots={tree}
-              onAdd={(parentId, accountType) =>
-                setDialog({ mode: "add", parentId, accountType })
-              }
-              onEdit={(account) => setDialog({ mode: "edit", account })}
-              onDelete={handleDelete}
-              search={search}
-            />
-          ))}
-        </div>
-      )}
+      {/* Main layout: tree left 50%, panels right */}
+      <div className="flex items-start gap-4">
+        {/* Left: COA tree */}
+        <div className="w-[62.5%] min-w-0 shrink-0">
+          {isLoading ? (
+            <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>
+          ) : (
+            <div className="rounded-lg border bg-card">
+              {/* Company root row */}
+              <div
+                className="flex cursor-pointer items-center gap-2 px-4 py-3 hover:bg-muted/30 transition-colors select-none"
+                onClick={() => setTreeOpen((v) => !v)}
+              >
+                {treeOpen ? (
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="font-semibold text-base">
+                  {companySettings?.name ?? t("chartOfAccountsTitle")}
+                </span>
+                <Badge variant="secondary" className="text-xs">{flat.length}</Badge>
+              </div>
 
-      {/* Account Groups & Tags */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <AccountGroupsPanel />
-        <AccountTagsPanel />
+              {/* Collapsible sections */}
+              {treeOpen && (
+                <div className="border-t space-y-3 p-3">
+                  {CATEGORY_SECTIONS.map((cat) => (
+                    <CategorySection
+                      key={cat.name}
+                      name={cat.name}
+                      types={cat.types}
+                      roots={tree}
+                      onAdd={(parentId, accountType) =>
+                        setDialog({ mode: "add", parentId, accountType })
+                      }
+                      onEdit={(account) => setDialog({ mode: "edit", account })}
+                      onDelete={handleDelete}
+                      search={search}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Account Groups stacked above Account Tags */}
+        <div className="min-w-0 flex-1 space-y-4">
+          <AccountGroupsPanel />
+          <AccountTagsPanel />
+        </div>
       </div>
 
       {/* Add / Edit dialog */}

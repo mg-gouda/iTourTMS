@@ -13,7 +13,7 @@ export function AnalyticReport() {
   const [range, setRange] = useState<{ dateFrom: Date; dateTo: Date } | null>(null);
 
   const { data, isFetching } = trpc.finance.report.analyticReport.useQuery(
-    { dateFrom: range!.dateFrom, dateTo: range!.dateTo },
+    { dateFrom: range?.dateFrom ?? new Date(), dateTo: range?.dateTo ?? new Date() },
     { enabled: !!range },
   );
 

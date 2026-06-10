@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
@@ -161,5 +162,8 @@ export const settingsRouter = createTRPCRouter({
           isInstalled: input.enabled,
         },
       });
+
+      // Invalidate the layout so the sidebar reflects the change on the next navigation
+      revalidatePath("/", "layout");
     }),
 });
