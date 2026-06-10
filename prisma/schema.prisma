@@ -201,7 +201,8 @@ model Company {
   opsGuidanceSeasons   OpsGuidanceRateSeason[]
   opsMealRates         OpsMealRate[]
   opsMealSeasons       OpsMealRateSeason[]
-  opsFlightTickets     OpsFlightTicket[]
+  opsFlightTickets       OpsFlightTicket[]
+  creditOverrideRequests CreditOverrideRequest[]
 
   // License
   license              License?
@@ -325,9 +326,11 @@ model User {
   hotelCreditConsumptions    HotelCreditConsumption[] @relation("HotelCreditUsedBy")
 
   // Tour Operations relations
-  opsFilesCreated         OpsFile[]             @relation("OpsFileCreatedBy")
-  flightTicketsCreated    OpsFlightTicket[]     @relation("FlightTicketCreatedBy")
-  flightFareLines         OpsFlightFareLine[]   @relation("FlightFareLineEmployee")
+  opsFilesCreated              OpsFile[]               @relation("OpsFileCreatedBy")
+  flightTicketsCreated         OpsFlightTicket[]       @relation("FlightTicketCreatedBy")
+  flightFareLines              OpsFlightFareLine[]     @relation("FlightFareLineEmployee")
+  creditOverrideRequests       CreditOverrideRequest[] @relation("CreditOverrideRequester")
+  creditOverrideResolutions    CreditOverrideRequest[] @relation("CreditOverrideResolver")
 
   @@index([companyId])
   @@index([email])
@@ -2762,9 +2765,10 @@ model TourOperator {
   tariffs             Tariff[]
   apiIntegration      ApiIntegration?
   bookings            Booking[]
-  creditTransactions  B2bCreditTransaction[]
-  partnerUsers        User[]   @relation("PartnerUser")
+  creditTransactions     B2bCreditTransaction[]
+  partnerUsers           User[]                   @relation("PartnerUser")
   crmProgramAssignments  CrmProgramTourOperator[]
+  creditOverrideRequests CreditOverrideRequest[]  @relation("TOCreditOverrides")
   excursionTickets       CrmExcursionTicket[]
   opsFiles               OpsFile[]
   cruiseContractTOs      CruiseContractTourOperator[]
@@ -5622,12 +5626,13 @@ model OpsFile {
   tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
   createdBy    User          @relation("OpsFileCreatedBy", fields: [createdById], references: [id])
 
-  packages        OpsPackage[]
-  quotations      OpsQuotation[]
-  pnl             OpsPnL?
-  opsPayments     Payment[]         @relation("OpsFilePayments")
-  flightTickets   OpsFlightTicket[] @relation("OpsFileFlightTickets")
-  cruiseBookings  CruiseBooking[]
+  packages               OpsPackage[]
+  quotations             OpsQuotation[]
+  pnl                    OpsPnL?
+  opsPayments            Payment[]               @relation("OpsFilePayments")
+  flightTickets          OpsFlightTicket[]       @relation("OpsFileFlightTickets")
+  cruiseBookings         CruiseBooking[]
+  creditOverrideRequests CreditOverrideRequest[] @relation("CreditOverrideFile")
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -5733,6 +5738,39 @@ model OpsQuotation {
   @@index([fileId])
   @@index([companyId, status])
   @@map("ops_quotation")
+}
+
+// ── CreditOverrideRequest ──
+
+model CreditOverrideRequest {
+  id              String    @id @default(cuid())
+  companyId       String
+  tourOperatorId  String
+  requestedById   String
+  amount          Decimal   @db.Decimal(12, 2)
+  currentUsed     Decimal   @db.Decimal(12, 2)
+  creditLimit     Decimal   @db.Decimal(12, 2)
+  overageAmount   Decimal   @db.Decimal(12, 2)
+  status          String    @default("PENDING") // PENDING, APPROVED, DENIED
+  resolvedById    String?
+  resolvedAt      DateTime?
+  notes           String?   @db.Text
+  pendingPayload  Json?
+  pendingType     String?   // "calculator_post"
+  createdFileId   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator @relation("TOCreditOverrides", fields: [tourOperatorId], references: [id])
+  requestedBy  User         @relation("CreditOverrideRequester", fields: [requestedById], references: [id])
+  resolvedBy   User?        @relation("CreditOverrideResolver", fields: [resolvedById], references: [id])
+  createdFile  OpsFile?     @relation("CreditOverrideFile", fields: [createdFileId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([tourOperatorId])
+  @@map("credit_override_request")
 }
 
 // ── OpsPnL ──

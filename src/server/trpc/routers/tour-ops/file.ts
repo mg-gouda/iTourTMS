@@ -4,6 +4,7 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { opsFileCreateSchema, opsFileUpdateSchema } from "@/lib/validations/tour-ops";
 import { OPS_FILE_STATUS_TRANSITIONS } from "@/lib/constants/tour-ops";
 import type { OpsFileStatus } from "@prisma/client";
+import { recalcCreditUsed } from "@/server/services/tour-ops/credit";
 
 const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
@@ -175,7 +176,11 @@ export const opsFileRouter = createTRPCRouter({
         }
       }
 
-      return ctx.db.opsFile.update({ where: { id: input.id }, data: { status: input.status as OpsFileStatus } });
+      const updated = await ctx.db.opsFile.update({ where: { id: input.id }, data: { status: input.status as OpsFileStatus } });
+      if ((input.status === "COMPLETED" || input.status === "CANCELLED") && file.tourOperatorId) {
+        await recalcCreditUsed(ctx.db, ctx.companyId, file.tourOperatorId).catch(() => {});
+      }
+      return updated;
     }),
 
   delete: p("tour-ops:file:delete")

@@ -13,6 +13,7 @@ import { opsGuidanceRouter } from "./guidance";
 import { opsMealsRouter } from "./meals";
 import { opsCalculatorRouter } from "./calculator";
 import { opsFlightTicketRouter } from "./flight-ticket";
+import { opsCreditOverrideRouter } from "./credit-override";
 
 export const tourOpsRouter = createTRPCRouter({
   file: opsFileRouter,
@@ -29,4 +30,5 @@ export const tourOpsRouter = createTRPCRouter({
   meals: opsMealsRouter,
   calculator: opsCalculatorRouter,
   flightTicket: opsFlightTicketRouter,
+  creditOverride: opsCreditOverrideRouter,
 });

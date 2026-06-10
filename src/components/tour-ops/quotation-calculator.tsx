@@ -27,6 +27,8 @@ import {
   AccommodationPickerDialog,
   type ContractHotelData,
 } from "@/components/tour-ops/accommodation-picker-dialog";
+import { CreditBlockDialog } from "@/components/tour-ops/credit-block-dialog";
+import { useSession } from "next-auth/react";
 
 // ── Row types ──
 
@@ -214,6 +216,19 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
   const [isPosted, setIsPosted] = useState(false);
   const [postedQuotationCode, setPostedQuotationCode] = useState<string | null>(null);
 
+  // Credit block state
+  const { data: sessionData } = useSession();
+  const isOperationsManager = (sessionData?.user?.roles as string[] | undefined)?.some(
+    (r) => r === "operations_manager" || r === "super_admin"
+  ) ?? false;
+  const [creditBlock, setCreditBlock] = useState<{
+    overrideRequestId: string;
+    overageAmount: number;
+    creditLimit: number;
+    creditUsed: number;
+    requestedAmount: number;
+  } | null>(null);
+
   // Hotel picker state
   const [hotelPicker, setHotelPicker] = useState<{ rowId: string; type: "accommodation" | "nile_cruise" } | null>(null);
 
@@ -233,11 +248,23 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
   });
   const postMutation = trpc.tourOps.calculator.post.useMutation({
     onSuccess: (data) => {
-      setIsPosted(true);
-      setPostedQuotationCode(data.quotationCode);
-      toast.success(`Calculation posted — Quotation ${data.quotationCode} created`);
-      utils.tourOps.file.getById.invalidate({ id: fileId });
-      onPostSuccess?.();
+      if (data && "blocked" in data && data.blocked) {
+        setCreditBlock({
+          overrideRequestId: data.overrideRequestId,
+          overageAmount: data.overageAmount,
+          creditLimit: data.creditLimit,
+          creditUsed: data.creditUsed,
+          requestedAmount: data.requestedAmount,
+        });
+        return;
+      }
+      if (data && "quotationCode" in data) {
+        setIsPosted(true);
+        setPostedQuotationCode(data.quotationCode);
+        toast.success(`Calculation posted — Quotation ${data.quotationCode} created`);
+        utils.tourOps.file.getById.invalidate({ id: fileId });
+        onPostSuccess?.();
+      }
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1499,6 +1526,22 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
           serviceDate={travelDate}
           onClose={() => setHotelPicker(null)}
           onSelectContractData={handleContractDataSelect}
+        />
+      )}
+
+      {/* ── Credit block dialog ── */}
+      {creditBlock && (
+        <CreditBlockDialog
+          open={true}
+          blockInfo={creditBlock}
+          isOperationsManager={isOperationsManager}
+          onClose={() => setCreditBlock(null)}
+          onApproved={(_fileId, quotationCode) => {
+            setIsPosted(true);
+            setPostedQuotationCode(quotationCode);
+            utils.tourOps.file.getById.invalidate({ id: fileId });
+            onPostSuccess?.();
+          }}
         />
       )}
     </div>

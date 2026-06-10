@@ -2,8 +2,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { getCreditStatus, checkCredit, recalcCreditUsed } from "@/server/services/tour-ops/credit";
+import { notifyRole } from "@/server/services/shared/notifications";
 
 const p = (code: string) => modulePermissionProcedure("tour-ops", code);
+const OPERATIONS_MANAGER_ROLE = "operations_manager";
 
 const generatedComponentSchema = z.object({
   type: z.enum([
@@ -59,13 +62,57 @@ export const opsCalculatorRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { db, companyId } = ctx;
+      const { db, companyId, session } = ctx;
 
       const file = await db.opsFile.findFirst({
         where: { id: input.fileId, companyId },
-        select: { id: true, travelFrom: true, clientType: true },
+        select: { id: true, travelFrom: true, clientType: true, tourOperatorId: true },
       });
       if (!file) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // ── Credit check ──────────────────────────────────────────────────────
+      if (file.tourOperatorId) {
+        const creditStatus = await getCreditStatus(db, companyId, file.tourOperatorId);
+        if (creditStatus) {
+          const check = checkCredit(creditStatus, input.totalSellingUSD);
+          if (!check.allowed) {
+            // Store override request and notify OMs
+            const overrideReq = await db.creditOverrideRequest.create({
+              data: {
+                companyId,
+                tourOperatorId: file.tourOperatorId,
+                requestedById: session.user.id,
+                amount: new Decimal(input.totalSellingUSD).toDecimalPlaces(2).toNumber(),
+                currentUsed: creditStatus.creditUsed,
+                creditLimit: creditStatus.creditLimit,
+                overageAmount: check.overageAmount,
+                status: "PENDING",
+                pendingType: "calculator_post",
+                pendingPayload: input as unknown as Record<string, unknown>,
+              },
+              include: { tourOperator: { select: { name: true } } },
+            });
+
+            await notifyRole(db, companyId, OPERATIONS_MANAGER_ROLE, {
+              type: "CREDIT_OVERRIDE_REQUESTED",
+              title: "Credit limit override requested",
+              message: `${overrideReq.tourOperator.name} — a new quotation of $${input.totalSellingUSD.toLocaleString()} would exceed the credit limit by $${check.overageAmount.toLocaleString()}. Approve or deny.`,
+              link: `/tour-ops/credit-overrides`,
+            });
+
+            // Return blocked signal — no file/package/quotation created yet
+            return {
+              blocked: true,
+              overrideRequestId: overrideReq.id,
+              overageAmount: check.overageAmount,
+              creditLimit: creditStatus.creditLimit,
+              creditUsed: creditStatus.creditUsed,
+              requestedAmount: input.totalSellingUSD,
+            } as const;
+          }
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       return db.$transaction(async (tx) => {
         // 1. Save & lock calculator state
@@ -169,6 +216,11 @@ export const opsCalculatorRouter = createTRPCRouter({
 
         return { quotationId: quotation.id, quotationCode: code };
       });
+
+      // Recalc creditUsed after successful post
+      if (file.tourOperatorId) {
+        await recalcCreditUsed(db, companyId, file.tourOperatorId).catch(() => {});
+      }
     }),
 
   reopen: p("tour-ops:quotation:manage")

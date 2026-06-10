@@ -465,6 +465,7 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
           label: t("tourOpsGroups.commercial"),
           routes: [
             { label: "Quotations", href: "/tour-ops/quotations" },
+            { label: "Credit Overrides", href: "/tour-ops/credit-overrides" },
           ],
         },
         {
