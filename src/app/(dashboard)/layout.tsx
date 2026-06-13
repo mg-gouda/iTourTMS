@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { BackButton } from "@/components/shared/back-button";
+import { AuthSessionProvider } from "@/components/providers/auth-session-provider";
 import { PermissionsProvider } from "@/components/providers/permissions-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
@@ -69,6 +70,7 @@ export default async function DashboardLayout({
   }));
 
   return (
+    <AuthSessionProvider session={session}>
     <PermissionsProvider
       roles={session.user.roles ?? []}
       permissions={session.user.permissions ?? []}
@@ -116,5 +118,6 @@ export default async function DashboardLayout({
       </SidebarInset>
     </SidebarProvider>
     </PermissionsProvider>
+    </AuthSessionProvider>
   );
 }
