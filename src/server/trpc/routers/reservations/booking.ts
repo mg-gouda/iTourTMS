@@ -29,6 +29,7 @@ import {
 } from "@/server/services/contracting/markup-calculator";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
 import { syncBaseCurrencyLine } from "@/server/services/reservations/currency-lines";
+import { guestParts, splitLegacyName, type GuestNameEntry } from "@/lib/reservations/guest-names";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
 import { syncTrafficJobsForBooking } from "@/server/services/traffic/booking-sync";
 import { createBookingInvoice, createBookingVendorBill } from "@/server/services/reservations/auto-invoice";
@@ -365,6 +366,8 @@ export const bookingRouter = createTRPCRouter({
 
           // Misc
           leadGuestName: input.leadGuestName ?? null,
+          leadGuestFirstName: input.leadGuestFirstName ?? null,
+          leadGuestLastName: input.leadGuestLastName ?? null,
           leadGuestEmail: input.leadGuestEmail ?? null,
           leadGuestPhone: input.leadGuestPhone ?? null,
           specialRequests: input.specialRequests ?? null,
@@ -543,6 +546,10 @@ export const bookingRouter = createTRPCRouter({
       if (input.data.internalNotes !== undefined) data.internalNotes = input.data.internalNotes;
       if (input.data.externalRef !== undefined) data.externalRef = input.data.externalRef;
       if (input.data.leadGuestName !== undefined) data.leadGuestName = input.data.leadGuestName;
+      if (input.data.leadGuestFirstName !== undefined)
+        data.leadGuestFirstName = input.data.leadGuestFirstName;
+      if (input.data.leadGuestLastName !== undefined)
+        data.leadGuestLastName = input.data.leadGuestLastName;
       if (input.data.leadGuestEmail !== undefined) data.leadGuestEmail = input.data.leadGuestEmail;
       if (input.data.leadGuestPhone !== undefined) data.leadGuestPhone = input.data.leadGuestPhone;
 
@@ -927,15 +934,21 @@ export const bookingRouter = createTRPCRouter({
       // Guest names — handle both structured and legacy formats
       if (d.guestNames !== undefined) {
         data.guestNames = d.guestNames.length ? d.guestNames : undefined;
-        // Update leadGuestName from first guest
+        // Lead guest follows the first guest, split and combined
         if (d.guestNames.length && d.guestNames[0]) {
           const firstGuest = d.guestNames[0];
-          if (typeof firstGuest === "string") {
-            data.leadGuestName = firstGuest;
-          } else if (firstGuest && typeof firstGuest === "object") {
-            const g = firstGuest as { title?: string; name: string };
-            data.leadGuestName = g.title ? `${g.title} ${g.name}` : g.name;
-          }
+          const parts =
+            typeof firstGuest === "string"
+              ? splitLegacyName(firstGuest)
+              : guestParts(firstGuest as GuestNameEntry);
+          const title =
+            typeof firstGuest === "object" && firstGuest
+              ? ((firstGuest as GuestNameEntry).title ?? "")
+              : "";
+          const full = [parts.firstName, parts.lastName].filter(Boolean).join(" ");
+          data.leadGuestFirstName = parts.firstName || null;
+          data.leadGuestLastName = parts.lastName || null;
+          data.leadGuestName = title ? `${title} ${full}`.trim() : full;
         }
       }
 
@@ -1637,6 +1650,8 @@ export const bookingRouter = createTRPCRouter({
       currencyId: z.string(),
       source: z.enum(["DIRECT", "TOUR_OPERATOR", "API", "WEBSITE"]).default("DIRECT"),
       leadGuestName: z.string().optional(),
+      leadGuestFirstName: z.string().optional(),
+      leadGuestLastName: z.string().optional(),
       leadGuestEmail: z.string().optional(),
       specialRequests: z.string().optional(),
       internalNotes: z.string().optional(),
@@ -1680,7 +1695,10 @@ export const bookingRouter = createTRPCRouter({
           noOfRooms: totalRooms,
           adults: totalAdults,
           children: totalChildren,
+          // Group bookings are titled by the group; the lead guest is kept split
           leadGuestName: input.groupName,
+          leadGuestFirstName: input.leadGuestFirstName ?? null,
+          leadGuestLastName: input.leadGuestLastName ?? null,
           leadGuestEmail: input.leadGuestEmail ?? null,
           specialRequests: input.specialRequests ?? null,
           internalNotes: `[GROUP BOOKING] ${input.groupName}\n${input.internalNotes ?? ""}`,

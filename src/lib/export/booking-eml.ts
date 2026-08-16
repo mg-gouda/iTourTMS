@@ -37,6 +37,8 @@ export interface BookingEmlData {
    */
   isRebooked?: boolean;
   leadGuestName?: string | null;
+  leadGuestFirstName?: string | null;
+  leadGuestLastName?: string | null;
 
   // Flight details
   arrivalFlightNo?: string | null;
@@ -205,8 +207,13 @@ function buildGuestList(data: BookingEmlData): string {
       html += `<li>${escapeHtml(guestNameForHotel({ name: g }, { rebooked: data.isRebooked }))}</li>`;
     }
     html += `</ul>`;
-  } else if (data.leadGuestName) {
-    html += `<p>${escapeHtml(guestNameForHotel({ name: data.leadGuestName }, { rebooked: data.isRebooked }))}</p>`;
+  } else if (data.leadGuestFirstName || data.leadGuestLastName || data.leadGuestName) {
+    const lead = {
+      firstName: data.leadGuestFirstName ?? undefined,
+      lastName: data.leadGuestLastName ?? undefined,
+      name: data.leadGuestName ?? undefined,
+    };
+    html += `<p>${escapeHtml(guestNameForHotel(lead, { rebooked: data.isRebooked }))}</p>`;
   } else {
     return "";
   }

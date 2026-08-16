@@ -550,7 +550,7 @@ export default function AmendBookingPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>HTL BKG Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value ?? ""}>
                           <FormControl>
                             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                           </FormControl>
@@ -570,7 +570,7 @@ export default function AmendBookingPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>T/O BKG Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value ?? ""}>
                           <FormControl>
                             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                           </FormControl>
@@ -612,7 +612,7 @@ export default function AmendBookingPage() {
                               .filter((m) => m.active)
                               .map((m) => ({ value: m.id, label: `${m.name} (${m.code})` }))}
                             value={field.value || ""}
-                            onValueChange={field.onChange}
+                            onValueChange={(v) => { if (v) field.onChange(v); }}
                             placeholder="Select market"
                             searchPlaceholder="Search markets..."
                             emptyMessage="No markets found."
@@ -634,7 +634,7 @@ export default function AmendBookingPage() {
                               .filter((t) => t.active)
                               .map((t) => ({ value: t.id, label: `${t.name} (${t.code})` }))}
                             value={field.value || ""}
-                            onValueChange={field.onChange}
+                            onValueChange={(v) => { if (v) field.onChange(v); }}
                             placeholder="Select T/O"
                             searchPlaceholder="Search tour operators..."
                             emptyMessage="No tour operators found."
@@ -656,7 +656,7 @@ export default function AmendBookingPage() {
                               .filter((h) => h.active)
                               .map((h) => ({ value: h.id, label: `${h.name} (${h.code})` }))}
                             value={field.value || ""}
-                            onValueChange={field.onChange}
+                            onValueChange={(v) => { if (v) field.onChange(v); }}
                             placeholder="Select hotel"
                             searchPlaceholder="Search hotels..."
                             emptyMessage="No hotels found."
@@ -689,10 +689,10 @@ export default function AmendBookingPage() {
                     <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" lang="en-GB" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalOriginApt" render={({ field }) => (
-                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
+                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalDestApt" render={({ field }) => (
-                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
+                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="arrivalTerminal" render={({ field }) => (
                     <FormItem><FormLabel>Terminal</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
@@ -721,10 +721,10 @@ export default function AmendBookingPage() {
                     <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" lang="en-GB" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departOriginApt" render={({ field }) => (
-                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
+                    <FormItem><FormLabel>Origin Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departDestApt" render={({ field }) => (
-                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
+                    <FormItem><FormLabel>Dest. Airport</FormLabel><FormControl><Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="departTerminal" render={({ field }) => (
                     <FormItem><FormLabel>Terminal</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
@@ -793,6 +793,9 @@ export default function AmendBookingPage() {
                       <FormLabel>Meal Basis *</FormLabel>
                       <Select
                         onValueChange={(v) => {
+                          // Radix emits "" while its items are still loading — that is a
+                          // sync artefact, not a choice, and must not wipe the booking's value
+                          if (!v) return;
                           // Applies to all rooms; per-room selects can differ afterwards
                           (form.getValues("rooms") ?? []).forEach((_, i) =>
                             form.setValue(`rooms.${i}.mealBasisId`, v),
@@ -857,7 +860,7 @@ export default function AmendBookingPage() {
                               <FormItem>
                                 <FormLabel>Room Type *</FormLabel>
                                 <Select
-                                  onValueChange={f.onChange}
+                                  onValueChange={(v) => { if (v) f.onChange(v); }}
                                   value={f.value}
                                   disabled={!hotelId}
                                 >
@@ -888,7 +891,11 @@ export default function AmendBookingPage() {
                             render={({ field: f }) => (
                               <FormItem>
                                 <FormLabel>Meal Basis *</FormLabel>
-                                <Select onValueChange={f.onChange} value={f.value ?? ""} disabled={!hotelId}>
+                                <Select
+                                  onValueChange={(v) => { if (v) f.onChange(v); }}
+                                  value={f.value ?? ""}
+                                  disabled={!hotelId}
+                                >
                                   <FormControl>
                                     <SelectTrigger className="w-full">
                                       <SelectValue placeholder="Select" />
@@ -1017,7 +1024,7 @@ export default function AmendBookingPage() {
                                     render={({ field: f }) => (
                                       <FormItem className="w-24 shrink-0">
                                         <Select
-                                          onValueChange={f.onChange}
+                                          onValueChange={(v) => { if (v) f.onChange(v); }}
                                           value={f.value ?? ""}
                                         >
                                           <FormControl>
@@ -1180,7 +1187,7 @@ export default function AmendBookingPage() {
                   <FormField control={form.control} name="hotelPaymentMethod" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Payment Method</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value ?? ""}>
                         <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                         <SelectContent>
                           {PAYMENT_METHOD_OPTIONS.map((opt) => (

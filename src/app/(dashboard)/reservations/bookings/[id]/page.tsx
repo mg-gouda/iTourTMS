@@ -82,6 +82,7 @@ import { generateBookingEml } from "@/lib/export/booking-eml";
 import { generateVoucherPdf } from "@/lib/export/voucher-pdf";
 import { CostExplanation, RateHistoryIcon } from "@/components/reservations/cost-explanation";
 import type { ExplainableBreakdown } from "@/lib/reservations/cost-explanation";
+import { splitLegacyName } from "@/lib/reservations/guest-names";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -645,7 +646,14 @@ export default function BookingDetailPage() {
                 <CardTitle>Lead Guest</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <InfoRow label="Name" value={booking.leadGuestName} />
+                <InfoRow
+                  label="First Name"
+                  value={booking.leadGuestFirstName ?? splitLegacyName(booking.leadGuestName).firstName}
+                />
+                <InfoRow
+                  label="Family Name"
+                  value={booking.leadGuestLastName ?? splitLegacyName(booking.leadGuestName).lastName}
+                />
                 <InfoRow label="Email" value={booking.leadGuestEmail} />
                 <InfoRow label="Phone" value={booking.leadGuestPhone} />
               </CardContent>
@@ -2938,6 +2946,8 @@ function handleSendToHotel(booking: any, company: any) {
       })),
       guestNames: booking.guestNames,
       leadGuestName: booking.leadGuestName,
+      leadGuestFirstName: booking.leadGuestFirstName,
+      leadGuestLastName: booking.leadGuestLastName,
       // Rebooked stays go to the hotel under the family name, as a fresh booking
       isRebooked: (booking.rateChanges ?? []).length > 0,
       arrivalFlightNo: booking.arrivalFlightNo,
@@ -2979,6 +2989,8 @@ function handleSendToHotel(booking: any, company: any) {
         })),
         guestNames: booking.guestNames,
         leadGuestName: booking.leadGuestName,
+        leadGuestFirstName: booking.leadGuestFirstName,
+        leadGuestLastName: booking.leadGuestLastName,
         isRebooked: (booking.rateChanges ?? []).length > 0,
         arrivalFlightNo: booking.arrivalFlightNo,
         arrivalTime: booking.arrivalTime,

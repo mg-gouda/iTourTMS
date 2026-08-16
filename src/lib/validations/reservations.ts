@@ -126,6 +126,8 @@ export const bookingCreateSchema = z
     bookingDate: z.string().nullish(),
 
     leadGuestName: z.string().nullish(),
+    leadGuestFirstName: z.string().nullish(),
+    leadGuestLastName: z.string().nullish(),
     leadGuestEmail: z.string().email().nullish().or(z.literal("")),
     leadGuestPhone: z.string().nullish(),
     rooms: z.array(bookingRoomSchema).min(1, "At least one room is required"),
@@ -186,6 +188,8 @@ export const bookingUpdateSchema = z.object({
   internalNotes: z.string().nullish(),
   externalRef: z.string().nullish(),
   leadGuestName: z.string().nullish(),
+  leadGuestFirstName: z.string().nullish(),
+  leadGuestLastName: z.string().nullish(),
   leadGuestEmail: z.string().email().nullish().or(z.literal("")),
   leadGuestPhone: z.string().nullish(),
 });

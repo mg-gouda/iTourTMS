@@ -50,7 +50,8 @@ const groupBookingSchema = z.object({
   source: z.enum(["DIRECT", "TOUR_OPERATOR"]).optional(),
   checkIn: z.string().min(1, "Check-in date is required"),
   checkOut: z.string().min(1, "Check-out date is required"),
-  leadGuestName: z.string().optional(),
+  leadGuestFirstName: z.string().optional(),
+  leadGuestLastName: z.string().optional(),
   leadGuestEmail: z.string().email().optional().or(z.literal("")),
   specialRequests: z.string().optional(),
   internalNotes: z.string().optional(),
@@ -87,7 +88,8 @@ export default function NewGroupBookingPage() {
       source: "DIRECT",
       checkIn: "",
       checkOut: "",
-      leadGuestName: "",
+      leadGuestFirstName: "",
+      leadGuestLastName: "",
       leadGuestEmail: "",
       specialRequests: "",
       internalNotes: "",
@@ -151,7 +153,10 @@ export default function NewGroupBookingPage() {
       ...values,
       contractId: values.contractId || undefined,
       tourOperatorId: values.tourOperatorId || undefined,
-      leadGuestName: values.leadGuestName || undefined,
+      leadGuestFirstName: values.leadGuestFirstName || undefined,
+      leadGuestLastName: values.leadGuestLastName || undefined,
+      leadGuestName:
+        [values.leadGuestFirstName, values.leadGuestLastName].filter(Boolean).join(" ") || undefined,
       leadGuestEmail: values.leadGuestEmail || undefined,
       specialRequests: values.specialRequests || undefined,
       internalNotes: values.internalNotes || undefined,
@@ -214,7 +219,7 @@ export default function NewGroupBookingPage() {
                       <FormLabel>{t("hotel")} *</FormLabel>
                       <Select
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={(v) => { if (v) field.onChange(v); }}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -309,7 +314,7 @@ export default function NewGroupBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                         <FormControl>
                           <SelectTrigger><SelectValue placeholder="Select currency..." /></SelectTrigger>
                         </FormControl>
@@ -331,7 +336,7 @@ export default function NewGroupBookingPage() {
                       <FormLabel>Source</FormLabel>
                       <Select
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={(v) => { if (v) field.onChange(v); }}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -391,15 +396,25 @@ export default function NewGroupBookingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="leadGuestName"
+                  name="leadGuestFirstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("guestName")}</FormLabel>
+                      <FormLabel>{t("guestName")} — First</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Full name of lead guest"
-                          {...field}
-                        />
+                        <Input placeholder="First name of lead guest" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="leadGuestLastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("guestName")} — Family</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Family name of lead guest" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

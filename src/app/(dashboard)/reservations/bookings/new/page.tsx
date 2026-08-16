@@ -123,6 +123,8 @@ export default function NewBookingPage() {
       meetAssistVisa: false,
       bookingDate: new Date().toISOString().slice(0, 10),
       leadGuestName: "",
+      leadGuestFirstName: "",
+      leadGuestLastName: "",
       leadGuestEmail: "",
       leadGuestPhone: "",
       rooms: [
@@ -516,9 +518,11 @@ export default function NewBookingPage() {
       });
       clean.guestNames = allGuests;
 
-      // Set lead guest from first guest
+      // Lead guest follows the first guest, kept split and combined
       if (allGuests.length > 0) {
         const lead = allGuests[0];
+        clean.leadGuestFirstName = lead.firstName ?? "";
+        clean.leadGuestLastName = lead.lastName ?? "";
         clean.leadGuestName = lead.title ? `${lead.title} ${lead.name}` : lead.name;
       }
 
@@ -628,7 +632,7 @@ export default function NewBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("htlBookingStatus")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue />
@@ -653,7 +657,7 @@ export default function NewBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("toBookingStatus")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue />
@@ -704,7 +708,7 @@ export default function NewBookingPage() {
                               label: `${m.name} (${m.code})`,
                             }))}
                           value={field.value || ""}
-                          onValueChange={field.onChange}
+                          onValueChange={(v) => { if (v) field.onChange(v); }}
                           placeholder="Select market"
                           searchPlaceholder="Search markets..."
                           emptyMessage="No markets found."
@@ -731,7 +735,7 @@ export default function NewBookingPage() {
                               label: `${t.name} (${t.code})`,
                             }))}
                           value={field.value || ""}
-                          onValueChange={field.onChange}
+                          onValueChange={(v) => { if (v) field.onChange(v); }}
                           placeholder="Select T/O"
                           searchPlaceholder="Search tour operators..."
                           emptyMessage="No tour operators found."
@@ -758,7 +762,7 @@ export default function NewBookingPage() {
                               label: `${h.name} (${h.code})`,
                             }))}
                           value={field.value}
-                          onValueChange={field.onChange}
+                          onValueChange={(v) => { if (v) field.onChange(v); }}
                           placeholder="Select hotel"
                           searchPlaceholder="Search hotels..."
                           emptyMessage="No hotels found."
@@ -843,7 +847,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>{t("originAirport")}</FormLabel>
                       <FormControl>
-                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -855,7 +859,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>{t("destAirport")}</FormLabel>
                       <FormControl>
-                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -936,7 +940,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>{t("originAirport")}</FormLabel>
                       <FormControl>
-                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -948,7 +952,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>{t("destAirport")}</FormLabel>
                       <FormControl>
-                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={field.onChange} placeholder="Select airport" searchPlaceholder="Search airports…" />
+                        <Combobox options={airportOptions} value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }} placeholder="Select airport" searchPlaceholder="Search airports…" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -1031,6 +1035,8 @@ export default function NewBookingPage() {
                     <FormLabel>{t("mealBasis")} *</FormLabel>
                     <Select
                       onValueChange={(v) => {
+                        // Radix emits "" while its items load; that is not a choice
+                        if (!v) return;
                         // Applies to all rooms; per-room selects can differ afterwards
                         rooms.forEach((_, i) => form.setValue(`rooms.${i}.mealBasisId`, v));
                       }}
@@ -1094,7 +1100,7 @@ export default function NewBookingPage() {
                             <FormItem>
                               <FormLabel>{t("roomType")} *</FormLabel>
                               <Select
-                                onValueChange={f.onChange}
+                                onValueChange={(v) => { if (v) f.onChange(v); }}
                                 value={f.value}
                                 disabled={!hotelId}
                               >
@@ -1125,7 +1131,11 @@ export default function NewBookingPage() {
                           render={({ field: f }) => (
                             <FormItem>
                               <FormLabel>{t("mealBasis")} *</FormLabel>
-                              <Select onValueChange={f.onChange} value={f.value} disabled={!hotelId}>
+                              <Select
+                                onValueChange={(v) => { if (v) f.onChange(v); }}
+                                value={f.value}
+                                disabled={!hotelId}
+                              >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Select" />
@@ -1254,7 +1264,7 @@ export default function NewBookingPage() {
                                   render={({ field: f }) => (
                                     <FormItem className="w-24 shrink-0">
                                       <Select
-                                        onValueChange={f.onChange}
+                                        onValueChange={(v) => { if (v) f.onChange(v); }}
                                         value={f.value ?? ""}
                                       >
                                         <FormControl>
@@ -1436,7 +1446,7 @@ export default function NewBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("paymentMethod")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value ?? ""}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select" />

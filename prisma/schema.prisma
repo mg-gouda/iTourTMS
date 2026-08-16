@@ -3250,8 +3250,10 @@ model Booking {
   balanceDue         Decimal             @default(0) @db.Decimal(12, 4)
   creditApplied      Decimal             @default(0) @db.Decimal(12, 4)
 
-  // Lead guest shortcut
+  // Lead guest shortcut — split, with the combined name kept for older readers
   leadGuestName      String?
+  leadGuestFirstName String?
+  leadGuestLastName  String?
   leadGuestEmail     String?
   leadGuestPhone     String?
 

@@ -65,6 +65,8 @@ export interface BookingPdfData {
   /** Rebooked stays are presented to the hotel by family name. */
   isRebooked?: boolean;
   leadGuestName?: string | null;
+  leadGuestFirstName?: string | null;
+  leadGuestLastName?: string | null;
 
   // Special offer
   spoCode?: string | null;
@@ -348,8 +350,13 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
         doc.text(sanitize(guestNameForHotel({ name: String(name) }, { rebooked: data.isRebooked })), leftCol, y);
         y += 5;
       }
-    } else if (data.leadGuestName) {
-      doc.text(sanitize(guestNameForHotel({ name: data.leadGuestName }, { rebooked: data.isRebooked })), leftCol, y);
+    } else if (data.leadGuestFirstName || data.leadGuestLastName || data.leadGuestName) {
+      const lead = {
+        firstName: data.leadGuestFirstName ?? undefined,
+        lastName: data.leadGuestLastName ?? undefined,
+        name: data.leadGuestName ?? undefined,
+      };
+      doc.text(sanitize(guestNameForHotel(lead, { rebooked: data.isRebooked })), leftCol, y);
       y += 5;
     }
 
