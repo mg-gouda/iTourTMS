@@ -276,6 +276,7 @@ model User {
   tokenVersion  Int       @default(0)
   companyId     String?
   locale        String    @default("en")
+  density       String    @default("comfortable") // comfortable | compact (UI row/control sizing)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

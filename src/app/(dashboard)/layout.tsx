@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { BackButton } from "@/components/shared/back-button";
+import { DensityProvider } from "@/components/providers/density-provider";
 import { PermissionsProvider } from "@/components/providers/permissions-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
@@ -73,6 +74,7 @@ export default async function DashboardLayout({
       roles={session.user.roles ?? []}
       permissions={session.user.permissions ?? []}
     >
+    <DensityProvider />
     <SidebarProvider>
       <AppSidebar
         installedModules={modulesWithIcons}

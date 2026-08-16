@@ -26,6 +26,7 @@ export const userRouter = createTRPCRouter({
         email: true,
         image: true,
         locale: true,
+        density: true,
         createdAt: true,
         twoFactorEnabled: true,
       },
@@ -38,6 +39,7 @@ export const userRouter = createTRPCRouter({
         name: z.string().min(1).optional(),
         image: z.string().nullish(),
         locale: z.string().min(2).max(10).optional(),
+        density: z.enum(["comfortable", "compact"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

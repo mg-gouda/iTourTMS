@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
+import { applyDensity, type Density } from "@/components/providers/density-provider";
 import { PasswordStrength } from "@/components/shared/password-strength";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export default function ProfilePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <ProfileCard user={data} onUpdate={() => utils.user.getProfile.invalidate()} />
         <DisplayLanguageCard currentLocale={data.locale} />
+        <InterfaceDensityCard currentDensity={(data.density as Density) ?? "comfortable"} />
         <ChangePasswordCard />
         <TwoFactorCard
           enabled={data.twoFactorEnabled}
@@ -212,6 +214,59 @@ function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
             </SelectContent>
           </Select>
           <p className="text-muted-foreground text-xs">{t("languageReloadDesc")}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Interface Density Card
+// ---------------------------------------------------------------------------
+
+/**
+ * Compact suits reservations desks working long booking tables; comfortable
+ * stays the default. Colours and theme are unaffected either way.
+ */
+function InterfaceDensityCard({ currentDensity }: { currentDensity: Density }) {
+  const [density, setDensity] = useState<Density>(currentDensity);
+  const tc = useTranslations("common");
+
+  const updateMutation = trpc.user.updateProfile.useMutation({
+    onSuccess: () => toast.success(tc("updated")),
+    onError: (err) => toast.error(err.message),
+  });
+
+  function handleChange(value: string) {
+    const next = value as Density;
+    setDensity(next);
+    applyDensity(next); // takes effect immediately, no reload
+    updateMutation.mutate({ density: next });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Interface Density</CardTitle>
+        <CardDescription>
+          How tightly tables and forms are packed. Compact fits more rows on screen.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1.5">
+          <Label>Density</Label>
+          <Select value={density} onValueChange={handleChange}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="comfortable">Comfortable</SelectItem>
+              <SelectItem value="compact">Compact</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Applies to your account on every device. Colours and theme are unchanged.
+          </p>
         </div>
       </CardContent>
     </Card>

@@ -228,6 +228,78 @@
 
 /* ─── Print Styles ──────────────────────────────────── */
 
+/* ---------------------------------------------------------------------------
+   Compact density — an opt-in per user (Profile › Interface density).
+   Operations desks work bookings 40 rows at a time; comfortable spacing costs
+   them a screenful. This tightens rows, controls and card padding only —
+   colours, radii and theming are untouched. Logical properties keep RTL intact.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --density-control-h: 2.25rem; /* 36px — matches the default control height */
+  --density-row-py: 0.5rem;
+  --density-card-p: 1.5rem;
+  --density-gap: 1.5rem;
+  --density-font: 0.875rem;
+}
+
+[data-density="compact"] {
+  --density-control-h: 1.875rem; /* 30px */
+  --density-row-py: 0.25rem;
+  --density-card-p: 0.875rem;
+  --density-gap: 0.75rem;
+  --density-font: 0.8125rem;
+}
+
+[data-density="compact"] [data-slot="table"] {
+  font-size: var(--density-font);
+}
+
+[data-density="compact"] [data-slot="table-cell"],
+[data-density="compact"] [data-slot="table-head"] {
+  padding-block: var(--density-row-py);
+  padding-inline: 0.5rem;
+}
+
+[data-density="compact"] [data-slot="card-header"],
+[data-density="compact"] [data-slot="card-content"],
+[data-density="compact"] [data-slot="card-footer"] {
+  padding-inline: var(--density-card-p);
+}
+
+[data-density="compact"] [data-slot="card-header"] {
+  padding-block-start: var(--density-card-p);
+}
+
+[data-density="compact"] [data-slot="card-content"],
+[data-density="compact"] [data-slot="card-footer"] {
+  padding-block-end: var(--density-card-p);
+}
+
+[data-density="compact"] [data-slot="card"] {
+  gap: var(--density-gap);
+}
+
+[data-density="compact"] [data-slot="input"],
+[data-density="compact"] [data-slot="select-trigger"],
+[data-density="compact"] [data-slot="button"]:not([data-size="icon"]) {
+  height: var(--density-control-h);
+  font-size: var(--density-font);
+}
+
+[data-density="compact"] [data-slot="form-label"],
+[data-density="compact"] [data-slot="label"] {
+  font-size: 0.75rem;
+}
+
+/* Long booking tables scroll under their own header rather than the page */
+[data-density="compact"] [data-slot="table-header"] {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background-color: var(--background);
+}
+
 @media print {
   [data-slot="sidebar"],
   [data-print="hide"] {
