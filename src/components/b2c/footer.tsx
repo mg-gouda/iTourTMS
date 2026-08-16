@@ -1,16 +1,12 @@
 import Link from "next/link";
 import {
-  Facebook,
-  Instagram,
-  Twitter,
-  Youtube,
-  Linkedin,
   Phone,
   Mail,
   MapPin,
 } from "lucide-react";
 
 import type { PublicBranding } from "@/lib/b2c/get-branding";
+import { Facebook, Instagram, Linkedin, Twitter, Youtube } from "@/components/b2c/social-icons";
 
 interface B2cFooterProps {
   branding: PublicBranding;

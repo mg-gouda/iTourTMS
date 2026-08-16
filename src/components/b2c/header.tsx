@@ -4,23 +4,19 @@ import {
   Bus,
   Building2,
   Compass,
-  Facebook,
   Globe,
-  Instagram,
-  Linkedin,
   Mail,
   MapPin,
   Menu,
   Palmtree,
   Phone,
   Search,
-  Twitter,
   User,
   X,
-  Youtube,
 } from "lucide-react";
 
 import type { PublicBranding } from "@/lib/b2c/get-branding";
+import { Facebook, Instagram, Linkedin, Twitter, Youtube } from "@/components/b2c/social-icons";
 
 interface B2cHeaderProps {
   branding: PublicBranding;

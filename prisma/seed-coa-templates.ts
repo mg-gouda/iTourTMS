@@ -4,10 +4,12 @@ import { PrismaClient } from "@prisma/client";
 
 // Can be called with an external client (from seed.ts) or standalone
 let _prisma: PrismaClient | null = null;
-function getClient() {
+function getClient(): PrismaClient {
   if (!_prisma) {
     const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-    _prisma = new PrismaClient({ adapter } as never);
+    // Prisma 7.8 types the client options generically — the old `as never`
+    // cast collapsed them and made every caller see a nullable client.
+    _prisma = new PrismaClient({ adapter });
   }
   return _prisma;
 }
