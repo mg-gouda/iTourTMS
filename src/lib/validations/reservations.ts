@@ -136,7 +136,12 @@ export const bookingCreateSchema = z
 
 export const bookingRebookSchema = z.object({
   id: z.string().min(1),
-  newBuyingTotal: z.number().min(0),
+  /**
+   * RECALCULATE re-prices from the contract as if booking today, so whatever
+   * SPO is live now applies. MANUAL takes the number the agent typed.
+   */
+  mode: z.enum(["MANUAL", "RECALCULATE"]).default("MANUAL"),
+  newBuyingTotal: z.number().min(0).optional(),
   newSellingTotal: z.number().min(0).optional(),
   reason: z.string().nullish(),
   rebookedGuest: z.string().nullish(),

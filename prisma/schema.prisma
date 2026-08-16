@@ -3408,6 +3408,8 @@ model BookingRateChange {
   bookingId      String
   changedAt      DateTime @default(now())
   changedById    String?
+  source         String   @default("MANUAL") // MANUAL | RECALCULATED
+  appliedOffers  String[] // offers the recalculation picked up, for the history tooltip
   reason         String?  @db.Text
   rebookedGuest  String?
   oldBuyingTotal Decimal  @db.Decimal(12, 4) // base currency

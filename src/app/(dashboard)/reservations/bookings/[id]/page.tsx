@@ -2456,10 +2456,15 @@ export default function BookingDetailPage() {
 function RebookCard({ booking }: { booking: any }) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"RECALCULATE" | "MANUAL">("RECALCULATE");
   const [newBuying, setNewBuying] = useState("");
   const [newSelling, setNewSelling] = useState("");
   const [reason, setReason] = useState("");
   const [rebookedGuest, setRebookedGuest] = useState("");
+
+  // What the contract would charge if this were booked today
+  const { data: preview, isLoading: previewLoading } =
+    trpc.reservations.booking.previewRebookRate.useQuery({ id: booking.id }, { enabled: open });
 
   const rebook = trpc.reservations.booking.rebook.useMutation({
     onSuccess: (res) => {
@@ -2469,6 +2474,7 @@ function RebookCard({ booking }: { booking: any }) {
           : "Rebooking recorded",
       );
       setOpen(false);
+      setMode("RECALCULATE");
       setNewBuying("");
       setNewSelling("");
       setReason("");
@@ -2510,6 +2516,15 @@ function RebookCard({ booking }: { booking: any }) {
                     {gain > 0 ? `Gain ${money(gain)}` : "No gain"}
                   </Badge>
                 </div>
+                {c.source === "RECALCULATED" && (
+                  <InfoRow label="Source" value="Recalculated from the contract" />
+                )}
+                {(c.appliedOffers ?? []).length > 0 && (
+                  <InfoRow
+                    label="Offers applied"
+                    value={<span className="text-emerald-600 dark:text-emerald-400">{c.appliedOffers.join(", ")}</span>}
+                  />
+                )}
                 {c.rebookedGuest && <InfoRow label="Rebooked guest" value={c.rebookedGuest} />}
                 {c.reason && <p className="text-xs text-muted-foreground italic">{c.reason}</p>}
                 <p className="text-xs text-muted-foreground">
@@ -2523,39 +2538,129 @@ function RebookCard({ booking }: { booking: any }) {
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Rebook</DialogTitle>
             <DialogDescription>
-              Record the re-secured rate. The old total is kept so the gain shows in the
-              rebooking report. This sets the booking to a manual rate.
+              Recalculate against the contract as if booking today, so the current
+              special offer applies — or type the rate you agreed. Selling stays as
+              quoted either way, so a lower cost lands in margin.
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">
-                  New buying total ({booking.currency.code})
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder={money(Number(booking.buyingTotal))}
-                  value={newBuying}
-                  onChange={(e) => setNewBuying(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">New selling total (optional)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder={money(Number(booking.sellingTotal))}
-                  value={newSelling}
-                  onChange={(e) => setNewSelling(e.target.value)}
-                />
-              </div>
+            {/* How the new rate is arrived at */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={mode === "RECALCULATE" ? "default" : "outline"}
+                onClick={() => setMode("RECALCULATE")}
+              >
+                Recalculate at today&apos;s rates
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={mode === "MANUAL" ? "default" : "outline"}
+                onClick={() => setMode("MANUAL")}
+              >
+                Enter manually
+              </Button>
             </div>
+
+            {mode === "RECALCULATE" ? (
+              previewLoading ? (
+                <p className="text-muted-foreground text-sm">Pricing against the contract…</p>
+              ) : preview?.available ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 rounded-md border p-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Current</p>
+                      <p className="font-medium">
+                        {booking.currency.symbol}{money(preview.currentBuyingTotal)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Recalculated</p>
+                      <p className="font-medium">
+                        {booking.currency.symbol}{money(preview.newBuyingTotal)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Gain</p>
+                      <p
+                        className={
+                          preview.gain > 0
+                            ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                            : "text-muted-foreground font-medium"
+                        }
+                      >
+                        {preview.gain > 0 ? `${booking.currency.symbol}${money(preview.gain)}` : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {preview.appliedOffers.length > 0 && (
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                      <p className="font-medium">Offers applied today</p>
+                      {preview.appliedOffers.map((o: string) => (
+                        <p key={o}>• {o}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {(preview.rooms ?? []).map((room, i: number) => (
+                    <CostExplanation
+                      key={i}
+                      breakdown={{
+                        ...(room.breakdown as ExplainableBreakdown),
+                        sellingMarkup: room.sellingMarkup,
+                      }}
+                      currency={booking.currency.symbol}
+                      nights={preview.nights}
+                    />
+                  ))}
+
+                  {(preview.warnings ?? []).map((w: string) => (
+                    <p key={w} className="text-xs text-amber-600">{w}</p>
+                  ))}
+
+                  <p className="text-muted-foreground text-xs">
+                    Selling stays at {booking.currency.symbol}{money(preview.sellingTotal)}; the
+                    booking date moves to {preview.bookingDate}.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-600">
+                  {preview?.reason ?? "Rates could not be calculated"} — enter the rate manually.
+                </p>
+              )
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">New buying total ({booking.currency.code})</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={money(Number(booking.buyingTotal))}
+                    value={newBuying}
+                    onChange={(e) => setNewBuying(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">New selling total (optional)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={money(Number(booking.sellingTotal))}
+                    value={newSelling}
+                    onChange={(e) => setNewSelling(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-xs">Rebooked guest</Label>
               <Input
@@ -2574,15 +2679,21 @@ function RebookCard({ booking }: { booking: any }) {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
-              disabled={newBuying === "" || rebook.isPending}
+              disabled={
+                rebook.isPending ||
+                (mode === "MANUAL" ? newBuying === "" : !preview?.available)
+              }
               onClick={() =>
                 rebook.mutate({
                   id: booking.id,
-                  newBuyingTotal: Number(newBuying),
-                  newSellingTotal: newSelling === "" ? undefined : Number(newSelling),
+                  mode,
+                  newBuyingTotal: mode === "MANUAL" ? Number(newBuying) : undefined,
+                  newSellingTotal:
+                    mode === "MANUAL" && newSelling !== "" ? Number(newSelling) : undefined,
                   reason: reason || null,
                   rebookedGuest: rebookedGuest || null,
                 })

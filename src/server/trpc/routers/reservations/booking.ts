@@ -552,6 +552,79 @@ export const bookingRouter = createTRPCRouter({
       });
     }),
 
+  /**
+   * What a rebook would cost if recalculated today, without writing anything —
+   * the modal shows this next to the current cost before the agent commits.
+   */
+  previewRebookRate: p("booking.read")
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: {
+          rooms: { orderBy: { roomIndex: "asc" } },
+          currency: { select: { code: true, symbol: true } },
+        },
+      });
+
+      if (!booking.contractId) {
+        return { available: false as const, reason: "This booking has no contract to recalculate against" };
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        const rates = await calculateBookingRates(ctx.db, ctx.companyId, {
+          contractId: booking.contractId,
+          hotelId: booking.hotelId,
+          tourOperatorId: booking.tourOperatorId ?? null,
+          checkIn: booking.checkIn.toISOString().slice(0, 10),
+          checkOut: booking.checkOut.toISOString().slice(0, 10),
+          bookingDate: today,
+          rooms: booking.rooms.map((r) => ({
+            roomTypeId: r.roomTypeId,
+            mealBasisId: r.mealBasisId,
+            adults: r.adults,
+            children: Array.from({ length: r.children }, () => ({ category: "CHILD" as const })),
+            extraBed: r.extraBed,
+          })),
+        });
+
+        const newBuyingTotal = rates.rooms.reduce((sum, r) => sum + r.buyingTotal, 0);
+        const currentBuyingTotal = Number(booking.buyingTotal);
+
+        return {
+          available: true as const,
+          bookingDate: today,
+          currentBuyingTotal,
+          newBuyingTotal,
+          gain: currentBuyingTotal - newBuyingTotal,
+          sellingTotal: Number(booking.sellingTotal),
+          currency: booking.currency,
+          nights: rates.nights,
+          warnings: rates.warnings,
+          appliedOffers: [
+            ...new Set(
+              rates.rooms.flatMap((r) =>
+                (r.breakdown.offerDiscounts ?? [])
+                  .filter((o) => o.discount > 0)
+                  .map((o) => `${o.offerName}${o.description ? ` — ${o.description}` : ""}`),
+              ),
+            ),
+          ],
+          rooms: rates.rooms.map((r) => ({
+            roomIndex: r.roomIndex,
+            breakdown: r.breakdown,
+            sellingMarkup: r.sellingMarkup,
+          })),
+        };
+      } catch (error) {
+        return {
+          available: false as const,
+          reason: error instanceof Error ? error.message : "Rates could not be calculated",
+        };
+      }
+    }),
+
   // ── Rebook: record a re-secured rate and keep the gain auditable ──
   rebook: p("booking.update")
     .input(bookingRebookSchema)
@@ -577,12 +650,79 @@ export const bookingRouter = createTRPCRouter({
 
       const booking = await ctx.db.booking.findFirstOrThrow({
         where: { id: input.id, companyId: ctx.companyId },
-        include: { currencyLines: { include: { currency: { select: { code: true } } } } },
+        include: {
+          currencyLines: { include: { currency: { select: { code: true } } } },
+          rooms: { orderBy: { roomIndex: "asc" } },
+        },
       });
 
       const oldBuyingTotal = Number(booking.buyingTotal);
-      const newSellingTotal = input.newSellingTotal ?? Number(booking.sellingTotal);
       const totalPaid = Number(booking.totalPaid);
+
+      // Recalculating re-prices from the same contract as if booking today, so
+      // whatever offer is live now applies. Selling is left alone — the operator
+      // was already quoted, so a cheaper cost lands in margin.
+      let recalculatedTotal: number | null = null;
+      let appliedOffers: string[] = [];
+      const today = new Date().toISOString().slice(0, 10);
+
+      if (input.mode === "RECALCULATE") {
+        if (!booking.contractId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This booking has no contract to recalculate against — enter the rate manually",
+          });
+        }
+
+        const rates = await calculateBookingRates(ctx.db, ctx.companyId, {
+          contractId: booking.contractId,
+          hotelId: booking.hotelId,
+          tourOperatorId: booking.tourOperatorId ?? null,
+          checkIn: booking.checkIn.toISOString().slice(0, 10),
+          checkOut: booking.checkOut.toISOString().slice(0, 10),
+          bookingDate: today,
+          rooms: booking.rooms.map((r) => ({
+            roomTypeId: r.roomTypeId,
+            mealBasisId: r.mealBasisId,
+            adults: r.adults,
+            children: Array.from({ length: r.children }, () => ({ category: "CHILD" as const })),
+            extraBed: r.extraBed,
+          })),
+        });
+
+        recalculatedTotal = rates.rooms.reduce((sum, r) => sum + r.buyingTotal, 0);
+        appliedOffers = [
+          ...new Set(
+            rates.rooms.flatMap((r) =>
+              (r.breakdown.offerDiscounts ?? [])
+                .filter((o) => o.discount > 0)
+                .map((o) => o.offerName),
+            ),
+          ),
+        ];
+
+        // Rooms carry the new buying figures and the breakdown behind them
+        for (const rr of rates.rooms) {
+          const room = booking.rooms[rr.roomIndex - 1];
+          if (!room) continue;
+          await ctx.db.bookingRoom.update({
+            where: { id: room.id },
+            data: {
+              buyingRatePerNight: rr.buyingRatePerNight,
+              buyingTotal: rr.buyingTotal,
+              rateBreakdown: { ...rr.breakdown, sellingMarkup: rr.sellingMarkup } as object,
+            },
+          });
+        }
+      } else if (input.newBuyingTotal == null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Enter the new buying total, or recalculate from the contract",
+        });
+      }
+
+      const newBuyingTotal = recalculatedTotal ?? input.newBuyingTotal!;
+      const newSellingTotal = input.newSellingTotal ?? Number(booking.sellingTotal);
 
       // Per-currency snapshot, so the gain survives later edits to the lines
       const newByCurrency = new Map((input.lines ?? []).map((l) => [l.currencyId, l.buyingTotal]));
@@ -590,7 +730,7 @@ export const bookingRouter = createTRPCRouter({
         currencyCode: l.currency.code,
         oldBuying: Number(l.buyingTotal),
         newBuying: l.isBase
-          ? input.newBuyingTotal
+          ? newBuyingTotal
           : (newByCurrency.get(l.currencyId) ?? Number(l.buyingTotal)),
       }));
 
@@ -598,10 +738,13 @@ export const bookingRouter = createTRPCRouter({
         data: {
           bookingId: booking.id,
           changedById: ctx.session.user.id,
+          // Recorded in the past tense: how this rate came to be
+          source: input.mode === "RECALCULATE" ? "RECALCULATED" : "MANUAL",
+          appliedOffers,
           reason: input.reason ?? null,
           rebookedGuest: input.rebookedGuest ?? null,
           oldBuyingTotal,
-          newBuyingTotal: input.newBuyingTotal,
+          newBuyingTotal,
           lines: lineSnapshot,
         },
       });
@@ -609,11 +752,13 @@ export const bookingRouter = createTRPCRouter({
       await ctx.db.booking.update({
         where: { id: booking.id },
         data: {
-          buyingTotal: input.newBuyingTotal,
+          buyingTotal: newBuyingTotal,
           sellingTotal: newSellingTotal,
-          markupAmount: newSellingTotal - input.newBuyingTotal,
+          markupAmount: newSellingTotal - newBuyingTotal,
           balanceDue: newSellingTotal - totalPaid,
-          manualRate: true, // the rate no longer comes from the contract calculation
+          // A recalculated rate still comes from the contract; a typed one does not
+          manualRate: input.mode === "MANUAL",
+          ...(input.mode === "RECALCULATE" ? { bookingDate: new Date(today) } : {}),
         },
       });
 
@@ -628,15 +773,16 @@ export const bookingRouter = createTRPCRouter({
 
       await syncBaseCurrencyLine(ctx.db, booking.id);
 
-      const gain = oldBuyingTotal - input.newBuyingTotal;
+      const gain = oldBuyingTotal - newBuyingTotal;
       await logBookingAction(
         ctx.db, booking.id, "REBOOKED",
-        `Rebooked: buying ${oldBuyingTotal.toFixed(2)} → ${input.newBuyingTotal.toFixed(2)}` +
+        `Rebooked (${input.mode === "RECALCULATE" ? "recalculated" : "manual"}): ` +
+          `buying ${oldBuyingTotal.toFixed(2)} → ${newBuyingTotal.toFixed(2)}` +
           `${gain > 0 ? ` (gain ${gain.toFixed(2)})` : ""}${input.reason ? ` — ${input.reason}` : ""}`,
         ctx.session.user.id,
       );
 
-      return { ...rateChange, gain };
+      return { ...rateChange, gain, appliedOffers };
     }),
 
   // ── Currency lines (multi-currency P&L; base line stays engine-owned) ──

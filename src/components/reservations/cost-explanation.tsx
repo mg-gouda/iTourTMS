@@ -46,6 +46,9 @@ export type RateChangeEntry = {
   newBuyingTotal: number | string | { toString(): string };
   reason?: string | null;
   rebookedGuest?: string | null;
+  /** MANUAL = typed by an agent, RECALCULATED = re-priced from the contract. */
+  source?: string | null;
+  appliedOffers?: string[] | null;
   changedBy?: { name: string | null } | null;
   /** Per-currency snapshot, stored as JSON. */
   lines?: unknown;
@@ -136,6 +139,18 @@ export function RateHistoryIcon({
                         {l.currencyCode} {l.oldBuying.toFixed(2)} → {l.newBuying.toFixed(2)}
                       </div>
                     ))}
+                  {entry.source && (
+                    <div className="text-muted-foreground">
+                      {entry.source === "RECALCULATED"
+                        ? "Recalculated from the contract"
+                        : "Rate entered manually"}
+                    </div>
+                  )}
+                  {(entry.appliedOffers ?? []).length > 0 && (
+                    <div className="text-emerald-600 dark:text-emerald-400">
+                      Offers: {(entry.appliedOffers ?? []).join(", ")}
+                    </div>
+                  )}
                   {entry.rebookedGuest && (
                     <div className="text-muted-foreground">Rebooked: {entry.rebookedGuest}</div>
                   )}
