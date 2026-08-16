@@ -77,6 +77,7 @@ model Company {
   timezone             String   @default("UTC")
   googlePlacesApiKey   String?
   giataApiKey          String?
+  anthropicApiKey      String? // enables AI email parsing for this company
   hotelCodePrefix      String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

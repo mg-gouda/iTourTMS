@@ -758,11 +758,13 @@ function IntegrationsSettings({
 
   const [gpKey, setGpKey] = useState("");
   const [giataKey, setGiataKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
 
   useEffect(() => {
     if (data) {
       setGpKey(data.googlePlacesApiKey ?? "");
       setGiataKey(data.giataApiKey ?? "");
+      setAnthropicKey(data.anthropicApiKey ?? "");
     }
   }, [data]);
 
@@ -779,6 +781,7 @@ function IntegrationsSettings({
           <TabsList>
             <TabsTrigger value="googlePlaces">Google Places</TabsTrigger>
             <TabsTrigger value="giata">GIATA</TabsTrigger>
+            <TabsTrigger value="aiParsing">AI Email Parsing</TabsTrigger>
             <TabsTrigger value="apiIntegrations">API Integrations</TabsTrigger>
           </TabsList>
 
@@ -836,6 +839,30 @@ function IntegrationsSettings({
               onClick={() =>
                 updateMutation.mutate({ giataApiKey: giataKey || null })
               }
+            >
+              {updateMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="aiParsing" className="mt-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Lets reservations agents drop a tour operator&apos;s email onto the new-booking
+              form and have the fields read out of it. Off until a key is saved. Email
+              content is sent to Anthropic for parsing and is never stored by iTourTMS —
+              only enable this if your data policy allows it.
+            </p>
+            <div className="max-w-md space-y-1.5">
+              <Label>Anthropic API Key</Label>
+              <Input
+                type="password"
+                placeholder="sk-ant-..."
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+              />
+            </div>
+            <Button
+              disabled={updateMutation.isPending}
+              onClick={() => updateMutation.mutate({ anthropicApiKey: anthropicKey || null })}
             >
               {updateMutation.isPending ? "Saving..." : "Save"}
             </Button>

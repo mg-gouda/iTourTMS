@@ -29,6 +29,7 @@ export const settingsRouter = createTRPCRouter({
         timezone: true,
         googlePlacesApiKey: true,
         giataApiKey: true,
+        anthropicApiKey: true,
         hotelCodePrefix: true,
         fiscalYearStart: true,
         fiscalYearEnd: true,
@@ -68,6 +69,7 @@ export const settingsRouter = createTRPCRouter({
         timezone: z.string().optional(),
         googlePlacesApiKey: z.string().nullish(),
         giataApiKey: z.string().nullish(),
+        anthropicApiKey: z.string().nullish(),
         hotelCodePrefix: z.string().max(1).nullish(),
       }),
     )

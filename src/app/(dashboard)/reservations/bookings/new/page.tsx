@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { AlertTriangle, Loader2, PlaneLanding, PlaneTakeoff, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, PlaneLanding, PlaneTakeoff, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -39,9 +39,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { GUEST_TITLE_OPTIONS } from "@/lib/constants/reservations";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
+import { ParseEmailDialog } from "@/components/reservations/parse-email-dialog";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
 
@@ -133,6 +135,61 @@ export default function NewBookingPage() {
     control: form.control,
     name: "rooms",
   });
+
+  const [parseOpen, setParseOpen] = useState(false);
+
+  /** Fills the form from a parsed email. Every field stays editable. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyParsedBooking = useCallback((r: any) => {
+    const p = r.parsed;
+    if (r.hotel) form.setValue("hotelId", r.hotel.id);
+    if (r.tourOperator) form.setValue("tourOperatorId", r.tourOperator.id);
+    if (r.market) form.setValue("marketId", r.market.id);
+    if (r.currency) form.setValue("currencyId", r.currency.id);
+    if (p.externalRef) form.setValue("externalRef", p.externalRef);
+    if (p.checkIn) form.setValue("checkIn", p.checkIn);
+    if (p.checkOut) form.setValue("checkOut", p.checkOut);
+    if (p.arrivalFlightNo) form.setValue("arrivalFlightNo", p.arrivalFlightNo);
+    if (p.arrivalTime) form.setValue("arrivalTime", p.arrivalTime);
+    if (p.departFlightNo) form.setValue("departFlightNo", p.departFlightNo);
+    if (p.departTime) form.setValue("departTime", p.departTime);
+    if (p.notes) form.setValue("bookingNotes", p.notes);
+
+    // One room row per parsed room, sharing the parsed occupancy
+    const roomCount = Math.max(1, p.noOfRooms ?? 1);
+    const adultsPerRoom = Math.max(1, Math.round((p.adults ?? 2) / roomCount));
+    const childrenPerRoom = Math.floor((p.children ?? 0) / roomCount);
+    const names: string[] = p.guestNames ?? [];
+    let nameCursor = 0;
+
+    form.setValue(
+      "rooms",
+      Array.from({ length: roomCount }, () => {
+        const guestCount = adultsPerRoom + childrenPerRoom;
+        const roomGuests = Array.from({ length: guestCount }, () => ({
+          title: "",
+          name: names[nameCursor++] ?? "",
+          dob: "",
+        }));
+        return {
+          roomTypeId: r.roomType?.id ?? "",
+          mealBasisId: r.mealBasis?.id ?? "",
+          adults: adultsPerRoom,
+          children: childrenPerRoom,
+          infants: p.infants ?? 0,
+          extraBed: false,
+          roomGuests,
+        };
+      }),
+    );
+
+    setParseOpen(false);
+    toast.success(
+      r.unmatched.length
+        ? `Form filled — ${r.unmatched.length} field(s) need picking manually`
+        : "Form filled from the email",
+    );
+  }, [form]);
 
   // Watched fields
   const marketId = form.watch("marketId");
@@ -448,13 +505,25 @@ export default function NewBookingPage() {
             {t("createBooking")}
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => router.push("/reservations/bookings")}
-        >
-          {tCommon("cancel")}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setParseOpen(true)}>
+            <Sparkles className="mr-1 size-4" />
+            Parse email
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/reservations/bookings")}
+          >
+            {tCommon("cancel")}
+          </Button>
+        </div>
       </div>
+
+      <ParseEmailDialog
+        open={parseOpen}
+        onOpenChange={setParseOpen}
+        onApply={applyParsedBooking}
+      />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
