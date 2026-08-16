@@ -1,10 +1,10 @@
 /**
- * Adult count implied by a room occupancy, resolved against the room type's
- * own configuration rather than assumed from the label.
+ * Adult count implied by a room occupancy.
  *
- * A hotel's "family" room may seat two adults or four, and some contracts cap
- * a triple at two adults plus a child, so the room type's occupancy table wins
- * where it exists and the label is only the starting guess.
+ * SGL, DBL and TPL say the adult count outright — a triple is three adults,
+ * whatever a room type's imported defaults claim. Family is the open one: how
+ * many adults a family room sleeps varies by hotel, so that comes from the
+ * room's own configuration.
  */
 
 export type RoomOccupancyValue = "SINGLE" | "DOUBLE" | "TRIPLE" | "FAMILY";
@@ -17,38 +17,36 @@ export type RoomTypeOccupancyConfig = {
   occupancyTable?: { adults: number; children: number; isDefault?: boolean }[];
 };
 
-/** What each label means before the room's own configuration is applied. */
-const NOMINAL_ADULTS: Record<RoomOccupancyValue, number> = {
+/** Adults named by the label itself. Family is configuration-driven instead. */
+const LABEL_ADULTS: Record<Exclude<RoomOccupancyValue, "FAMILY">, number> = {
   SINGLE: 1,
   DOUBLE: 2,
   TRIPLE: 3,
-  FAMILY: 4,
 };
+
+/**
+ * The adults a family room is set up for: the widest configured setup wins,
+ * then the room's declared maximum, then its standard.
+ */
+function familyAdults(roomType: RoomTypeOccupancyConfig | null | undefined): number {
+  const table = roomType?.occupancyTable ?? [];
+  if (table.length > 0) {
+    const widest = [...table].sort(
+      (a, b) => b.adults + b.children - (a.adults + a.children) || b.adults - a.adults,
+    )[0];
+    if (widest?.adults) return widest.adults;
+  }
+  return roomType?.maxAdults ?? roomType?.standardAdults ?? 4;
+}
 
 export function adultsForOccupancy(
   occupancy: RoomOccupancyValue,
   roomType: RoomTypeOccupancyConfig | null | undefined,
 ): number {
-  // Family rooms vary the most, so prefer what the room type says is standard
-  const nominal =
-    occupancy === "FAMILY"
-      ? (roomType?.standardAdults ?? NOMINAL_ADULTS.FAMILY)
-      : NOMINAL_ADULTS[occupancy];
+  const adults = occupancy === "FAMILY" ? familyAdults(roomType) : LABEL_ADULTS[occupancy];
 
-  const table = roomType?.occupancyTable ?? [];
-  if (table.length > 0) {
-    // Exact match first, then the closest configured setup
-    const exact = table.find((row) => row.adults === nominal);
-    if (exact) return exact.adults;
-
-    const closest = [...table].sort(
-      (a, b) => Math.abs(a.adults - nominal) - Math.abs(b.adults - nominal),
-    )[0];
-    if (closest) return closest.adults;
-  }
-
+  // Never drop below the room's own minimum; the label's count is never
+  // reduced to fit an imported maximum, since the agent picked it deliberately.
   const min = roomType?.minAdults ?? 1;
-  const max = roomType?.maxAdults ?? undefined;
-  const clamped = Math.max(min, nominal);
-  return max && max > 0 ? Math.min(clamped, max) : clamped;
+  return Math.max(min, adults);
 }
