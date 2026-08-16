@@ -8,13 +8,7 @@ import { useTranslations } from "next-intl";
 import { PasswordStrength } from "@/components/shared/password-strength";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,32 +41,28 @@ export default function ProfilePage() {
   const tc = useTranslations("common");
 
   if (isLoading) {
-    return (
-      <div className="py-10 text-center text-muted-foreground">{tc("loading")}</div>
-    );
+    return <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>;
   }
 
   if (!data) {
-    return (
-      <div className="py-10 text-center text-muted-foreground">
-        {tc("noData")}
-      </div>
-    );
+    return <div className="text-muted-foreground py-10 text-center">{tc("noData")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground">
-          {t("manageAccount")}
-        </p>
+        <p className="text-muted-foreground">{t("manageAccount")}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ProfileCard user={data} onUpdate={() => utils.user.getProfile.invalidate()} />
         <DisplayLanguageCard currentLocale={data.locale} />
         <ChangePasswordCard />
+        <TwoFactorCard
+          enabled={data.twoFactorEnabled}
+          onChange={() => utils.user.getProfile.invalidate()}
+        />
       </div>
     </div>
   );
@@ -86,7 +76,13 @@ function ProfileCard({
   user,
   onUpdate,
 }: {
-  user: { id: string; name: string | null; email: string; image: string | null; createdAt: Date | string };
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+    createdAt: Date | string;
+  };
   onUpdate: () => void;
 }) {
   const [name, setName] = useState(user.name ?? "");
@@ -131,14 +127,12 @@ function ProfileCard({
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
               {image && <AvatarImage src={image} alt={name} />}
-              <AvatarFallback className="bg-primary/10 text-lg">
-                {initials}
-              </AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-lg">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <p className="font-medium">{user.name ?? "—"}</p>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-sm">{user.email}</p>
+              <p className="text-muted-foreground text-xs">
                 {t("memberSince")} {format(new Date(user.createdAt), "dd MMM yyyy")}
               </p>
             </div>
@@ -148,11 +142,7 @@ function ProfileCard({
 
           <div className="space-y-1.5">
             <Label>{t("fullName")}</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-            />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
           </div>
 
           <div className="space-y-1.5">
@@ -162,9 +152,7 @@ function ProfileCard({
               onChange={(e) => setImage(e.target.value)}
               placeholder="https://example.com/avatar.jpg"
             />
-            <p className="text-xs text-muted-foreground">
-              {t("avatarUrlDesc")}
-            </p>
+            <p className="text-muted-foreground text-xs">{t("avatarUrlDesc")}</p>
           </div>
 
           <div className="flex justify-end">
@@ -206,9 +194,7 @@ function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
     <Card>
       <CardHeader>
         <CardTitle>{t("displayLanguage")}</CardTitle>
-        <CardDescription>
-          {t("displayLanguageDesc")}
-        </CardDescription>
+        <CardDescription>{t("displayLanguageDesc")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">
@@ -225,10 +211,152 @@ function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            {t("languageReloadDesc")}
-          </p>
+          <p className="text-muted-foreground text-xs">{t("languageReloadDesc")}</p>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Two-Factor Authentication Card
+// ---------------------------------------------------------------------------
+
+function TwoFactorCard({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+  const [setup, setSetup] = useState<{ secret: string; qrDataUrl: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const t = useTranslations("profile");
+  const tc = useTranslations("common");
+
+  const setupMutation = trpc.user.twoFactorSetup.useMutation({
+    onSuccess: (data) => {
+      setSetup(data);
+      setCode("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const enableMutation = trpc.user.twoFactorEnable.useMutation({
+    onSuccess: (data) => {
+      toast.success(t("twoFactorActivated"));
+      setSetup(null);
+      setCode("");
+      setBackupCodes(data.backupCodes);
+      onChange();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setCode("");
+    },
+  });
+
+  const disableMutation = trpc.user.twoFactorDisable.useMutation({
+    onSuccess: () => {
+      toast.success(t("twoFactorDeactivated"));
+      setCode("");
+      onChange();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setCode("");
+    },
+  });
+
+  const pending = enableMutation.isPending || disableMutation.isPending;
+
+  // Six digits is the submit action — no verify button.
+  function handleCode(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 6);
+    setCode(digits);
+    if (digits.length === 6 && !pending) {
+      (enabled ? disableMutation : enableMutation).mutate({ token: digits });
+    }
+  }
+
+  const codeInput = (hint: string) => (
+    <div className="space-y-1.5">
+      <Input
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={6}
+        placeholder="000000"
+        value={code}
+        disabled={pending}
+        onChange={(e) => handleCode(e.target.value)}
+        className="text-center text-lg tracking-[0.5em] placeholder:tracking-[0.5em]"
+      />
+      <p className="text-muted-foreground text-center text-xs">{hint}</p>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {t("twoFactor")}
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              enabled ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {enabled ? t("twoFactorOn") : t("twoFactorOff")}
+          </span>
+        </CardTitle>
+        <CardDescription>{t("twoFactorDesc")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {backupCodes ? (
+          // Shown once — the server keeps only hashes.
+          <>
+            <p className="text-sm font-medium">{t("backupCodesTitle")}</p>
+            <p className="text-muted-foreground text-xs">{t("backupCodesDesc")}</p>
+            <div className="bg-muted grid grid-cols-2 gap-2 rounded-md p-3 font-mono text-sm">
+              {backupCodes.map((c) => (
+                <span key={c} className="text-center tracking-widest">
+                  {c}
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void navigator.clipboard.writeText(backupCodes.join("\n"));
+                  toast.success(tc("copy"));
+                }}
+              >
+                {t("copyBackupCodes")}
+              </Button>
+              <Button onClick={() => setBackupCodes(null)}>{t("backupCodesSaved")}</Button>
+            </div>
+          </>
+        ) : enabled ? (
+          codeInput(t("enterCodeToDisable"))
+        ) : setup ? (
+          <>
+            <p className="text-muted-foreground text-sm">{t("scanQr")}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={setup.qrDataUrl}
+              alt="Two-factor QR code"
+              className="mx-auto rounded-md border bg-white p-2"
+              width={220}
+              height={220}
+            />
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-xs">{t("manualKey")}</p>
+              <code className="bg-muted block rounded px-2 py-1 text-center text-xs tracking-widest break-all">
+                {setup.secret}
+              </code>
+            </div>
+            {codeInput(t("enterCodeToEnable"))}
+          </>
+        ) : (
+          <Button onClick={() => setupMutation.mutate()} disabled={setupMutation.isPending}>
+            {setupMutation.isPending ? tc("loading") : t("enableTwoFactor")}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -256,17 +384,13 @@ function ChangePasswordCard() {
   });
 
   const canSubmit =
-    currentPassword.length > 0 &&
-    newPassword.length >= 8 &&
-    newPassword === confirmPassword;
+    currentPassword.length > 0 && newPassword.length >= 8 && newPassword === confirmPassword;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t("changePassword")}</CardTitle>
-        <CardDescription>
-          {t("changePasswordDesc")}
-        </CardDescription>
+        <CardDescription>{t("changePasswordDesc")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -307,16 +431,12 @@ function ChangePasswordCard() {
               placeholder="Re-enter new password"
             />
             {confirmPassword && newPassword !== confirmPassword && (
-              <p className="text-xs text-destructive">
-                {t("passwordsDoNotMatch")}
-              </p>
+              <p className="text-destructive text-xs">{t("passwordsDoNotMatch")}</p>
             )}
           </div>
 
           {changeMutation.error && (
-            <p className="text-sm text-destructive">
-              {changeMutation.error.message}
-            </p>
+            <p className="text-destructive text-sm">{changeMutation.error.message}</p>
           )}
 
           <div className="flex justify-end">

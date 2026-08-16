@@ -1,8 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
+import qrcode from "qrcode-generator";
 import { z } from "zod";
 
+import { createTotp, generateBackupCodes, hashBackupCode, verifyTotp } from "@/lib/totp";
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+
+const totpToken = z.object({ token: z.string().regex(/^\d{6}$/) });
 
 export const userRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -23,6 +27,7 @@ export const userRouter = createTRPCRouter({
         image: true,
         locale: true,
         createdAt: true,
+        twoFactorEnabled: true,
       },
     });
   }),
@@ -78,4 +83,89 @@ export const userRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  // -------------------------------------------------------------------------
+  // Two-factor authentication (TOTP)
+  // -------------------------------------------------------------------------
+
+  /** Generates a fresh secret + QR code. Not active until `twoFactorEnable`. */
+  twoFactorSetup: protectedProcedure.mutation(async ({ ctx }) => {
+    const user = await ctx.db.user.findUniqueOrThrow({
+      where: { id: ctx.user.id },
+      select: { email: true, twoFactorEnabled: true },
+    });
+
+    if (user.twoFactorEnabled) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Two-factor authentication is already enabled",
+      });
+    }
+
+    const totp = createTotp(user.email);
+    await ctx.db.user.update({
+      where: { id: ctx.user.id },
+      data: { twoFactorSecret: totp.secret.base32 },
+    });
+
+    const qr = qrcode(0, "M");
+    qr.addData(totp.toString());
+    qr.make();
+
+    return {
+      secret: totp.secret.base32,
+      qrDataUrl: qr.createDataURL(5, 2),
+    };
+  }),
+
+  /** Confirms the authenticator is in sync, then turns 2FA on. */
+  twoFactorEnable: protectedProcedure.input(totpToken).mutation(async ({ ctx, input }) => {
+    const user = await ctx.db.user.findUniqueOrThrow({
+      where: { id: ctx.user.id },
+      select: { email: true, twoFactorSecret: true },
+    });
+
+    if (!user.twoFactorSecret) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Start setup first" });
+    }
+
+    if (!verifyTotp(user.email, user.twoFactorSecret, input.token)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid code" });
+    }
+
+    // Recovery codes are shown once here — only their hashes are kept.
+    const backupCodes = generateBackupCodes();
+    await ctx.db.user.update({
+      where: { id: ctx.user.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorBackupCodes: backupCodes.map(hashBackupCode),
+      },
+    });
+
+    return { success: true, backupCodes };
+  }),
+
+  /** Turns 2FA off — requires a valid current code. */
+  twoFactorDisable: protectedProcedure.input(totpToken).mutation(async ({ ctx, input }) => {
+    const user = await ctx.db.user.findUniqueOrThrow({
+      where: { id: ctx.user.id },
+      select: { email: true, twoFactorSecret: true, twoFactorEnabled: true },
+    });
+
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Two-factor is not enabled" });
+    }
+
+    if (!verifyTotp(user.email, user.twoFactorSecret, input.token)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid code" });
+    }
+
+    await ctx.db.user.update({
+      where: { id: ctx.user.id },
+      data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: [] },
+    });
+
+    return { success: true };
+  }),
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, KeyRound, UserCheck, UserX, X } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldOff, UserCheck, UserX, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,9 +20,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { P } from "@/lib/constants/permissions";
@@ -48,32 +61,60 @@ export default function UserDetailPage() {
   const [selectedRoleId, setSelectedRoleId] = useState("");
 
   const toggleActive = trpc.admin.user.toggleActive.useMutation({
-    onSuccess: () => { toast.success(tc("updated")); utils.admin.user.getById.invalidate({ id }); },
+    onSuccess: () => {
+      toast.success(tc("updated"));
+      utils.admin.user.getById.invalidate({ id });
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const assignRole = trpc.admin.user.assignRole.useMutation({
-    onSuccess: () => { toast.success(tc("updated")); utils.admin.user.getById.invalidate({ id }); setSelectedRoleId(""); },
+    onSuccess: () => {
+      toast.success(tc("updated"));
+      utils.admin.user.getById.invalidate({ id });
+      setSelectedRoleId("");
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const revokeRole = trpc.admin.user.revokeRole.useMutation({
-    onSuccess: () => { toast.success(tc("updated")); utils.admin.user.getById.invalidate({ id }); },
+    onSuccess: () => {
+      toast.success(tc("updated"));
+      utils.admin.user.getById.invalidate({ id });
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const resetPassword = trpc.admin.user.resetPassword.useMutation({
-    onSuccess: () => { toast.success(tc("updated")); setShowResetDialog(false); utils.admin.user.getById.invalidate({ id }); },
+    onSuccess: () => {
+      toast.success(tc("updated"));
+      setShowResetDialog(false);
+      utils.admin.user.getById.invalidate({ id });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const resetTwoFactor = trpc.admin.user.resetTwoFactor.useMutation({
+    onSuccess: () => {
+      toast.success(t("twoFactorReset"));
+      utils.admin.user.getById.invalidate({ id });
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const setPasswordExpiry = trpc.admin.user.setPasswordExpiry.useMutation({
-    onSuccess: () => { toast.success(tc("updated")); utils.admin.user.getById.invalidate({ id }); },
+    onSuccess: () => {
+      toast.success(tc("updated"));
+      utils.admin.user.getById.invalidate({ id });
+    },
     onError: (e) => toast.error(e.message),
   });
 
   const deleteUser = trpc.admin.user.delete.useMutation({
-    onSuccess: () => { toast.success(tc("deleted")); router.push("/admin/users"); },
+    onSuccess: () => {
+      toast.success(tc("deleted"));
+      router.push("/admin/users");
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -83,7 +124,13 @@ export default function UserDetailPage() {
   });
 
   if (isLoading) {
-    return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
   }
   if (!user) return <p>User not found</p>;
 
@@ -92,10 +139,12 @@ export default function UserDetailPage() {
 
   return (
     <PermissionGuard permission={P.SYSTEM_USER_READ}>
-      <div className="animate-fade-in space-y-6 max-w-2xl">
+      <div className="animate-fade-in max-w-2xl space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/admin/users"><ArrowLeft className="h-4 w-4" /></Link>
+            <Link href="/admin/users">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{user.name ?? user.email}</h1>
@@ -108,39 +157,67 @@ export default function UserDetailPage() {
               onClick={() => toggleActive.mutate({ id })}
               disabled={toggleActive.isPending}
             >
-              {user.isActive ? <><UserX className="mr-1 h-4 w-4" /> {t("deactivate")}</> : <><UserCheck className="mr-1 h-4 w-4" /> {t("activate")}</>}
+              {user.isActive ? (
+                <>
+                  <UserX className="mr-1 h-4 w-4" /> {t("deactivate")}
+                </>
+              ) : (
+                <>
+                  <UserCheck className="mr-1 h-4 w-4" /> {t("activate")}
+                </>
+              )}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setShowResetDialog(true)}>
               <KeyRound className="mr-1 h-4 w-4" /> {t("resetPassword")}
             </Button>
+            {user.twoFactorEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => resetTwoFactor.mutate({ id })}
+                disabled={resetTwoFactor.isPending}
+              >
+                <ShieldOff className="mr-1 h-4 w-4" /> {t("resetTwoFactor")}
+              </Button>
+            )}
           </div>
         </div>
 
         <Card>
-          <CardHeader><CardTitle>{tc("profile")}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>{tc("profile")}</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{tc("status")}</span>
-              <Badge variant={user.isActive ? "default" : "destructive"}>{user.isActive ? t("active") : t("inactive")}</Badge>
+              <Badge variant={user.isActive ? "default" : "destructive"}>
+                {user.isActive ? t("active") : t("inactive")}
+              </Badge>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Locale</span>
               <span>{user.locale}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t("memberSince")}</span>
               <span>{new Date(user.createdAt).toLocaleDateString()}</span>
             </div>
-            <div className="flex justify-between items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground shrink-0">Password Expires</span>
               <div className="flex items-center gap-2">
                 {user.passwordExpiresAt && new Date(user.passwordExpiresAt) < new Date() && (
-                  <Badge variant="destructive" className="text-xs">Expired</Badge>
+                  <Badge variant="destructive" className="text-xs">
+                    Expired
+                  </Badge>
                 )}
                 <Input
                   type="date"
                   className="h-7 w-40 text-xs"
-                  defaultValue={user.passwordExpiresAt ? new Date(user.passwordExpiresAt).toISOString().split("T")[0] : ""}
+                  defaultValue={
+                    user.passwordExpiresAt
+                      ? new Date(user.passwordExpiresAt).toISOString().split("T")[0]
+                      : ""
+                  }
                   onChange={(e) => {
                     const val = e.target.value;
                     setPasswordExpiry.mutate({
@@ -164,17 +241,19 @@ export default function UserDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>{t("assignedRoles")}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>{t("assignedRoles")}</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {user.userRoles.length === 0 && (
-                <span className="text-sm text-muted-foreground">{t("noRoles")}</span>
+                <span className="text-muted-foreground text-sm">{t("noRoles")}</span>
               )}
               {user.userRoles.map((ur) => (
                 <Badge key={ur.role.id} variant="secondary" className="gap-1 pr-1">
                   {ur.role.displayName}
                   <button
-                    className="ml-1 rounded hover:bg-destructive/20 p-0.5"
+                    className="hover:bg-destructive/20 ml-1 rounded p-0.5"
                     onClick={() => revokeRole.mutate({ userId: id, roleId: ur.role.id })}
                     disabled={revokeRole.isPending}
                   >
@@ -191,14 +270,18 @@ export default function UserDetailPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {availableRoles.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.displayName}</SelectItem>
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.displayName}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Button
                   size="sm"
                   disabled={!selectedRoleId || assignRole.isPending}
-                  onClick={() => selectedRoleId && assignRole.mutate({ userId: id, roleId: selectedRoleId })}
+                  onClick={() =>
+                    selectedRoleId && assignRole.mutate({ userId: id, roleId: selectedRoleId })
+                  }
                 >
                   {t("assign")}
                 </Button>
@@ -211,7 +294,9 @@ export default function UserDetailPage() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => { if (confirm(tc("confirmDelete"))) deleteUser.mutate({ id }); }}
+            onClick={() => {
+              if (confirm(tc("confirmDelete"))) deleteUser.mutate({ id });
+            }}
             disabled={deleteUser.isPending}
           >
             {t("deleteUser")}
@@ -220,34 +305,55 @@ export default function UserDetailPage() {
 
         <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("resetPassword")}</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{t("resetPassword")}</DialogTitle>
+            </DialogHeader>
             <Form {...resetForm}>
               <form
                 onSubmit={resetForm.handleSubmit((v) =>
                   resetPassword.mutate({
                     id,
                     newPassword: v.newPassword,
-                    passwordExpiresAt: v.passwordExpiresAt ? new Date(v.passwordExpiresAt).toISOString() : null,
-                  })
+                    passwordExpiresAt: v.passwordExpiresAt
+                      ? new Date(v.passwordExpiresAt).toISOString()
+                      : null,
+                  }),
                 )}
                 className="space-y-4"
               >
-                <FormField control={resetForm.control} name="newPassword" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("newPassword")}</FormLabel>
-                    <FormControl><Input {...field} type="password" placeholder="Min. 8 characters" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={resetForm.control} name="passwordExpiresAt" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password Expires On <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
-                    <FormControl><Input {...field} type="date" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={resetForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("newPassword")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" placeholder="Min. 8 characters" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={resetForm.control}
+                  name="passwordExpiresAt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Password Expires On{" "}
+                        <span className="text-muted-foreground text-xs">(optional)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <DialogFooter>
-                  <Button variant="outline" type="button" onClick={() => setShowResetDialog(false)}>{tc("cancel")}</Button>
+                  <Button variant="outline" type="button" onClick={() => setShowResetDialog(false)}>
+                    {tc("cancel")}
+                  </Button>
                   <Button type="submit" disabled={resetPassword.isPending}>
                     {resetPassword.isPending ? tc("saving") : t("resetPassword")}
                   </Button>

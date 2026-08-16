@@ -6,7 +6,10 @@ import { P } from "@/lib/constants/permissions";
 import { createTRPCRouter, permissionProcedure, protectedProcedure } from "@/server/trpc";
 
 // ── Helper: invalidate JWT for a user ──────────────────────────────────────
-async function invalidateUserToken(ctx: { db: import("@prisma/client").PrismaClient; redis: import("ioredis").Redis }, userId: string) {
+async function invalidateUserToken(
+  ctx: { db: import("@prisma/client").PrismaClient; redis: import("ioredis").Redis },
+  userId: string,
+) {
   await ctx.db.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } });
   await ctx.redis.del(`tv:${userId}`, `perms:${userId}`).catch(() => {});
 }
@@ -49,6 +52,7 @@ const adminUserRouter = createTRPCRouter({
           createdAt: true,
           updatedAt: true,
           passwordExpiresAt: true,
+          twoFactorEnabled: true,
           userRoles: {
             select: {
               role: { select: { id: true, name: true, displayName: true, description: true } },
@@ -71,7 +75,10 @@ const adminUserRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.user.findUnique({ where: { email: input.email }, select: { id: true } });
+      const existing = await ctx.db.user.findUnique({
+        where: { email: input.email },
+        select: { id: true },
+      });
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Email already in use" });
 
       const hashed = await bcrypt.hash(input.password, 12);
@@ -131,11 +138,13 @@ const adminUserRouter = createTRPCRouter({
     }),
 
   resetPassword: permissionProcedure(P.SYSTEM_USER_UPDATE)
-    .input(z.object({
-      id: z.string(),
-      newPassword: z.string().min(8),
-      passwordExpiresAt: z.string().datetime().nullable().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        newPassword: z.string().min(8),
+        passwordExpiresAt: z.string().datetime().nullable().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const hashed = await bcrypt.hash(input.newPassword, 12);
       await ctx.db.user.update({
@@ -150,15 +159,36 @@ const adminUserRouter = createTRPCRouter({
       return { ok: true };
     }),
 
-  setPasswordExpiry: permissionProcedure(P.SYSTEM_USER_UPDATE)
-    .input(z.object({
-      id: z.string(),
-      passwordExpiresAt: z.string().datetime().nullable(),
-    }))
+  /** Lockout escape hatch — user lost their authenticator and their backup codes. */
+  resetTwoFactor: permissionProcedure(P.SYSTEM_USER_UPDATE)
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.user.update({
         where: { id: input.id, companyId: ctx.session.user.companyId ?? undefined },
-        data: { passwordExpiresAt: input.passwordExpiresAt ? new Date(input.passwordExpiresAt) : null },
+        data: {
+          twoFactorEnabled: false,
+          twoFactorSecret: null,
+          twoFactorBackupCodes: [],
+          tokenVersion: { increment: 1 },
+        },
+      });
+      await ctx.redis.del(`tv:${input.id}`).catch(() => {});
+      return { ok: true };
+    }),
+
+  setPasswordExpiry: permissionProcedure(P.SYSTEM_USER_UPDATE)
+    .input(
+      z.object({
+        id: z.string(),
+        passwordExpiresAt: z.string().datetime().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.user.update({
+        where: { id: input.id, companyId: ctx.session.user.companyId ?? undefined },
+        data: {
+          passwordExpiresAt: input.passwordExpiresAt ? new Date(input.passwordExpiresAt) : null,
+        },
       });
       return { ok: true };
     }),
@@ -232,7 +262,10 @@ const adminRoleRouter = createTRPCRouter({
   create: permissionProcedure(P.SYSTEM_ROLE_CREATE)
     .input(
       z.object({
-        name: z.string().min(1).regex(/^[a-z0-9_]+$/, "Only lowercase letters, numbers, underscores"),
+        name: z
+          .string()
+          .min(1)
+          .regex(/^[a-z0-9_]+$/, "Only lowercase letters, numbers, underscores"),
         displayName: z.string().min(1),
         description: z.string().optional(),
       }),
@@ -275,7 +308,8 @@ const adminRoleRouter = createTRPCRouter({
         select: { isSystem: true },
       });
       if (!role) throw new TRPCError({ code: "NOT_FOUND" });
-      if (role.isSystem) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot delete system roles" });
+      if (role.isSystem)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot delete system roles" });
 
       // Invalidate all users who had this role
       const affectedUsers = await ctx.db.userRole.findMany({
@@ -298,7 +332,10 @@ const adminRoleRouter = createTRPCRouter({
       });
       if (!role) throw new TRPCError({ code: "NOT_FOUND" });
       if (role.name === "super_admin") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Super admin permissions cannot be modified" });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Super admin permissions cannot be modified",
+        });
       }
 
       const permissions = await ctx.db.permission.findMany({

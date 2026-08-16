@@ -1,12 +1,23 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+import { hashBackupCode, verifyTotp } from "@/lib/totp";
 import { db } from "@/server/db";
 import { redis } from "@/server/redis";
 import { notifyRole } from "@/server/services/shared/notifications";
 import { LICENSE_EXPIRY_WARNING_DAYS } from "@/server/services/shared/license";
+
+/** Password was right but the account needs a TOTP code — the client shows the OTP field. */
+class TwoFactorRequired extends CredentialsSignin {
+  code = "2fa_required";
+}
+
+/** TOTP code was wrong or expired. */
+class TwoFactorInvalid extends CredentialsSignin {
+  code = "2fa_invalid";
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -20,6 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        token: { label: "Authentication code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -46,11 +58,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Reject login if password has expired
         if (user.passwordExpiresAt && user.passwordExpiresAt < new Date()) return null;
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password,
-        );
+        const isValid = await bcrypt.compare(credentials.password as string, user.password);
         if (!isValid) return null;
+
+        if (user.twoFactorEnabled && user.twoFactorSecret) {
+          const token = (credentials.token as string | undefined)?.trim();
+          if (!token) throw new TwoFactorRequired();
+
+          if (!verifyTotp(user.email, user.twoFactorSecret, token)) {
+            // Fall back to a single-use backup code, burning it on success.
+            const hash = hashBackupCode(token);
+            if (!user.twoFactorBackupCodes.includes(hash)) throw new TwoFactorInvalid();
+
+            await db.user.update({
+              where: { id: user.id },
+              data: { twoFactorBackupCodes: user.twoFactorBackupCodes.filter((h) => h !== hash) },
+            });
+          }
+        }
 
         return {
           id: user.id,
@@ -135,7 +160,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await redis.connect().catch(() => {});
           const cached = await redis.get(cacheKey);
           if (cached) {
-            const { tokenVersion, isActive } = JSON.parse(cached) as { tokenVersion: number; isActive: boolean };
+            const { tokenVersion, isActive } = JSON.parse(cached) as {
+              tokenVersion: number;
+              isActive: boolean;
+            };
             if (!isActive || tokenVersion !== token.tokenVersion) return null;
           } else {
             const dbUser = await db.user.findUnique({
@@ -144,7 +172,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
             if (!dbUser || !dbUser.isActive) return null;
             if (dbUser.tokenVersion !== token.tokenVersion) return null;
-            await redis.setex(cacheKey, 60, JSON.stringify({ tokenVersion: dbUser.tokenVersion, isActive: dbUser.isActive })).catch(() => {});
+            await redis
+              .setex(
+                cacheKey,
+                60,
+                JSON.stringify({ tokenVersion: dbUser.tokenVersion, isActive: dbUser.isActive }),
+              )
+              .catch(() => {});
           }
         } catch {
           // Redis/DB unavailable — don't block the request
