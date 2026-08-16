@@ -1,9 +1,10 @@
 "use client";
 
+import { isDepartureInvalid, minDepartureDate } from "@/lib/reservations/dates";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -106,6 +107,20 @@ export default function NewGroupBookingPage() {
     control: form.control,
     name: "rooms",
   });
+
+  const groupCheckIn = form.watch("checkIn");
+  const groupCheckOut = form.watch("checkOut");
+
+  // Same rule as the single-booking form: departure must sit after arrival,
+  // and only a moved arrival clears it.
+  const previousCheckIn = useRef(groupCheckIn);
+  useEffect(() => {
+    if (previousCheckIn.current === groupCheckIn) return;
+    previousCheckIn.current = groupCheckIn;
+    if (isDepartureInvalid(groupCheckIn, groupCheckOut)) {
+      form.setValue("checkOut", "", { shouldDirty: true });
+    }
+  }, [groupCheckIn, groupCheckOut, form]);
 
   const watchedRooms = form.watch("rooms");
   const selectedHotelId = form.watch("hotelId");
@@ -365,7 +380,7 @@ export default function NewGroupBookingPage() {
                     <FormItem>
                       <FormLabel>{t("checkOut")} *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" min={minDepartureDate(groupCheckIn)} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

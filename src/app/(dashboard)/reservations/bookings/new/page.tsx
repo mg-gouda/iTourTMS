@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
+import { isDepartureInvalid, minDepartureDate } from "@/lib/reservations/dates";
 import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
 import { ParseEmailDialog } from "@/components/reservations/parse-email-dialog";
 import { PermissionGuard } from "@/components/shared/permission-guard";
@@ -201,6 +202,18 @@ export default function NewBookingPage() {
   const bookingDate = form.watch("bookingDate");
   const hotelPaymentMethod = form.watch("hotelPaymentMethod");
   const rooms = form.watch("rooms");
+
+  // A stay is at least one night. When arrival moves past the chosen departure
+  // the departure is dropped; a departure typed by hand is left alone so the
+  // browser can say why it is out of range rather than silently clearing it.
+  const previousCheckIn = useRef(checkIn);
+  useEffect(() => {
+    if (previousCheckIn.current === checkIn) return;
+    previousCheckIn.current = checkIn;
+    if (isDepartureInvalid(checkIn, checkOut)) {
+      form.setValue("checkOut", "", { shouldDirty: true });
+    }
+  }, [checkIn, checkOut, form]);
 
   // Auto-resize roomGuests when adults/children change per room
   useEffect(() => {
@@ -835,7 +848,7 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>{t("departureDate")} *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" min={minDepartureDate(checkIn)} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

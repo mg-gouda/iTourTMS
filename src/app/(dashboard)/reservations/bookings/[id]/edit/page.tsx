@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { ArrowLeft, Calculator, Loader2, PlaneLanding, PlaneTakeoff, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -38,6 +38,7 @@ import {
   BOOKING_STATUS_VARIANTS,
   GUEST_TITLE_OPTIONS,
 } from "@/lib/constants/reservations";
+import { isDepartureInvalid, minDepartureDate } from "@/lib/reservations/dates";
 import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
 import { trpc } from "@/lib/trpc";
 import { bookingAmendSchema } from "@/lib/validations/reservations";
@@ -224,6 +225,18 @@ export default function AmendBookingPage() {
   const hotelId = form.watch("hotelId") ?? booking?.hotelId ?? "";
   const checkIn = form.watch("checkIn") ?? "";
   const checkOut = form.watch("checkOut") ?? "";
+
+  // A stay is at least one night. When arrival moves past the chosen departure
+  // the departure is dropped; a departure typed by hand is left alone so the
+  // browser can say why it is out of range rather than silently clearing it.
+  const previousCheckIn = useRef(checkIn);
+  useEffect(() => {
+    if (previousCheckIn.current === checkIn) return;
+    previousCheckIn.current = checkIn;
+    if (isDepartureInvalid(checkIn, checkOut)) {
+      form.setValue("checkOut", "", { shouldDirty: true });
+    }
+  }, [checkIn, checkOut, form]);
   const hotelPaymentMethod = form.watch("hotelPaymentMethod");
   const watchedRooms = form.watch("rooms") ?? [];
 
@@ -686,7 +699,7 @@ export default function AmendBookingPage() {
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
                   <FormField control={form.control} name="checkOut" render={({ field }) => (
-                    <FormItem><FormLabel>Departure Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Departure Date</FormLabel><FormControl><Input type="date" min={minDepartureDate(checkIn)} {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="departFlightNo" render={({ field }) => (
                     <FormItem><FormLabel>Flight No</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
