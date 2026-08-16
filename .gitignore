@@ -64,6 +64,8 @@ public/uploads/
 *.sql
 *.sql.gz
 *.dump
+# ...but migrations are source, not backups
+!prisma/migrations/**/*.sql
 
 # Local documents / PDFs
 *.pdf

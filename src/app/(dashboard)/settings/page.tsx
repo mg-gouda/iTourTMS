@@ -157,6 +157,7 @@ interface CompanySettings {
   timezone: string;
   googlePlacesApiKey: string | null;
   giataApiKey: string | null;
+  anthropicApiKey: string | null;
   hotelCodePrefix: string | null;
   fiscalYearStart: number | null;
   fiscalYearEnd: number | null;
