@@ -606,8 +606,25 @@ export default function BookingDetailPage() {
                     />
                   </>
                 )}
+                {Number(booking.ebdPercent) > 0 && (
+                  <>
+                    <div className="my-2 border-t" />
+                    <InfoRow label="EBD" value={`${(Number(booking.ebdPercent) * 100).toFixed(1)}%`} />
+                    <InfoRow
+                      label="EBD Amount"
+                      value={`${booking.currency.symbol}${(Number(booking.buyingTotal) * Number(booking.ebdPercent)).toLocaleString("en", { minimumFractionDigits: 2 })}`}
+                    />
+                    <InfoRow
+                      label="EBD Payment Date"
+                      value={booking.ebdPaymentDate ? new Date(booking.ebdPaymentDate).toLocaleDateString() : "—"}
+                    />
+                  </>
+                )}
               </CardContent>
             </Card>
+
+            {/* Currencies & P&L */}
+            <CurrencyLinesCard booking={booking} />
 
             {/* Guest Info */}
             <Card>
@@ -2411,6 +2428,185 @@ export default function BookingDetailPage() {
 }
 
 // ── Sub-components ──
+
+/**
+ * Currencies & P&L — the base line mirrors the contract currency and is
+ * engine-owned; extra lines are typed by the agent and are reporting-only.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function CurrencyLinesCard({ booking }: { booking: any }) {
+  const utils = trpc.useUtils();
+  const [adding, setAdding] = useState(false);
+  const [currencyId, setCurrencyId] = useState("");
+  const [buying, setBuying] = useState("");
+  const [selling, setSelling] = useState("");
+  const [visa, setVisa] = useState("");
+  const [calculation, setCalculation] = useState("");
+
+  const { data: currencies } = trpc.setup.getCurrencies.useQuery(undefined, { enabled: adding });
+
+  const reset = () => {
+    setAdding(false);
+    setCurrencyId("");
+    setBuying("");
+    setSelling("");
+    setVisa("");
+    setCalculation("");
+  };
+
+  const setLine = trpc.reservations.booking.setCurrencyLine.useMutation({
+    onSuccess: () => {
+      toast.success("Currency line saved");
+      reset();
+      utils.reservations.booking.getById.invalidate({ id: booking.id });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteLine = trpc.reservations.booking.deleteCurrencyLine.useMutation({
+    onSuccess: () => {
+      toast.success("Currency line removed");
+      utils.reservations.booking.getById.invalidate({ id: booking.id });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const lines = booking.currencyLines ?? [];
+  const usedIds = new Set<string>(lines.map((l: { currencyId: string }) => l.currencyId));
+  const money = (n: number) =>
+    n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle>Currencies &amp; P&amp;L</CardTitle>
+        {!booking.isLocked && (
+          <Button variant="outline" size="sm" onClick={() => setAdding((v) => !v)}>
+            <Plus className="mr-1 h-4 w-4" /> Add currency
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        {lines.length === 0 && (
+          <p className="text-muted-foreground">
+            No currency lines yet — the base line appears once rates are calculated.
+          </p>
+        )}
+
+        {lines.map((line: Record<string, any>) => {
+          const profit = Number(line.sellingTotal) - Number(line.buyingTotal) + Number(line.visaHandling);
+          return (
+            <div key={line.id} className="rounded-md border p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{line.currency.code}</span>
+                  {line.isBase ? (
+                    <Badge variant="secondary" className="text-xs">from contract</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">{line.source.toLowerCase()}</Badge>
+                  )}
+                </div>
+                {!line.isBase && !booking.isLocked && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      deleteLine.mutate({ bookingId: booking.id, currencyId: line.currencyId })
+                    }
+                    disabled={deleteLine.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <InfoRow label="Buying" value={`${line.currency.symbol}${money(Number(line.buyingTotal))}`} />
+              <InfoRow label="Selling" value={`${line.currency.symbol}${money(Number(line.sellingTotal))}`} />
+              {Number(line.visaHandling) !== 0 && (
+                <InfoRow label="Visa & Handling" value={`${line.currency.symbol}${money(Number(line.visaHandling))}`} />
+              )}
+              <InfoRow
+                label="Profit"
+                value={
+                  <span className={profit < 0 ? "text-destructive" : ""}>
+                    {line.currency.symbol}{money(profit)}
+                  </span>
+                }
+              />
+              {Number(booking.ebdPercent) > 0 && (
+                <InfoRow
+                  label="EBD Amount"
+                  value={`${line.currency.symbol}${money(Number(line.buyingTotal) * Number(booking.ebdPercent))}`}
+                />
+              )}
+              {line.calculation && (
+                <p className="pt-1 text-xs text-muted-foreground italic">{line.calculation}</p>
+              )}
+            </div>
+          );
+        })}
+
+        {adding && (
+          <div className="rounded-md border border-dashed p-3 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Currency</Label>
+              <Select value={currencyId} onValueChange={setCurrencyId}>
+                <SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger>
+                <SelectContent>
+                  {(currencies ?? [])
+                    .filter((c: { id: string }) => !usedIds.has(c.id))
+                    .map((c: { id: string; code: string; name: string }) => (
+                      <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Buying</Label>
+                <Input type="number" step="0.01" value={buying} onChange={(e) => setBuying(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Selling</Label>
+                <Input type="number" step="0.01" value={selling} onChange={(e) => setSelling(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Visa &amp; Handling</Label>
+                <Input type="number" step="0.01" value={visa} onChange={(e) => setVisa(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Calculation note</Label>
+              <Input
+                placeholder="How this number was reached"
+                value={calculation}
+                onChange={(e) => setCalculation(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={reset}>Cancel</Button>
+              <Button
+                size="sm"
+                disabled={!currencyId || setLine.isPending}
+                onClick={() =>
+                  setLine.mutate({
+                    bookingId: booking.id,
+                    currencyId,
+                    buyingTotal: Number(buying) || 0,
+                    sellingTotal: Number(selling) || 0,
+                    visaHandling: Number(visa) || 0,
+                    calculation: calculation || null,
+                  })
+                }
+              >
+                {setLine.isPending ? "Saving..." : "Save line"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function InfoRow({
   label,

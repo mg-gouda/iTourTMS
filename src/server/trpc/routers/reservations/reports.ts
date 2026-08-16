@@ -3,13 +3,46 @@ import { z } from "zod";
 
 import {
   arrivalListFilterSchema,
+  ebdListFilterSchema,
   materializationFilterSchema,
   paymentOptionDateFilterSchema,
+  profitAndLossFilterSchema,
   reportFilterSchema,
 } from "@/lib/validations/reservations";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
 const p = (code: string) => modulePermissionProcedure("reservations", code);
+
+/** Bucket key + label for a date, e.g. 2026-03 / "Mar 2026". */
+function bucketOf(date: Date, bucket: "DAY" | "WEEK" | "MONTH" | "QUARTER" | "YEAR") {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  switch (bucket) {
+    case "DAY": {
+      const key = date.toISOString().slice(0, 10);
+      return { key, label: key };
+    }
+    case "WEEK": {
+      // ISO week — Monday start
+      const d = new Date(Date.UTC(y, m, date.getUTCDate()));
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() - day + 1);
+      const key = d.toISOString().slice(0, 10);
+      return { key, label: `Week of ${key}` };
+    }
+    case "QUARTER": {
+      const q = Math.floor(m / 3) + 1;
+      return { key: `${y}-Q${q}`, label: `Q${q} ${y}` };
+    }
+    case "YEAR":
+      return { key: String(y), label: String(y) };
+    case "MONTH":
+    default:
+      return { key: `${y}-${String(m + 1).padStart(2, "0")}`, label: `${MONTHS[m]} ${y}` };
+  }
+}
 
 export const reportsRouter = createTRPCRouter({
   occupancy: p("report.read")
@@ -367,6 +400,280 @@ export const reportsRouter = createTRPCRouter({
           totalChildren,
           totalInfants,
         },
+      };
+    }),
+
+  // ── EBD list — bookings carrying an early booking discount ──
+  ebdList: p("report.read")
+    .input(ebdListFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const from = new Date(input.dateFrom);
+      const to = new Date(input.dateTo);
+
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        ebdPercent: { gt: 0 },
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.dateBasis === "EBD_PAYMENT") {
+        where.ebdPaymentDate = { gte: from, lte: to };
+      } else {
+        where.checkIn = { gte: from, lte: to };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        select: {
+          id: true,
+          code: true,
+          externalRef: true,
+          checkIn: true,
+          checkOut: true,
+          ebdPercent: true,
+          ebdPaymentDate: true,
+          buyingTotal: true,
+          hotel: { select: { name: true } },
+          tourOperator: { select: { name: true } },
+          currency: { select: { code: true, symbol: true } },
+          currencyLines: {
+            select: {
+              buyingTotal: true,
+              currency: { select: { code: true, symbol: true } },
+            },
+          },
+        },
+        orderBy: [{ ebdPaymentDate: "asc" }, { checkIn: "asc" }],
+      });
+
+      const totalsByCurrency = new Map<string, { code: string; symbol: string; ebdAmount: number }>();
+      const today = new Date();
+
+      const rows = bookings.map((b) => {
+        const pct = Number(b.ebdPercent);
+
+        // One EBD amount per currency the booking carries; fall back to the
+        // booking currency when no lines exist yet.
+        const lines = b.currencyLines.length
+          ? b.currencyLines.map((l) => ({
+              currencyCode: l.currency.code,
+              currencySymbol: l.currency.symbol,
+              buyingTotal: Number(l.buyingTotal),
+              ebdAmount: Number(l.buyingTotal) * pct,
+            }))
+          : [
+              {
+                currencyCode: b.currency.code,
+                currencySymbol: b.currency.symbol,
+                buyingTotal: Number(b.buyingTotal),
+                ebdAmount: Number(b.buyingTotal) * pct,
+              },
+            ];
+
+        for (const l of lines) {
+          const t = totalsByCurrency.get(l.currencyCode);
+          if (t) t.ebdAmount += l.ebdAmount;
+          else
+            totalsByCurrency.set(l.currencyCode, {
+              code: l.currencyCode,
+              symbol: l.currencySymbol,
+              ebdAmount: l.ebdAmount,
+            });
+        }
+
+        const daysToPayment = b.ebdPaymentDate
+          ? Math.ceil((b.ebdPaymentDate.getTime() - today.getTime()) / 86_400_000)
+          : null;
+
+        return {
+          bookingId: b.id,
+          bookingCode: b.code,
+          externalRef: b.externalRef ?? "",
+          hotelName: b.hotel.name,
+          tourOperatorName: b.tourOperator?.name ?? "",
+          checkIn: b.checkIn,
+          checkOut: b.checkOut,
+          ebdPercent: pct,
+          ebdPaymentDate: b.ebdPaymentDate,
+          daysToPayment,
+          overdue: daysToPayment !== null && daysToPayment < 0,
+          lines,
+        };
+      });
+
+      return {
+        rows,
+        totals: [...totalsByCurrency.values()].sort((a, b) => a.code.localeCompare(b.code)),
+        bookingCount: rows.length,
+      };
+    }),
+
+  // ── P&L by period, optionally broken down by a dimension ──
+  profitAndLoss: p("report.read")
+    .input(profitAndLossFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const from = new Date(input.dateFrom);
+      const to = new Date(input.dateTo);
+
+      const where: Record<string, unknown> = {
+        companyId: ctx.companyId,
+        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      };
+      if (input.hotelId) where.hotelId = input.hotelId;
+      if (input.tourOperatorId) where.tourOperatorId = input.tourOperatorId;
+      if (input.marketId) where.marketId = input.marketId;
+      if (input.dateBasis === "BOOKING_DATE") {
+        where.OR = [
+          { bookingDate: { gte: from, lte: to } },
+          { bookingDate: null, createdAt: { gte: from, lte: to } },
+        ];
+      } else {
+        where.checkIn = { gte: from, lte: to };
+      }
+
+      const bookings = await ctx.db.booking.findMany({
+        where,
+        select: {
+          id: true,
+          checkIn: true,
+          bookingDate: true,
+          createdAt: true,
+          nights: true,
+          source: true,
+          buyingTotal: true,
+          sellingTotal: true,
+          currency: { select: { code: true, symbol: true } },
+          hotel: { select: { name: true } },
+          market: { select: { name: true } },
+          tourOperator: { select: { name: true } },
+          _count: { select: { rooms: true } },
+          currencyLines: {
+            select: {
+              buyingTotal: true,
+              sellingTotal: true,
+              visaHandling: true,
+              currency: { select: { code: true, symbol: true } },
+            },
+          },
+        },
+      });
+
+      type Amounts = {
+        currencyCode: string;
+        currencySymbol: string;
+        buying: number;
+        selling: number;
+        visaHandling: number;
+      };
+      type Cell = {
+        key: string;
+        label: string;
+        group: string;
+        bookings: number;
+        roomNights: number;
+        amounts: Map<string, Amounts>;
+      };
+
+      const cells = new Map<string, Cell>();
+      const bucketOrder = new Map<string, string>();
+
+      function addAmount(target: Map<string, Amounts>, a: Amounts) {
+        const cur = target.get(a.currencyCode);
+        if (cur) {
+          cur.buying += a.buying;
+          cur.selling += a.selling;
+          cur.visaHandling += a.visaHandling;
+        } else {
+          target.set(a.currencyCode, { ...a });
+        }
+      }
+
+      for (const b of bookings) {
+        const basisDate =
+          input.dateBasis === "BOOKING_DATE" ? (b.bookingDate ?? b.createdAt) : b.checkIn;
+        const { key: bKey, label } = bucketOf(basisDate, input.bucket);
+        bucketOrder.set(bKey, label);
+
+        const group =
+          input.groupBy === "TOUR_OPERATOR"
+            ? (b.tourOperator?.name ?? "Direct")
+            : input.groupBy === "MARKET"
+              ? (b.market?.name ?? "Unassigned")
+              : input.groupBy === "HOTEL"
+                ? b.hotel.name
+                : input.groupBy === "SOURCE"
+                  ? b.source
+                  : "All";
+
+        const cellKey = `${bKey}::${group}`;
+        let cell = cells.get(cellKey);
+        if (!cell) {
+          cell = { key: bKey, label, group, bookings: 0, roomNights: 0, amounts: new Map() };
+          cells.set(cellKey, cell);
+        }
+
+        cell.bookings += 1;
+        cell.roomNights += b.nights * b._count.rooms;
+
+        const amounts: Amounts[] = b.currencyLines.length
+          ? b.currencyLines.map((l) => ({
+              currencyCode: l.currency.code,
+              currencySymbol: l.currency.symbol,
+              buying: Number(l.buyingTotal),
+              selling: Number(l.sellingTotal),
+              visaHandling: Number(l.visaHandling),
+            }))
+          : [
+              {
+                currencyCode: b.currency.code,
+                currencySymbol: b.currency.symbol,
+                buying: Number(b.buyingTotal),
+                selling: Number(b.sellingTotal),
+                visaHandling: 0,
+              },
+            ];
+        for (const a of amounts) addAmount(cell.amounts, a);
+      }
+
+      // Shape for the client: profit derived, never stored
+      const finish = (a: Amounts) => {
+        const profit = a.selling - a.buying + a.visaHandling;
+        return {
+          currencyCode: a.currencyCode,
+          currencySymbol: a.currencySymbol,
+          buying: a.buying,
+          selling: a.selling,
+          visaHandling: a.visaHandling,
+          profit,
+          margin: a.selling > 0 ? (profit / a.selling) * 100 : 0,
+        };
+      };
+
+      const rows = [...cells.values()]
+        .map((c) => ({
+          bucketKey: c.key,
+          bucketLabel: c.label,
+          group: c.group,
+          bookings: c.bookings,
+          roomNights: c.roomNights,
+          amounts: [...c.amounts.values()].map(finish).sort((x, y) => x.currencyCode.localeCompare(y.currencyCode)),
+        }))
+        .sort((a, b) => a.bucketKey.localeCompare(b.bucketKey) || a.group.localeCompare(b.group));
+
+      // Grand totals per currency
+      const grand = new Map<string, Amounts>();
+      for (const cell of cells.values()) {
+        for (const a of cell.amounts.values()) addAmount(grand, a);
+      }
+
+      return {
+        rows,
+        buckets: [...bucketOrder.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([key, label]) => ({ key, label })),
+        totals: [...grand.values()].map(finish).sort((a, b) => a.currencyCode.localeCompare(b.currencyCode)),
+        bookingCount: bookings.length,
       };
     }),
 

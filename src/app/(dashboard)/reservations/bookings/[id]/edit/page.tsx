@@ -137,6 +137,8 @@ export default function AmendBookingPage() {
       childDob2: "",
       hotelPaymentMethod: undefined,
       paymentOptionDate: "",
+      ebdPercent: 0,
+      ebdPaymentDate: "",
       specialRequests: "",
       internalNotes: "",
       bookingNotes: "",
@@ -199,6 +201,10 @@ export default function AmendBookingPage() {
       hotelPaymentMethod: (booking.hotelPaymentMethod as FormValues["hotelPaymentMethod"]) ?? undefined,
       paymentOptionDate: booking.paymentOptionDate
         ? new Date(booking.paymentOptionDate).toISOString().slice(0, 10)
+        : "",
+      ebdPercent: booking.ebdPercent != null ? Number(booking.ebdPercent) : 0,
+      ebdPaymentDate: booking.ebdPaymentDate
+        ? new Date(booking.ebdPaymentDate).toISOString().slice(0, 10)
         : "",
       specialRequests: booking.specialRequests ?? "",
       internalNotes: booking.internalNotes ?? "",
@@ -385,7 +391,7 @@ export default function AmendBookingPage() {
     for (const key of [
       "arrivalFlightNo", "arrivalTime", "arrivalOriginApt", "arrivalDestApt", "arrivalTerminal",
       "departFlightNo", "departTime", "departOriginApt", "departDestApt", "departTerminal",
-      "childDob1", "childDob2", "paymentOptionDate", "specialRequests", "internalNotes",
+      "childDob1", "childDob2", "paymentOptionDate", "ebdPaymentDate", "specialRequests", "internalNotes",
       "bookingNotes", "externalRef",
     ] as const) {
       if (!clean[key]) (clean as Record<string, unknown>)[key] = null;
@@ -1069,6 +1075,18 @@ export default function AmendBookingPage() {
                       <FormItem><FormLabel>P. Option Date</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                     )} />
                   )}
+                  <FormField control={form.control} name="ebdPercent" render={({ field }) => (
+                    <FormItem><FormLabel>EBD %</FormLabel><FormControl>
+                      <Input
+                        type="number" step="0.1" min="0" max="100" placeholder="0.0"
+                        value={field.value != null ? Number((field.value * 100).toFixed(4)) : ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value) / 100)}
+                      />
+                    </FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="ebdPaymentDate" render={({ field }) => (
+                    <FormItem><FormLabel>EBD Payment Date</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                  )} />
                 </div>
               </CardContent>
             </Card>

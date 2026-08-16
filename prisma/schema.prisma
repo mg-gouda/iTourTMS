@@ -485,6 +485,7 @@ model Currency {
   // Reservations relations
   bookings               Booking[]        @relation("BookingCurrency")
   bookingPayments        BookingPayment[] @relation("BookingPaymentCurrency")
+  bookingCurrencyLines   BookingCurrencyLine[] @relation("BookingCurrencyLineCurrency")
   hotelCreditNotes       HotelCreditNote[]
 
   // Tour Ops relations
@@ -3291,6 +3292,11 @@ model Booking {
   hotelConfNo        String?
   confirmationFile   String?
 
+  // Early booking discount (EBD) — a payment term on this booking, NOT the
+  // contracting NORMAL_EBD special-offer type
+  ebdPercent         Decimal             @default(0) @db.Decimal(6, 4) // fraction: 0.05 = 5%
+  ebdPaymentDate     DateTime?           @db.Date
+
   // Misc
   specialRequests    String?             @db.Text
   internalNotes      String?             @db.Text
@@ -3356,6 +3362,7 @@ model Booking {
   approvedBy     User?            @relation("BookingApprover", fields: [approvedById], references: [id])
 
   rooms          BookingRoom[]
+  currencyLines  BookingCurrencyLine[]
   guests         BookingGuest[]
   payments       BookingPayment[]
   vouchers       Voucher[]
@@ -3388,6 +3395,32 @@ model Booking {
   @@index([createdById])
   @@index([leadGuestEmail])
   @@map("rv_booking")
+}
+
+/// One reporting line per currency on a booking. The base line mirrors the
+/// contract currency totals; extra lines are typed or converted and are
+/// reporting-only — finance still posts in the base currency alone.
+model BookingCurrencyLine {
+  id           String   @id @default(cuid())
+  bookingId    String
+  currencyId   String
+  isBase       Boolean  @default(false)
+  source       String   @default("MANUAL") // CALCULATED | MANUAL | CONVERTED
+  fxRate       Decimal? @db.Decimal(18, 8) // vs base, when source = CONVERTED
+  buyingTotal  Decimal  @default(0) @db.Decimal(12, 4)
+  sellingTotal Decimal  @default(0) @db.Decimal(12, 4)
+  visaHandling Decimal  @default(0) @db.Decimal(12, 4)
+  calculation  String?  @db.Text // free-text trail: how the agent reached the number
+  // profit derived = sellingTotal - buyingTotal + visaHandling (never stored)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  currency Currency @relation("BookingCurrencyLineCurrency", fields: [currencyId], references: [id])
+
+  @@unique([bookingId, currencyId])
+  @@index([bookingId])
+  @@map("rv_booking_currency_line")
 }
 
 model BookingRoom {

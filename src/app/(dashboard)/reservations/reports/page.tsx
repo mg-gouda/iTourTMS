@@ -211,6 +211,8 @@ export default function ReportsPage() {
           <TabsTrigger value="arrival-list">Arrival List</TabsTrigger>
           <TabsTrigger value="payment-option">Payment Option Date</TabsTrigger>
           <TabsTrigger value="materialization">Materialization</TabsTrigger>
+          <TabsTrigger value="pl">P&amp;L</TabsTrigger>
+          <TabsTrigger value="ebd-list">EBD List</TabsTrigger>
           <TabsTrigger value="production-to">Production by TO</TabsTrigger>
           <TabsTrigger value="cancellation">Cancellations</TabsTrigger>
           <TabsTrigger value="no-show">No-Shows</TabsTrigger>
@@ -1415,6 +1417,14 @@ export default function ReportsPage() {
         </TabsContent>
 
         {/* Production by TO */}
+        <TabsContent value="pl" className="space-y-4">
+          <ProfitAndLossReport />
+        </TabsContent>
+
+        <TabsContent value="ebd-list" className="space-y-4">
+          <EbdListReport />
+        </TabsContent>
+
         <TabsContent value="production-to" className="space-y-4">
           <ProductionByToReport />
         </TabsContent>
@@ -1441,6 +1451,217 @@ export default function ReportsPage() {
       </Tabs>
       </div>
     </PermissionGuard>
+  );
+}
+
+function ProfitAndLossReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [bucket, setBucket] = useState<"DAY" | "WEEK" | "MONTH" | "QUARTER" | "YEAR">("MONTH");
+  const [groupBy, setGroupBy] = useState<"NONE" | "TOUR_OPERATOR" | "MARKET" | "HOTEL" | "SOURCE">("NONE");
+  const [dateBasis, setDateBasis] = useState<"CHECK_IN" | "BOOKING_DATE">("CHECK_IN");
+
+  const { data, isLoading } = trpc.reservations.reports.profitAndLoss.useQuery(
+    { dateFrom, dateTo, bucket, groupBy, dateBasis },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+
+  const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+        <div>
+          <Label className="text-xs">Period</Label>
+          <Select value={bucket} onValueChange={(v) => setBucket(v as typeof bucket)}>
+            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DAY">Daily</SelectItem>
+              <SelectItem value="WEEK">Weekly</SelectItem>
+              <SelectItem value="MONTH">Monthly</SelectItem>
+              <SelectItem value="QUARTER">Quarterly</SelectItem>
+              <SelectItem value="YEAR">Yearly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Group by</Label>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="NONE">No breakdown</SelectItem>
+              <SelectItem value="TOUR_OPERATOR">Tour Operator</SelectItem>
+              <SelectItem value="MARKET">Market</SelectItem>
+              <SelectItem value="HOTEL">Hotel</SelectItem>
+              <SelectItem value="SOURCE">Source</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Date basis</Label>
+          <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as typeof dateBasis)}>
+            <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CHECK_IN">Check-in</SelectItem>
+              <SelectItem value="BOOKING_DATE">Booking date</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {data.totals.map((t) => (
+              <Card key={t.currencyCode}>
+                <CardContent className="pt-4 space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t.currencyCode} Profit</p>
+                  <p className="text-xl font-semibold">{t.currencySymbol}{money(t.profit)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Buying {money(t.buying)} · Selling {money(t.selling)} · Margin {t.margin.toFixed(1)}%
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card><CardContent className="pt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left pb-2">Period</th>
+                  {groupBy !== "NONE" && <th className="text-left pb-2">Breakdown</th>}
+                  <th className="text-right pb-2">Bookings</th>
+                  <th className="text-right pb-2">Room Nights</th>
+                  <th className="text-left pb-2">Currency</th>
+                  <th className="text-right pb-2">Buying</th>
+                  <th className="text-right pb-2">Selling</th>
+                  <th className="text-right pb-2">Profit</th>
+                  <th className="text-right pb-2">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.flatMap((r) =>
+                  r.amounts.map((a, ai) => (
+                    <tr key={`${r.bucketKey}-${r.group}-${a.currencyCode}`} className="border-b">
+                      <td className="py-1.5">{ai === 0 ? r.bucketLabel : ""}</td>
+                      {groupBy !== "NONE" && <td className="py-1.5">{ai === 0 ? r.group : ""}</td>}
+                      <td className="py-1.5 text-right">{ai === 0 ? r.bookings : ""}</td>
+                      <td className="py-1.5 text-right">{ai === 0 ? r.roomNights : ""}</td>
+                      <td className="py-1.5">{a.currencyCode}</td>
+                      <td className="py-1.5 text-right tabular-nums">{money(a.buying)}</td>
+                      <td className="py-1.5 text-right tabular-nums">{money(a.selling)}</td>
+                      <td className={`py-1.5 text-right font-medium tabular-nums ${a.profit < 0 ? "text-destructive" : ""}`}>{money(a.profit)}</td>
+                      <td className="py-1.5 text-right tabular-nums">{a.margin.toFixed(1)}%</td>
+                    </tr>
+                  )),
+                )}
+                {data.rows.length === 0 && (
+                  <tr><td colSpan={9} className="py-4 text-center text-muted-foreground">No bookings in this range.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </CardContent></Card>
+        </>
+      ) : <p className="text-sm text-muted-foreground">Select a date range to generate the report.</p>}
+    </div>
+  );
+}
+
+function EbdListReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [dateBasis, setDateBasis] = useState<"EBD_PAYMENT" | "CHECK_IN">("EBD_PAYMENT");
+
+  const { data, isLoading } = trpc.reservations.reports.ebdList.useQuery(
+    { dateFrom, dateTo, dateBasis },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+
+  const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+        <div>
+          <Label className="text-xs">Date basis</Label>
+          <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as typeof dateBasis)}>
+            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="EBD_PAYMENT">EBD payment date</SelectItem>
+              <SelectItem value="CHECK_IN">Check-in</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <>
+          <div className="flex flex-wrap gap-3">
+            {data.totals.map((t) => (
+              <Card key={t.code}>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t.code} EBD due</p>
+                  <p className="text-lg font-semibold">{t.symbol}{money(t.ebdAmount)}</p>
+                </CardContent>
+              </Card>
+            ))}
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Bookings</p>
+                <p className="text-lg font-semibold">{data.bookingCount}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card><CardContent className="pt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left pb-2">Booking</th>
+                  <th className="text-left pb-2">Hotel</th>
+                  <th className="text-left pb-2">Tour Operator</th>
+                  <th className="text-left pb-2">Check-in</th>
+                  <th className="text-right pb-2">EBD %</th>
+                  <th className="text-left pb-2">Payment Due</th>
+                  <th className="text-right pb-2">Days</th>
+                  <th className="text-left pb-2">Currency</th>
+                  <th className="text-right pb-2">Cost</th>
+                  <th className="text-right pb-2">EBD Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.flatMap((r) =>
+                  r.lines.map((l, li) => (
+                    <tr key={`${r.bookingId}-${l.currencyCode}`} className="border-b">
+                      <td className="py-1.5 font-mono">{li === 0 ? r.bookingCode : ""}</td>
+                      <td className="py-1.5">{li === 0 ? r.hotelName : ""}</td>
+                      <td className="py-1.5">{li === 0 ? r.tourOperatorName : ""}</td>
+                      <td className="py-1.5">{li === 0 ? new Date(r.checkIn).toLocaleDateString() : ""}</td>
+                      <td className="py-1.5 text-right tabular-nums">{li === 0 ? `${(r.ebdPercent * 100).toFixed(1)}%` : ""}</td>
+                      <td className="py-1.5">{li === 0 ? (r.ebdPaymentDate ? new Date(r.ebdPaymentDate).toLocaleDateString() : "—") : ""}</td>
+                      <td className={`py-1.5 text-right tabular-nums ${r.overdue ? "text-destructive font-medium" : ""}`}>
+                        {li === 0 ? (r.daysToPayment ?? "—") : ""}
+                      </td>
+                      <td className="py-1.5">{l.currencyCode}</td>
+                      <td className="py-1.5 text-right tabular-nums">{money(l.buyingTotal)}</td>
+                      <td className="py-1.5 text-right font-medium tabular-nums">{money(l.ebdAmount)}</td>
+                    </tr>
+                  )),
+                )}
+                {data.rows.length === 0 && (
+                  <tr><td colSpan={10} className="py-4 text-center text-muted-foreground">No bookings with an early booking discount in this range.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </CardContent></Card>
+        </>
+      ) : <p className="text-sm text-muted-foreground">Select a date range to generate the report.</p>}
+    </div>
   );
 }
 

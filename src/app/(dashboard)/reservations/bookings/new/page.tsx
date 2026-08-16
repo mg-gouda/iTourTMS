@@ -102,6 +102,8 @@ export default function NewBookingPage() {
       childDob2: "",
       hotelPaymentMethod: undefined,
       paymentOptionDate: "",
+      ebdPercent: 0,
+      ebdPaymentDate: "",
       specialRequests: "",
       internalNotes: "",
       bookingNotes: "",
@@ -353,6 +355,7 @@ export default function NewBookingPage() {
       if (!clean.childDob1) clean.childDob1 = null;
       if (!clean.childDob2) clean.childDob2 = null;
       if (!clean.paymentOptionDate) clean.paymentOptionDate = null;
+      if (!clean.ebdPaymentDate) clean.ebdPaymentDate = null;
       if (!clean.currencyId && selectedContract?.baseCurrency?.id) {
         clean.currencyId = selectedContract.baseCurrency.id;
       }
@@ -1220,6 +1223,42 @@ export default function NewBookingPage() {
                     )}
                   />
                 )}
+
+                {/* Early booking discount — entered as %, stored as a fraction */}
+                <FormField
+                  control={form.control}
+                  name="ebdPercent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>EBD %</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          placeholder="0.0"
+                          value={field.value != null ? Number((field.value * 100).toFixed(4)) : ""}
+                          onChange={(e) =>
+                            field.onChange(e.target.value === "" ? undefined : Number(e.target.value) / 100)
+                          }
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="ebdPaymentDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>EBD Payment Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>

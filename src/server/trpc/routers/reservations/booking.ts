@@ -7,6 +7,8 @@ import {
   bookingLockSchema,
   bookingStatusTransitionSchema,
   bookingRateCalcSchema,
+  bookingCurrencyLineSchema,
+  bookingCurrencyLineDeleteSchema,
 } from "@/lib/validations/reservations";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
@@ -25,6 +27,7 @@ import {
   type ResolveContext,
 } from "@/server/services/contracting/markup-calculator";
 import { logBookingAction } from "@/server/services/reservations/timeline-logger";
+import { syncBaseCurrencyLine } from "@/server/services/reservations/currency-lines";
 import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatcher";
 import { syncTrafficJobsForBooking } from "@/server/services/traffic/booking-sync";
 import { createBookingInvoice, createBookingVendorBill } from "@/server/services/reservations/auto-invoice";
@@ -117,6 +120,10 @@ export const bookingRouter = createTRPCRouter({
               },
             },
             orderBy: { roomIndex: "asc" },
+          },
+          currencyLines: {
+            include: { currency: { select: { id: true, code: true, symbol: true, decimals: true } } },
+            orderBy: [{ isBase: "desc" }, { createdAt: "asc" }],
           },
           payments: {
             include: {
@@ -345,6 +352,10 @@ export const bookingRouter = createTRPCRouter({
           hotelPaymentMethod: input.hotelPaymentMethod ?? null,
           paymentOptionDate: input.paymentOptionDate ? new Date(input.paymentOptionDate) : null,
 
+          // Early booking discount
+          ebdPercent: input.ebdPercent ?? 0,
+          ebdPaymentDate: input.ebdPaymentDate ? new Date(input.ebdPaymentDate) : null,
+
           // Misc
           leadGuestName: input.leadGuestName ?? null,
           leadGuestEmail: input.leadGuestEmail ?? null,
@@ -388,6 +399,9 @@ export const bookingRouter = createTRPCRouter({
           }
         }
       }
+
+      // Base currency line mirrors the contract-currency totals
+      await syncBaseCurrencyLine(ctx.db, booking.id);
 
       // Log creation
       await logBookingAction(ctx.db, booking.id, "CREATED", `Booking ${code} created`, ctx.session.user.id);
@@ -531,6 +545,87 @@ export const bookingRouter = createTRPCRouter({
       });
     }),
 
+  // ── Currency lines (multi-currency P&L; base line stays engine-owned) ──
+  setCurrencyLine: p("booking.update")
+    .input(bookingCurrencyLineSchema)
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true, isLocked: true, currencyId: true, manualRate: true },
+      });
+
+      if (booking.isLocked) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Booking is locked" });
+      }
+
+      const isBase = input.currencyId === booking.currencyId;
+      if (isBase && !booking.manualRate) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "The base currency line comes from the contract rates — enable manual rate to edit it",
+        });
+      }
+
+      await ctx.db.currency.findFirstOrThrow({
+        where: { id: input.currencyId, isActive: true },
+        select: { id: true },
+      });
+
+      const values = {
+        source: input.source ?? (input.fxRate ? "CONVERTED" : "MANUAL"),
+        fxRate: input.fxRate ?? null,
+        buyingTotal: input.buyingTotal ?? 0,
+        sellingTotal: input.sellingTotal ?? 0,
+        visaHandling: input.visaHandling ?? 0,
+        calculation: input.calculation ?? null,
+      };
+
+      const line = await ctx.db.bookingCurrencyLine.upsert({
+        where: {
+          bookingId_currencyId: { bookingId: input.bookingId, currencyId: input.currencyId },
+        },
+        create: { bookingId: input.bookingId, currencyId: input.currencyId, isBase, ...values },
+        update: values,
+      });
+
+      // Editing the base line under a manual rate keeps the booking totals in step
+      if (isBase) {
+        await ctx.db.booking.update({
+          where: { id: booking.id },
+          data: { buyingTotal: values.buyingTotal, sellingTotal: values.sellingTotal },
+        });
+      }
+
+      await logBookingAction(
+        ctx.db, booking.id, "CURRENCY_LINE_SET",
+        `Currency line updated`, ctx.session.user.id,
+      );
+
+      return line;
+    }),
+
+  deleteCurrencyLine: p("booking.update")
+    .input(bookingCurrencyLineDeleteSchema)
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true, isLocked: true, currencyId: true },
+      });
+
+      if (booking.isLocked) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Booking is locked" });
+      }
+      if (input.currencyId === booking.currencyId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The base currency line cannot be removed" });
+      }
+
+      await ctx.db.bookingCurrencyLine.deleteMany({
+        where: { bookingId: input.bookingId, currencyId: input.currencyId },
+      });
+
+      return { ok: true };
+    }),
+
   // ── Amend booking (any status except CANCELLED / CHECKED_OUT) ──
   amend: p("booking.update")
     .input(z.object({ id: z.string(), data: bookingAmendSchema }))
@@ -612,6 +707,11 @@ export const bookingRouter = createTRPCRouter({
       if (d.hotelPaymentMethod !== undefined) data.hotelPaymentMethod = d.hotelPaymentMethod || null;
       if (d.paymentOptionDate !== undefined)
         data.paymentOptionDate = d.paymentOptionDate ? new Date(d.paymentOptionDate) : null;
+
+      // Early booking discount
+      if (d.ebdPercent !== undefined) data.ebdPercent = d.ebdPercent;
+      if (d.ebdPaymentDate !== undefined)
+        data.ebdPaymentDate = d.ebdPaymentDate ? new Date(d.ebdPaymentDate) : null;
 
       // Remarks
       if (d.specialRequests !== undefined) data.specialRequests = d.specialRequests || null;
@@ -835,6 +935,9 @@ export const bookingRouter = createTRPCRouter({
 
       // Sync traffic jobs with updated flight data
       await syncTrafficJobsForBooking(ctx.db, ctx.companyId, input.id, ctx.session.user.id);
+
+      // Keep the base currency line aligned with any new totals
+      await syncBaseCurrencyLine(ctx.db, input.id);
 
       return updated;
     }),
@@ -1504,6 +1607,7 @@ export const bookingRouter = createTRPCRouter({
         },
       });
 
+      await syncBaseCurrencyLine(ctx.db, input.id);
       await logBookingAction(ctx.db, input.id, "AMENDED", `Buying rates recalculated (booking date: ${effectiveBookingDate}). New buying total: ${newBuyingTotal.toFixed(2)}`, ctx.session.user.id);
       return { ...updated, warnings: rates.warnings };
     }),
@@ -1599,6 +1703,7 @@ export const bookingRouter = createTRPCRouter({
         `Selling rates recalculated. Markup: ${mType === "PERCENTAGE" ? `${mValue}%` : `${mValue} flat`}${markupRule ? ` (${markupRule.name})` : ""}. New selling total: ${newSellingTotal.toFixed(2)}`,
         ctx.session.user.id,
       );
+      await syncBaseCurrencyLine(ctx.db, input.id);
       return updated;
     }),
 });

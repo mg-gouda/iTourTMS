@@ -110,6 +110,10 @@ export const bookingCreateSchema = z
     hotelPaymentMethod: z.enum(["CASH", "VOUCHER"]).nullish(),
     paymentOptionDate: z.string().nullish(),
 
+    // Early booking discount — percent stored as a fraction (0.05 = 5%)
+    ebdPercent: z.number().min(0).max(1).optional(),
+    ebdPaymentDate: z.string().nullish(),
+
     specialRequests: z.string().nullish(),
     internalNotes: z.string().nullish(),
     bookingNotes: z.string().nullish(),
@@ -126,6 +130,24 @@ export const bookingCreateSchema = z
     message: "Departure must be after arrival",
     path: ["checkOut"],
   });
+
+// ── Booking currency lines (multi-currency P&L) ──
+
+export const bookingCurrencyLineSchema = z.object({
+  bookingId: z.string().min(1),
+  currencyId: z.string().min(1),
+  source: z.enum(["CALCULATED", "MANUAL", "CONVERTED"]).optional(),
+  fxRate: z.number().positive().nullish(),
+  buyingTotal: z.number().min(0).optional(),
+  sellingTotal: z.number().min(0).optional(),
+  visaHandling: z.number().optional(),
+  calculation: z.string().nullish(),
+});
+
+export const bookingCurrencyLineDeleteSchema = z.object({
+  bookingId: z.string().min(1),
+  currencyId: z.string().min(1),
+});
 
 export const bookingUpdateSchema = z.object({
   checkIn: z.string().optional(),
@@ -191,6 +213,10 @@ export const bookingAmendSchema = z.object({
   // Payment
   hotelPaymentMethod: z.enum(["CASH", "VOUCHER"]).nullish(),
   paymentOptionDate: z.string().nullish(),
+
+  // Early booking discount
+  ebdPercent: z.number().min(0).max(1).optional(),
+  ebdPaymentDate: z.string().nullish(),
 
   // Remarks
   specialRequests: z.string().nullish(),
@@ -304,6 +330,27 @@ export const arrivalListFilterSchema = z.object({
   status: z
     .enum(["NEW_BOOKING", "DRAFT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"])
     .nullish(),
+});
+
+export const ebdListFilterSchema = z.object({
+  dateFrom: z.string(),
+  dateTo: z.string(),
+  dateBasis: z.enum(["CHECK_IN", "EBD_PAYMENT"]).default("EBD_PAYMENT"),
+  hotelId: z.string().optional(),
+  tourOperatorId: z.string().optional(),
+});
+
+export const profitAndLossFilterSchema = z.object({
+  dateFrom: z.string(),
+  dateTo: z.string(),
+  dateBasis: z.enum(["CHECK_IN", "BOOKING_DATE"]).default("CHECK_IN"),
+  bucket: z.enum(["DAY", "WEEK", "MONTH", "QUARTER", "YEAR"]).default("MONTH"),
+  groupBy: z
+    .enum(["NONE", "TOUR_OPERATOR", "MARKET", "HOTEL", "SOURCE"])
+    .default("NONE"),
+  hotelId: z.string().optional(),
+  tourOperatorId: z.string().optional(),
+  marketId: z.string().optional(),
 });
 
 export const paymentOptionDateFilterSchema = z.object({
