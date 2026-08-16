@@ -39,6 +39,7 @@ import {
   GUEST_TITLE_OPTIONS,
 } from "@/lib/constants/reservations";
 import { isDepartureInvalid, minDepartureDate } from "@/lib/reservations/dates";
+import { guestParts, splitLegacyName } from "@/lib/reservations/guest-names";
 import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
 import { trpc } from "@/lib/trpc";
 import { bookingAmendSchema } from "@/lib/validations/reservations";
@@ -68,28 +69,31 @@ function buildRoomGuests(
   roomIndex: number,
   adults: number,
   children: number,
-): { title: string; name: string; dob: string }[] {
+): { title: string; firstName: string; lastName: string; dob: string }[] {
   const isStructured = guestNames.length > 0 && typeof guestNames[0] === "object" && guestNames[0] !== null;
   const expected = adults + children;
-  const result: { title: string; name: string; dob: string }[] = [];
+  const result: { title: string; firstName: string; lastName: string; dob: string }[] = [];
 
   if (isStructured) {
     const roomEntries = guestNames.filter(
       (g: { roomIndex?: number }) => g.roomIndex === roomIndex,
     );
     for (const g of roomEntries) {
-      result.push({ title: g.title ?? "", name: g.name ?? "", dob: g.dob ?? "" });
+      // Bookings taken before the split only carry a combined name
+      const parts = guestParts(g);
+      result.push({ title: g.title ?? "", firstName: parts.firstName, lastName: parts.lastName, dob: g.dob ?? "" });
     }
   } else if (roomIndex === 1) {
     // Old string[] format — put all in first room
     for (const name of guestNames) {
-      result.push({ title: "", name: typeof name === "string" ? name : "", dob: "" });
+      const parts = splitLegacyName(typeof name === "string" ? name : "");
+      result.push({ title: "", firstName: parts.firstName, lastName: parts.lastName, dob: "" });
     }
   }
 
   // Pad to expected length
   while (result.length < expected) {
-    result.push({ title: "", name: "", dob: "" });
+    result.push({ title: "", firstName: "", lastName: "", dob: "" });
   }
   return result.slice(0, expected);
 }
@@ -119,7 +123,10 @@ export default function AmendBookingPage() {
           children: 0,
           infants: 0,
           extraBed: false,
-          roomGuests: [{ title: "", name: "", dob: "" }, { title: "", name: "", dob: "" }],
+          roomGuests: [
+            { title: "", firstName: "", lastName: "", dob: "" },
+            { title: "", firstName: "", lastName: "", dob: "" },
+          ],
         },
       ],
       checkIn: "",
@@ -252,11 +259,13 @@ export default function AmendBookingPage() {
       const expected = (room.adults ?? 0) + (room.children ?? 0);
       const current = room.roomGuests?.length ?? 0;
       if (expected === current) return;
-      const existing = (room.roomGuests ?? []) as { title?: string; name?: string; dob?: string }[];
+      const existing = (room.roomGuests ?? []) as {
+        title?: string; firstName?: string; lastName?: string; dob?: string;
+      }[];
       if (expected > current) {
         form.setValue(`rooms.${ri}.roomGuests`, [
           ...existing,
-          ...Array(expected - current).fill(null).map(() => ({ title: "", name: "", dob: "" })),
+          ...Array(expected - current).fill(null).map(() => ({ title: "", firstName: "", lastName: "", dob: "" })),
         ]);
       } else {
         form.setValue(`rooms.${ri}.roomGuests`, existing.slice(0, expected));
@@ -441,10 +450,14 @@ export default function AmendBookingPage() {
       clean.rooms.forEach((r, ri) => {
         const ad = r.adults ?? 2;
         (r.roomGuests ?? []).forEach((g, gi) => {
-          if (g.name) {
+          const firstName = (g.firstName ?? "").trim();
+          const lastName = (g.lastName ?? "").trim();
+          if (firstName || lastName) {
             allGuests.push({
               title: g.title || undefined,
-              name: g.name,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+              name: [firstName, lastName].filter(Boolean).join(" "),
               dob: g.dob || undefined,
               roomIndex: ri + 1,
               type: gi < ad ? "ADULT" : "CHILD",
@@ -758,8 +771,8 @@ export default function AmendBookingPage() {
                         infants: 0,
                         extraBed: false,
                         roomGuests: [
-                          { title: "", name: "", dob: "" },
-                          { title: "", name: "", dob: "" },
+                          { title: "", firstName: "", lastName: "", dob: "" },
+                          { title: "", firstName: "", lastName: "", dob: "" },
                         ],
                       })
                     }
@@ -1025,7 +1038,7 @@ export default function AmendBookingPage() {
                                   />
                                   <FormField
                                     control={form.control}
-                                    name={`rooms.${roomIndex}.roomGuests.${gi}.name`}
+                                    name={`rooms.${roomIndex}.roomGuests.${gi}.firstName`}
                                     render={({ field: f }) => (
                                       <FormItem className="flex-1">
                                         <FormControl>
@@ -1033,8 +1046,28 @@ export default function AmendBookingPage() {
                                             className="h-9"
                                             placeholder={
                                               isChild
-                                                ? `Child ${gi - roomAdults + 1} name`
-                                                : `Adult ${gi + 1} name`
+                                                ? `Child ${gi - roomAdults + 1} first name`
+                                                : `Adult ${gi + 1} first name`
+                                            }
+                                            {...f}
+                                            value={f.value ?? ""}
+                                          />
+                                        </FormControl>
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={form.control}
+                                    name={`rooms.${roomIndex}.roomGuests.${gi}.lastName`}
+                                    render={({ field: f }) => (
+                                      <FormItem className="flex-1">
+                                        <FormControl>
+                                          <Input
+                                            className="h-9"
+                                            placeholder={
+                                              isChild
+                                                ? `Child ${gi - roomAdults + 1} family name`
+                                                : `Adult ${gi + 1} family name`
                                             }
                                             {...f}
                                             value={f.value ?? ""}

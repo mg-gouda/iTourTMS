@@ -1,3 +1,4 @@
+import { guestNameForHotel } from "@/lib/reservations/guest-names";
 import { format } from "date-fns";
 import { jsPDF } from "jspdf";
 
@@ -61,6 +62,8 @@ export interface BookingPdfData {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   guestNames?: any[] | null;
+  /** Rebooked stays are presented to the hotel by family name. */
+  isRebooked?: boolean;
   leadGuestName?: string | null;
 
   // Special offer
@@ -328,11 +331,13 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
     const isStructured = rawGuests.length > 0 && typeof rawGuests[0] === "object" && rawGuests[0] !== null;
 
     if (isStructured) {
-      const structured = rawGuests as Array<{ title?: string; name: string; type?: string }>;
+      const structured = rawGuests as Array<{
+        title?: string; name?: string; firstName?: string; lastName?: string; type?: string;
+      }>;
       for (const g of structured) {
         if (y > pageH - 40) { doc.addPage(); y = 20; }
         const title = g.title ?? "";
-        const name = sanitize(g.name);
+        const name = sanitize(guestNameForHotel(g, { rebooked: data.isRebooked }));
         doc.text(title, leftCol, y);
         doc.text(name, leftCol + 18, y);
         y += 5;
@@ -340,11 +345,11 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
     } else if (rawGuests.length > 0) {
       for (const name of rawGuests as string[]) {
         if (y > pageH - 40) { doc.addPage(); y = 20; }
-        doc.text(sanitize(String(name)), leftCol, y);
+        doc.text(sanitize(guestNameForHotel({ name: String(name) }, { rebooked: data.isRebooked })), leftCol, y);
         y += 5;
       }
     } else if (data.leadGuestName) {
-      doc.text(sanitize(data.leadGuestName), leftCol, y);
+      doc.text(sanitize(guestNameForHotel({ name: data.leadGuestName }, { rebooked: data.isRebooked })), leftCol, y);
       y += 5;
     }
 
@@ -373,85 +378,7 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
     y += 6;
   }
 
-  // ── Hotel Cost (after remarks) ──
-  {
-    if (y > pageH - 50) { doc.addPage(); y = 20; }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...black);
-    doc.text("Hotel Cost:", mL, y);
-    y += 6;
-
-    doc.setFontSize(8);
-
-    for (const room of data.rooms) {
-      if (data.rooms.length > 1) {
-        doc.setFont("helvetica", "bold");
-        doc.text(`Room ${room.roomIndex}: ${room.roomType.name}`, mL, y);
-        y += 5;
-      }
-
-      const bd = room.rateBreakdown;
-
-      if (bd) {
-        const valX = mL + 80;
-
-        const addLine = (label: string, value: string, bold = false) => {
-          if (y > pageH - 25) { doc.addPage(); y = 20; }
-          doc.setFont("helvetica", bold ? "bold" : "normal");
-          doc.text(sanitize(label), mL + 4, y);
-          doc.text(sanitize(value), valX, y);
-          y += 4.5;
-        };
-
-        addLine(bd.baseRateLabel || "Base Rate", `${sym}${bd.baseRate.toFixed(2)}`);
-
-        if (bd.roomTypeSupplement && bd.roomTypeSupplement.amount !== 0) {
-          addLine(`+ ${bd.roomTypeSupplement.label}`, `${sym}${bd.roomTypeSupplement.amount.toFixed(2)}`);
-        }
-        if (bd.mealSupplement && bd.mealSupplement.amount !== 0) {
-          addLine(`+ ${bd.mealSupplement.label}`, `${sym}${bd.mealSupplement.amount.toFixed(2)}`);
-        }
-        if (bd.occupancySupplement && bd.occupancySupplement.amount !== 0) {
-          addLine(`+ ${bd.occupancySupplement.label}`, `${sym}${bd.occupancySupplement.amount.toFixed(2)}`);
-        }
-        if (bd.extraBedSupplement && bd.extraBedSupplement.amount !== 0) {
-          addLine(`+ ${bd.extraBedSupplement.label}`, `${sym}${bd.extraBedSupplement.amount.toFixed(2)}`);
-        }
-
-        if (bd.childCharges?.length) {
-          for (const ch of bd.childCharges) {
-            addLine(`+ ${ch.label}`, ch.isFree ? "FREE" : `${sym}${ch.amount.toFixed(2)}`);
-          }
-        }
-
-        if (bd.offerDiscounts?.length) {
-          for (const od of bd.offerDiscounts) {
-            addLine(`- ${od.offerName}`, `-${sym}${od.discount.toFixed(2)}`);
-          }
-        }
-
-        // Divider line
-        doc.setDrawColor(...black);
-        doc.setLineWidth(0.3);
-        doc.line(mL + 4, y - 1, valX + 30, y - 1);
-        y += 2;
-
-        addLine(`Total (${bd.nights} Night${bd.nights !== 1 ? "s" : ""})`, `${sym}${bd.totalStayAfterOffers.toFixed(2)}`, true);
-        addLine("Rate Per Night", `${sym}${bd.totalPerNight.toFixed(2)}`);
-      } else if (room.buyingRatePerNight != null) {
-        doc.setFont("helvetica", "normal");
-        doc.text(`Rate Per Night: ${sym}${Number(room.buyingRatePerNight).toFixed(2)}`, mL + 4, y);
-        y += 5;
-        doc.setFont("helvetica", "bold");
-        doc.text(`Total (${data.nights} Night${data.nights !== 1 ? "s" : ""}): ${sym}${Number(room.buyingTotal ?? 0).toFixed(2)}`, mL + 4, y);
-        y += 5;
-      }
-
-      if (data.rooms.length > 1) y += 4;
-    }
-  }
+  // Hotel cost is deliberately not printed: this sheet goes to the hotel.
 
   // ── Issue Date — bottom right ──
   const totalPages = doc.getNumberOfPages();

@@ -49,6 +49,7 @@ import {
   minDepartureDate,
   nightsBetween,
 } from "@/lib/reservations/dates";
+import { splitLegacyName } from "@/lib/reservations/guest-names";
 import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
 import { CostExplanation } from "@/components/reservations/cost-explanation";
 import type { ExplainableBreakdown } from "@/lib/reservations/cost-explanation";
@@ -133,8 +134,8 @@ export default function NewBookingPage() {
           infants: 0,
           extraBed: false,
           roomGuests: [
-            { title: "", name: "" },
-            { title: "", name: "" },
+            { title: "", firstName: "", lastName: "" },
+            { title: "", firstName: "", lastName: "" },
           ],
         },
       ],
@@ -176,11 +177,10 @@ export default function NewBookingPage() {
       "rooms",
       Array.from({ length: roomCount }, () => {
         const guestCount = adultsPerRoom + childrenPerRoom;
-        const roomGuests = Array.from({ length: guestCount }, () => ({
-          title: "",
-          name: names[nameCursor++] ?? "",
-          dob: "",
-        }));
+        const roomGuests = Array.from({ length: guestCount }, () => {
+          const parsedName = splitLegacyName(names[nameCursor++]);
+          return { title: "", firstName: parsedName.firstName, lastName: parsedName.lastName, dob: "" };
+        });
         return {
           roomTypeId: r.roomType?.id ?? "",
           mealBasisId: r.mealBasis?.id ?? "",
@@ -238,11 +238,13 @@ export default function NewBookingPage() {
       const expected = (room.adults ?? 0) + (room.children ?? 0);
       const current = room.roomGuests?.length ?? 0;
       if (expected === current) return;
-      const existing = (room.roomGuests ?? []) as { title?: string; name?: string; dob?: string }[];
+      const existing = (room.roomGuests ?? []) as {
+        title?: string; firstName?: string; lastName?: string; dob?: string;
+      }[];
       if (expected > current) {
         form.setValue(`rooms.${ri}.roomGuests`, [
           ...existing,
-          ...Array(expected - current).fill(null).map(() => ({ title: "", name: "", dob: "" })),
+          ...Array(expected - current).fill(null).map(() => ({ title: "", firstName: "", lastName: "", dob: "" })),
         ]);
       } else {
         form.setValue(`rooms.${ri}.roomGuests`, existing.slice(0, expected));
@@ -496,10 +498,15 @@ export default function NewBookingPage() {
       clean.rooms.forEach((r, ri) => {
         const ad = r.adults ?? 2;
         (r.roomGuests ?? []).forEach((g, gi) => {
-          if (g.name) {
+          const firstName = (g.firstName ?? "").trim();
+          const lastName = (g.lastName ?? "").trim();
+          if (firstName || lastName) {
             allGuests.push({
               title: g.title || undefined,
-              name: g.name,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+              // Combined name kept so documents written before the split still read
+              name: [firstName, lastName].filter(Boolean).join(" "),
               dob: g.dob || undefined,
               roomIndex: ri + 1,
               type: gi < ad ? "ADULT" : "CHILD",
@@ -1002,8 +1009,8 @@ export default function NewBookingPage() {
                       infants: 0,
                       extraBed: false,
                       roomGuests: [
-                        { title: "", name: "" },
-                        { title: "", name: "" },
+                        { title: "", firstName: "", lastName: "" },
+                        { title: "", firstName: "", lastName: "" },
                       ],
                     })
                   }
@@ -1268,7 +1275,7 @@ export default function NewBookingPage() {
                                 />
                                 <FormField
                                   control={form.control}
-                                  name={`rooms.${roomIndex}.roomGuests.${gi}.name`}
+                                  name={`rooms.${roomIndex}.roomGuests.${gi}.firstName`}
                                   render={({ field: f }) => (
                                     <FormItem className="flex-1">
                                       <FormControl>
@@ -1276,8 +1283,28 @@ export default function NewBookingPage() {
                                           className="h-9"
                                           placeholder={
                                             isChild
-                                              ? `Child ${gi - roomAdults + 1} name`
-                                              : `Adult ${gi + 1} name`
+                                              ? `Child ${gi - roomAdults + 1} first name`
+                                              : `Adult ${gi + 1} first name`
+                                          }
+                                          {...f}
+                                          value={f.value ?? ""}
+                                        />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`rooms.${roomIndex}.roomGuests.${gi}.lastName`}
+                                  render={({ field: f }) => (
+                                    <FormItem className="flex-1">
+                                      <FormControl>
+                                        <Input
+                                          className="h-9"
+                                          placeholder={
+                                            isChild
+                                              ? `Child ${gi - roomAdults + 1} family name`
+                                              : `Adult ${gi + 1} family name`
                                           }
                                           {...f}
                                           value={f.value ?? ""}

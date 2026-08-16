@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants/reservations";
+import { guestNameForHotel } from "@/lib/reservations/guest-names";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,6 +31,11 @@ export interface BookingEmlData {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   guestNames?: any[] | null;
+  /**
+   * A rebooked stay is presented to the hotel as a fresh reservation, so the
+   * guest is listed by family name instead of first name.
+   */
+  isRebooked?: boolean;
   leadGuestName?: string | null;
 
   // Flight details
@@ -81,7 +87,9 @@ export function generateBookingEml(
 ): string {
   const statusLabel = BOOKING_STATUS_LABELS[data.status] ?? data.status;
   const to = data.hotel.email ?? "";
-  const subject = `${statusLabel} @ ${escapeHtml(data.hotel.name)} - ${data.code}`;
+  // No booking reference: the hotel matches on guest and dates, and a rebooked
+  // stay must not be traceable to the reservation it replaces.
+  const subject = `${statusLabel} @ ${escapeHtml(data.hotel.name)}`;
 
   // Build HTML body
   const guestList = buildGuestList(data);
@@ -97,7 +105,6 @@ export function generateBookingEml(
 
 <h3 style="color: #194178; border-bottom: 1px solid #194178; padding-bottom: 4px;">Booking Details</h3>
 <table style="border-collapse: collapse; margin-bottom: 16px;">
-  <tr><td style="padding: 2px 12px 2px 0; color: #666;">Reference:</td><td><strong>${escapeHtml(data.code)}</strong></td></tr>
   <tr><td style="padding: 2px 12px 2px 0; color: #666;">Hotel:</td><td>${escapeHtml(data.hotel.name)}</td></tr>
   <tr><td style="padding: 2px 12px 2px 0; color: #666;">Check-in:</td><td>${fmtDate(data.checkIn)}</td></tr>
   <tr><td style="padding: 2px 12px 2px 0; color: #666;">Check-out:</td><td>${fmtDate(data.checkOut)}</td></tr>
@@ -172,7 +179,10 @@ function buildGuestList(data: BookingEmlData): string {
   let html = `<h3 style="color: #194178; border-bottom: 1px solid #194178; padding-bottom: 4px;">Guest Names</h3>`;
 
   if (isStructured) {
-    const structured = rawGuestNames as Array<{ title?: string; name: string; dob?: string; roomIndex?: number; type?: string }>;
+    const structured = rawGuestNames as Array<{
+      title?: string; name?: string; firstName?: string; lastName?: string;
+      dob?: string; roomIndex?: number; type?: string;
+    }>;
     const byRoom = new Map<number, typeof structured>();
     for (const g of structured) {
       const ri = g.roomIndex ?? 1;
@@ -182,7 +192,8 @@ function buildGuestList(data: BookingEmlData): string {
     for (const [roomIdx, guests] of byRoom) {
       html += `<p style="margin: 4px 0; font-weight: bold;">Room ${roomIdx}:</p><ul style="margin: 0 0 8px 0;">`;
       for (const g of guests) {
-        const name = g.title ? `${g.title} ${g.name}` : g.name;
+        const shown = guestNameForHotel(g, { rebooked: data.isRebooked });
+        const name = g.title ? `${g.title} ${shown}` : shown;
         const suffix = g.type === "CHILD" && g.dob ? ` (DOB: ${fmtDate(g.dob)})` : "";
         html += `<li>${escapeHtml(name)}${suffix}</li>`;
       }
@@ -191,11 +202,11 @@ function buildGuestList(data: BookingEmlData): string {
   } else if (rawGuestNames.length > 0) {
     html += `<ul style="margin: 0;">`;
     for (const g of rawGuestNames as string[]) {
-      html += `<li>${escapeHtml(g)}</li>`;
+      html += `<li>${escapeHtml(guestNameForHotel({ name: g }, { rebooked: data.isRebooked }))}</li>`;
     }
     html += `</ul>`;
   } else if (data.leadGuestName) {
-    html += `<p>${escapeHtml(data.leadGuestName)}</p>`;
+    html += `<p>${escapeHtml(guestNameForHotel({ name: data.leadGuestName }, { rebooked: data.isRebooked }))}</p>`;
   } else {
     return "";
   }

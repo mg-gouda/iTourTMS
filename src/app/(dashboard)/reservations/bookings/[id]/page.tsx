@@ -2938,6 +2938,8 @@ function handleSendToHotel(booking: any, company: any) {
       })),
       guestNames: booking.guestNames,
       leadGuestName: booking.leadGuestName,
+      // Rebooked stays go to the hotel under the family name, as a fresh booking
+      isRebooked: (booking.rateChanges ?? []).length > 0,
       arrivalFlightNo: booking.arrivalFlightNo,
       arrivalTime: booking.arrivalTime,
       arrivalOriginApt: booking.arrivalOriginApt,
@@ -2977,6 +2979,7 @@ function handleSendToHotel(booking: any, company: any) {
         })),
         guestNames: booking.guestNames,
         leadGuestName: booking.leadGuestName,
+        isRebooked: (booking.rateChanges ?? []).length > 0,
         arrivalFlightNo: booking.arrivalFlightNo,
         arrivalTime: booking.arrivalTime,
         arrivalOriginApt: booking.arrivalOriginApt,

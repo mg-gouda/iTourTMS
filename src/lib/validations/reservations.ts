@@ -26,7 +26,10 @@ export const guestUpdateSchema = guestCreateSchema.partial();
 
 export const roomGuestSchema = z.object({
   title: z.string().optional(),
-  name: z.string().default(""),
+  firstName: z.string().default(""),
+  lastName: z.string().default(""),
+  /** Legacy combined field — still written so older readers keep working. */
+  name: z.string().optional(),
   dob: z.string().optional(),
 });
 
