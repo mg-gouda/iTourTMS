@@ -43,8 +43,16 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
-import { isDepartureInvalid, minDepartureDate } from "@/lib/reservations/dates";
+import {
+  effectiveMinimumStay,
+  isDepartureInvalid,
+  minDepartureDate,
+  nightsBetween,
+} from "@/lib/reservations/dates";
 import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
+import { CostExplanation } from "@/components/reservations/cost-explanation";
+import type { ExplainableBreakdown } from "@/lib/reservations/cost-explanation";
+import { MinimumStayDialog } from "@/components/reservations/minimum-stay-dialog";
 import { ParseEmailDialog } from "@/components/reservations/parse-email-dialog";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
@@ -215,6 +223,9 @@ export default function NewBookingPage() {
     }
   }, [checkIn, checkOut, form]);
 
+  // Contract minimum stay — a season may set a longer one than the contract
+  const [shortStayOpen, setShortStayOpen] = useState(false);
+
   // Auto-resize roomGuests when adults/children change per room
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
@@ -291,6 +302,21 @@ export default function NewBookingPage() {
     { id: contractId! },
     { enabled: !!contractId },
   );
+
+  // Minimum stay comes from the season covering arrival, else the contract
+  const minimumStayRule = useMemo(
+    () => effectiveMinimumStay(contractDetail, checkIn),
+    [contractDetail, checkIn],
+  );
+  const earliestDeparture = minDepartureDate(checkIn, minimumStayRule.nights);
+  const stayNights = nightsBetween(checkIn, checkOut);
+
+  // Warn once a too-short stay is actually entered — typed or pasted dates slip
+  // past the picker, which only greys the disallowed days out.
+  useEffect(() => {
+    if (!checkIn || !checkOut) return;
+    setShortStayOpen(stayNights > 0 && stayNights < minimumStayRule.nights);
+  }, [checkIn, checkOut, stayNights, minimumStayRule.nights]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const availableRoomTypes: any[] = useMemo(() => {
@@ -551,6 +577,18 @@ export default function NewBookingPage() {
         open={parseOpen}
         onOpenChange={setParseOpen}
         onApply={applyParsedBooking}
+      />
+
+      <MinimumStayDialog
+        open={shortStayOpen}
+        onOpenChange={setShortStayOpen}
+        rule={minimumStayRule}
+        nights={stayNights}
+        earliestDeparture={earliestDeparture}
+        onUseEarliest={() => {
+          if (earliestDeparture) form.setValue("checkOut", earliestDeparture, { shouldDirty: true });
+          setShortStayOpen(false);
+        }}
       />
 
       <Form {...form}>
@@ -848,8 +886,14 @@ export default function NewBookingPage() {
                     <FormItem>
                       <FormLabel>{t("departureDate")} *</FormLabel>
                       <FormControl>
-                        <Input type="date" min={minDepartureDate(checkIn)} {...field} />
+                        <Input type="date" min={earliestDeparture} {...field} />
                       </FormControl>
+                      {minimumStayRule.nights > 1 && (
+                        <p className="text-muted-foreground text-xs">
+                          Minimum stay {minimumStayRule.nights} nights
+                          {minimumStayRule.source === "season" ? " (season)" : " (contract)"}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1310,6 +1354,20 @@ export default function NewBookingPage() {
                       = {ratePreview.markupAmount.toFixed(2)}
                     </p>
                   )}
+
+                  {/* How the cost was reached, room by room */}
+                  {(ratePreview?.rooms ?? []).map((room, i: number) => (
+                    <CostExplanation
+                      key={i}
+                      breakdown={{
+                        ...(room.breakdown as ExplainableBreakdown),
+                        sellingMarkup: room.sellingMarkup,
+                      }}
+                      currency={currencyCode ? `${currencyCode} ` : ""}
+                      nights={ratePreview?.nights}
+                      className={(ratePreview?.rooms?.length ?? 0) > 1 ? "mt-1" : ""}
+                    />
+                  ))}
 
                   {(ratePreview?.rooms?.[0]?.breakdown?.offerDiscounts?.length ?? 0) > 0 && (
                     <div className="space-y-1">

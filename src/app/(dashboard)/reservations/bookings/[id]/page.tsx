@@ -80,6 +80,8 @@ import {
 import { generateBookingPdf } from "@/lib/export/booking-pdf";
 import { generateBookingEml } from "@/lib/export/booking-eml";
 import { generateVoucherPdf } from "@/lib/export/voucher-pdf";
+import { CostExplanation, RateHistoryIcon } from "@/components/reservations/cost-explanation";
+import type { ExplainableBreakdown } from "@/lib/reservations/cost-explanation";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -576,7 +578,15 @@ export default function BookingDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <InfoRow
-                  label="Buying Total"
+                  label={
+                    <span className="flex items-center gap-1">
+                      Buying Total
+                      <RateHistoryIcon
+                        history={booking.rateChanges ?? []}
+                        currency={booking.currency.symbol}
+                      />
+                    </span>
+                  }
                   value={`${booking.currency.symbol}${Number(booking.buyingTotal).toLocaleString("en", { minimumFractionDigits: 2 })}`}
                 />
                 <InfoRow
@@ -800,6 +810,11 @@ export default function BookingDetailPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                <CostExplanation
+                  breakdown={room.rateBreakdown as ExplainableBreakdown | null}
+                  currency={booking.currency.symbol}
+                  nights={booking.nights}
+                />
                 <div className="flex gap-6 text-sm">
                   <span>
                     <span className="text-muted-foreground">Adults:</span>{" "}
@@ -2765,7 +2780,7 @@ function InfoRow({
   label,
   value,
 }: {
-  label: string;
+  label: ReactNode;
   value: ReactNode;
 }) {
   return (
