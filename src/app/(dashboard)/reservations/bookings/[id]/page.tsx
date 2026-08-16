@@ -626,6 +626,9 @@ export default function BookingDetailPage() {
             {/* Currencies & P&L */}
             <CurrencyLinesCard booking={booking} />
 
+            {/* Rebooking */}
+            <RebookCard booking={booking} />
+
             {/* Guest Info */}
             <Card>
               <CardHeader>
@@ -793,6 +796,7 @@ export default function BookingDetailPage() {
                     Room {room.roomIndex}: {room.roomType.name}
                   </CardTitle>
                   <Badge variant="outline">{room.mealBasis.name}</Badge>
+                  {room.occupancy && <Badge variant="outline">{room.occupancy}</Badge>}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -2428,6 +2432,155 @@ export default function BookingDetailPage() {
 }
 
 // ── Sub-components ──
+
+/**
+ * Rebooking — the same guest re-secured at a different rate. Recording it
+ * keeps the gain auditable instead of the old rate being overwritten silently.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function RebookCard({ booking }: { booking: any }) {
+  const utils = trpc.useUtils();
+  const [open, setOpen] = useState(false);
+  const [newBuying, setNewBuying] = useState("");
+  const [newSelling, setNewSelling] = useState("");
+  const [reason, setReason] = useState("");
+  const [rebookedGuest, setRebookedGuest] = useState("");
+
+  const rebook = trpc.reservations.booking.rebook.useMutation({
+    onSuccess: (res) => {
+      toast.success(
+        res.gain > 0
+          ? `Rebooked — gain ${booking.currency.symbol}${res.gain.toFixed(2)}`
+          : "Rebooking recorded",
+      );
+      setOpen(false);
+      setNewBuying("");
+      setNewSelling("");
+      setReason("");
+      setRebookedGuest("");
+      utils.reservations.booking.getById.invalidate({ id: booking.id });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const changes = booking.rateChanges ?? [];
+  const canRebook =
+    !booking.isLocked && !["CANCELLED", "CHECKED_OUT", "NO_SHOW"].includes(booking.status);
+  const money = (n: number) =>
+    n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle>Rebooking</CardTitle>
+        {canRebook && (
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            <RefreshCw className="mr-1 h-4 w-4" /> Rebook
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        {changes.length === 0 ? (
+          <p className="text-muted-foreground">No rate changes recorded.</p>
+        ) : (
+          changes.map((c: Record<string, any>) => {
+            const gain = Number(c.oldBuyingTotal) - Number(c.newBuyingTotal);
+            return (
+              <div key={c.id} className="rounded-md border p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">
+                    {booking.currency.symbol}{money(Number(c.oldBuyingTotal))} → {booking.currency.symbol}{money(Number(c.newBuyingTotal))}
+                  </span>
+                  <Badge variant={gain > 0 ? "default" : "secondary"}>
+                    {gain > 0 ? `Gain ${money(gain)}` : "No gain"}
+                  </Badge>
+                </div>
+                {c.rebookedGuest && <InfoRow label="Rebooked guest" value={c.rebookedGuest} />}
+                {c.reason && <p className="text-xs text-muted-foreground italic">{c.reason}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {new Date(c.changedAt).toLocaleString()}
+                  {c.changedBy?.name ? ` · ${c.changedBy.name}` : ""}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </CardContent>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rebook</DialogTitle>
+            <DialogDescription>
+              Record the re-secured rate. The old total is kept so the gain shows in the
+              rebooking report. This sets the booking to a manual rate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  New buying total ({booking.currency.code})
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder={money(Number(booking.buyingTotal))}
+                  value={newBuying}
+                  onChange={(e) => setNewBuying(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">New selling total (optional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder={money(Number(booking.sellingTotal))}
+                  value={newSelling}
+                  onChange={(e) => setNewSelling(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Rebooked guest</Label>
+              <Input
+                placeholder="Guest name(s)"
+                value={rebookedGuest}
+                onChange={(e) => setRebookedGuest(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reason</Label>
+              <Textarea
+                rows={2}
+                placeholder="Why the rate changed"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              disabled={newBuying === "" || rebook.isPending}
+              onClick={() =>
+                rebook.mutate({
+                  id: booking.id,
+                  newBuyingTotal: Number(newBuying),
+                  newSellingTotal: newSelling === "" ? undefined : Number(newSelling),
+                  reason: reason || null,
+                  rebookedGuest: rebookedGuest || null,
+                })
+              }
+            >
+              {rebook.isPending ? "Recording..." : "Record rebooking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
 
 /**
  * Currencies & P&L — the base line mirrors the contract currency and is

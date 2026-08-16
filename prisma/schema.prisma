@@ -300,6 +300,7 @@ model User {
   bookingsCheckedOut Booking[]          @relation("BookingCheckOut")
   bookingsLocked     Booking[]          @relation("BookingLocker")
   bookingsApproved   Booking[]          @relation("BookingApprover")
+  bookingsRebooked   BookingRateChange[] @relation("BookingRebooker")
   notifications      Notification[]     @relation("NotificationRecipient")
   bookingPayments    BookingPayment[]   @relation("BookingPaymentCreator")
   vouchersCreated    Voucher[]          @relation("VoucherCreator")
@@ -3363,6 +3364,7 @@ model Booking {
 
   rooms          BookingRoom[]
   currencyLines  BookingCurrencyLine[]
+  rateChanges    BookingRateChange[]
   guests         BookingGuest[]
   payments       BookingPayment[]
   vouchers       Voucher[]
@@ -3395,6 +3397,27 @@ model Booking {
   @@index([createdById])
   @@index([leadGuestEmail])
   @@map("rv_booking")
+}
+
+/// A recorded rate change from rebooking — the same guest re-secured at a
+/// different rate. Gain (old − new) is what the rebooking report totals.
+model BookingRateChange {
+  id             String   @id @default(cuid())
+  bookingId      String
+  changedAt      DateTime @default(now())
+  changedById    String?
+  reason         String?  @db.Text
+  rebookedGuest  String?
+  oldBuyingTotal Decimal  @db.Decimal(12, 4) // base currency
+  newBuyingTotal Decimal  @db.Decimal(12, 4)
+  lines          Json? // per-currency snapshot: [{ currencyCode, oldBuying, newBuying }]
+
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  changedBy User?   @relation("BookingRebooker", fields: [changedById], references: [id])
+
+  @@index([bookingId])
+  @@index([changedAt])
+  @@map("rv_booking_rate_change")
 }
 
 /// One reporting line per currency on a booking. The base line mirrors the
@@ -3431,6 +3454,7 @@ model BookingRoom {
   roomIndex           Int      @default(1)
 
   // Occupancy
+  occupancy           RoomOccupancy? // per-room category; booking-level field is the summary
   adults              Int      @default(2)
   children            Int      @default(0)
   infants             Int      @default(0)

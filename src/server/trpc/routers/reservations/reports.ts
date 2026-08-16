@@ -7,6 +7,7 @@ import {
   materializationFilterSchema,
   paymentOptionDateFilterSchema,
   profitAndLossFilterSchema,
+  rebookingGainsFilterSchema,
   reportFilterSchema,
 } from "@/lib/validations/reservations";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
@@ -506,6 +507,84 @@ export const reportsRouter = createTRPCRouter({
         rows,
         totals: [...totalsByCurrency.values()].sort((a, b) => a.code.localeCompare(b.code)),
         bookingCount: rows.length,
+      };
+    }),
+
+  // ── Rebooking gains — what re-securing rates saved, per currency ──
+  rebookingGains: p("report.read")
+    .input(rebookingGainsFilterSchema)
+    .query(async ({ ctx, input }) => {
+      const changes = await ctx.db.bookingRateChange.findMany({
+        where: {
+          changedAt: { gte: new Date(input.dateFrom), lte: new Date(input.dateTo) },
+          booking: {
+            companyId: ctx.companyId,
+            ...(input.hotelId ? { hotelId: input.hotelId } : {}),
+            ...(input.tourOperatorId ? { tourOperatorId: input.tourOperatorId } : {}),
+          },
+        },
+        include: {
+          changedBy: { select: { name: true } },
+          booking: {
+            select: {
+              id: true,
+              code: true,
+              checkIn: true,
+              hotel: { select: { name: true } },
+              tourOperator: { select: { name: true } },
+              currency: { select: { code: true, symbol: true } },
+            },
+          },
+        },
+        orderBy: { changedAt: "desc" },
+      });
+
+      // Only reductions count as a gain — matching ResLite
+      const gainsByCurrency = new Map<string, { code: string; gain: number }>();
+      const bookingsWithGain = new Set<string>();
+
+      const rows = changes.map((c) => {
+        // The base currency always comes from the change's own columns, so its
+        // gain counts even for bookings that had no currency lines at the time.
+        const snapshot = (c.lines as { currencyCode: string; oldBuying: number; newBuying: number }[] | null) ?? [];
+        const baseCode = c.booking.currency.code;
+        const perCurrency = [
+          {
+            currencyCode: baseCode,
+            oldBuying: Number(c.oldBuyingTotal),
+            newBuying: Number(c.newBuyingTotal),
+          },
+          ...snapshot.filter((l) => l.currencyCode !== baseCode),
+        ].map((l) => ({ ...l, gain: l.oldBuying - l.newBuying }));
+
+        for (const l of perCurrency) {
+          if (l.gain <= 0) continue;
+          bookingsWithGain.add(c.bookingId);
+          const t = gainsByCurrency.get(l.currencyCode);
+          if (t) t.gain += l.gain;
+          else gainsByCurrency.set(l.currencyCode, { code: l.currencyCode, gain: l.gain });
+        }
+
+        return {
+          id: c.id,
+          bookingId: c.bookingId,
+          bookingCode: c.booking.code,
+          hotelName: c.booking.hotel.name,
+          tourOperatorName: c.booking.tourOperator?.name ?? "",
+          checkIn: c.booking.checkIn,
+          changedAt: c.changedAt,
+          changedBy: c.changedBy?.name ?? "",
+          reason: c.reason ?? "",
+          rebookedGuest: c.rebookedGuest ?? "",
+          perCurrency,
+        };
+      });
+
+      return {
+        rows,
+        totals: [...gainsByCurrency.values()].sort((a, b) => a.code.localeCompare(b.code)),
+        changeCount: rows.length,
+        bookingsWithGain: bookingsWithGain.size,
       };
     }),
 

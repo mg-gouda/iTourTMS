@@ -367,10 +367,10 @@ export default function NewBookingPage() {
         clean.source = "DIRECT";
       }
 
-      // Sync shared mealBasisId to all rooms
-      const sharedMealBasisId = clean.rooms[0]?.mealBasisId ?? "";
+      // Rooms keep their own meal basis; only fill blanks from the first room
+      const fallbackMealBasisId = clean.rooms[0]?.mealBasisId ?? "";
       clean.rooms.forEach((r) => {
-        r.mealBasisId = sharedMealBasisId;
+        if (!r.mealBasisId) r.mealBasisId = fallbackMealBasisId;
       });
 
       // Derive booking-level fields from rooms
@@ -874,7 +874,7 @@ export default function NewBookingPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Shared Meal Basis */}
+              {/* Meal basis for every room — each room can still override below */}
               <FormField
                 control={form.control}
                 name="rooms.0.mealBasisId"
@@ -882,7 +882,10 @@ export default function NewBookingPage() {
                   <FormItem className="max-w-xs">
                     <FormLabel>{t("mealBasis")} *</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={(v) => {
+                        // Applies to all rooms; per-room selects can differ afterwards
+                        rooms.forEach((_, i) => form.setValue(`rooms.${i}.mealBasisId`, v));
+                      }}
                       value={field.value}
                       disabled={!hotelId}
                     >
@@ -934,7 +937,7 @@ export default function NewBookingPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
                         {/* Room Type */}
                         <FormField
                           control={form.control}
@@ -964,6 +967,57 @@ export default function NewBookingPage() {
                                 </SelectContent>
                               </Select>
                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        {/* Meal basis — defaults to the shared choice above */}
+                        <FormField
+                          control={form.control}
+                          name={`rooms.${roomIndex}.mealBasisId`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormLabel>{t("mealBasis")} *</FormLabel>
+                              <Select onValueChange={f.onChange} value={f.value} disabled={!hotelId}>
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {availableMealBases.map((mb) => (
+                                    <SelectItem
+                                      key={mb.mealBasisId ?? mb.id}
+                                      value={mb.mealBasisId ?? mb.id}
+                                    >
+                                      {mb.mealBasis?.mealCode ?? mb.mealCode ?? mb.mealBasis?.name ?? mb.name ?? "Meal"}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        {/* Occupancy — per room */}
+                        <FormField
+                          control={form.control}
+                          name={`rooms.${roomIndex}.occupancy`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormLabel>Occ.</FormLabel>
+                              <Select onValueChange={f.onChange} value={f.value ?? ""}>
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="SINGLE">SGL</SelectItem>
+                                  <SelectItem value="DOUBLE">DBL</SelectItem>
+                                  <SelectItem value="TRIPLE">TPL</SelectItem>
+                                  <SelectItem value="FAMILY">Family</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </FormItem>
                           )}
                         />

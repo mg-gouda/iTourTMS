@@ -9,6 +9,7 @@ import {
   bookingRateCalcSchema,
   bookingCurrencyLineSchema,
   bookingCurrencyLineDeleteSchema,
+  bookingRebookSchema,
 } from "@/lib/validations/reservations";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
@@ -124,6 +125,10 @@ export const bookingRouter = createTRPCRouter({
           currencyLines: {
             include: { currency: { select: { id: true, code: true, symbol: true, decimals: true } } },
             orderBy: [{ isBase: "desc" }, { createdAt: "asc" }],
+          },
+          rateChanges: {
+            include: { changedBy: { select: { id: true, name: true } } },
+            orderBy: { changedAt: "desc" },
           },
           payments: {
             include: {
@@ -244,6 +249,7 @@ export const bookingRouter = createTRPCRouter({
             roomTypeId: rr.roomTypeId,
             mealBasisId: rr.mealBasisId,
             roomIndex: rr.roomIndex,
+            occupancy: input.rooms[rr.roomIndex - 1]?.occupancy ?? null,
             adults: rr.adults,
             children: rr.children.length,
             extraBed: rr.extraBed,
@@ -270,6 +276,7 @@ export const bookingRouter = createTRPCRouter({
             roomTypeId: r.roomTypeId,
             mealBasisId: r.mealBasisId,
             roomIndex: i + 1,
+            occupancy: r.occupancy ?? null,
             adults: r.adults,
             children: r.children,
             extraBed: r.extraBed,
@@ -545,6 +552,93 @@ export const bookingRouter = createTRPCRouter({
       });
     }),
 
+  // ── Rebook: record a re-secured rate and keep the gain auditable ──
+  rebook: p("booking.update")
+    .input(bookingRebookSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { id: true, isLocked: true, status: true },
+      });
+
+      if (existing.isLocked) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Booking is locked" });
+      }
+      if (["CANCELLED", "CHECKED_OUT", "NO_SHOW"].includes(existing.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `A ${existing.status.toLowerCase().replace("_", " ")} booking cannot be rebooked`,
+        });
+      }
+
+      // Older bookings may predate currency lines — make sure the base exists
+      // before snapshotting, or its gain would be missing from the history.
+      await syncBaseCurrencyLine(ctx.db, input.id);
+
+      const booking = await ctx.db.booking.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: { currencyLines: { include: { currency: { select: { code: true } } } } },
+      });
+
+      const oldBuyingTotal = Number(booking.buyingTotal);
+      const newSellingTotal = input.newSellingTotal ?? Number(booking.sellingTotal);
+      const totalPaid = Number(booking.totalPaid);
+
+      // Per-currency snapshot, so the gain survives later edits to the lines
+      const newByCurrency = new Map((input.lines ?? []).map((l) => [l.currencyId, l.buyingTotal]));
+      const lineSnapshot = booking.currencyLines.map((l) => ({
+        currencyCode: l.currency.code,
+        oldBuying: Number(l.buyingTotal),
+        newBuying: l.isBase
+          ? input.newBuyingTotal
+          : (newByCurrency.get(l.currencyId) ?? Number(l.buyingTotal)),
+      }));
+
+      const rateChange = await ctx.db.bookingRateChange.create({
+        data: {
+          bookingId: booking.id,
+          changedById: ctx.session.user.id,
+          reason: input.reason ?? null,
+          rebookedGuest: input.rebookedGuest ?? null,
+          oldBuyingTotal,
+          newBuyingTotal: input.newBuyingTotal,
+          lines: lineSnapshot,
+        },
+      });
+
+      await ctx.db.booking.update({
+        where: { id: booking.id },
+        data: {
+          buyingTotal: input.newBuyingTotal,
+          sellingTotal: newSellingTotal,
+          markupAmount: newSellingTotal - input.newBuyingTotal,
+          balanceDue: newSellingTotal - totalPaid,
+          manualRate: true, // the rate no longer comes from the contract calculation
+        },
+      });
+
+      // Secondary lines follow the numbers the agent supplied
+      for (const [currencyId, buyingTotal] of newByCurrency) {
+        if (currencyId === booking.currencyId) continue;
+        await ctx.db.bookingCurrencyLine.updateMany({
+          where: { bookingId: booking.id, currencyId },
+          data: { buyingTotal },
+        });
+      }
+
+      await syncBaseCurrencyLine(ctx.db, booking.id);
+
+      const gain = oldBuyingTotal - input.newBuyingTotal;
+      await logBookingAction(
+        ctx.db, booking.id, "REBOOKED",
+        `Rebooked: buying ${oldBuyingTotal.toFixed(2)} → ${input.newBuyingTotal.toFixed(2)}` +
+          `${gain > 0 ? ` (gain ${gain.toFixed(2)})` : ""}${input.reason ? ` — ${input.reason}` : ""}`,
+        ctx.session.user.id,
+      );
+
+      return { ...rateChange, gain };
+    }),
+
   // ── Currency lines (multi-currency P&L; base line stays engine-owned) ──
   setCurrencyLine: p("booking.update")
     .input(bookingCurrencyLineSchema)
@@ -774,6 +868,7 @@ export const bookingRouter = createTRPCRouter({
                   roomTypeId: rr.roomTypeId,
                   mealBasisId: rr.mealBasisId,
                   roomIndex: rr.roomIndex,
+                  occupancy: d.rooms[rr.roomIndex - 1]?.occupancy ?? null,
                   adults: rr.adults,
                   children: rr.children.length,
                   extraBed: rr.extraBed,
@@ -796,6 +891,7 @@ export const bookingRouter = createTRPCRouter({
                   roomTypeId: r.roomTypeId,
                   mealBasisId: r.mealBasisId,
                   roomIndex: i + 1,
+                  occupancy: r.occupancy ?? null,
                   adults: r.adults,
                   children: r.children,
                   infants: r.infants,
@@ -823,6 +919,7 @@ export const bookingRouter = createTRPCRouter({
                 roomTypeId: r.roomTypeId,
                 mealBasisId: r.mealBasisId,
                 roomIndex: i + 1,
+                occupancy: r.occupancy ?? null,
                 adults: r.adults,
                 children: r.children,
                 infants: r.infants,

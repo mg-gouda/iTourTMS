@@ -213,6 +213,7 @@ export default function ReportsPage() {
           <TabsTrigger value="materialization">Materialization</TabsTrigger>
           <TabsTrigger value="pl">P&amp;L</TabsTrigger>
           <TabsTrigger value="ebd-list">EBD List</TabsTrigger>
+          <TabsTrigger value="rebooking">Rebooking</TabsTrigger>
           <TabsTrigger value="production-to">Production by TO</TabsTrigger>
           <TabsTrigger value="cancellation">Cancellations</TabsTrigger>
           <TabsTrigger value="no-show">No-Shows</TabsTrigger>
@@ -1425,6 +1426,10 @@ export default function ReportsPage() {
           <EbdListReport />
         </TabsContent>
 
+        <TabsContent value="rebooking" className="space-y-4">
+          <RebookingGainsReport />
+        </TabsContent>
+
         <TabsContent value="production-to" className="space-y-4">
           <ProductionByToReport />
         </TabsContent>
@@ -1655,6 +1660,84 @@ function EbdListReport() {
                 )}
                 {data.rows.length === 0 && (
                   <tr><td colSpan={10} className="py-4 text-center text-muted-foreground">No bookings with an early booking discount in this range.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </CardContent></Card>
+        </>
+      ) : <p className="text-sm text-muted-foreground">Select a date range to generate the report.</p>}
+    </div>
+  );
+}
+
+function RebookingGainsReport() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data, isLoading } = trpc.reservations.reports.rebookingGains.useQuery(
+    { dateFrom, dateTo },
+    { enabled: !!dateFrom && !!dateTo },
+  );
+  const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3 items-end">
+        <div><Label className="text-xs">From</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></div>
+      </div>
+
+      {isLoading ? <Skeleton className="h-40 w-full" /> : data ? (
+        <>
+          <div className="flex flex-wrap gap-3">
+            {data.totals.map((t) => (
+              <Card key={t.code}>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t.code} gain</p>
+                  <p className="text-lg font-semibold">{money(t.gain)}</p>
+                </CardContent>
+              </Card>
+            ))}
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Bookings with gain</p>
+                <p className="text-lg font-semibold">{data.bookingsWithGain} <span className="text-sm font-normal text-muted-foreground">of {data.changeCount} changes</span></p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card><CardContent className="pt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left pb-2">Booking</th>
+                  <th className="text-left pb-2">Hotel</th>
+                  <th className="text-left pb-2">Rebooked</th>
+                  <th className="text-left pb-2">When</th>
+                  <th className="text-left pb-2">Currency</th>
+                  <th className="text-right pb-2">Old Cost</th>
+                  <th className="text-right pb-2">New Cost</th>
+                  <th className="text-right pb-2">Gain</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.flatMap((r) =>
+                  r.perCurrency.map((c, ci) => (
+                    <tr key={`${r.id}-${c.currencyCode}`} className="border-b">
+                      <td className="py-1.5 font-mono">{ci === 0 ? r.bookingCode : ""}</td>
+                      <td className="py-1.5">{ci === 0 ? r.hotelName : ""}</td>
+                      <td className="py-1.5">{ci === 0 ? (r.rebookedGuest || "—") : ""}</td>
+                      <td className="py-1.5">{ci === 0 ? new Date(r.changedAt).toLocaleDateString() : ""}</td>
+                      <td className="py-1.5">{c.currencyCode}</td>
+                      <td className="py-1.5 text-right tabular-nums">{money(c.oldBuying)}</td>
+                      <td className="py-1.5 text-right tabular-nums">{money(c.newBuying)}</td>
+                      <td className={`py-1.5 text-right font-medium tabular-nums ${c.gain > 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {c.gain > 0 ? money(c.gain) : "—"}
+                      </td>
+                    </tr>
+                  )),
+                )}
+                {data.rows.length === 0 && (
+                  <tr><td colSpan={8} className="py-4 text-center text-muted-foreground">No rebookings recorded in this range.</td></tr>
                 )}
               </tbody>
             </table>

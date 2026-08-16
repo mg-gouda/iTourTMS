@@ -33,6 +33,7 @@ export const roomGuestSchema = z.object({
 export const bookingRoomSchema = z.object({
   roomTypeId: z.string().min(1, "Room type is required"),
   mealBasisId: z.string().min(1, "Meal basis is required"),
+  occupancy: z.enum(["SINGLE", "DOUBLE", "TRIPLE", "FAMILY"]).nullish(),
   adults: z.number().int().min(1).max(6).default(2),
   children: z.number().int().min(0).max(4).default(0),
   infants: z.number().int().min(0).max(2).default(0),
@@ -130,6 +131,27 @@ export const bookingCreateSchema = z
     message: "Departure must be after arrival",
     path: ["checkOut"],
   });
+
+// ── Rebooking (same guest re-secured at a different rate) ──
+
+export const bookingRebookSchema = z.object({
+  id: z.string().min(1),
+  newBuyingTotal: z.number().min(0),
+  newSellingTotal: z.number().min(0).optional(),
+  reason: z.string().nullish(),
+  rebookedGuest: z.string().nullish(),
+  // Optional new buying totals for secondary currency lines, keyed by currency
+  lines: z
+    .array(z.object({ currencyId: z.string().min(1), buyingTotal: z.number().min(0) }))
+    .optional(),
+});
+
+export const rebookingGainsFilterSchema = z.object({
+  dateFrom: z.string(),
+  dateTo: z.string(),
+  hotelId: z.string().optional(),
+  tourOperatorId: z.string().optional(),
+});
 
 // ── Booking currency lines (multi-currency P&L) ──
 
