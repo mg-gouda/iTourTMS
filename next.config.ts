@@ -5,6 +5,9 @@ const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // next dev appends its own block to CLAUDE.md otherwise — this repo's
+  // agent instructions are hand-maintained.
+  agentRules: false,
   typescript: { ignoreBuildErrors: true },
   serverExternalPackages: ["pino", "pino-pretty", "pdf-parse"],
   images: {
