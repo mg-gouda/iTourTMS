@@ -204,43 +204,38 @@ export function generateBookingPdf(data: BookingPdfData): jsPDF {
     y += rowH + 6;
   }
 
-  // ── Booking Reference / Duration / Adult / Children / Child Ages row ──
+  // ── Duration / Adult / Children / Child Ages row ──
+  // No booking reference: this sheet goes to the hotel, and a reference would
+  // tie a rebooked stay back to the reservation it replaces.
   {
     doc.setFontSize(9);
     const col1 = mL;
-    const col2 = mL + 45;
-    const col3 = mL + 85;
-    const col4 = mL + 115;
-    const col5 = mL + 145;
-    const col6 = mL + 170; // only used if 2nd child age
+    const col2 = mL + 40;
+    const col3 = mL + 70;
+    const col4 = mL + 100;
+    const col6 = mL + 130; // only used if 2nd child age
 
     // Labels
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...black);
-    doc.text("Booking Reference:", col1, y);
-    doc.text("Duration:", col2, y);
-    doc.text("Adult", col3, y);
-    doc.text("Children:", col4, y);
+    doc.text("Duration:", col1, y);
+    doc.text("Adult", col2, y);
+    doc.text("Children:", col3, y);
 
     if (data.childAges && data.childAges.length >= 1) {
-      doc.text("1st Child Age", col5, y);
-    }
-    // Use remaining space if needed
-    if (data.childAges && data.childAges.length >= 2) {
-      // Adjust — put 2nd child age label inline
+      doc.text("1st Child Age", col4, y);
     }
 
     y += 5;
 
     // Values
     doc.setFont("helvetica", "normal");
-    doc.text(data.code, col1, y);
-    doc.text(`${data.nights} Night${data.nights !== 1 ? "s" : ""}`, col2, y);
-    doc.text(String(data.adults), col3, y);
-    doc.text(String(data.children), col4, y);
+    doc.text(`${data.nights} Night${data.nights !== 1 ? "s" : ""}`, col1, y);
+    doc.text(String(data.adults), col2, y);
+    doc.text(String(data.children), col3, y);
 
     if (data.childAges && data.childAges.length >= 1) {
-      doc.text(String(data.childAges[0]), col5, y);
+      doc.text(String(data.childAges[0]), col4, y);
     }
 
     y += 3;

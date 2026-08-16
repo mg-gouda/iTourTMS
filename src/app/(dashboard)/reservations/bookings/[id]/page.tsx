@@ -2965,7 +2965,9 @@ function handleSendToHotel(booking: any, company: any) {
 
     // 2. Get PDF as base64
     const pdfBase64 = doc.output("datauristring").split(",")[1] ?? "";
-    const pdfFilename = `booking-${booking.code}.pdf`;
+    // The attachment name reaches the hotel, so it carries no booking reference
+    const checkInDay = new Date(booking.checkIn).toISOString().slice(0, 10);
+    const pdfFilename = `rooming-list-${checkInDay}.pdf`;
 
     // 3. Generate EML
     const emlContent = generateBookingEml(
