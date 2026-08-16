@@ -281,7 +281,9 @@
 }
 
 [data-density="compact"] [data-slot="input"],
-[data-density="compact"] [data-slot="select-trigger"],
+/* Select/Combobox triggers report data-slot="form-control" inside a form,
+   so match the role instead — it covers both wrapped and bare triggers. */
+[data-density="compact"] [role="combobox"],
 [data-density="compact"] [data-slot="button"]:not([data-size="icon"]) {
   height: var(--density-control-h);
   font-size: var(--density-font);

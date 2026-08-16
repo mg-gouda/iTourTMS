@@ -38,6 +38,7 @@ import {
   BOOKING_STATUS_VARIANTS,
   GUEST_TITLE_OPTIONS,
 } from "@/lib/constants/reservations";
+import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
 import { trpc } from "@/lib/trpc";
 import { bookingAmendSchema } from "@/lib/validations/reservations";
 
@@ -305,6 +306,16 @@ export default function AmendBookingPage() {
     if (hotelRoomTypes?.length) return hotelRoomTypes.map((rt) => ({ roomTypeId: rt.id, roomType: rt }));
     return [];
   }, [contractDetail, hotelRoomTypes]);
+
+  /** Same rule as the new-booking form: occupancy drives the adult count. */
+  function applyOccupancyAdults(roomIndex: number, occupancy: RoomOccupancyValue) {
+    const roomTypeId = form.getValues(`rooms.${roomIndex}.roomTypeId`);
+    const config = (hotelRoomTypes ?? []).find((rt) => rt.id === roomTypeId);
+    const adults = adultsForOccupancy(occupancy, config);
+    if (adults !== form.getValues(`rooms.${roomIndex}.adults`)) {
+      form.setValue(`rooms.${roomIndex}.adults`, adults, { shouldDirty: true });
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const availableMealBases: any[] = useMemo(() => {
@@ -879,7 +890,13 @@ export default function AmendBookingPage() {
                             render={({ field: f }) => (
                               <FormItem>
                                 <FormLabel>Occ.</FormLabel>
-                                <Select onValueChange={f.onChange} value={f.value ?? ""}>
+                                <Select
+                                  onValueChange={(v) => {
+                                    f.onChange(v);
+                                    applyOccupancyAdults(roomIndex, v as RoomOccupancyValue);
+                                  }}
+                                  value={f.value ?? ""}
+                                >
                                   <FormControl>
                                     <SelectTrigger className="w-full">
                                       <SelectValue placeholder="—" />

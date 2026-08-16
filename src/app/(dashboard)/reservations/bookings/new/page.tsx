@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { bookingCreateSchema } from "@/lib/validations/reservations";
 
+import { adultsForOccupancy, type RoomOccupancyValue } from "@/lib/reservations/occupancy";
 import { ParseEmailDialog } from "@/components/reservations/parse-email-dialog";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
@@ -284,6 +285,20 @@ export default function NewBookingPage() {
     if (hotelRoomTypes?.length) return hotelRoomTypes.map((rt) => ({ roomTypeId: rt.id, roomType: rt }));
     return [];
   }, [contractDetail, hotelRoomTypes]);
+
+  /**
+   * Picking an occupancy fills the adult count from that room type's own
+   * configuration, and the guest name rows resize off the adult count.
+   */
+  function applyOccupancyAdults(roomIndex: number, occupancy: RoomOccupancyValue) {
+    const roomTypeId = form.getValues(`rooms.${roomIndex}.roomTypeId`);
+    // Full config lives on the hotel room type; contract rows only carry a subset
+    const config = (hotelRoomTypes ?? []).find((rt) => rt.id === roomTypeId);
+    const adults = adultsForOccupancy(occupancy, config);
+    if (adults !== form.getValues(`rooms.${roomIndex}.adults`)) {
+      form.setValue(`rooms.${roomIndex}.adults`, adults, { shouldDirty: true });
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const availableMealBases: any[] = useMemo(() => {
@@ -1074,7 +1089,13 @@ export default function NewBookingPage() {
                           render={({ field: f }) => (
                             <FormItem>
                               <FormLabel>Occ.</FormLabel>
-                              <Select onValueChange={f.onChange} value={f.value ?? ""}>
+                              <Select
+                                onValueChange={(v) => {
+                                  f.onChange(v);
+                                  applyOccupancyAdults(roomIndex, v as RoomOccupancyValue);
+                                }}
+                                value={f.value ?? ""}
+                              >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
                                     <SelectValue placeholder="—" />

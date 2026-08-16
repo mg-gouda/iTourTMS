@@ -111,6 +111,8 @@ export const GUEST_TITLE_OPTIONS = [
   { value: "Dr", label: "Dr" },
   { value: "Prof", label: "Prof" },
   { value: "Master", label: "Master" },
+  { value: "CHD", label: "CHD" },
+  { value: "INF", label: "INF" },
 ] as const;
 
 export const TIMELINE_ACTION_LABELS: Record<string, string> = {

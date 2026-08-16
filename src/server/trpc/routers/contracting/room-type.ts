@@ -16,6 +16,11 @@ export const roomTypeRouter = createTRPCRouter({
         where: { hotelId: input.hotelId },
         include: {
           _count: { select: { occupancyTable: true } },
+          // Booking forms read this to fill adults from the chosen occupancy
+          occupancyTable: {
+            select: { adults: true, children: true, infants: true, extraBeds: true, isDefault: true },
+            orderBy: { adults: "asc" },
+          },
         },
         orderBy: { sortOrder: "asc" },
       });
