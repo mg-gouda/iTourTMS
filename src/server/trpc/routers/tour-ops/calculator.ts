@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
@@ -88,7 +89,7 @@ export const opsCalculatorRouter = createTRPCRouter({
                 overageAmount: check.overageAmount,
                 status: "PENDING",
                 pendingType: "calculator_post",
-                pendingPayload: input as unknown as Record<string, unknown>,
+                pendingPayload: input as unknown as Prisma.InputJsonValue,
               },
               include: { tourOperator: { select: { name: true } } },
             });
@@ -114,7 +115,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       }
       // ─────────────────────────────────────────────────────────────────────
 
-      return db.$transaction(async (tx) => {
+      const posted = await db.$transaction(async (tx) => {
         // 1. Save & lock calculator state
         await tx.opsFile.update({
           where: { id: input.fileId },
@@ -221,6 +222,8 @@ export const opsCalculatorRouter = createTRPCRouter({
       if (file.tourOperatorId) {
         await recalcCreditUsed(db, companyId, file.tourOperatorId).catch(() => {});
       }
+
+      return posted;
     }),
 
   reopen: p("tour-ops:quotation:manage")

@@ -1,3 +1,4 @@
+import type { OpsComponentType, OpsPricingBasis, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
@@ -61,16 +62,18 @@ export const opsCreditOverrideRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "No pending payload to replay" });
       }
 
+      // Typed to the Prisma enums the replay writes back with — a plain
+      // `string` here fails the createMany/Json inputs below.
       const payload = req.pendingPayload as {
         fileId: string;
-        state: unknown;
+        state: Prisma.InputJsonValue;
         components: {
-          type: string;
+          type: OpsComponentType;
           description: string;
           unitCost: number;
           qty: number;
           nights: number;
-          pricingBasis: string;
+          pricingBasis: OpsPricingBasis;
           notes?: string;
           sortOrder: number;
         }[];

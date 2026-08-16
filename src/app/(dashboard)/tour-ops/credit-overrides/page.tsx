@@ -4,7 +4,6 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePermissions } from "@/components/providers/permissions-provider";
 import { trpc } from "@/lib/trpc";
 import { CreditBlockDialog } from "@/components/tour-ops/credit-block-dialog";
 
@@ -27,9 +27,10 @@ const STATUS_ICONS = {
 };
 
 export default function CreditOverridesPage() {
-  const { data: sessionData } = useSession();
-  const roles = (sessionData?.user?.roles as string[] | undefined) ?? [];
-  const isOperationsManager = roles.includes("operations_manager") || roles.includes("super_admin");
+  // Roles come from the dashboard's PermissionsProvider — there is no
+  // SessionProvider mounted here, and useSession() threw on render.
+  const { roles, isSuperAdmin } = usePermissions();
+  const isOperationsManager = roles.includes("operations_manager") || isSuperAdmin;
 
   const [activeTab, setActiveTab] = useState("pending");
   const [selectedRequest, setSelectedRequest] = useState<{

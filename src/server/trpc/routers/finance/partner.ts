@@ -99,7 +99,9 @@ export const partnerRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.partner.create({
         data: {
-          companyId: ctx.companyId,
+          // Connect rather than set the raw id: Prisma rejects mixing a scalar
+          // foreign key with the relation `connect`s used further down.
+          company: { connect: { id: ctx.companyId } },
           type: input.type,
           isCompany: input.isCompany ?? false,
           name: input.name,

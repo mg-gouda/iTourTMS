@@ -38,12 +38,12 @@ const formSchema = z.object({
   clientType: z.enum(["B2C", "TOUR_OPERATOR", "TRAVEL_AGENT"]).default("B2C"),
   validUntil: z.string().optional(),
   packageMarkupType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
-  packageMarkupValue: z.coerce.number().min(0).optional(),
+  packageMarkupValue: z.number().min(0).optional(),
   notes: z.string().optional(),
   terms: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.input<typeof formSchema>;
 
 function NewQuotationForm({ fileId }: { fileId: string }) {
   const router = useRouter();
@@ -190,7 +190,17 @@ function NewQuotationForm({ fileId }: { fileId: string }) {
                   <FormItem>
                     <FormLabel>Markup Value {markupType === "PERCENTAGE" ? "(%)" : ""}</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" min="0" placeholder="0" {...field} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

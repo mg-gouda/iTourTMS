@@ -21,6 +21,7 @@ import {
   OPS_GUIDE_TYPE_LABELS,
   OPS_VEHICLE_TYPE_LABELS,
 } from "@/lib/constants/tour-ops";
+import { usePermissions } from "@/components/providers/permissions-provider";
 import { trpc } from "@/lib/trpc";
 import { Combobox } from "@/components/ui/combobox";
 import {
@@ -28,7 +29,6 @@ import {
   type ContractHotelData,
 } from "@/components/tour-ops/accommodation-picker-dialog";
 import { CreditBlockDialog } from "@/components/tour-ops/credit-block-dialog";
-import { useSession } from "next-auth/react";
 
 // ── Row types ──
 
@@ -217,10 +217,10 @@ export function QuotationCalculator({ fileId, packages, defaultPax = 1, travelDa
   const [postedQuotationCode, setPostedQuotationCode] = useState<string | null>(null);
 
   // Credit block state
-  const { data: sessionData } = useSession();
-  const isOperationsManager = (sessionData?.user?.roles as string[] | undefined)?.some(
-    (r) => r === "operations_manager" || r === "super_admin"
-  ) ?? false;
+  // Same reason as the credit-overrides page: no SessionProvider in the dashboard.
+  const { roles, isSuperAdmin } = usePermissions();
+  const isOperationsManager =
+    roles.some((r) => r === "operations_manager") || isSuperAdmin;
   const [creditBlock, setCreditBlock] = useState<{
     overrideRequestId: string;
     overageAmount: number;
