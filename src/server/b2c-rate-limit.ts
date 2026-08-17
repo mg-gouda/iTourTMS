@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getClientIp } from "@/lib/client-ip";
 import { redis } from "@/server/redis";
 
 /**
@@ -22,14 +23,6 @@ const CONFIGS: Record<string, RateLimitConfig> = {
   "transfer-enquiry": { windowMs: 15 * 60_000, maxRequests: 5 },   // 5 per 15 min
   "activity-enquiry": { windowMs: 15 * 60_000, maxRequests: 5 },   // 5 per 15 min
 };
-
-function getClientIp(request: Request): string {
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
-  return "unknown";
-}
 
 export async function b2cRateLimit(
   request: Request,

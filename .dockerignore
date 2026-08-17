@@ -4,8 +4,32 @@
 node_modules
 docker
 *.md
-.env.local
-.env.*.local
+.claude
+
+# Secrets. The builder stage does `COPY . .`, so anything left out of this list
+# is readable during the build — .env carries AUTH_SECRET and the DB password.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Database dumps (itour_backup.sql is a full production export). Migrations are
+# source, not backups, so they stay.
+*.sql
+*.sql.gz
+*.dump
+!prisma/migrations/**/*.sql
+
+# Local documents and test artefacts
+*.pdf
+e2e
+playwright-report
+test-results
+coverage
+
+# Served from a volume in production, never from the image
+public/uploads
+
 .DS_Store
 *.log
-coverage

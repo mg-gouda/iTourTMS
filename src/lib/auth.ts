@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+import { getClientIp } from "@/lib/client-ip";
 import { hashBackupCode, verifyTotp } from "@/lib/totp";
 import { db } from "@/server/db";
 import { redis } from "@/server/redis";
@@ -19,6 +20,69 @@ class TwoFactorInvalid extends CredentialsSignin {
   code = "2fa_invalid";
 }
 
+/** Too many failed attempts for this email or IP — back off. */
+class TooManyAttempts extends CredentialsSignin {
+  code = "too_many_attempts";
+}
+
+const LOGIN_WINDOW_SECONDS = 15 * 60;
+// Per-email is the real brake on a targeted attack. Per-IP only has to stop
+// spraying, and it is deliberately loose because a whole office shares one NAT
+// address — too tight and one bad Monday locks out the entire customer.
+const LOGIN_MAX_PER_EMAIL = 10;
+const LOGIN_MAX_PER_IP = 100;
+
+/**
+ * A real bcrypt hash of a random string, compared against when the account does
+ * not exist so a miss costs the same wall-clock time as a wrong password.
+ * Without it, response latency tells an attacker which emails are registered.
+ */
+const DECOY_HASH = "$2b$12$uqQOQd3uexMOdKfmgfvTeOASA19/W33yLUSeWY42zjkiyWQeu/PSe";
+
+const failKeys = (email: string, ip: string) => [
+  `login_fail:email:${email}`,
+  `login_fail:ip:${ip}`,
+];
+
+/**
+ * Fixed-window failure counters. Fails OPEN: Redis being down must not lock
+ * every user out of the product.
+ */
+async function isLoginThrottled(email: string, ip: string): Promise<boolean> {
+  try {
+    await redis.connect().catch(() => {});
+    const [byEmail, byIp] = await Promise.all(failKeys(email, ip).map((k) => redis.get(k)));
+    return Number(byEmail ?? 0) >= LOGIN_MAX_PER_EMAIL || Number(byIp ?? 0) >= LOGIN_MAX_PER_IP;
+  } catch {
+    return false;
+  }
+}
+
+async function recordLoginFailure(email: string, ip: string): Promise<void> {
+  try {
+    await redis.connect().catch(() => {});
+    const pipeline = redis.pipeline();
+    for (const key of failKeys(email, ip)) {
+      pipeline.incr(key);
+      // NX so a sustained attack cannot keep extending the window and lock a
+      // victim's account out indefinitely — the ban stays bounded.
+      pipeline.expire(key, LOGIN_WINDOW_SECONDS, "NX");
+    }
+    await pipeline.exec();
+  } catch {
+    // Redis unavailable — throttling is best-effort.
+  }
+}
+
+async function clearLoginFailures(email: string, ip: string): Promise<void> {
+  try {
+    await redis.connect().catch(() => {});
+    await redis.del(...failKeys(email, ip));
+  } catch {
+    // Redis unavailable — counters expire on their own.
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
@@ -33,8 +97,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
         token: { label: "Authentication code", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        // Counter keys only — the lookup below keeps the caller's original
+        // casing so we don't change which account matches.
+        const throttleEmail = (credentials.email as string).toLowerCase().trim();
+        const ip = getClientIp(request as Request);
+
+        if (await isLoginThrottled(throttleEmail, ip)) throw new TooManyAttempts();
 
         const user = await db.user.findUnique({
           where: { email: credentials.email as string },
@@ -53,13 +124,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           },
         });
 
-        if (!user || !user.password || !user.isActive) return null;
+        // Always spend the bcrypt time, even when there is no such account, so
+        // that a miss is indistinguishable from a wrong password by timing.
+        const isValid = await bcrypt.compare(
+          credentials.password as string,
+          user?.password ?? DECOY_HASH,
+        );
 
-        // Reject login if password has expired
-        if (user.passwordExpiresAt && user.passwordExpiresAt < new Date()) return null;
+        const passwordExpired = !!user?.passwordExpiresAt && user.passwordExpiresAt < new Date();
 
-        const isValid = await bcrypt.compare(credentials.password as string, user.password);
-        if (!isValid) return null;
+        if (!user || !user.password || !user.isActive || !isValid || passwordExpired) {
+          await recordLoginFailure(throttleEmail, ip);
+          return null;
+        }
 
         if (user.twoFactorEnabled && user.twoFactorSecret) {
           const token = (credentials.token as string | undefined)?.trim();
@@ -68,7 +145,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!verifyTotp(user.email, user.twoFactorSecret, token)) {
             // Fall back to a single-use backup code, burning it on success.
             const hash = hashBackupCode(token);
-            if (!user.twoFactorBackupCodes.includes(hash)) throw new TwoFactorInvalid();
+            if (!user.twoFactorBackupCodes.includes(hash)) {
+              // A second factor is guessable in 10^6 — it needs the same
+              // budget as the password, or it is the weakest link.
+              await recordLoginFailure(throttleEmail, ip);
+              throw new TwoFactorInvalid();
+            }
 
             await db.user.update({
               where: { id: user.id },
@@ -76,6 +158,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
           }
         }
+
+        await clearLoginFailures(throttleEmail, ip);
 
         return {
           id: user.id,
@@ -156,16 +240,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       } else if (token.id) {
         // Subsequent requests — validate tokenVersion via Redis cache (60s TTL)
         const cacheKey = `tv:${token.id}`;
+
+        let cached: { tokenVersion: number; isActive: boolean } | null = null;
         try {
           await redis.connect().catch(() => {});
-          const cached = await redis.get(cacheKey);
-          if (cached) {
-            const { tokenVersion, isActive } = JSON.parse(cached) as {
-              tokenVersion: number;
-              isActive: boolean;
-            };
-            if (!isActive || tokenVersion !== token.tokenVersion) return null;
-          } else {
+          const raw = await redis.get(cacheKey);
+          if (raw) cached = JSON.parse(raw);
+        } catch {
+          // Redis unavailable or holding junk — fall through to the DB, which
+          // is the authoritative answer anyway.
+        }
+
+        if (cached) {
+          if (!cached.isActive || cached.tokenVersion !== token.tokenVersion) return null;
+        } else {
+          try {
             const dbUser = await db.user.findUnique({
               where: { id: token.id as string },
               select: { tokenVersion: true, isActive: true },
@@ -179,9 +268,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 JSON.stringify({ tokenVersion: dbUser.tokenVersion, isActive: dbUser.isActive }),
               )
               .catch(() => {});
+          } catch {
+            // Fail CLOSED. If we cannot confirm the session is still valid, a
+            // swallowed error would let a revoked or disabled account keep
+            // working for as long as the outage lasts.
+            return null;
           }
-        } catch {
-          // Redis/DB unavailable — don't block the request
         }
       }
       return token;

@@ -2143,7 +2143,7 @@ function GalleryTab({
 
   async function uploadFiles(files: FileList | File[]) {
     const fileArr = Array.from(files).filter((f) =>
-      ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"].includes(f.type),
+      ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(f.type),
     );
     if (fileArr.length === 0) return;
 
@@ -2209,7 +2209,7 @@ function GalleryTab({
         <input
           ref={inputRef}
           type="file"
-          accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
+          accept=".png,.jpg,.jpeg,.webp,.gif"
           multiple
           className="hidden"
           onChange={(e) => {

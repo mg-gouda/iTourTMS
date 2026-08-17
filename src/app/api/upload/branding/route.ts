@@ -6,12 +6,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 
+// No image/svg+xml: an SVG is a script-bearing document, and these land under
+// public/uploads on our own origin — uploading one is a stored XSS.
 const ALLOWED_TYPES = [
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
 ];
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "File type not allowed. Accepted: PNG, JPG, WEBP, GIF, SVG" },
+        { error: "File type not allowed. Accepted: PNG, JPG, WEBP, GIF" },
         { status: 400 },
       );
     }
@@ -75,7 +76,6 @@ export async function POST(req: NextRequest) {
       "image/jpeg": "jpg",
       "image/webp": "webp",
       "image/gif": "gif",
-      "image/svg+xml": "svg",
     };
     const ext = mimeToExt[file.type] || "png";
     const filename = `${companyId}-${field}-${Date.now()}.${ext}`;

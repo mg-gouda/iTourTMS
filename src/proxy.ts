@@ -2,14 +2,35 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
+ * Geo headers are trusted downstream, so they must be derived here and never
+ * accepted from the client. Returns request headers with `x-geo-country`
+ * stripped and re-set only from a platform-provided value.
+ */
+function geoHeaders(request: NextRequest) {
+  const headers = new Headers(request.headers);
+  headers.delete("x-geo-country");
+
+  const country =
+    request.headers.get("cf-ipcountry") || // Cloudflare
+    (request as unknown as { geo?: { country?: string } }).geo?.country || // Vercel
+    null;
+  if (country) headers.set("x-geo-country", country);
+
+  return headers;
+}
+
+/**
  * Edge-compatible middleware — no next-auth or Prisma imports.
  * Only checks for the JWT session cookie to redirect unauthenticated users.
  * Actual JWT verification happens server-side in the auth callbacks / tRPC.
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const headers = geoHeaders(request);
 
-  // Allow public API & auth routes
+  // Allow public API & auth routes. Each of these authenticates itself:
+  // /api/trpc via the tRPC middleware chain, /api/v1 via API key, /api/upload
+  // and /api/cron via their own handlers.
   const publicPaths = [
     "/login",
     "/api/auth",
@@ -18,19 +39,20 @@ export function proxy(request: NextRequest) {
     "/api/upload",
     "/api/v1",
     "/api/b2c",
+    "/api/cron",
   ];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers } });
   }
 
   // Allow setup route (no auth needed for first-run)
   if (pathname.startsWith("/setup")) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers } });
   }
 
   // Allow license pages (expired / activate)
   if (pathname.startsWith("/license-expired") || pathname.startsWith("/license-activate")) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers } });
   }
 
   // Allow B2C website routes (served by (b2c) route group)
@@ -57,17 +79,7 @@ export function proxy(request: NextRequest) {
     pathname === "/" ||
     b2cSiteRoutes.some((p) => pathname === p || pathname.startsWith(p + "/"))
   ) {
-    // Detect visitor country from platform headers and forward downstream
-    const country =
-      request.headers.get("cf-ipcountry") || // Cloudflare
-      (request as any).geo?.country || // Vercel
-      null;
-
-    const response = NextResponse.next();
-    if (country) {
-      response.headers.set("x-geo-country", country);
-    }
-    return response;
+    return NextResponse.next({ request: { headers } });
   }
 
   // Check for session token (next-auth v5 JWT cookie).
@@ -90,7 +102,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {

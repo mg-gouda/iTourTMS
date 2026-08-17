@@ -4,10 +4,11 @@ services:
     container_name: itour-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # Loopback only — never expose the database to the network.
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: itour
-      POSTGRES_PASSWORD: itour_dev_2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-itour_dev_2026}
       POSTGRES_DB: itour_tms
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=en_US.utf8 --lc-ctype=en_US.utf8"
     volumes:
@@ -41,9 +42,9 @@ services:
     container_name: itour-pgbouncer
     restart: unless-stopped
     ports:
-      - "6432:6432"
+      - "127.0.0.1:6432:6432"
     environment:
-      DATABASE_URL: "postgres://itour:itour_dev_2026@postgres:5432/itour_tms"
+      DATABASE_URL: "postgres://itour:${POSTGRES_PASSWORD:-itour_dev_2026}@postgres:5432/itour_tms"
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 25
@@ -61,7 +62,9 @@ services:
     container_name: itour-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Loopback only — Redis caches session permissions, so write access
+      # to it is privilege escalation.
+      - "127.0.0.1:6379:6379"
     command: >
       redis-server
       --maxmemory 256mb

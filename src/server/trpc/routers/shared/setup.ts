@@ -9,6 +9,14 @@ import {
   LICENSE_VALIDITY_DAYS,
 } from "@/server/services/shared/license";
 
+/** Keys are minted as four groups of four from a fixed charset — see generateLicenseKey. */
+const LICENSE_KEY_PATTERN =
+  /^[A-Za-z0-9!@#$%^&*]{4}-[A-Za-z0-9!@#$%^&*]{4}-[A-Za-z0-9!@#$%^&*]{4}-[A-Za-z0-9!@#$%^&*]{4}$/;
+
+const LICENSE_ATTEMPT_KEY = "license_activate_attempts";
+const LICENSE_ATTEMPT_WINDOW = 15 * 60;
+const LICENSE_MAX_ATTEMPTS = 20;
+
 const strongPasswordSchema = z
   .string()
   .min(12, "Minimum 12 characters")
@@ -34,18 +42,44 @@ export const setupRouter = createTRPCRouter({
 
   // Activate a license key (used during setup step 1 and renewal)
   activateLicense: publicProcedure
-    .input(z.object({ key: z.string().min(1) }))
+    .input(z.object({ key: z.string().regex(LICENSE_KEY_PATTERN, "Invalid license key format") }))
     .mutation(async ({ ctx, input }) => {
-      // Find all unactivated, non-revoked license records
+      // This endpoint is unauthenticated by necessity (it runs before any user
+      // exists), so it needs its own brake. Activation happens about once a
+      // year, so a global cap is plenty and needs no per-IP plumbing.
+      try {
+        await ctx.redis.connect().catch(() => {});
+        const attempts = await ctx.redis.incr(LICENSE_ATTEMPT_KEY);
+        if (attempts === 1) await ctx.redis.expire(LICENSE_ATTEMPT_KEY, LICENSE_ATTEMPT_WINDOW);
+        if (attempts > LICENSE_MAX_ATTEMPTS) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Too many activation attempts. Try again later.",
+          });
+        }
+      } catch (e) {
+        if (e instanceof TRPCError) throw e;
+        // Redis unavailable — the prefix/suffix narrowing below still bounds
+        // the work per request, so let the activation through.
+      }
+
+      // Narrow by the plaintext prefix/suffix before hashing. Without this we
+      // bcrypt(cost 12) against EVERY pending key on every anonymous request,
+      // which is a free CPU-exhaustion lever for an unauthenticated caller.
       const pendingLicenses = await ctx.db.license.findMany({
-        where: { isActivated: false, isRevoked: false },
+        where: {
+          isActivated: false,
+          isRevoked: false,
+          keyPrefix: input.key.slice(0, 4),
+          keySuffix: input.key.slice(-4),
+        },
         select: { id: true, keyHash: true },
       });
 
       if (pendingLicenses.length === 0) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "No pending license keys found. Contact your provider.",
+          code: "BAD_REQUEST",
+          message: "Invalid license key.",
         });
       }
 

@@ -5,12 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 
+// No image/svg+xml: an SVG is a script-bearing document, and these land under
+// public/uploads on our own origin — uploading one is a stored XSS.
 const ALLOWED_TYPES = [
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/msword",
@@ -25,7 +26,6 @@ const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/webp": "webp",
   "image/gif": "gif",
-  "image/svg+xml": "svg",
   "application/pdf": "pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
   "application/msword": "doc",
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "File type not allowed. Accepted: PNG, JPG, WEBP, GIF, SVG, PDF, DOCX, DOC, EML" },
+        { error: "File type not allowed. Accepted: PNG, JPG, WEBP, GIF, PDF, DOCX, DOC, EML" },
         { status: 400 },
       );
     }

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const ACCEPTED = ".png,.jpg,.jpeg,.webp,.gif,.svg";
+const ACCEPTED = ".png,.jpg,.jpeg,.webp,.gif";
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 interface ImageUploadProps {
