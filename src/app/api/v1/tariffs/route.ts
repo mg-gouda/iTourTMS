@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { withApiAuth } from "@/server/api-middleware";
-import { apiPaginated } from "@/server/api-response";
+import { apiError, apiPaginated } from "@/server/api-response";
 import { db } from "@/server/db";
 
 export const GET = withApiAuth(async (req: NextRequest, auth) => {
@@ -22,6 +22,10 @@ export const GET = withApiAuth(async (req: NextRequest, auth) => {
   };
 
   if (hotelId) {
+    // The filter must intersect the integration's allowlist, never replace it
+    if (!auth.hotelIds.includes(hotelId)) {
+      return apiError("FORBIDDEN", "Access denied to this hotel", 403);
+    }
     where.contract = {
       ...(where.contract as Record<string, unknown>),
       hotelId,

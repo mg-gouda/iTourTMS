@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { taxGroupSchema, taxSchema } from "@/lib/validations/finance";
@@ -69,6 +70,13 @@ export const taxRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, repartitionLines, ...data } = input;
 
+      // Assert tenant ownership before repartition lines are destroyed
+      const owned = await ctx.db.tax.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
       // If repartition lines are provided, replace them
       if (repartitionLines) {
         await ctx.db.taxRepartitionLine.deleteMany({ where: { taxId: id } });
@@ -94,7 +102,11 @@ export const taxRouter = createTRPCRouter({
   delete: p("finance:tax:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.tax.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.tax.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   // ── Tax Groups ──
@@ -119,12 +131,21 @@ export const taxRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }).merge(taxGroupSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const owned = await ctx.db.taxGroup.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.taxGroup.update({ where: { id }, data });
     }),
 
   deleteGroup: p("finance:tax:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.taxGroup.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.taxGroup.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 });

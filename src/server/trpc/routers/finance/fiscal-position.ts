@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { fiscalPositionSchema } from "@/lib/validations/finance";
@@ -80,6 +81,13 @@ export const fiscalPositionRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, taxMaps, accountMaps, ...data } = input;
 
+      // Assert tenant ownership before any child map is destroyed
+      const owned = await ctx.db.fiscalPosition.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
       // Delete-recreate maps if provided
       if (taxMaps) {
         await ctx.db.fiscalPositionTaxMap.deleteMany({
@@ -130,6 +138,10 @@ export const fiscalPositionRouter = createTRPCRouter({
   delete: p("finance:settings:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.fiscalPosition.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.fiscalPosition.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 });

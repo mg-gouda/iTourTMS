@@ -39,16 +39,22 @@ const LOGIN_MAX_PER_IP = 100;
  */
 const DECOY_HASH = "$2b$12$uqQOQd3uexMOdKfmgfvTeOASA19/W33yLUSeWY42zjkiyWQeu/PSe";
 
-const failKeys = (email: string, ip: string) => [
+/**
+ * Only counts per-IP when the IP is actually known. If the proxy chain ever
+ * stops yielding a public address, every caller would otherwise collapse into
+ * one bucket and the IP rule would lock out the entire customer — the per-email
+ * counter is the real brake, so degrade to it rather than to a global lockout.
+ */
+const failKeys = (email: string, ip: string | null) => [
   `login_fail:email:${email}`,
-  `login_fail:ip:${ip}`,
+  ...(ip ? [`login_fail:ip:${ip}`] : []),
 ];
 
 /**
  * Fixed-window failure counters. Fails OPEN: Redis being down must not lock
  * every user out of the product.
  */
-async function isLoginThrottled(email: string, ip: string): Promise<boolean> {
+async function isLoginThrottled(email: string, ip: string | null): Promise<boolean> {
   try {
     await redis.connect().catch(() => {});
     const [byEmail, byIp] = await Promise.all(failKeys(email, ip).map((k) => redis.get(k)));
@@ -58,7 +64,7 @@ async function isLoginThrottled(email: string, ip: string): Promise<boolean> {
   }
 }
 
-async function recordLoginFailure(email: string, ip: string): Promise<void> {
+async function recordLoginFailure(email: string, ip: string | null): Promise<void> {
   try {
     await redis.connect().catch(() => {});
     const pipeline = redis.pipeline();
@@ -74,7 +80,7 @@ async function recordLoginFailure(email: string, ip: string): Promise<void> {
   }
 }
 
-async function clearLoginFailures(email: string, ip: string): Promise<void> {
+async function clearLoginFailures(email: string, ip: string | null): Promise<void> {
   try {
     await redis.connect().catch(() => {});
     await redis.del(...failKeys(email, ip));

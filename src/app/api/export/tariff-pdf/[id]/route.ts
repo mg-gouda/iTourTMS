@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { format } from "date-fns";
@@ -9,6 +9,9 @@ import { generateTariffPdf } from "@/lib/export/tariff-pdf";
 import type { TariffPdfInput } from "@/lib/export/tariff-pdf";
 import { db } from "@/server/db";
 import type { TariffRateEntry } from "@/server/services/contracting/markup-calculator";
+
+/** Cap the logo read so an oversized/looping path cannot OOM the process. */
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
 export async function GET(
   _req: NextRequest,
@@ -165,11 +168,20 @@ export async function GET(
     let logoFormat: string | undefined;
     if (company?.reportsLogoUrl) {
       try {
-        const logoPath = path.join(
-          process.cwd(),
-          "public",
-          company.reportsLogoUrl,
+        const logoPath = path.resolve(
+          path.join(process.cwd(), "public", company.reportsLogoUrl),
         );
+        const allowedDir = path.resolve(
+          path.join(process.cwd(), "public", "uploads"),
+        );
+        // Prevent path traversal
+        if (!logoPath.startsWith(allowedDir)) {
+          throw new Error("Invalid logo path");
+        }
+        const { size } = await stat(logoPath);
+        if (size > MAX_LOGO_BYTES) {
+          throw new Error("Logo file too large");
+        }
         const logoBuffer = await readFile(logoPath);
         const ext =
           company.reportsLogoUrl.split(".").pop()?.toLowerCase() ?? "png";

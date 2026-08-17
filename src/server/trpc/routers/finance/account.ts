@@ -77,6 +77,12 @@ export const accountRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, tagIds, ...data } = input;
 
+      const owned = await ctx.db.finAccount.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
       return ctx.db.finAccount.update({
         where: { id },
         data: {
@@ -91,6 +97,12 @@ export const accountRouter = createTRPCRouter({
   delete: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const owned = await ctx.db.finAccount.findFirst({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
       const lineItemCount = await ctx.db.moveLineItem.count({
         where: { accountId: input.id },
       });
@@ -100,7 +112,11 @@ export const accountRouter = createTRPCRouter({
           message: `Cannot delete this account — it has ${lineItemCount} journal entr${lineItemCount === 1 ? "y" : "ies"} posted to it. Archive the account instead by marking it as deprecated.`,
         });
       }
-      return ctx.db.finAccount.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.finAccount.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   // ── Account Groups ──
@@ -125,13 +141,22 @@ export const accountRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }).merge(accountGroupSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const owned = await ctx.db.accountGroup.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.accountGroup.update({ where: { id }, data });
     }),
 
   deleteGroup: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.accountGroup.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.accountGroup.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   // ── Account Tags ──

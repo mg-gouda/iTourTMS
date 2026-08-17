@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { sendBookingConfirmation } from "@/server/services/shared/email";
 import { b2cRateLimit } from "@/server/b2c-rate-limit";
+import { searchAvailability } from "@/server/services/b2c/availability";
 
 const guestSchema = z.object({
   title: z.string().default(""),
@@ -29,8 +30,8 @@ const bookingSchema = z.object({
   phone: z.string().optional(),
   nationality: z.string().optional(),
   specialRequests: z.string().optional(),
-  total: z.number().min(0).max(999999),
-  netTotal: z.number().min(0).max(999999).optional(),
+  // No price fields. The client used to send `total`/`netTotal` and we stored
+  // them verbatim, which let anyone book any room for 0. The server re-quotes.
   guests: z.array(guestSchema).optional(),
 });
 
@@ -57,20 +58,14 @@ export async function POST(request: Request) {
       checkOut,
       adults,
       children,
+      childAges,
       firstName,
       lastName,
       email,
       phone,
       specialRequests,
-      total,
-      netTotal,
       guests,
     } = parsed.data;
-
-    // total = selling price (with markup, customer-facing)
-    // netTotal = buying price (net, without markup)
-    const buyingPrice = netTotal ?? total;
-    const sellingPrice = total;
 
     const company = await db.company.findFirst({ select: { id: true } });
     if (!company) {
@@ -88,12 +83,43 @@ export async function POST(request: Request) {
       );
     }
 
+    // Re-quote server-side. This is the only source of price, and it doubles as
+    // the authorisation check: searchAvailability filters by companyId, so a
+    // hotel/contract/room/meal combination belonging to another tenant — or one
+    // that is stop-sold or out of allotment — simply will not come back.
+    const availability = await searchAvailability({
+      companyId: company.id,
+      hotelId,
+      checkIn: new Date(checkIn),
+      checkOut: new Date(checkOut),
+      adults,
+      children,
+      childAges,
+    });
+
+    const quotedHotel = availability.hotels.find(
+      (h) => h.hotelId === hotelId && h.contractId === contractId,
+    );
+    const quotedRoom = quotedHotel?.rooms.find(
+      (r) => r.roomTypeId === roomTypeId && r.mealCode === mealCode,
+    );
+
+    if (!quotedHotel || !quotedRoom || quotedRoom.availability === "sold_out") {
+      return NextResponse.json(
+        { error: "That room is no longer available for these dates. Please search again." },
+        { status: 409 },
+      );
+    }
+
+    const buyingPrice = quotedRoom.total; // net
+    const sellingPrice = quotedRoom.displayTotal; // customer-facing, incl. markup
+
     // Generate booking code via Sequence
     const bookingCode = await generateSequenceNumber(db, company.id, "booking");
 
     // Get contract currency
     const contract = await db.contract.findFirst({
-      where: { id: contractId },
+      where: { id: contractId, companyId: company.id },
       select: { baseCurrencyId: true },
     });
     const currencyId = contract?.baseCurrencyId ?? "";
@@ -186,7 +212,7 @@ export async function POST(request: Request) {
       nights,
       adults,
       children,
-      total,
+      total: sellingPrice,
       companyName: companyInfo?.name ?? undefined,
       companyEmail: companyInfo?.email ?? undefined,
       companyPhone: companyInfo?.phone ?? undefined,

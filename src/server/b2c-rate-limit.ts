@@ -32,6 +32,11 @@ export async function b2cRateLimit(
   if (!config) return null;
 
   const ip = getClientIp(request);
+  // No public client address means the proxy chain isn't giving us one. Keying
+  // everyone to a shared bucket would turn this limiter into a self-DoS on the
+  // public site, so skip it rather than throttle the whole internet as one.
+  if (!ip) return null;
+
   const now = Date.now();
   const windowStart = now - config.windowMs;
   const redisKey = `b2c_rl:${endpoint}:${ip}`;

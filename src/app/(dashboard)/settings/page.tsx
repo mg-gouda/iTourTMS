@@ -86,6 +86,7 @@ export default function SettingsPage() {
   const refresh = () => {
     utils.settings.getCompanySettings.invalidate();
     utils.settings.getGooglePlacesKey.invalidate();
+    utils.settings.getIntegrationKeys.invalidate();
   };
 
   return (
@@ -155,9 +156,6 @@ interface CompanySettings {
   innerBgUrl: string | null;
   reportsLogoUrl: string | null;
   timezone: string;
-  googlePlacesApiKey: string | null;
-  giataApiKey: string | null;
-  anthropicApiKey: string | null;
   hotelCodePrefix: string | null;
   fiscalYearStart: number | null;
   fiscalYearEnd: number | null;
@@ -761,13 +759,15 @@ function IntegrationsSettings({
   const [giataKey, setGiataKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
 
+  const { data: keys } = trpc.settings.getIntegrationKeys.useQuery();
+
   useEffect(() => {
-    if (data) {
-      setGpKey(data.googlePlacesApiKey ?? "");
-      setGiataKey(data.giataApiKey ?? "");
-      setAnthropicKey(data.anthropicApiKey ?? "");
+    if (keys) {
+      setGpKey(keys.googlePlacesApiKey ?? "");
+      setGiataKey(keys.giataApiKey ?? "");
+      setAnthropicKey(keys.anthropicApiKey ?? "");
     }
-  }, [data]);
+  }, [keys]);
 
   return (
     <Card>

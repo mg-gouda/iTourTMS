@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { cruiseManifestUpdateSchema } from "@/lib/validations/nile-cruises";
 
@@ -9,8 +10,9 @@ export const cruiseManifestRouter = createTRPCRouter({
     .input(z.object({ departureId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.cruiseManifest.findMany({
-        where: input.departureId ? { departureId: input.departureId } : {
+        where: {
           departure: { companyId: ctx.companyId },
+          ...(input.departureId ? { departureId: input.departureId } : {}),
         },
         include: {
           departure: {
@@ -71,8 +73,9 @@ export const cruiseManifestRouter = createTRPCRouter({
   getById: p("nile-cruises:manifest:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.cruiseManifest.findFirstOrThrow({
-        where: { id: input.id },
+      // CruiseManifest has no companyId — scope through its departure
+      const manifest = await ctx.db.cruiseManifest.findFirst({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
         include: {
           departure: {
             include: {
@@ -90,13 +93,15 @@ export const cruiseManifestRouter = createTRPCRouter({
           amendments: { orderBy: { performedAt: "desc" } },
         },
       });
+      if (!manifest) throw new TRPCError({ code: "NOT_FOUND" });
+      return manifest;
     }),
 
   markSubmitted: p("nile-cruises:manifest:submit")
     .input(z.object({ id: z.string(), submissionRef: z.string().optional(), method: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.cruiseManifest.update({
-        where: { id: input.id },
+      const { count } = await ctx.db.cruiseManifest.updateMany({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
         data: {
           status: "SUBMITTED",
           submittedAt: new Date(),
@@ -105,30 +110,39 @@ export const cruiseManifestRouter = createTRPCRouter({
           submissionMethod: (input.method as never) ?? null,
         },
       });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   markAccepted: p("nile-cruises:manifest:submit")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.cruiseManifest.update({
-        where: { id: input.id },
+      const { count } = await ctx.db.cruiseManifest.updateMany({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
         data: { status: "ACCEPTED", acceptedAt: new Date() },
       });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   markRejected: p("nile-cruises:manifest:submit")
     .input(z.object({ id: z.string(), reason: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.cruiseManifest.update({
-        where: { id: input.id },
+      const { count } = await ctx.db.cruiseManifest.updateMany({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
         data: { status: "REJECTED", rejectedAt: new Date(), rejectionReason: input.reason },
       });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   amend: p("nile-cruises:manifest:submit")
     .input(z.object({ id: z.string(), changeSummary: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const manifest = await ctx.db.cruiseManifest.findFirstOrThrow({ where: { id: input.id } });
+      const manifest = await ctx.db.cruiseManifest.findFirst({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
+      });
+      if (!manifest) throw new TRPCError({ code: "NOT_FOUND" });
       await ctx.db.cruiseManifestAmendment.create({
         data: {
           manifestId: manifest.id,
@@ -147,8 +161,8 @@ export const cruiseManifestRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       // Returns manifest data for client-side PDF generation
-      const manifest = await ctx.db.cruiseManifest.findFirstOrThrow({
-        where: { id: input.id },
+      const manifest = await ctx.db.cruiseManifest.findFirst({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
         include: {
           departure: {
             include: {
@@ -162,12 +176,17 @@ export const cruiseManifestRouter = createTRPCRouter({
           },
         },
       });
+      if (!manifest) throw new TRPCError({ code: "NOT_FOUND" });
       return manifest;
     }),
 
   exportExcel: p("nile-cruises:manifest:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.cruiseManifest.findFirstOrThrow({ where: { id: input.id } });
+      const manifest = await ctx.db.cruiseManifest.findFirst({
+        where: { id: input.id, departure: { companyId: ctx.companyId } },
+      });
+      if (!manifest) throw new TRPCError({ code: "NOT_FOUND" });
+      return manifest;
     }),
 });

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { P } from "@/lib/constants/permissions";
 import { parseSejourPdf } from "@/lib/import/sejour/parse-sejour";
 import { importSejourContract } from "@/lib/import/sejour/import-sejour";
 import { db } from "@/server/db";
+
+/** Reject oversized uploads before buffering/parsing them. */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +18,36 @@ export async function POST(req: NextRequest) {
     }
     const companyId = session.user.companyId;
     const userId = session.user.id;
+
+    // Same gate as the contracting.contract tRPC mutations: module installed + permission
+    const moduleInstalled = await db.installedModule.findUnique({
+      where: { name_companyId: { name: "contracting", companyId } },
+    });
+    if (!moduleInstalled?.isInstalled) {
+      return NextResponse.json(
+        { error: "Contracting module not installed" },
+        { status: 403 },
+      );
+    }
+
+    if (
+      !session.user.roles?.includes("super_admin") &&
+      !session.user.permissions?.includes(P.CONTRACTING_CONTRACT_CREATE)
+    ) {
+      return NextResponse.json(
+        { error: `Missing permission: ${P.CONTRACTING_CONTRACT_CREATE}` },
+        { status: 403 },
+      );
+    }
+
+    // ---- Request size cap ----
+    const declaredLength = Number(req.headers.get("content-length") ?? 0);
+    if (declaredLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Upload too large (max 10 MB)" },
+        { status: 413 },
+      );
+    }
 
     // ---- Parse multipart form data ----
     const formData = await req.formData();
@@ -31,6 +65,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "No PDF files uploaded." },
         { status: 400 },
+      );
+    }
+
+    // Content-Length can be absent or lie — re-check the actual payload
+    const totalBytes = files.reduce(
+      (sum, f) => sum + (f instanceof File ? f.size : 0),
+      0,
+    );
+    if (totalBytes > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Upload too large (max 10 MB)" },
+        { status: 413 },
       );
     }
 

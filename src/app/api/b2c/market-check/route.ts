@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { resolveMarketByCountry } from "@/server/services/b2c/market-resolver";
 import { getCountryFromIP } from "@/lib/b2c/geo-ip";
+import { getClientIp } from "@/lib/client-ip";
 import { b2cRateLimit } from "@/server/b2c-rate-limit";
 
 export async function GET(request: NextRequest) {
@@ -15,15 +16,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ hasMarket: false, country: null });
     }
 
-    // Resolve country code
-    let countryCode =
-      request.headers.get("x-geo-country") ||
-      request.headers.get("cf-ipcountry") ||
-      null;
+    // Only x-geo-country, which proxy.ts strips from the inbound request and
+    // re-derives. Reading cf-ipcountry here would reintroduce the spoof the
+    // proxy exists to prevent, since nothing upstream removes it.
+    let countryCode = request.headers.get("x-geo-country");
 
     if (!countryCode) {
-      const xff = request.headers.get("x-forwarded-for");
-      const ip = xff ? xff.split(",")[0].trim() : null;
+      const ip = getClientIp(request);
       if (ip) {
         countryCode = await getCountryFromIP(ip);
       }

@@ -2,12 +2,48 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { db } from "@/server/db";
-import { searchAvailability } from "@/server/services/b2c/availability";
+import { searchAvailability, type SearchResult } from "@/server/services/b2c/availability";
 import { resolveMarketByCountry } from "@/server/services/b2c/market-resolver";
 import { b2cRateLimit } from "@/server/b2c-rate-limit";
 
 const VALID_SORTS = ["price_asc", "price_desc", "star_desc", "name_asc"] as const;
 type SortOption = (typeof VALID_SORTS)[number];
+
+/** Longest stay the public search will price. */
+const MAX_STAY_NIGHTS = 30;
+
+/**
+ * The engine's RoomResult carries commercially sensitive internals: `total` is
+ * the NET contract rate, `markupAmount` is exactly what we add on top, and
+ * `remainingRooms` is live allotment. This endpoint is anonymous, so a
+ * competitor could read our cost base straight out of the JSON. Project down to
+ * what a shopper actually needs.
+ */
+function toPublicResult(result: SearchResult) {
+  return {
+    ...result,
+    hotels: result.hotels.map((hotel) => ({
+      ...hotel,
+      rooms: hotel.rooms.map((room) => ({
+        roomTypeId: room.roomTypeId,
+        roomTypeName: room.roomTypeName,
+        roomTypeCode: room.roomTypeCode,
+        mealCode: room.mealCode,
+        mealName: room.mealName,
+        availability: room.availability,
+        total: room.displayTotal,
+        pricePerNight: room.pricePerNight,
+        appliedOffer: room.appliedOffer
+          ? {
+              id: room.appliedOffer.id,
+              name: room.appliedOffer.name,
+              type: room.appliedOffer.type,
+            }
+          : null,
+      })),
+    })),
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +72,16 @@ export async function GET(request: NextRequest) {
 
     if (checkIn >= checkOut) {
       return NextResponse.json({ error: "checkOut must be after checkIn" }, { status: 400 });
+    }
+
+    // The rate engine walks the stay night by night, so an unbounded range on
+    // this anonymous endpoint is a one-request way to tie up the event loop.
+    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / 86_400_000);
+    if (nights > MAX_STAY_NIGHTS) {
+      return NextResponse.json(
+        { error: `Stay cannot exceed ${MAX_STAY_NIGHTS} nights` },
+        { status: 400 },
+      );
     }
 
     if (adults < 1 || adults > 10) {
@@ -83,7 +129,7 @@ export async function GET(request: NextRequest) {
       sort: (VALID_SORTS.includes(sp.get("sort") as SortOption) ? sp.get("sort") : "price_asc") as SortOption,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(toPublicResult(result));
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

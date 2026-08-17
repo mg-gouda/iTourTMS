@@ -11,18 +11,20 @@ docker
 .env
 .env.*
 !.env.example
-*.pem
-*.key
+**/*.pem
+**/*.key
+.npmrc
+.netrc
 
 # Database dumps (itour_backup.sql is a full production export). Migrations are
 # source, not backups, so they stay.
-*.sql
-*.sql.gz
-*.dump
+**/*.sql
+**/*.sql.gz
+**/*.dump
 !prisma/migrations/**/*.sql
 
 # Local documents and test artefacts
-*.pdf
+**/*.pdf
 e2e
 playwright-report
 test-results

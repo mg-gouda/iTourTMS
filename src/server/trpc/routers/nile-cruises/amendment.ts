@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
 const p = (code: string) => modulePermissionProcedure("nile-cruises", code);
@@ -17,7 +18,8 @@ export const cruiseAmendmentRouter = createTRPCRouter({
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.cruiseBookingAmendment.findMany({
-        where: { bookingId: input.bookingId },
+        // CruiseBookingAmendment has no companyId — scope through its booking
+        where: { bookingId: input.bookingId, booking: { companyId: ctx.companyId } },
         orderBy: { performedAt: "desc" },
       });
     }),
@@ -25,10 +27,17 @@ export const cruiseAmendmentRouter = createTRPCRouter({
   dateChange: p("nile-cruises:booking:update")
     .input(amendmentInput.extend({ newDepartureId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.cruiseBooking.update({
-        where: { id: input.bookingId },
+      // The target departure must also belong to the caller's company
+      const departure = await ctx.db.cruiseDeparture.findFirst({
+        where: { id: input.newDepartureId, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!departure) throw new TRPCError({ code: "NOT_FOUND" });
+      const { count } = await ctx.db.cruiseBooking.updateMany({
+        where: { id: input.bookingId, companyId: ctx.companyId },
         data: { departureId: input.newDepartureId },
       });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.cruiseBookingAmendment.create({
         data: { type: "DATE_CHANGE", ...input, performedById: ctx.session.user.id },
       });
@@ -37,6 +46,11 @@ export const cruiseAmendmentRouter = createTRPCRouter({
   cabinChange: p("nile-cruises:booking:update")
     .input(amendmentInput)
     .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.cruiseBooking.findFirst({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.cruiseBookingAmendment.create({
         data: { type: "CABIN_CHANGE", ...input, performedById: ctx.session.user.id },
       });
@@ -45,10 +59,11 @@ export const cruiseAmendmentRouter = createTRPCRouter({
   paxChange: p("nile-cruises:booking:update")
     .input(amendmentInput.extend({ adults: z.number().int().min(1), children: z.number().int().min(0) }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.cruiseBooking.update({
-        where: { id: input.bookingId },
+      const { count } = await ctx.db.cruiseBooking.updateMany({
+        where: { id: input.bookingId, companyId: ctx.companyId },
         data: { adults: input.adults, children: input.children },
       });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.cruiseBookingAmendment.create({
         data: { type: "PAX_CHANGE", ...input, performedById: ctx.session.user.id },
       });
@@ -57,6 +72,11 @@ export const cruiseAmendmentRouter = createTRPCRouter({
   occupancyChange: p("nile-cruises:booking:update")
     .input(amendmentInput)
     .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.cruiseBooking.findFirst({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.cruiseBookingAmendment.create({
         data: { type: "OCCUPANCY_CHANGE", ...input, performedById: ctx.session.user.id },
       });

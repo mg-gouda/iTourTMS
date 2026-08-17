@@ -3,6 +3,7 @@ import crypto from "crypto";
 import type { PrismaClient } from "@prisma/client";
 
 import { db as defaultDb } from "@/server/db";
+import { assertPublicHttpUrl } from "@/server/services/shared/ssrf-guard";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,6 +38,26 @@ async function deliverWithRetry(
 ): Promise<void> {
   const body = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
   const maxAttempts = 3;
+
+  // Re-check at dispatch time, not just when the URL was saved: the stored
+  // value can be re-pointed at an internal host after it was accepted, and we
+  // persist the response body where the caller can read it back.
+  try {
+    await assertPublicHttpUrl(target.webhookUrl);
+  } catch (err) {
+    await db.webhookDelivery.create({
+      data: {
+        apiIntegrationId: target.integrationId,
+        event,
+        payload: payload as object,
+        url: target.webhookUrl,
+        attempts: 0,
+        success: false,
+        error: err instanceof Error ? err.message : "Blocked webhook URL",
+      },
+    });
+    return;
+  }
 
   const delivery = await db.webhookDelivery.create({
     data: {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { adminProcedure, createTRPCRouter, protectedProcedure } from "@/server/trpc";
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
 
 export const settingsRouter = createTRPCRouter({
@@ -27,15 +27,27 @@ export const settingsRouter = createTRPCRouter({
         innerBgUrl: true,
         reportsLogoUrl: true,
         timezone: true,
-        googlePlacesApiKey: true,
-        giataApiKey: true,
-        anthropicApiKey: true,
         hotelCodePrefix: true,
         fiscalYearStart: true,
         fiscalYearEnd: true,
         country: { select: { id: true, name: true, code: true } },
         baseCurrency: { select: { id: true, code: true, name: true } },
       },
+    });
+  }),
+
+  /**
+   * The provider secrets, split out of getCompanySettings: that query is called
+   * by ordinary pages (bookings, chart of accounts) and was handing the GIATA
+   * and Anthropic keys to every authenticated user.
+   */
+  getIntegrationKeys: adminProcedure.query(async ({ ctx }) => {
+    const companyId = ctx.user.companyId;
+    if (!companyId) return null;
+
+    return ctx.db.company.findUnique({
+      where: { id: companyId },
+      select: { googlePlacesApiKey: true, giataApiKey: true, anthropicApiKey: true },
     });
   }),
 
@@ -50,7 +62,7 @@ export const settingsRouter = createTRPCRouter({
     return company?.googlePlacesApiKey ?? null;
   }),
 
-  updateCompanySettings: protectedProcedure
+  updateCompanySettings: adminProcedure
     .input(
       z.object({
         name: z.string().min(1).optional(),
@@ -148,7 +160,7 @@ export const settingsRouter = createTRPCRouter({
     }));
   }),
 
-  toggleModule: protectedProcedure
+  toggleModule: adminProcedure
     .input(z.object({ name: z.string(), enabled: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.user.companyId;

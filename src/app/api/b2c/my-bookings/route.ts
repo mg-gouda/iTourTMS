@@ -20,16 +20,29 @@ export async function GET(req: NextRequest) {
   }
   const email = emailResult.data;
 
-  // Build where clause
-  const where: Record<string, unknown> = {
-    leadGuestEmail: { equals: email, mode: "insensitive" },
-  };
-  if (code) {
-    where.code = code;
+  // The reference is REQUIRED. It used to be optional, which meant an email
+  // address on its own returned that person's entire reservation history —
+  // names, hotels, dates, prices — to anyone who typed it.
+  if (!code) {
+    return NextResponse.json(
+      { error: "Booking reference is required" },
+      { status: 400 },
+    );
+  }
+
+  // This endpoint is unauthenticated, so it must never reach outside the
+  // company that owns this public site.
+  const company = await db.company.findFirst({ select: { id: true } });
+  if (!company) {
+    return NextResponse.json({ bookings: [] });
   }
 
   const bookings = await db.booking.findMany({
-    where,
+    where: {
+      companyId: company.id,
+      code,
+      leadGuestEmail: { equals: email, mode: "insensitive" },
+    },
     select: {
       id: true,
       code: true,

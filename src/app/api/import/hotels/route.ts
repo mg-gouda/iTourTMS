@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { P } from "@/lib/constants/permissions";
 import { parseHotelExcel } from "@/lib/import/parse-hotels";
 import { db } from "@/server/db";
 import type { MealCode, StarRating } from "@prisma/client";
+
+/** Reject oversized uploads before buffering/parsing them. */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 // ------------------------------------------------------------------ helpers
 
@@ -52,6 +56,36 @@ export async function POST(req: NextRequest) {
     }
     const companyId = session.user.companyId;
 
+    // Same gate as the contracting.hotel tRPC mutations: module installed + permission
+    const moduleInstalled = await db.installedModule.findUnique({
+      where: { name_companyId: { name: "contracting", companyId } },
+    });
+    if (!moduleInstalled?.isInstalled) {
+      return NextResponse.json(
+        { error: "Contracting module not installed" },
+        { status: 403 },
+      );
+    }
+
+    if (
+      !session.user.roles?.includes("super_admin") &&
+      !session.user.permissions?.includes(P.CONTRACTING_HOTEL_CREATE)
+    ) {
+      return NextResponse.json(
+        { error: `Missing permission: ${P.CONTRACTING_HOTEL_CREATE}` },
+        { status: 403 },
+      );
+    }
+
+    // ---- Request size cap ----
+    const declaredLength = Number(req.headers.get("content-length") ?? 0);
+    if (declaredLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Upload too large (max 10 MB)" },
+        { status: 413 },
+      );
+    }
+
     // ---- Parse multipart form data ----
     const formData = await req.formData();
     const file = formData.get("file");
@@ -60,6 +94,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "No file uploaded. Please attach an Excel file." },
         { status: 400 },
+      );
+    }
+
+    // Content-Length can be absent or lie — re-check the actual file
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Upload too large (max 10 MB)" },
+        { status: 413 },
       );
     }
 

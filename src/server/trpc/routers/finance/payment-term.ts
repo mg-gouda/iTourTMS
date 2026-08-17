@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { paymentTermSchema } from "@/lib/validations/finance";
@@ -56,6 +57,13 @@ export const paymentTermRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, lines, ...data } = input;
 
+      // Assert tenant ownership before child lines are destroyed
+      const owned = await ctx.db.paymentTerm.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+
       if (lines) {
         await ctx.db.paymentTermLine.deleteMany({ where: { paymentTermId: id } });
         await ctx.db.paymentTermLine.createMany({
@@ -80,7 +88,11 @@ export const paymentTermRouter = createTRPCRouter({
   delete: p("finance:paymentTerm:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.paymentTerm.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.paymentTerm.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   computeDueDates: p("finance:paymentTerm:read")

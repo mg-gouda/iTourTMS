@@ -105,8 +105,6 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
       adults: number;
       children?: number;
       extraBed?: boolean;
-      buyingRatePerNight?: number;
-      sellingRatePerNight?: number;
     }>;
     leadGuestName?: string;
     leadGuestEmail?: string;
@@ -136,6 +134,36 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
     return apiError("BAD_REQUEST", "checkOut must be after checkIn", 400);
   }
 
+  // Rates are never taken from the caller — a partner could otherwise price its
+  // own bookings at zero. They are always derived server-side from the contract.
+  const suppliedRateField =
+    manualRate !== undefined ||
+    (rooms as Array<Record<string, unknown>>).some(
+      (r) =>
+        r?.buyingRatePerNight !== undefined ||
+        r?.sellingRatePerNight !== undefined,
+    );
+  if (suppliedRateField) {
+    return apiError(
+      "BAD_REQUEST",
+      "Rates are calculated server-side; remove manualRate, buyingRatePerNight and sellingRatePerNight",
+      400,
+    );
+  }
+
+  if (!contractId) {
+    return apiError("BAD_REQUEST", "contractId is required", 400);
+  }
+
+  // Bind the contract to both the integration's company and the authorised hotel
+  const contract = await db.contract.findFirst({
+    where: { id: contractId, companyId: auth.companyId, hotelId },
+    select: { rateBasis: true },
+  });
+  if (!contract) {
+    return apiError("NOT_FOUND", "Contract not found", 404);
+  }
+
   const nights = computeNights(checkIn, checkOut);
   const code = await generateSequenceNumber(db, auth.companyId, "booking");
 
@@ -152,86 +180,54 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const roomsData: any[] = [];
 
-  if (!manualRate && contractId) {
-    try {
-      const rateResult = await calculateBookingRates(db, auth.companyId, {
-        contractId,
-        hotelId,
-        tourOperatorId: auth.tourOperatorId,
-        checkIn,
-        checkOut,
-        rooms: rooms.map((r) => ({
-          roomTypeId: r.roomTypeId,
-          mealBasisId: r.mealBasisId,
-          adults: r.adults,
-          children: [],
-          extraBed: r.extraBed ?? false,
-        })),
-      });
-
-      buyingTotal = rateResult.buyingTotal;
-      sellingTotal = rateResult.sellingTotal;
-      seasonId = rateResult.seasonId;
-      markupRuleId = rateResult.markupRuleId;
-      markupType = rateResult.markupType;
-      markupValue = rateResult.markupValue;
-      markupAmount = rateResult.markupAmount;
-      resolvedCurrencyId = rateResult.currencyId;
-
-      const contract = await db.contract.findFirst({
-        where: { id: contractId },
-        select: { rateBasis: true },
-      });
-      rateBasis = contract?.rateBasis ?? null;
-
-      for (const rr of rateResult.rooms) {
-        roomsData.push({
-          roomTypeId: rr.roomTypeId,
-          mealBasisId: rr.mealBasisId,
-          roomIndex: rr.roomIndex,
-          adults: rr.adults,
-          children: rr.children.length,
-          extraBed: rr.extraBed,
-          buyingRatePerNight: rr.buyingRatePerNight,
-          buyingTotal: rr.buyingTotal,
-          sellingRatePerNight: rr.sellingRatePerNight,
-          sellingTotal: rr.sellingTotal,
-          rateBreakdown: rr.breakdown,
-        });
-      }
-    } catch (err) {
-      return apiError(
-        "RATE_CALCULATION_ERROR",
-        err instanceof Error ? err.message : "Failed to calculate rates",
-        422,
-      );
-    }
-  } else {
-    // Manual rates
-    if (!resolvedCurrencyId) {
-      return apiError("BAD_REQUEST", "currencyId is required for manual rates", 400);
-    }
-    for (let i = 0; i < rooms.length; i++) {
-      const r = rooms[i]!;
-      const buyPerNight = r.buyingRatePerNight ?? 0;
-      const sellPerNight = r.sellingRatePerNight ?? 0;
-      buyingTotal += buyPerNight * nights;
-      sellingTotal += sellPerNight * nights;
-
-      roomsData.push({
+  try {
+    const rateResult = await calculateBookingRates(db, auth.companyId, {
+      contractId,
+      hotelId,
+      tourOperatorId: auth.tourOperatorId,
+      checkIn,
+      checkOut,
+      rooms: rooms.map((r) => ({
         roomTypeId: r.roomTypeId,
         mealBasisId: r.mealBasisId,
-        roomIndex: i + 1,
         adults: r.adults,
-        children: r.children ?? 0,
+        children: [],
         extraBed: r.extraBed ?? false,
-        buyingRatePerNight: buyPerNight,
-        buyingTotal: buyPerNight * nights,
-        sellingRatePerNight: sellPerNight,
-        sellingTotal: sellPerNight * nights,
-        rateBreakdown: null,
+      })),
+    });
+
+    buyingTotal = rateResult.buyingTotal;
+    sellingTotal = rateResult.sellingTotal;
+    seasonId = rateResult.seasonId;
+    markupRuleId = rateResult.markupRuleId;
+    markupType = rateResult.markupType;
+    markupValue = rateResult.markupValue;
+    markupAmount = rateResult.markupAmount;
+    resolvedCurrencyId = rateResult.currencyId;
+
+    rateBasis = contract.rateBasis ?? null;
+
+    for (const rr of rateResult.rooms) {
+      roomsData.push({
+        roomTypeId: rr.roomTypeId,
+        mealBasisId: rr.mealBasisId,
+        roomIndex: rr.roomIndex,
+        adults: rr.adults,
+        children: rr.children.length,
+        extraBed: rr.extraBed,
+        buyingRatePerNight: rr.buyingRatePerNight,
+        buyingTotal: rr.buyingTotal,
+        sellingRatePerNight: rr.sellingRatePerNight,
+        sellingTotal: rr.sellingTotal,
+        rateBreakdown: rr.breakdown,
       });
     }
+  } catch (err) {
+    return apiError(
+      "RATE_CALCULATION_ERROR",
+      err instanceof Error ? err.message : "Failed to calculate rates",
+      422,
+    );
   }
 
   const booking = await db.booking.create({
@@ -241,7 +237,7 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
       status: "NEW_BOOKING",
       source: "API",
       hotelId,
-      contractId: contractId ?? null,
+      contractId,
       marketId: marketId ?? null,
       tourOperatorId: auth.tourOperatorId,
       seasonId,
@@ -252,7 +248,7 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
       rateBasis,
       buyingTotal,
       sellingTotal,
-      manualRate: manualRate ?? false,
+      manualRate: false,
       markupRuleId,
       markupType,
       markupValue,

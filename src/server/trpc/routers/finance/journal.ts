@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { journalSchema } from "@/lib/validations/finance";
@@ -54,12 +55,21 @@ export const journalRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }).merge(journalSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const owned = await ctx.db.journal.findFirst({
+        where: { id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.db.journal.update({ where: { id }, data });
     }),
 
   delete: p("finance:journal:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.journal.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.journal.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 });

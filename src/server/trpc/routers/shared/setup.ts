@@ -45,12 +45,15 @@ export const setupRouter = createTRPCRouter({
     .input(z.object({ key: z.string().regex(LICENSE_KEY_PATTERN, "Invalid license key format") }))
     .mutation(async ({ ctx, input }) => {
       // This endpoint is unauthenticated by necessity (it runs before any user
-      // exists), so it needs its own brake. Activation happens about once a
-      // year, so a global cap is plenty and needs no per-IP plumbing.
+      // exists), so it needs its own brake. Counted PER CALLER: a single shared
+      // counter would let any anonymous visitor burn the budget and leave the
+      // real customer unable to activate — and an expired license halts the
+      // whole system, so that lockout is the more damaging failure.
+      const attemptKey = `${LICENSE_ATTEMPT_KEY}:${ctx.clientIp ?? "unknown"}`;
       try {
         await ctx.redis.connect().catch(() => {});
-        const attempts = await ctx.redis.incr(LICENSE_ATTEMPT_KEY);
-        if (attempts === 1) await ctx.redis.expire(LICENSE_ATTEMPT_KEY, LICENSE_ATTEMPT_WINDOW);
+        const attempts = await ctx.redis.incr(attemptKey);
+        if (attempts === 1) await ctx.redis.expire(attemptKey, LICENSE_ATTEMPT_WINDOW);
         if (attempts > LICENSE_MAX_ATTEMPTS) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",

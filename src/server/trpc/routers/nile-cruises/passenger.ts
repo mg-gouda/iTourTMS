@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { cruisePassengerSchema, cruiseBulkSavePassengersSchema } from "@/lib/validations/nile-cruises";
 
@@ -9,7 +10,8 @@ export const cruisePassengerRouter = createTRPCRouter({
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.cruisePassenger.findMany({
-        where: { bookingId: input.bookingId },
+        // CruisePassenger has no companyId — scope through its booking
+        where: { bookingId: input.bookingId, booking: { companyId: ctx.companyId } },
         include: {
           title: true,
           nationality: { select: { id: true, name: true, code: true } },
@@ -22,6 +24,11 @@ export const cruisePassengerRouter = createTRPCRouter({
   create: p("nile-cruises:booking:update")
     .input(cruisePassengerSchema)
     .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.cruiseBooking.findFirst({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
       const data: Record<string, unknown> = { ...input };
       if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth as string);
       if (data.passportIssueDate) data.passportIssueDate = new Date(data.passportIssueDate as string);
@@ -36,18 +43,35 @@ export const cruisePassengerRouter = createTRPCRouter({
       if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth as string);
       if (data.passportIssueDate) data.passportIssueDate = new Date(data.passportIssueDate as string);
       if (data.passportExpiryDate) data.passportExpiryDate = new Date(data.passportExpiryDate as string);
-      return ctx.db.cruisePassenger.update({ where: { id: input.id }, data });
+      // updateMany cannot set relation FK scalars (titleId, nationalityId, …),
+      // so ownership is asserted first and the update stays a by-id update
+      const existing = await ctx.db.cruisePassenger.findFirst({
+        where: { id: input.id, booking: { companyId: ctx.companyId } },
+        select: { id: true },
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      return ctx.db.cruisePassenger.update({ where: { id: existing.id }, data });
     }),
 
   delete: p("nile-cruises:booking:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.cruisePassenger.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.cruisePassenger.deleteMany({
+        where: { id: input.id, booking: { companyId: ctx.companyId } },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   bulkSave: p("nile-cruises:booking:update")
     .input(cruiseBulkSavePassengersSchema)
     .mutation(async ({ ctx, input }) => {
+      // Assert booking ownership BEFORE the destructive deleteMany on bookingId
+      const booking = await ctx.db.cruiseBooking.findFirst({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
       await ctx.db.cruisePassenger.deleteMany({ where: { bookingId: input.bookingId } });
       if (input.passengers.length === 0) return { count: 0 };
       return ctx.db.cruisePassenger.createMany({

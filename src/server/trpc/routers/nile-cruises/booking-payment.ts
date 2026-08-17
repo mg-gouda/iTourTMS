@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { cruiseBookingPaymentCreateSchema } from "@/lib/validations/nile-cruises";
 
@@ -9,7 +10,8 @@ export const cruiseBookingPaymentRouter = createTRPCRouter({
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.cruiseBookingPayment.findMany({
-        where: { bookingId: input.bookingId },
+        // CruiseBookingPayment has no companyId — scope through its booking
+        where: { bookingId: input.bookingId, booking: { companyId: ctx.companyId } },
         orderBy: { paidAt: "desc" },
       });
     }),
@@ -17,6 +19,11 @@ export const cruiseBookingPaymentRouter = createTRPCRouter({
   record: p("nile-cruises:booking:update")
     .input(cruiseBookingPaymentCreateSchema)
     .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.cruiseBooking.findFirst({
+        where: { id: input.bookingId, companyId: ctx.companyId },
+        select: { grossTotal: true },
+      });
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
       const payment = await ctx.db.cruiseBookingPayment.create({
         data: {
           ...input,
@@ -30,10 +37,6 @@ export const cruiseBookingPaymentRouter = createTRPCRouter({
         _sum: { amount: true },
       });
       const paidAmount = Number(allPayments._sum.amount ?? 0);
-      const booking = await ctx.db.cruiseBooking.findFirstOrThrow({
-        where: { id: input.bookingId },
-        select: { grossTotal: true },
-      });
       await ctx.db.cruiseBooking.update({
         where: { id: input.bookingId },
         data: {
@@ -47,19 +50,20 @@ export const cruiseBookingPaymentRouter = createTRPCRouter({
   delete: p("nile-cruises:booking:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const payment = await ctx.db.cruiseBookingPayment.delete({ where: { id: input.id } });
+      const existing = await ctx.db.cruiseBookingPayment.findFirst({
+        where: { id: input.id, booking: { companyId: ctx.companyId } },
+        select: { id: true, bookingId: true, booking: { select: { grossTotal: true } } },
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      const payment = await ctx.db.cruiseBookingPayment.delete({ where: { id: existing.id } });
       const allPayments = await ctx.db.cruiseBookingPayment.aggregate({
-        where: { bookingId: payment.bookingId },
+        where: { bookingId: existing.bookingId },
         _sum: { amount: true },
       });
       const paidAmount = Number(allPayments._sum.amount ?? 0);
-      const booking = await ctx.db.cruiseBooking.findFirstOrThrow({
-        where: { id: payment.bookingId },
-        select: { grossTotal: true },
-      });
       await ctx.db.cruiseBooking.update({
-        where: { id: payment.bookingId },
-        data: { paidAmount, balanceDue: Math.max(0, Number(booking.grossTotal) - paidAmount) },
+        where: { id: existing.bookingId },
+        data: { paidAmount, balanceDue: Math.max(0, Number(existing.booking.grossTotal) - paidAmount) },
       });
       return payment;
     }),

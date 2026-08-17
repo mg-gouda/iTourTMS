@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
+ * Set to "cloudflare" or "vercel" only when the app genuinely sits behind that
+ * platform, so its geo header can be believed. Anything else and geo falls back
+ * to the server-side IP lookup in src/lib/b2c/geo-ip.ts.
+ */
+const TRUSTED_GEO_PLATFORM = !!process.env.TRUSTED_GEO_PLATFORM;
+
+/**
  * Geo headers are trusted downstream, so they must be derived here and never
  * accepted from the client. Returns request headers with `x-geo-country`
  * stripped and re-set only from a platform-provided value.
@@ -10,10 +17,16 @@ function geoHeaders(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.delete("x-geo-country");
 
-  const country =
-    request.headers.get("cf-ipcountry") || // Cloudflare
-    (request as unknown as { geo?: { country?: string } }).geo?.country || // Vercel
-    null;
+  // cf-ipcountry only means anything when Cloudflare is actually in front,
+  // because Cloudflare overwrites any inbound copy. This deployment terminates
+  // on its own nginx, which does not strip it — so unless the platform is
+  // declared, the header is just attacker-supplied text and trusting it hands
+  // the caller their choice of market and pricing.
+  const country = TRUSTED_GEO_PLATFORM
+    ? request.headers.get("cf-ipcountry") ||
+      (request as unknown as { geo?: { country?: string } }).geo?.country ||
+      null
+    : null;
   if (country) headers.set("x-geo-country", country);
 
   return headers;

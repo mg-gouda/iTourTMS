@@ -21,6 +21,12 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  // Partner logins are ordinary User rows in this tenant, so they satisfy the
+  // check above. They belong in their own portal, not the staff dashboard.
+  if (session.user.tourOperatorId) {
+    redirect("/b2b/dashboard");
+  }
+
   // Check if setup is complete
   const companyCount = await db.company.count();
   if (companyCount === 0) {

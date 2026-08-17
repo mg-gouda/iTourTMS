@@ -189,8 +189,8 @@ export const moveRouter = createTRPCRouter({
 
         // Apply fiscal position remapping if provided
         if (input.fiscalPositionId) {
-          const fp = await ctx.db.fiscalPosition.findUnique({
-            where: { id: input.fiscalPositionId },
+          const fp = await ctx.db.fiscalPosition.findFirst({
+            where: { id: input.fiscalPositionId, companyId: ctx.companyId },
             include: { taxMaps: true, accountMaps: true },
           });
           if (fp) {
@@ -225,8 +225,8 @@ export const moveRouter = createTRPCRouter({
         // Get payment term lines if applicable
         let ptLines: any[] | null = null;
         if (input.paymentTermId) {
-          const pt = await ctx.db.paymentTerm.findUnique({
-            where: { id: input.paymentTermId },
+          const pt = await ctx.db.paymentTerm.findFirst({
+            where: { id: input.paymentTermId, companyId: ctx.companyId },
             include: { lines: { orderBy: { sequence: "asc" } } },
           });
           if (pt) ptLines = pt.lines;
@@ -414,8 +414,8 @@ export const moveRouter = createTRPCRouter({
         // Apply fiscal position remapping if provided
         const fpId = moveData.fiscalPositionId ?? existing.fiscalPositionId;
         if (fpId) {
-          const fp = await ctx.db.fiscalPosition.findUnique({
-            where: { id: fpId },
+          const fp = await ctx.db.fiscalPosition.findFirst({
+            where: { id: fpId, companyId: ctx.companyId },
             include: { taxMaps: true, accountMaps: true },
           });
           if (fp) {
@@ -449,8 +449,8 @@ export const moveRouter = createTRPCRouter({
         let ptLines: any[] | null = null;
         const ptId = moveData.paymentTermId ?? existing.paymentTermId;
         if (ptId) {
-          const pt = await ctx.db.paymentTerm.findUnique({
-            where: { id: ptId },
+          const pt = await ctx.db.paymentTerm.findFirst({
+            where: { id: ptId, companyId: ctx.companyId },
             include: { lines: { orderBy: { sequence: "asc" } } },
           });
           if (pt) ptLines = pt.lines;

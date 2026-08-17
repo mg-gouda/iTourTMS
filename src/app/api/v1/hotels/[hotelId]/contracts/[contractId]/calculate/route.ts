@@ -17,9 +17,10 @@ import {
 async function fetchContractData(
   contractId: string,
   companyId: string,
+  hotelId: string,
 ): Promise<RateContractData | null> {
   const contract = await db.contract.findFirst({
-    where: { id: contractId, companyId, status: "PUBLISHED" },
+    where: { id: contractId, companyId, hotelId, status: "PUBLISHED" },
     include: {
       seasons: { orderBy: { sortOrder: "asc" } },
       roomTypes: {
@@ -236,7 +237,9 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
     return apiError("BAD_REQUEST", "seasonId, roomTypeId, and mealBasisId are required", 400);
   }
 
-  const contractData = await fetchContractData(contractId, auth.companyId);
+  // hotelId is already checked against the integration's allowlist above, so
+  // binding the contract to it also binds it to the allowlist.
+  const contractData = await fetchContractData(contractId, auth.companyId, hotelId);
   if (!contractData) {
     return apiError("NOT_FOUND", "Contract not found", 404);
   }
@@ -259,14 +262,9 @@ export const POST = withApiAuth(async (req: NextRequest, auth) => {
     where: { companyId: auth.companyId, active: true },
   });
 
-  const contract = await db.contract.findFirst({
-    where: { id: contractId },
-    select: { hotelId: true },
-  });
-
   const resolveCtx: ResolveContext = {
     contractId,
-    hotelId: contract?.hotelId ?? hotelId,
+    hotelId,
     destinationId: null,
     marketId: null,
     tourOperatorId: auth.tourOperatorId,

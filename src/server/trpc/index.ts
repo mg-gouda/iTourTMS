@@ -3,11 +3,15 @@ import type { Session } from "next-auth";
 import superjson from "superjson";
 
 import { auth } from "@/lib/auth";
+import { getClientIp } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { db } from "@/server/db";
 import { redis } from "@/server/redis";
 
-export async function createTRPCContext(opts?: { session?: Session | null }) {
+export async function createTRPCContext(opts?: {
+  session?: Session | null;
+  headers?: Headers;
+}) {
   const session = opts?.session !== undefined ? opts.session : await auth();
 
   return {
@@ -15,6 +19,9 @@ export async function createTRPCContext(opts?: { session?: Session | null }) {
     redis,
     session,
     logger,
+    // Needed by the unauthenticated procedures that have to rate-limit per
+    // caller (see setup.activateLicense). Null when it can't be established.
+    clientIp: opts?.headers ? getClientIp(opts.headers) : null,
   };
 }
 
@@ -52,6 +59,36 @@ const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
 const authMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  // External B2B partner logins are ordinary User rows in the tenant, which
+  // meant every protectedProcedure was open to them — company settings, API
+  // keys, finance, the lot. They reach their portal through /api/b2c/b2b-portal
+  // and never call tRPC, so shut the whole surface off here rather than
+  // per-router.
+  if (ctx.session.user.tourOperatorId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Not available to partner accounts" });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      session: ctx.session,
+      user: ctx.session.user,
+    },
+  });
+});
+
+// Middleware: Require the super_admin role. Used for tenant-wide administrative
+// surface (API keys, company settings, module install) where no granular
+// permission code exists and "any authenticated user" is far too broad.
+const adminMiddleware = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.session?.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  if (!ctx.session.user.roles?.includes("super_admin")) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Administrator access required" });
   }
 
   return next({
@@ -196,6 +233,14 @@ export const moduleProcedure = (moduleName: string) =>
     .use(loggerMiddleware)
     .use(authMiddleware)
     .use(moduleMiddleware(moduleName));
+
+// Admin-only: session + super_admin role. For tenant-wide config with no
+// granular permission code (API keys, company settings, module install).
+export const adminProcedure = t.procedure
+  .use(loggerMiddleware)
+  .use(authMiddleware)
+  .use(licenseMiddleware)
+  .use(adminMiddleware);
 
 // Permission-scoped: session + specific permission
 export const permissionProcedure = (permissionCode: string) =>

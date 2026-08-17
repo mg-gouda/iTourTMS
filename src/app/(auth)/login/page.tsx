@@ -10,6 +10,21 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/**
+ * `callbackUrl` is attacker-controlled: it arrives in the querystring and used
+ * to be assigned straight to window.location. Anything but a same-origin path
+ * is an open redirect, and `javascript:` would execute — the CSP does not cover
+ * a navigation the page performs on itself.
+ */
+function safeCallbackUrl(raw: string | null): string {
+  const FALLBACK = "/dashboard";
+  if (!raw) return FALLBACK;
+  // Must be a single-slash absolute path. This rejects "//evil.com",
+  // "https://evil.com", "javascript:..." and "\\evil.com" alike.
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return FALLBACK;
+  return raw;
+}
+
 export default function LoginPage() {
   const t = useTranslations("auth");
   const [email, setEmail] = useState("");
@@ -46,8 +61,7 @@ export default function LoginPage() {
         // Full page navigation ensures the session cookie is present in the
         // middleware (client-side router push can race with cookie availability).
         const params = new URLSearchParams(window.location.search);
-        const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
-        window.location.href = callbackUrl;
+        window.location.href = safeCallbackUrl(params.get("callbackUrl"));
       }
     } catch {
       setError("Something went wrong");

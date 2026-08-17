@@ -52,10 +52,13 @@ export async function POST(
       .createHmac("sha256", integration.webhookSecret)
       .update(rawBody)
       .digest("hex");
-    verified = crypto.timingSafeEqual(
-      Buffer.from(signature, "hex"),
-      Buffer.from(expected, "hex"),
-    );
+    const signatureBuf = Buffer.from(signature, "hex");
+    const expectedBuf = Buffer.from(expected, "hex");
+    // timingSafeEqual throws RangeError unless both buffers are the same length,
+    // so a malformed signature must fail as unauthorised, not as a 500.
+    verified =
+      signatureBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(signatureBuf, expectedBuf);
 
     if (!verified) {
       // Log the failed attempt but still return 401
