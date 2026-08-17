@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   agentRules: false,
   typescript: { ignoreBuildErrors: true },
   serverExternalPackages: ["pino", "pino-pretty", "pdf-parse"],
+  // Next traces only the CJS half of @swc/helpers, but the standalone server
+  // imports its ESM entry points — without this the container starts and dies
+  // with MODULE_NOT_FOUND on @swc/helpers/esm/*.
+  outputFileTracingIncludes: {
+    "*": ["./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**"],
+  },
   images: {
     formats: ["image/avif", "image/webp"],
   },
