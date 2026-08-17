@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { createTotp, generateBackupCodes, hashBackupCode, verifyTotp } from "@/lib/totp";
 import { createTRPCRouter, protectedProcedure } from "@/server/trpc";
+import { hashPassword } from "@/lib/password";
 
 const totpToken = z.object({ token: z.string().regex(/^\d{6}$/) });
 
@@ -77,7 +78,7 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      const hashedPassword = await bcrypt.hash(input.newPassword, 12);
+      const hashedPassword = await hashPassword(input.newPassword);
       await ctx.db.user.update({
         where: { id: ctx.user.id },
         data: { password: hashedPassword },

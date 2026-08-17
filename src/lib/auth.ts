@@ -4,6 +4,7 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import { getClientIp } from "@/lib/client-ip";
+import { hashPassword, isStaleHash } from "@/lib/password";
 import { hashBackupCode, verifyTotp } from "@/lib/totp";
 import { db } from "@/server/db";
 import { redis } from "@/server/redis";
@@ -26,11 +27,22 @@ class TooManyAttempts extends CredentialsSignin {
 }
 
 const LOGIN_WINDOW_SECONDS = 15 * 60;
-// Per-email is the real brake on a targeted attack. Per-IP only has to stop
-// spraying, and it is deliberately loose because a whole office shares one NAT
-// address — too tight and one bad Monday locks out the entire customer.
-const LOGIN_MAX_PER_EMAIL = 10;
-const LOGIN_MAX_PER_IP = 100;
+
+/**
+ * Three tiers, so throttling an attacker cannot be used to lock out a victim.
+ *
+ * The tight limit is per email+IP: it stops someone hammering one account, but
+ * only from the address doing the hammering, so the real owner signing in from
+ * anywhere else is unaffected. The email-only counter stays as a backstop
+ * against a distributed attack, but set high enough that forging it into an
+ * account freeze costs 50 failures spread across many addresses. The IP tier
+ * catches spraying and is loose because an office shares one NAT address.
+ */
+const LOGIN_LIMITS = {
+  pair: 10,
+  email: 50,
+  ip: 100,
+} as const;
 
 /**
  * A real bcrypt hash of a random string, compared against when the account does
@@ -40,15 +52,25 @@ const LOGIN_MAX_PER_IP = 100;
 const DECOY_HASH = "$2b$12$uqQOQd3uexMOdKfmgfvTeOASA19/W33yLUSeWY42zjkiyWQeu/PSe";
 
 /**
- * Only counts per-IP when the IP is actually known. If the proxy chain ever
- * stops yielding a public address, every caller would otherwise collapse into
- * one bucket and the IP rule would lock out the entire customer — the per-email
- * counter is the real brake, so degrade to it rather than to a global lockout.
+ * The counters to bump, each with the ceiling that trips it. The IP-bearing
+ * tiers are skipped when no public address could be established, so a proxy
+ * misconfiguration degrades to the email backstop instead of collapsing every
+ * caller into one bucket and locking out the whole customer.
  */
-const failKeys = (email: string, ip: string | null) => [
-  `login_fail:email:${email}`,
-  ...(ip ? [`login_fail:ip:${ip}`] : []),
-];
+function failCounters(email: string, ip: string | null): { key: string; limit: number }[] {
+  return [
+    { key: `login_fail:email:${email}`, limit: LOGIN_LIMITS.email },
+    ...(ip
+      ? [
+          { key: `login_fail:pair:${email}:${ip}`, limit: LOGIN_LIMITS.pair },
+          { key: `login_fail:ip:${ip}`, limit: LOGIN_LIMITS.ip },
+        ]
+      : []),
+  ];
+}
+
+const failKeys = (email: string, ip: string | null) =>
+  failCounters(email, ip).map((c) => c.key);
 
 /**
  * Fixed-window failure counters. Fails OPEN: Redis being down must not lock
@@ -57,8 +79,9 @@ const failKeys = (email: string, ip: string | null) => [
 async function isLoginThrottled(email: string, ip: string | null): Promise<boolean> {
   try {
     await redis.connect().catch(() => {});
-    const [byEmail, byIp] = await Promise.all(failKeys(email, ip).map((k) => redis.get(k)));
-    return Number(byEmail ?? 0) >= LOGIN_MAX_PER_EMAIL || Number(byIp ?? 0) >= LOGIN_MAX_PER_IP;
+    const counters = failCounters(email, ip);
+    const counts = await Promise.all(counters.map((c) => redis.get(c.key)));
+    return counters.some((c, i) => Number(counts[i] ?? 0) >= c.limit);
   } catch {
     return false;
   }
@@ -166,6 +189,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         await clearLoginFailures(throttleEmail, ip);
+
+        // Credentials are correct and we are holding the plaintext exactly once
+        // — the only moment an old hash can be upgraded. Never let this fail a
+        // login that has already been authenticated.
+        if (isStaleHash(user.password)) {
+          try {
+            const upgraded = await hashPassword(credentials.password as string);
+            await db.user.update({ where: { id: user.id }, data: { password: upgraded } });
+          } catch {
+            // Next sign-in will try again.
+          }
+        }
 
         return {
           id: user.id,

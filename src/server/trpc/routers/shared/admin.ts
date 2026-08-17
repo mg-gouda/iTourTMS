@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { P } from "@/lib/constants/permissions";
 import { createTRPCRouter, permissionProcedure, protectedProcedure } from "@/server/trpc";
+import { hashPassword } from "@/lib/password";
 
 // ── Helper: invalidate JWT for a user ──────────────────────────────────────
 async function invalidateUserToken(
@@ -81,7 +81,7 @@ const adminUserRouter = createTRPCRouter({
       });
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Email already in use" });
 
-      const hashed = await bcrypt.hash(input.password, 12);
+      const hashed = await hashPassword(input.password);
       const user = await ctx.db.user.create({
         data: {
           name: input.name,
@@ -146,7 +146,7 @@ const adminUserRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const hashed = await bcrypt.hash(input.newPassword, 12);
+      const hashed = await hashPassword(input.newPassword);
       await ctx.db.user.update({
         where: { id: input.id, companyId: ctx.session.user.companyId ?? undefined },
         data: {

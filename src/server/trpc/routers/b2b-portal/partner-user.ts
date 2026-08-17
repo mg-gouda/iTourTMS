@@ -2,11 +2,9 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { hashPassword } from "@/lib/password";
 
 const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
-
-/** Match the rest of the codebase; 10 also made the login decoy-hash timing uneven. */
-const PASSWORD_COST = 12;
 
 /**
  * These endpoints manage PARTNER logins only. Without both predicates a caller
@@ -64,8 +62,7 @@ export const partnerUserRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const bcrypt = await import("bcryptjs");
-      const hash = await bcrypt.hash(input.password, PASSWORD_COST);
+      const hash = await hashPassword(input.password);
 
       // The operator must be ours, or this attaches a login to another
       // tenant's partner.
@@ -106,8 +103,7 @@ export const partnerUserRouter = createTRPCRouter({
   resetPassword: p("b2b-portal:partnerUser:manage")
     .input(z.object({ id: z.string(), newPassword: z.string().min(6) }))
     .mutation(async ({ ctx, input }) => {
-      const bcrypt = await import("bcryptjs");
-      const hash = await bcrypt.hash(input.newPassword, PASSWORD_COST);
+      const hash = await hashPassword(input.newPassword);
 
       // updateMany, not update: `update` would ignore the extra predicates on
       // some drivers and rewrite the row anyway. A foreign id must touch zero

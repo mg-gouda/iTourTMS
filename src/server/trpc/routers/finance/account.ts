@@ -3,8 +3,26 @@ import { z } from "zod";
 
 import { accountGroupSchema, accountSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import type { PrismaClient } from "@prisma/client";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
+
+/**
+ * Tags reach the account mutations as bare ids, so scoping the tag CRUD alone
+ * would still let a caller attach — and thereby read the name and colour of —
+ * another tenant's tag. Verify ownership before connect/set.
+ */
+async function assertOwnedTags(
+  db: PrismaClient,
+  companyId: string,
+  tagIds: string[],
+): Promise<void> {
+  if (tagIds.length === 0) return;
+  const found = await db.accountTag.count({
+    where: { id: { in: tagIds }, companyId },
+  });
+  if (found !== new Set(tagIds).size) throw new TRPCError({ code: "NOT_FOUND" });
+}
 
 export const accountRouter = createTRPCRouter({
   list: p("finance:account:read")
@@ -62,6 +80,7 @@ export const accountRouter = createTRPCRouter({
     .input(accountSchema)
     .mutation(async ({ ctx, input }) => {
       const { tagIds, ...data } = input;
+      await assertOwnedTags(ctx.db, ctx.companyId, tagIds);
 
       return ctx.db.finAccount.create({
         data: {
@@ -82,6 +101,7 @@ export const accountRouter = createTRPCRouter({
         select: { id: true },
       });
       if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tagIds !== undefined) await assertOwnedTags(ctx.db, ctx.companyId, tagIds);
 
       return ctx.db.finAccount.update({
         where: { id },
@@ -162,19 +182,26 @@ export const accountRouter = createTRPCRouter({
   // ── Account Tags ──
 
   listTags: p("finance:account:read").query(async ({ ctx }) => {
-    return ctx.db.accountTag.findMany({ orderBy: { name: "asc" } });
+    return ctx.db.accountTag.findMany({
+      where: { companyId: ctx.companyId },
+      orderBy: { name: "asc" },
+    });
   }),
 
   createTag: p("finance:account:create")
     .input(z.object({ name: z.string().min(1), color: z.number().default(0) }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.accountTag.create({ data: input });
+      return ctx.db.accountTag.create({ data: { ...input, companyId: ctx.companyId } });
     }),
 
   deleteTag: p("finance:account:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.accountTag.delete({ where: { id: input.id } });
+      const { count } = await ctx.db.accountTag.deleteMany({
+        where: { id: input.id, companyId: ctx.companyId },
+      });
+      if (count === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      return { id: input.id };
     }),
 
   // ── Tree (all accounts, no pagination) ──

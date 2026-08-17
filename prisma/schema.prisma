@@ -96,6 +96,7 @@ model Company {
   // Finance relations
   accountGroups     AccountGroup[]
   finAccounts       FinAccount[]
+  accountTags       AccountTag[]
   journals          Journal[]
   taxes             Tax[]
   taxGroups         TaxGroup[]
@@ -948,11 +949,18 @@ model AccountGroup {
 }
 
 model AccountTag {
-  id    String @id @default(cuid())
-  name  String @unique
-  color Int    @default(0)
+  id        String @id @default(cuid())
+  companyId String
+  name      String
+  color     Int    @default(0)
 
+  company  Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   accounts FinAccount[]
+
+  // Was `name @unique` globally with no companyId at all, which made tags a
+  // shared table: one tenant could list, rename and delete another's.
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model FinAccount {

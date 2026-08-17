@@ -1,9 +1,9 @@
-import bcrypt from "bcryptjs";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
 import { createTRPCRouter, publicProcedure } from "@/server/trpc";
+import { hashPassword } from "@/lib/password";
 import {
   verifyLicenseKey,
   LICENSE_VALIDITY_DAYS,
@@ -268,7 +268,7 @@ export const setupRouter = createTRPCRouter({
         }
 
         // 4. Create admin user
-        const hashedPassword = await bcrypt.hash(input.admin.password, 12);
+        const hashedPassword = await hashPassword(input.admin.password);
         const adminUser = await tx.user.create({
           data: {
             name: input.admin.name,
