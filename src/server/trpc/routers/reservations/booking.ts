@@ -34,6 +34,7 @@ import { dispatchWebhooks } from "@/server/services/contracting/webhook-dispatch
 import { syncTrafficJobsForBooking } from "@/server/services/traffic/booking-sync";
 import { createBookingInvoice, createBookingVendorBill } from "@/server/services/reservations/auto-invoice";
 import { notifyBookingStatusChange } from "@/server/services/shared/notifications";
+import { notifyPartnerOfBookingOutcome } from "@/server/services/b2b/partner-notifications";
 import {
   createHotelCreditFinanceRecord,
 } from "@/server/services/reservations/finance-bridge";
@@ -1259,7 +1260,12 @@ export const bookingRouter = createTRPCRouter({
 
       switch (input.action) {
         case "confirm": {
-          if (!["DRAFT", "NEW_BOOKING"].includes(booking.status)) throw new Error("Only draft bookings can be confirmed");
+          // ON_REQUEST and PENDING_APPROVAL are how a partner booking waits for
+          // an answer from the hotel or from us; this is where that answer is
+          // given, so they confirm through the same path as a draft.
+          if (!["DRAFT", "NEW_BOOKING", "ON_REQUEST", "PENDING_APPROVAL"].includes(booking.status)) {
+            throw new Error("This booking cannot be confirmed");
+          }
 
           // Check availability and deduct allotment
           if (booking.contractId) {
@@ -1314,6 +1320,9 @@ export const bookingRouter = createTRPCRouter({
           dispatchWebhooks(ctx.companyId, booking.hotelId, "booking.confirmed", {
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
           });
+
+          // The partner asked and has been waiting — tell them the answer.
+          notifyPartnerOfBookingOutcome(ctx.db, booking.id, "confirmed").catch(() => {});
           return updated;
         }
 
@@ -1395,6 +1404,7 @@ export const bookingRouter = createTRPCRouter({
           }
 
           notifyBookingStatusChange(ctx.db, ctx.companyId, booking.id, booking.code, "CANCELLED", userId).catch(() => {});
+          notifyPartnerOfBookingOutcome(ctx.db, booking.id, "regretted").catch(() => {});
           dispatchWebhooks(ctx.companyId, booking.hotelId, "booking.cancelled", {
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
             reason: input.reason ?? null,

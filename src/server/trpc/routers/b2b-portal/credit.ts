@@ -3,8 +3,10 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { notifyPartnerAccountMovement } from "@/server/services/b2b/partner-notifications";
 
 const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
+
 
 export const creditRouter = createTRPCRouter({
   summary: p("b2b-portal:credit:read")
@@ -91,7 +93,7 @@ export const creditRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
-      return ctx.db.$transaction(async (tx) => {
+      const result = await ctx.db.$transaction(async (tx) => {
         const to = await tx.tourOperator.findFirst({
           where: { id: input.tourOperatorId, companyId: ctx.companyId },
         });
@@ -118,6 +120,24 @@ export const creditRouter = createTRPCRouter({
           },
         });
       });
+
+      // The partner's own accounts want to see this land, without asking us.
+      void notifyPartnerAccountMovement(input.tourOperatorId, {
+        title: "Payment received",
+        amount: input.amount,
+        currencyCode:
+          (
+            await ctx.db.company.findUnique({
+              where: { id: ctx.companyId },
+              // Credit is kept in the company's own currency, so that is what we quote.
+              select: { baseCurrency: { select: { code: true } } },
+            })
+          )?.baseCurrency?.code ?? "",
+        balance: Number(result.runningBalance),
+        reference: input.reference ?? null,
+      });
+
+      return result;
     }),
 
   adjustment: p("b2b-portal:credit:manage")

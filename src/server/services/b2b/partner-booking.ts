@@ -5,6 +5,13 @@ import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { notifyRole } from "@/server/services/shared/notifications";
 import { invalidatePartnerSearch } from "@/server/services/b2b/partner-search";
+import {
+  crossedCreditWarning,
+  notifyPartnerBookingConfirmed,
+  notifyPartnerBookingOnRequest,
+  notifyPartnerCreditLimitHit,
+  notifyPartnerCreditWarning,
+} from "@/server/services/b2b/partner-notifications";
 import { ON_REQUEST_HOURS } from "@/lib/b2b/limits";
 
 /**
@@ -169,6 +176,15 @@ export async function createPartnerBooking(
   for (const room of input.rooms) {
     roomCounts.set(room.roomTypeId, (roomCounts.get(room.roomTypeId) ?? 0) + 1);
   }
+
+  // Read outside the transaction: these are only for the wording of the
+  // messages, and holding a transaction open for them buys nothing.
+  const [hotel, currency] = await Promise.all([
+    db.hotel.findUnique({ where: { id: input.hotelId }, select: { name: true } }),
+    db.currency.findUnique({ where: { id: input.currencyId }, select: { code: true } }),
+  ]);
+  const hotelName = hotel?.name;
+  const currencyCode = currency?.code;
 
   const result = await db.$transaction(async (tx) => {
     // The partner is re-read inside the transaction: credit moves, and a
@@ -346,10 +362,48 @@ export async function createPartnerBooking(
       });
     }
 
-    return { booking, status, reason };
+    return { booking, status, reason, creditUsed, creditLimit, overCredit };
   });
 
   const { booking, status, reason } = result;
+
+  // The partner hears about it too — they are not watching the portal, and an
+  // on-request or an approval is exactly the news they need unprompted.
+  const brief = {
+    code: booking.code,
+    hotelName: hotelName ?? "",
+    checkIn: input.checkIn,
+    checkOut: input.checkOut,
+    nights,
+    total: buyingTotal,
+    currencyCode: currencyCode ?? "",
+    leadGuest: `${input.leadGuestFirstName} ${input.leadGuestLastName}`.trim(),
+    onRequestDeadline: booking.onRequestDeadline,
+  };
+
+  if (status === "CONFIRMED") {
+    void notifyPartnerBookingConfirmed(input.tourOperatorId, brief);
+
+    // Warn while it is still avoidable, and only on the crossing itself.
+    if (
+      result.creditLimit !== null &&
+      crossedCreditWarning(result.creditUsed, result.creditUsed + buyingTotal, result.creditLimit)
+    ) {
+      void notifyPartnerCreditWarning(input.tourOperatorId, {
+        used: result.creditUsed + buyingTotal,
+        limit: result.creditLimit,
+        currencyCode: currencyCode ?? "",
+      });
+    }
+  } else if (status === "ON_REQUEST") {
+    void notifyPartnerBookingOnRequest(input.tourOperatorId, brief);
+  } else if (result.overCredit && result.creditLimit !== null) {
+    void notifyPartnerCreditLimitHit(input.tourOperatorId, {
+      code: booking.code,
+      overage: result.creditUsed + buyingTotal - result.creditLimit,
+      currencyCode: currencyCode ?? "",
+    });
+  }
 
   // Anything the partner cannot resolve themselves needs a human on our side.
   if (status !== "CONFIRMED") {
