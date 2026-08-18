@@ -157,7 +157,11 @@ export const b2bManual: HelpModule = {
         "Your markup — what you add on top for your own client",
         "Client price — net plus your markup, the figure your customer sees",
       ],
-      screenshot: "04-price.png",
+      // Empty, not missing: this figure needs a live search result, which the
+      // capture script cannot produce without commercial seed data. An empty
+      // string renders the labelled placeholder; a filename that is not there
+      // renders a broken image, which is worse than admitting the gap.
+      screenshot: "",
       steps: [
         {
           step: 1,
