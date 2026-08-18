@@ -17,7 +17,7 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { SectionCard } from "../_components/section-card";
+import { SectionCard } from "@/components/help/section-card";
 import { HELP_MODULE_MAP } from "../_data";
 
 const MODULE_ICONS: Record<string, React.ElementType> = {

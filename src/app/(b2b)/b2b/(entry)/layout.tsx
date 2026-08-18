@@ -1,3 +1,4 @@
+import { PartnerSessionProvider } from "@/components/b2b/partner-session-provider";
 import { db } from "@/server/db";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function B2bEntryLayout({ children }: { children: React.Rea
           )}
           <p className="text-sm font-bold tracking-[0.22em] text-white uppercase">B2B Portal</p>
         </div>
-        {children}
+        <PartnerSessionProvider>{children}</PartnerSessionProvider>
       </div>
     </div>
   );

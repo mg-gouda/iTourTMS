@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+import { PARTNER_AUTH_BASE_PATH } from "@/lib/b2b/limits";
 import { getClientIp } from "@/lib/client-ip";
 import { hashBackupCode, verifyTotp } from "@/lib/totp";
 import { db } from "@/server/db";
@@ -118,7 +119,7 @@ export const {
   signOut: partnerSignOut,
 } = NextAuth({
   // Mounted away from /api/auth so the two realms never share an endpoint.
-  basePath: "/api/b2b/auth",
+  basePath: PARTNER_AUTH_BASE_PATH,
   session: { strategy: "jwt", maxAge: PARTNER_MAX_SESSION_SECONDS },
   pages: { signIn: "/b2b/login" },
   cookies: {

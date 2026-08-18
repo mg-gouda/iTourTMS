@@ -30,7 +30,8 @@
     "test:e2e:reservations": "playwright test e2e/reservations",
     "test:e2e:traffic": "playwright test e2e/traffic",
     "test:e2e:b2b": "playwright test e2e/b2b",
-    "test:e2e:b2c": "playwright test e2e/b2c"
+    "test:e2e:b2c": "playwright test e2e/b2c",
+    "help:screenshots": "tsx --env-file=.env scripts/capture-help-screenshots.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,4 +1,4 @@
-import type { HelpModule } from "./types";
+import type { HelpModule } from "@/lib/help/types";
 
 export const b2cSiteHelp: HelpModule = {
   slug: "b2c-site",

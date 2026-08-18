@@ -17,7 +17,7 @@ import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import { ALL_HELP_MODULES } from "../_data";
-import type { HelpModule } from "../_data/types";
+import type { HelpModule } from "@/lib/help/types";
 
 const MODULE_ICONS: Record<string, React.ElementType> = {
   Landmark,

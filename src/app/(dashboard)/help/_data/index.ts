@@ -1,4 +1,4 @@
-export type { HelpModule, HelpSection, HelpStep } from "./types";
+export type { HelpModule, HelpSection, HelpStep } from "@/lib/help/types";
 export { financeHelp } from "./finance";
 export { contractingHelp } from "./contracting";
 export { crmHelp } from "./crm";
@@ -18,7 +18,7 @@ import { b2cSiteHelp } from "./b2c-site";
 import { b2bPortalHelp } from "./b2b-portal";
 import { tourOpsHelp } from "./tour-ops";
 import { nileCruisesHelp } from "./nile-cruises";
-import type { HelpModule } from "./types";
+import type { HelpModule } from "@/lib/help/types";
 
 export const ALL_HELP_MODULES: HelpModule[] = [
   financeHelp,

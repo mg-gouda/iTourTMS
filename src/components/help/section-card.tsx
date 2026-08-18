@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { HelpSection } from "../_data/types";
-import { HelpScreenshot } from "./help-screenshot";
+import type { HelpSection } from "@/lib/help/types";
+import { HelpScreenshot } from "@/components/help/help-screenshot";
 
 interface SectionCardProps {
   section: HelpSection;
