@@ -19,6 +19,14 @@ export interface SearchParams {
   companyId: string;
   destinationId?: string;
   hotelId?: string;
+  /** Restricts the search to these hotels. The B2B portal's allowlist rides in here. */
+  hotelIds?: string[];
+  /**
+   * Leaves `displayTotal` equal to the net `total`. B2C markup is a consumer
+   * price; the B2B portal applies its own partner markup instead and must not
+   * pay for the consumer one first.
+   */
+  skipMarkup?: boolean;
   marketId?: string;
   checkIn: Date;
   checkOut: Date;
@@ -35,6 +43,7 @@ export interface RoomResult {
   roomTypeId: string;
   roomTypeName: string;
   roomTypeCode: string;
+  mealBasisId: string;
   mealCode: MealCode;
   mealName: string;
   availability: "available" | "on_request" | "limited" | "sold_out";
@@ -87,6 +96,8 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
     companyId,
     destinationId,
     hotelId,
+    hotelIds,
+    skipMarkup = false,
     marketId,
     checkIn,
     checkOut,
@@ -113,6 +124,7 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
       validFrom: { lte: checkOut },
       validTo: { gte: checkIn },
       ...(hotelId ? { hotelId } : {}),
+      ...(hotelIds ? { hotelId: { in: hotelIds } } : {}),
       ...(destinationId ? { hotel: { destinationId } } : {}),
       ...(starRating ? { hotel: { starRating: starRating as any } } : {}),
       ...(marketId ? { markets: { some: { marketId } } } : {}),
@@ -180,11 +192,13 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
     if (seasonNights.length !== nights) continue;
 
     // Resolve B2C markup rule for this hotel/destination
-    const markupRule = await resolveB2cMarkup(
-      companyId,
-      contract.hotel.id,
-      contract.hotel.destination?.id ?? null,
-    );
+    const markupRule = skipMarkup
+      ? null
+      : await resolveB2cMarkup(
+          companyId,
+          contract.hotel.id,
+          contract.hotel.destination?.id ?? null,
+        );
 
     const rooms: RoomResult[] = [];
 
@@ -276,6 +290,7 @@ export async function searchAvailability(params: SearchParams): Promise<SearchRe
           roomTypeId: rt.id,
           roomTypeName: rt.name,
           roomTypeCode: rt.code,
+          mealBasisId: mb.id,
           mealCode: mb.mealCode,
           mealName: mb.name,
           availability: allotInfo.status,

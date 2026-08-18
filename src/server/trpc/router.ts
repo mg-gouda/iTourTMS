@@ -5,6 +5,7 @@ import { reservationsRouter } from "@/server/trpc/routers/reservations";
 import { trafficRouter } from "@/server/trpc/routers/traffic";
 import { b2cSiteRouter } from "@/server/trpc/routers/b2c-site";
 import { b2bPortalRouter } from "@/server/trpc/routers/b2b-portal";
+import { partnerRouter } from "@/server/trpc/routers/partner";
 import { crmRouter } from "@/server/trpc/routers/crm";
 import { tourOpsRouter } from "@/server/trpc/routers/tour-ops";
 import { nileCruisesRouter } from "@/server/trpc/routers/nile-cruises";
@@ -31,6 +32,7 @@ export const appRouter = createTRPCRouter({
   crm: crmRouter,
   b2cSite: b2cSiteRouter,
   b2bPortal: b2bPortalRouter,
+  partner: partnerRouter,
   tourOps: tourOpsRouter,
   nileCruises: nileCruisesRouter,
 });
