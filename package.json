@@ -2,7 +2,7 @@
   "name": "itour-tms",
   "version": "1.0.0",
   "private": true,
-  "description": "iTourTMS \u2014 Enterprise Travel Management System",
+  "description": "iTourTMS — Enterprise Travel Management System",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "NODE_OPTIONS='--max-old-space-size=8192' sh -c 'prisma generate && next build'",
@@ -119,6 +119,7 @@
     "react-hook-form": "^7.80.0",
     "react-leaflet": "^5.0.0",
     "recharts": "^3.8.1",
+    "sharp": "^0.35.3",
     "sonner": "^2.0.7",
     "superjson": "^2.2.6",
     "tailwind-merge": "^3.6.0",
