@@ -9,6 +9,7 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   CANCELLED: "Cancelled",
   NO_SHOW: "No Show",
   PENDING_APPROVAL: "Pending Approval",
+  ON_REQUEST: "On Request",
 };
 
 export const BOOKING_STATUS_VARIANTS: Record<string, BadgeVariant> = {
@@ -20,6 +21,7 @@ export const BOOKING_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   CANCELLED: "destructive",
   NO_SHOW: "warning",
   PENDING_APPROVAL: "warning",
+  ON_REQUEST: "warning",
 };
 
 export const BOOKING_SOURCE_LABELS: Record<string, string> = {

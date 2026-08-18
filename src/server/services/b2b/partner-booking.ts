@@ -70,7 +70,7 @@ export interface PartnerBookingResult {
 }
 
 /** A stop sale anywhere in the stay blocks the whole booking. */
-async function stopSaleBlocks(
+export async function stopSaleBlocks(
   tx: Prisma.TransactionClient,
   contractId: string,
   roomTypeIds: string[],
@@ -98,7 +98,7 @@ async function stopSaleBlocks(
  * agents booking the last room at the same moment both read "1 left"; only one
  * of them can satisfy `totalRooms - soldRooms >= count` at write time.
  */
-async function takeAllotment(
+export async function takeAllotment(
   tx: Prisma.TransactionClient,
   contractId: string,
   roomTypeId: string,
@@ -141,7 +141,7 @@ async function takeAllotment(
 }
 
 /** Gives back rooms taken before a later room type turned out to be full. */
-async function releaseAllotment(
+export async function releaseAllotment(
   tx: Prisma.TransactionClient,
   rowIds: string[],
   count: number,

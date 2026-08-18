@@ -72,17 +72,21 @@ async function requirePartnerCredentials(
 
   const ok =
     !!user?.password &&
+    !!user.companyId &&
+    !!user.tourOperatorId &&
     !!user.partnerRole &&
     !!user.tourOperator?.active &&
     !!user.tourOperator.portalEnabled &&
     (await bcrypt.compare(input.password, user.password));
 
-  if (!ok || !user) {
+  if (!ok || !user?.companyId || !user.tourOperatorId) {
     await recordPartnerIpFailure(ip);
     throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_FAILURE });
   }
 
-  return user;
+  // Re-stated so the audit calls downstream see them as present, which the
+  // check above has just established.
+  return { ...user, companyId: user.companyId, tourOperatorId: user.tourOperatorId };
 }
 
 export const onboardingRouter = createTRPCRouter({

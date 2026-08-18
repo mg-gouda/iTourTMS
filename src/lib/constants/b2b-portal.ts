@@ -66,3 +66,44 @@ export const PARTNER_AUDIT_LABELS: Record<string, string> = {
   DOCUMENT_DOWNLOADED: "Document downloaded",
   MARKUP_CHANGED: "Markup changed",
 };
+
+/**
+ * Booking states in the partner's words. The staff labels describe our
+ * workflow; these describe what the partner is waiting for.
+ */
+export const PARTNER_BOOKING_STATUS_LABELS: Record<string, string> = {
+  CONFIRMED: "Confirmed",
+  ON_REQUEST: "On request",
+  PENDING_APPROVAL: "Awaiting our approval",
+  CANCELLED: "Cancelled",
+  CHECKED_IN: "In house",
+  CHECKED_OUT: "Completed",
+  NO_SHOW: "No show",
+  DRAFT: "Draft",
+  NEW_BOOKING: "New",
+};
+
+export const PARTNER_BOOKING_STATUS_VARIANTS: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"
+> = {
+  CONFIRMED: "success",
+  ON_REQUEST: "warning",
+  PENDING_APPROVAL: "warning",
+  CANCELLED: "destructive",
+  CHECKED_IN: "info",
+  CHECKED_OUT: "secondary",
+  NO_SHOW: "destructive",
+  DRAFT: "secondary",
+  NEW_BOOKING: "default",
+};
+
+/** What the partner sees on their own booking timeline. */
+export const PARTNER_TIMELINE_LABELS: Record<string, string> = {
+  PARTNER_AMENDED: "Booking changed",
+  PARTNER_AMENDMENT_REQUESTED: "Change requested — awaiting our approval",
+  PARTNER_AMENDMENT_ON_REQUEST: "Change requested — awaiting the hotel",
+  PARTNER_DETAILS_UPDATED: "Guest or flight details updated",
+  PARTNER_CANCELLATION_REQUESTED: "Cancellation requested",
+  PARTNER_CANCELLED: "Cancelled",
+};

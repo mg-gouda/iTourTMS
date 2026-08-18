@@ -48,8 +48,9 @@ export function proxy(request: NextRequest) {
     "/login",
     "/api/auth",
     // The partner realm's own endpoints. Reaching them must not require a
-    // staff session — they are how a partner gets a session in the first place.
-    "/api/b2b/auth",
+    // staff session — they are how a partner gets a session in the first
+    // place, and everything under it checks the partner session itself.
+    "/api/b2b",
     "/api/health",
     "/api/trpc",
     "/api/upload",
