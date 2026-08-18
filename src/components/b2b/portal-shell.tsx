@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   HelpCircle,
   LayoutDashboard,
+  Percent,
   LogOut,
   Search,
   Settings,
@@ -37,6 +38,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/b2b/credit", label: "Credit & Statements", icon: CreditCard },
       { href: "/b2b/rate-sheets", label: "Rate Sheets", icon: FileSpreadsheet },
+      { href: "/b2b/markup", label: "Your Markup", icon: Percent, adminOnly: true },
       { href: "/b2b/reports", label: "Reports", icon: FileSpreadsheet },
     ],
   },
