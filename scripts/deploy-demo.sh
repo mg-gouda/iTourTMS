@@ -43,8 +43,15 @@ fi
 echo "==> Building (running container keeps serving)"
 run "cd $ROOT && docker compose build app"
 
-echo "==> Swapping app + reloading nginx (nginx.conf changed)"
-run "cd $ROOT && docker compose up -d app && docker compose exec -T nginx nginx -s reload 2>/dev/null || docker compose restart nginx"
+echo "==> Swapping app"
+run "cd $ROOT && docker compose up -d app"
+
+# The demo box has no nginx compose service — it terminates TLS on the host's
+# system nginx (/etc/nginx/conf.d/itmseg-demo.conf, mirrored in this repo at
+# docker/nginx-demo-host.conf). Reload that, and only if it is actually there,
+# so this step cannot abort a deploy that is otherwise fine.
+echo "==> Reloading host nginx"
+run "if systemctl is-active --quiet nginx; then nginx -t && systemctl reload nginx && echo '   host nginx reloaded'; else echo '   no host nginx, skipping'; fi"
 
 echo "==> Health check"
 for i in $(seq 1 20); do
