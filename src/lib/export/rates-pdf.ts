@@ -54,6 +54,19 @@ export function generateRatesPdf(
   grid: FullRateGridData,
   options: RatesPdfOptions,
 ): Buffer {
+  const doc = generateRatesDoc(grid, options);
+  return Buffer.from(doc.output("arraybuffer"));
+}
+
+/**
+ * The same sheet as a live jsPDF document, so a caller can append its own
+ * pages before serialising. The partner rate sheet uses this to add the
+ * policies and offers that a partner needs and staff already know.
+ */
+export function generateRatesDoc(
+  grid: FullRateGridData,
+  options: RatesPdfOptions,
+): jsPDF {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
   const pageW = doc.internal.pageSize.getWidth();
@@ -287,7 +300,5 @@ export function generateRatesPdf(
   // ─── Add footers ──────────────────────────────────────
   addFooters();
 
-  // ─── Return buffer ─────────────────────────────────────
-  const arrayBuffer = doc.output("arraybuffer");
-  return Buffer.from(arrayBuffer);
+  return doc;
 }
