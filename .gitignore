@@ -81,3 +81,4 @@ public/uploads/
 !SECURITY.md
 !SEPARATION_PLAN.md
 !.github/**/*.md
+!docs/demo-host-runbook.md
