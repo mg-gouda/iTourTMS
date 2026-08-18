@@ -149,5 +149,12 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads).*)"],
+  // Static files under public/ must never reach the gate below. They are not
+  // pages, so redirecting one to /login does not prompt anybody to sign in —
+  // it just returns HTML where an image was expected. That is how every
+  // screenshot in the partner manual broke for partners, who hold no staff
+  // cookie: the PNG 307'd to /login and the image optimiser then 400'd on it.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|uploads|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico|css|js|map|txt|woff|woff2|ttf|otf)$).*)",
+  ],
 };
