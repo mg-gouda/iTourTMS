@@ -3,6 +3,7 @@ import { createTRPCRouter } from "@/server/trpc";
 import { partnerBookingRouter } from "./booking";
 import { partnerCreditRouter } from "./credit";
 import { partnerRateSheetRouter } from "./rate-sheet";
+import { partnerTeamRouter } from "./team";
 import { partnerDashboardRouter } from "./dashboard";
 import { partnerSearchRouter } from "./search";
 
@@ -16,4 +17,5 @@ export const partnerRouter = createTRPCRouter({
   booking: partnerBookingRouter,
   credit: partnerCreditRouter,
   rateSheet: partnerRateSheetRouter,
+  team: partnerTeamRouter,
 });
