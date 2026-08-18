@@ -47,6 +47,9 @@ export function proxy(request: NextRequest) {
   const publicPaths = [
     "/login",
     "/api/auth",
+    // The partner realm's own endpoints. Reaching them must not require a
+    // staff session — they are how a partner gets a session in the first place.
+    "/api/b2b/auth",
     "/api/health",
     "/api/trpc",
     "/api/upload",
@@ -74,7 +77,6 @@ export function proxy(request: NextRequest) {
     "/hotel",
     "/search",
     "/booking",
-    "/b2b",
     "/my-bookings",
     "/about",
     "/contact",
@@ -92,6 +94,33 @@ export function proxy(request: NextRequest) {
     pathname === "/" ||
     b2cSiteRoutes.some((p) => pathname === p || pathname.startsWith(p + "/"))
   ) {
+    return NextResponse.next({ request: { headers } });
+  }
+
+  // ── B2B partner portal ────────────────────────────────────────────────────
+  // The portal shares this domain with the staff app, so the staff cookie is
+  // sent here too. This gate deliberately looks only for the partner cookie:
+  // a staff session must not open a partner page. Deeper checks (realm, portal
+  // enabled, terms, 2FA) run in the (b2b) layout and in partnerProcedure.
+  if (pathname === "/b2b" || pathname.startsWith("/b2b/")) {
+    const isPublicPartnerRoute =
+      pathname === "/b2b/login" ||
+      pathname === "/b2b/enrol" ||
+      pathname.startsWith("/b2b/invite/");
+    if (isPublicPartnerRoute) {
+      return NextResponse.next({ request: { headers } });
+    }
+
+    const hasPartnerCookie = request.cookies
+      .getAll()
+      .some((c) => c.name.startsWith("itms-partner.session-token"));
+
+    if (!hasPartnerCookie) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/b2b/login";
+      url.search = `?callbackUrl=${encodeURIComponent(pathname)}`;
+      return NextResponse.redirect(url);
+    }
     return NextResponse.next({ request: { headers } });
   }
 

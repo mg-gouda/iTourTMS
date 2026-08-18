@@ -10,6 +10,8 @@ import { creditRouter } from "./credit";
 import { reportsRouter } from "./reports";
 import { searchRouter } from "./search";
 import { partnerUserRouter } from "./partner-user";
+import { onboardingRouter } from "./onboarding";
+import { portalAccessRouter } from "./portal-access";
 
 export const b2bPortalRouter = createTRPCRouter({
   tourOperator: tourOperatorRouter,
@@ -22,4 +24,6 @@ export const b2bPortalRouter = createTRPCRouter({
   reports: reportsRouter,
   search: searchRouter,
   partnerUser: partnerUserRouter,
+  onboarding: onboardingRouter,
+  portalAccess: portalAccessRouter,
 });

@@ -415,6 +415,7 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
             { label: "Tour Operators", href: "/b2b-portal/tour-operators" },
             { label: "Travel Agents", href: "/b2b-portal/travel-agents" },
             { label: "Partner Users", href: "/b2b-portal/partner-users" },
+            { label: "Portal Access", href: "/b2b-portal/portal-access" },
           ],
         },
         {

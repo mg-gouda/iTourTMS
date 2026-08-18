@@ -4,6 +4,8 @@ import superjson from "superjson";
 
 import { auth } from "@/lib/auth";
 import { getClientIp } from "@/lib/client-ip";
+import type { PartnerRole } from "@prisma/client";
+import { partnerAuth } from "@/lib/auth-partner";
 import { logger } from "@/lib/logger";
 import { db } from "@/server/db";
 import { redis } from "@/server/redis";
@@ -63,8 +65,8 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
 
   // External B2B partner logins are ordinary User rows in the tenant, which
   // meant every protectedProcedure was open to them — company settings, API
-  // keys, finance, the lot. They reach their portal through /api/b2c/b2b-portal
-  // and never call tRPC, so shut the whole surface off here rather than
+  // keys, finance, the lot. Partners have their own surface (partnerProcedure,
+  // partner realm), so the staff surface is shut to them here rather than
   // per-router.
   if (ctx.session.user.tourOperatorId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Not available to partner accounts" });
@@ -257,3 +259,69 @@ export const modulePermissionProcedure = (moduleName: string, permissionCode: st
     .use(licenseMiddleware)
     .use(moduleMiddleware(moduleName))
     .use(permissionMiddleware(permissionCode));
+
+// ── B2B partner portal ──────────────────────────────────────────────────────
+
+/**
+ * The real boundary for the partner portal.
+ *
+ * The edge only proves a partner cookie exists and the layout only guards
+ * pages; this guards data. It reads the *partner* realm — never `ctx.session`,
+ * which belongs to staff and is still sent on /b2b requests — resolves the
+ * partner from the token rather than from anything the client passes, and
+ * hands routers a `partner` context they must scope every query by.
+ */
+const partnerMiddleware = t.middleware(async ({ ctx, next }) => {
+  const session = await partnerAuth();
+  const user = session?.user as
+    | { id: string; realm?: string; tourOperatorId?: string | null; companyId?: string | null; partnerRole?: string | null }
+    | undefined;
+
+  if (!user?.id || user.realm !== "partner" || !user.tourOperatorId || !user.companyId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  // Access can be revoked mid-session, so confirm against the database rather
+  // than trusting a token minted up to four hours ago.
+  const partner = await ctx.db.tourOperator.findFirst({
+    where: {
+      id: user.tourOperatorId,
+      companyId: user.companyId,
+      active: true,
+      portalEnabled: true,
+    },
+    select: { id: true, companyId: true, name: true, bookingValueCap: true },
+  });
+
+  if (!partner) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Portal access is not enabled" });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      partner: {
+        userId: user.id,
+        tourOperatorId: partner.id,
+        companyId: partner.companyId,
+        name: partner.name,
+        role: (user.partnerRole ?? "PARTNER_AGENT") as PartnerRole,
+        bookingValueCap: partner.bookingValueCap,
+      },
+    },
+  });
+});
+
+export const partnerProcedure = t.procedure.use(loggerMiddleware).use(partnerMiddleware);
+
+/** Narrows a partner procedure to specific roles, e.g. admin-only user management. */
+export const partnerRoleProcedure = (...roles: PartnerRole[]) =>
+  partnerProcedure.use(async ({ ctx, next }) => {
+    if (!roles.includes(ctx.partner.role)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Your portal role does not allow this",
+      });
+    }
+    return next({ ctx });
+  });

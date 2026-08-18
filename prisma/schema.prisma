@@ -221,6 +221,12 @@ model Company {
 
   @@index([countryId])
   @@index([baseCurrencyId])
+
+  // B2B partner portal
+  partnerMarkupRules   PartnerMarkupRule[]
+  partnerInvites       PartnerInvite[]
+  partnerAuditEvents   PartnerAuditEvent[]
+  partnerTermsVersions PartnerTermsVersion[]
 }
 
 model CompanySetup {
@@ -270,6 +276,14 @@ model User {
   image         String?
   password          String?   // bcrypt hash for credentials auth
   passwordExpiresAt DateTime? // null = never expires
+  // B2B partner portal — set only on partner logins (tourOperatorId present)
+  partnerRole       PartnerRole? // portal role; null for staff users
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime? // set after repeated failures; blocks sign-in until it passes
+  mustSetPassword   Boolean   @default(false) // invited user has not chosen one yet
+  termsAcceptedAt   DateTime?
+  termsVersion      String?   // version accepted, re-prompted when a newer one is published
+
   twoFactorSecret   String?   // base32 TOTP secret (set at setup, kept while enabled)
   twoFactorEnabled  Boolean   @default(false)
   twoFactorBackupCodes String[] // sha256 hashes of unused single-use recovery codes
@@ -304,6 +318,11 @@ model User {
   bookingsLocked     Booking[]          @relation("BookingLocker")
   bookingsApproved   Booking[]          @relation("BookingApprover")
   bookingsRebooked   BookingRateChange[] @relation("BookingRebooker")
+
+  // B2B portal relations
+  managedPartners    TourOperator[]      @relation("PartnerAccountManager")
+  partnerInvites     PartnerInvite[]
+  partnerAuditEvents PartnerAuditEvent[]
   notifications      Notification[]     @relation("NotificationRecipient")
   bookingPayments    BookingPayment[]   @relation("BookingPaymentCreator")
   vouchersCreated    Voucher[]          @relation("VoucherCreator")
@@ -490,6 +509,7 @@ model Currency {
   bookings               Booking[]        @relation("BookingCurrency")
   bookingPayments        BookingPayment[] @relation("BookingPaymentCurrency")
   bookingCurrencyLines   BookingCurrencyLine[] @relation("BookingCurrencyLineCurrency")
+  partnerMarkupRules     PartnerMarkupRule[]   @relation("PartnerMarkupCurrency")
   hotelCreditNotes       HotelCreditNote[]
 
   // Tour Ops relations
@@ -2135,6 +2155,8 @@ model Hotel {
   @@index([cityId])
   @@index([zoneId])
   @@map("ct_hotel")
+
+  partnerMarkupRules PartnerMarkupRule[]
 }
 
 model HotelImage {
@@ -2347,6 +2369,8 @@ model ContractSeason {
 
   @@index([contractId])
   @@map("ct_contract_season")
+
+  partnerMarkupRules PartnerMarkupRule[]
 }
 
 model ContractRoomType {
@@ -2474,6 +2498,8 @@ model ContractSpecialOffer {
 
   @@index([contractId])
   @@map("ct_contract_special_offer")
+
+  targetedPartners ContractSpecialOfferPartner[]
 }
 
 model ContractOfferTier {
@@ -2767,10 +2793,21 @@ model TourOperator {
   paymentTermDays Int    @default(30)
   commissionPct Decimal  @default(0) @db.Decimal(5, 2)
   partnerId     String?  @unique
+
+  // B2B portal controls
+  portalEnabled    Boolean  @default(false) // partner may sign in to /b2b
+  bookingValueCap  Decimal? @db.Decimal(12, 4) // above this, an action routes to staff
+  accountManagerId String?  // staff owner; reply-to on partner emails
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountManager     User?                  @relation("PartnerAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  portalMarkupRules  PartnerMarkupRule[]
+  portalInvites      PartnerInvite[]
+  portalAuditEvents  PartnerAuditEvent[]
+  targetedOffers     ContractSpecialOfferPartner[]
   partner            Partner?               @relation("TourOperatorPartner", fields: [partnerId], references: [id])
   country            Country?               @relation("TOCountry", fields: [countryId], references: [id])
   market             Market?                @relation(fields: [marketId], references: [id])
@@ -3114,6 +3151,9 @@ model IncomingWebhook {
 enum BookingStatus {
   NEW_BOOKING
   DRAFT
+  /// Partner booked but allotment was gone — staff confirm or regret. Distinct
+  /// from PENDING_APPROVAL, which means a stop-sale override on the staff side.
+  ON_REQUEST
   CONFIRMED
   CHECKED_IN
   CHECKED_OUT
@@ -3304,6 +3344,13 @@ model Booking {
   // Hotel confirmation
   hotelConfNo        String?
   confirmationFile   String?
+
+  // B2B partner portal — what the partner sells at, and their own reference.
+  // partnerClientPrice never appears on documents we issue to the partner.
+  partnerReference   String?
+  partnerMarkupPppn  Decimal?            @db.Decimal(12, 4)
+  partnerClientPrice Decimal?            @db.Decimal(12, 4)
+  onRequestDeadline  DateTime?
 
   // Early booking discount (EBD) — a payment term on this booking, NOT the
   // contracting NORMAL_EBD special-offer type
@@ -7462,4 +7509,126 @@ model CruiseManifestAmendment {
 
   @@index([manifestId])
   @@map("nc_manifest_amendment")
+}
+
+// ============================================================================
+// B2B PARTNER PORTAL
+// ============================================================================
+// The partner-facing portal at /b2b. Partners are User rows carrying
+// tourOperatorId; these models add what the portal itself needs. Hotel
+// visibility reuses the existing HotelTourOperator assignment rather than a
+// second allowlist.
+
+enum PartnerRole {
+  PARTNER_ADMIN      // manages their own users, sees credit and statements
+  PARTNER_AGENT      // searches, books, manages bookings
+  PARTNER_ACCOUNTANT // credit, statements and invoices; cannot book
+}
+
+/// The partner's own selling markup, per person per night, on top of the net
+/// rate they get from us. Display and their documents only — never ours.
+model PartnerMarkupRule {
+  id             String   @id @default(cuid())
+  companyId      String
+  tourOperatorId String
+  hotelId        String
+  seasonId       String?  // null = applies to any season for that hotel
+  amountPppn     Decimal  @db.Decimal(12, 4)
+  currencyId     String
+  active         Boolean  @default(true)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator    @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+  hotel        Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  season       ContractSeason? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  currency     Currency        @relation("PartnerMarkupCurrency", fields: [currencyId], references: [id])
+
+  @@unique([tourOperatorId, hotelId, seasonId])
+  @@index([companyId])
+  @@index([tourOperatorId])
+  @@map("b2b_partner_markup_rule")
+}
+
+/// One-time link a staff member sends so a partner user can set their first
+/// password and enrol 2FA. Only the hash is stored.
+model PartnerInvite {
+  id             String    @id @default(cuid())
+  companyId      String
+  tourOperatorId String
+  userId         String
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("b2b_partner_invite")
+}
+
+/// Everything a partner does, with IP and device. Purged after 24 months.
+model PartnerAuditEvent {
+  id             String   @id @default(cuid())
+  companyId      String
+  tourOperatorId String?
+  userId         String?
+  action         String   // LOGIN_OK, LOGIN_FAILED, LOCKED_OUT, BOOKING_CREATED, ...
+  entityType     String?  // Booking, Statement, RateSheet, ...
+  entityId       String?
+  ip             String?
+  userAgent      String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([tourOperatorId, createdAt])
+  @@index([userId])
+  @@index([action])
+  @@map("b2b_partner_audit_event")
+}
+
+/// Trading terms a partner accepts before booking. Publishing a new version
+/// re-prompts every partner user on their next sign-in.
+model PartnerTermsVersion {
+  id          String   @id @default(cuid())
+  companyId   String
+  version     String
+  body        String   @db.Text
+  publishedAt DateTime @default(now())
+  createdById String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, version])
+  @@index([companyId, publishedAt])
+  @@map("b2b_partner_terms_version")
+}
+
+/// Limits a special offer to named partners. No rows means the offer is open
+/// to everyone, so existing offers keep behaving as they do today.
+model ContractSpecialOfferPartner {
+  id             String   @id @default(cuid())
+  specialOfferId String
+  tourOperatorId String
+  createdAt      DateTime @default(now())
+
+  specialOffer ContractSpecialOffer @relation(fields: [specialOfferId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator         @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+
+  @@unique([specialOfferId, tourOperatorId])
+  @@index([tourOperatorId])
+  @@map("ct_special_offer_partner")
 }

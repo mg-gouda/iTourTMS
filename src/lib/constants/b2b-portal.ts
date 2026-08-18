@@ -21,3 +21,48 @@ export const B2B_CREDIT_TX_TYPE_VARIANTS: Record<
   CREDIT_NOTE: "secondary",
   ADJUSTMENT: "outline",
 };
+
+/**
+ * What a partner user may do inside the portal. Three roles, because the three
+ * jobs at a travel agency rarely sit with the same person: the manager who
+ * hires and fires, the consultant who sells, and whoever pays the invoices.
+ */
+export const PARTNER_ROLE_LABELS: Record<string, string> = {
+  PARTNER_ADMIN: "Admin",
+  PARTNER_AGENT: "Agent",
+  PARTNER_ACCOUNTANT: "Accountant",
+};
+
+export const PARTNER_ROLE_DESCRIPTIONS: Record<string, string> = {
+  PARTNER_ADMIN: "Books, sees money, and manages their own colleagues' logins.",
+  PARTNER_AGENT: "Searches, books and amends. No credit or statements.",
+  PARTNER_ACCOUNTANT: "Statements, invoices and credit. Cannot book.",
+};
+
+/** Actions written to the partner audit trail, in words a person can read. */
+export const PARTNER_AUDIT_LABELS: Record<string, string> = {
+  LOGIN_OK: "Signed in",
+  LOGIN_FAILED: "Failed sign-in",
+  LOCKED_OUT: "Locked out",
+  ACCESS_DENIED: "Access denied",
+  LOGOUT: "Signed out",
+  INVITE_SENT: "Invitation sent",
+  INVITE_ACCEPTED: "Invitation accepted",
+  PASSWORD_SET: "Password set",
+  PASSWORD_CHANGED: "Password changed",
+  TWO_FACTOR_ENROLLED: "Two-factor set up",
+  TWO_FACTOR_RESET: "Two-factor reset",
+  BACKUP_CODES_VIEWED: "Backup codes viewed",
+  TERMS_ACCEPTED: "Terms accepted",
+  USER_CREATED: "User created",
+  USER_UPDATED: "User updated",
+  USER_DEACTIVATED: "User deactivated",
+  PORTAL_ENABLED: "Portal enabled",
+  PORTAL_DISABLED: "Portal disabled",
+  SEARCH_RUN: "Search",
+  BOOKING_CREATED: "Booking created",
+  BOOKING_AMENDED: "Booking amended",
+  BOOKING_CANCELLED: "Booking cancelled",
+  DOCUMENT_DOWNLOADED: "Document downloaded",
+  MARKUP_CHANGED: "Markup changed",
+};
