@@ -1,3 +1,6 @@
+import { access } from "node:fs/promises";
+import path from "node:path";
+
 import { CheckCircle2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
@@ -11,8 +14,24 @@ interface SectionCardProps {
   moduleSlug: string;
 }
 
+/**
+ * True when the figure a section names has actually been captured. A filename
+ * with no file behind it renders as a broken image, which looks like a bug in
+ * the product rather than a gap in the manual — the placeholder says what is
+ * missing instead.
+ */
+async function figureExists(moduleSlug: string, file: string): Promise<boolean> {
+  try {
+    await access(path.join(process.cwd(), "public", "help", moduleSlug, file));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function SectionCard({ section, moduleSlug }: SectionCardProps) {
   const t = await getTranslations("help");
+  const hasFigure = !!section.screenshot && (await figureExists(moduleSlug, section.screenshot));
 
   return (
     <Card id={section.id} className="scroll-mt-20 border-border/60">
@@ -39,7 +58,7 @@ export async function SectionCard({ section, moduleSlug }: SectionCardProps) {
         {/* Screenshot placeholder */}
         {section.screenshot !== undefined && (
           <HelpScreenshot
-            src={section.screenshot ? `/help/${moduleSlug}/${section.screenshot}` : ""}
+            src={hasFigure ? `/help/${moduleSlug}/${section.screenshot}` : ""}
             alt={`${section.title} screen`}
             caption={t("screenshotCaption", { title: section.title })}
           />
