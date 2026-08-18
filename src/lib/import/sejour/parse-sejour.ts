@@ -1,4 +1,3 @@
-import { PDFParse } from "pdf-parse";
 import type {
   SejourAccommodation,
   SejourAllotment,
@@ -825,10 +824,27 @@ function parseAccommodations(text: string): SejourAccommodation[] {
 // Main parse function
 // ---------------------------------------------------------------------------
 
+/**
+ * pdfjs builds a DOMMatrix at module scope for its canvas renderer, and in Node
+ * that class comes from @napi-rs/canvas — 28 MB of native binary that next's
+ * standalone trace leaves out of the image. Missing, the import throws
+ * ReferenceError before the route module finishes evaluating, which is why
+ * every upload to /api/import/sejour answered 500 in the container while dev
+ * was fine. Extracting text never rasterises anything, so a stub matrix is
+ * enough and the binary stays out of the image.
+ * ponytail: stub over shipping the real canvas package.
+ */
+async function loadPdfParse() {
+  const g = globalThis as { DOMMatrix?: unknown };
+  g.DOMMatrix ??= class DOMMatrix {};
+  return (await import("pdf-parse")).PDFParse;
+}
+
 export async function parseSejourPdf(
   data: Buffer | Uint8Array,
 ): Promise<SejourContract> {
   const uint8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const PDFParse = await loadPdfParse();
   const parser = new PDFParse({ data: uint8 });
   const result = await parser.getText();
   const rawText: string = typeof result === "string" ? result : result.text;

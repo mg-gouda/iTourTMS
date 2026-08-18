@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
   // with MODULE_NOT_FOUND on @swc/helpers/esm/*.
   outputFileTracingIncludes: {
     "*": ["./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**"],
+    // pdfjs loads its worker by path at parse time, so nothing statically
+    // references the file and the trace drops it. Without it the sejour
+    // importer dies on "Setting up fake worker failed" in the container.
+    "/api/import/sejour": [
+      "./node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    ],
   },
   images: {
     formats: ["image/avif", "image/webp"],
