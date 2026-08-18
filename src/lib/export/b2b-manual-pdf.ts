@@ -32,6 +32,8 @@ export interface ManualPdfOptions {
 }
 
 const A4 = { width: 210, height: 297 };
+/** Small enough to sit above the content margin on every page. */
+const HEADER_LOGO_HEIGHT = 5;
 const MARGIN = 18;
 const CONTENT = A4.width - MARGIN * 2;
 
@@ -55,6 +57,17 @@ export function generateB2bManualPdf(
     room(lines.length * (size * 0.42) + 3);
     doc.text(lines, MARGIN, y);
     y += lines.length * (size * 0.42) + 3;
+  };
+
+  /** How wide the logo will be at a given height, for right-aligning it. */
+  const logoWidthAt = (height: number): number => {
+    if (!options.logo) return 0;
+    try {
+      const props = doc.getImageProperties(options.logo.dataUrl);
+      return (props.width / props.height) * height;
+    } catch {
+      return 0;
+    }
   };
 
   /** Draws the branding image at a fixed height, keeping its own proportions. */
@@ -178,11 +191,24 @@ export function generateB2bManualPdf(
     }
   }
 
-  // ── Footers, once every page exists so the count is right ─────────────────
+  // ── Running header and footer ─────────────────────────────────────────────
+  // Done last, once every page exists, so the page count is right and the
+  // header lands on pages the content loop created along the way.
   const pages = doc.getNumberOfPages();
   for (let i = 2; i <= pages; i++) {
     doc.setPage(i);
+
+    // The cover already carries the logo large; every other page gets it small
+    // in the corner, so a page photocopied out of context still says whose it is.
+    const drawn = drawLogo(A4.width - MARGIN - logoWidthAt(HEADER_LOGO_HEIGHT), 10, HEADER_LOGO_HEIGHT);
+    doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(150);
+    doc.text(manual.name, MARGIN, 14);
+    if (!drawn) {
+      doc.text(options.companyName, A4.width - MARGIN, 14, { align: "right" });
+    }
     doc.setDrawColor(225).setLineWidth(0.2);
+    doc.line(MARGIN, 17, A4.width - MARGIN, 17);
+
     doc.line(MARGIN, A4.height - 14, A4.width - MARGIN, A4.height - 14);
     doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(150);
     doc.text(`${manual.name} — ${options.companyName}`, MARGIN, A4.height - 10);
