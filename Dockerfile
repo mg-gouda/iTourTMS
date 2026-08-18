@@ -34,7 +34,12 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
+# Both directories are written to at runtime by a non-root user, and neither
+# exists in the image until it is asked for: uploads when somebody uploads,
+# .next/cache the first time the image optimiser resizes a picture. Without
+# this the optimiser throws EACCES on every request and re-optimises forever.
+RUN mkdir -p /app/public/uploads /app/.next/cache \
+ && chown -R nextjs:nodejs /app/public/uploads /app/.next/cache
 
 USER nextjs
 
