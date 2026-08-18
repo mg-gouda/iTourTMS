@@ -860,7 +860,13 @@ export async function parseSejourPdf(
   // Parse header from the raw text (before stripping, to capture the first occurrence)
   const header = parseHeader(rawText);
   if (!header.hotelName) {
-    warnings.push("Could not extract hotel name from PDF header");
+    // Not a warning to be shown next to a green tick: the importer keys the
+    // hotel on this name, so without it the upload creates a hotel called "".
+    // Somebody who picked the wrong PDF gets told, instead of a preview full
+    // of blanks and an import that quietly writes rubbish.
+    throw new Error(
+      "No hotel name found. This does not look like a Sejour hotel contract — check the file.",
+    );
   }
 
   // Parse periods

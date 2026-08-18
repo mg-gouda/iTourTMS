@@ -259,6 +259,9 @@ export async function importSejourContract(
   const marketCode = market?.code ?? "GEN";
 
   // ---- Upsert hotel ----
+  if (!header.hotelName?.trim()) {
+    throw new Error("Refusing to import a contract with no hotel name.");
+  }
   const hotelCode = generateHotelCode(header.hotelName);
   const starRating = (STAR_RATING_MAP[header.stars] || "FOUR") as
     | "ONE"
