@@ -131,7 +131,7 @@ function BookingForm() {
           <div className="grid gap-2 text-sm sm:grid-cols-2">
             <div>
               <p className="text-muted-foreground text-xs">Your net</p>
-              <p className="font-medium">{result.buyingTotal.toFixed(2)}</p>
+              <p className="font-medium">{result.sellingTotal.toFixed(2)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Your client price</p>

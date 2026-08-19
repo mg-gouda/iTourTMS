@@ -118,7 +118,7 @@ export default function PartnerBookingsPage() {
                   <div className="shrink-0 text-right">
                     <p className="text-lg font-semibold">
                       {b.currency?.code}{" "}
-                      {Number(b.partnerClientPrice ?? b.buyingTotal).toLocaleString("en", {
+                      {Number(b.partnerClientPrice ?? b.sellingTotal).toLocaleString("en", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}

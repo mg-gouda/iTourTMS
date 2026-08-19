@@ -223,7 +223,10 @@ export interface RoomQuoteRequest {
 }
 
 export interface RoomQuote extends RoomQuoteRequest {
+  /** What the partner pays us: contract rate plus the staff trade markup. */
   net: number;
+  /** What we pay the hotel. Our cost — never shown to the partner. */
+  contractNet: number;
   contractId: string;
   currencyCode: string;
 }
@@ -313,6 +316,7 @@ export async function quotePartnerRooms(params: {
       quotes.push({
         ...room,
         net: staff.net,
+        contractNet: match.total,
         contractId: hotel.contractId,
         currencyCode: hotel.currency,
       });

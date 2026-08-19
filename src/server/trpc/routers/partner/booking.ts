@@ -139,7 +139,11 @@ export const partnerBookingRouter = createTRPCRouter({
           checkIn,
           checkOut,
           currencyId: contract.baseCurrencyId,
-          rooms: input.rooms.map((room, i) => ({ ...room, buyingTotal: quotes[i].net })),
+          rooms: input.rooms.map((room, i) => ({
+            ...room,
+            buyingTotal: quotes[i].contractNet,
+            sellingTotal: quotes[i].net,
+          })),
           leadGuestFirstName: input.leadGuestFirstName,
           leadGuestLastName: input.leadGuestLastName,
           leadGuestEmail: input.leadGuestEmail,
@@ -228,7 +232,8 @@ export const partnerBookingRouter = createTRPCRouter({
               currencyId: contract.baseCurrencyId,
               rooms: input.booking.rooms.map((room, i) => ({
                 ...room,
-                buyingTotal: quotes[i].net,
+                buyingTotal: quotes[i].contractNet,
+                sellingTotal: quotes[i].net,
               })),
               leadGuestFirstName: input.booking.leadGuestFirstName,
               leadGuestLastName: input.booking.leadGuestLastName,
@@ -251,7 +256,7 @@ export const partnerBookingRouter = createTRPCRouter({
                   ? `${date}: no rooms available at that rate.`
                   : `${date}: could not be booked.`,
             onRequestDeadline: null,
-            buyingTotal: 0,
+            sellingTotal: 0,
             clientPrice: 0,
           });
         }
@@ -297,7 +302,7 @@ export const partnerBookingRouter = createTRPCRouter({
           noOfRooms: true,
           adults: true,
           children: true,
-          buyingTotal: true,
+          sellingTotal: true,
           partnerClientPrice: true,
           partnerReference: true,
           onRequestDeadline: true,
@@ -331,7 +336,7 @@ export const partnerBookingRouter = createTRPCRouter({
           adults: true,
           children: true,
           infants: true,
-          buyingTotal: true,
+          sellingTotal: true,
           partnerMarkupPppn: true,
           partnerClientPrice: true,
           partnerReference: true,
@@ -364,7 +369,7 @@ export const partnerBookingRouter = createTRPCRouter({
               adults: true,
               children: true,
               infants: true,
-              buyingTotal: true,
+              sellingTotal: true,
               specialRequests: true,
               roomType: { select: { id: true, name: true } },
               mealBasis: { select: { id: true, name: true, mealCode: true } },

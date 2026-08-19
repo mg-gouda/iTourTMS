@@ -56,6 +56,8 @@ export interface AmendmentQuote {
   currentTotal: number;
   /** What it would cost after the change. */
   newTotal: number;
+  /** The hotel cost behind that figure — ours, never quoted to the partner. */
+  newContractTotal?: number;
   /** Positive means the partner pays more. */
   difference: number;
   /** The client price the partner's own markup produces on the new figure. */
@@ -94,6 +96,7 @@ async function loadAmendableBooking(req: {
       checkOut: true,
       nights: true,
       buyingTotal: true,
+      sellingTotal: true,
       partnerMarkupPppn: true,
       currency: { select: { code: true } },
       rooms: { select: { id: true, roomTypeId: true, adults: true, children: true, infants: true } },
@@ -125,7 +128,7 @@ const round = (n: number) => Math.round(n * 100) / 100;
 export async function quotePartnerAmendment(req: AmendmentRequest): Promise<AmendmentQuote> {
   const booking = await loadAmendableBooking(req);
   const nights = Math.round((req.checkOut.getTime() - req.checkIn.getTime()) / 86_400_000);
-  const currentTotal = Number(booking.buyingTotal);
+  const currentTotal = Number(booking.sellingTotal);
 
   const base: Omit<AmendmentQuote, "outcome" | "reason" | "newTotal" | "difference" | "newClientPrice"> = {
     bookingCode: booking.code,
@@ -163,6 +166,7 @@ export async function quotePartnerAmendment(req: AmendmentRequest): Promise<Amen
   }
 
   const newTotal = round(quotes.reduce((sum, q) => sum + q.net, 0));
+  const newContractTotal = round(quotes.reduce((sum, q) => sum + q.contractNet, 0));
   const difference = round(newTotal - currentTotal);
   const occupants = req.rooms.reduce((n, r) => n + r.adults + r.children + r.infants, 0);
   const markupPppn = Number(booking.partnerMarkupPppn ?? 0);
@@ -211,6 +215,7 @@ export async function quotePartnerAmendment(req: AmendmentRequest): Promise<Amen
   return {
     ...base,
     newTotal,
+    newContractTotal,
     difference,
     newClientPrice,
     outcome: "self_service",
@@ -253,7 +258,7 @@ export async function applyPartnerAmendment(
 
   const booking = await loadAmendableBooking(req);
   const nights = quote.nights;
-  const oldTotal = Number(booking.buyingTotal);
+  const oldTotal = Number(booking.sellingTotal);
 
   const oldCounts = new Map<string, number>();
   for (const room of booking.rooms) {
@@ -311,7 +316,8 @@ export async function applyPartnerAmendment(
           checkIn: req.checkIn,
           checkOut: req.checkOut,
           nights,
-          buyingTotal: quote.newTotal,
+          // Buying follows the hotel, selling follows the partner.
+          buyingTotal: quote.newContractTotal ?? quote.newTotal,
           sellingTotal: quote.newTotal,
           partnerClientPrice: quote.newClientPrice,
           noOfRooms: req.rooms.length,
@@ -327,8 +333,10 @@ export async function applyPartnerAmendment(
               adults: room.adults,
               children: room.children,
               infants: room.infants,
-              buyingTotal: quote.newTotal / req.rooms.length,
-              buyingRatePerNight: round(quote.newTotal / req.rooms.length / nights),
+              buyingTotal: (quote.newContractTotal ?? quote.newTotal) / req.rooms.length,
+              buyingRatePerNight: round(
+                (quote.newContractTotal ?? quote.newTotal) / req.rooms.length / nights,
+              ),
               sellingTotal: quote.newTotal / req.rooms.length,
               sellingRatePerNight: round(quote.newTotal / req.rooms.length / nights),
               specialRequests: room.specialRequests ?? null,
@@ -490,7 +498,7 @@ export async function previewPartnerCancellation(req: {
   return {
     bookingCode: booking.code,
     currencyCode: booking.currency?.code ?? "",
-    bookingTotal: Number(booking.buyingTotal),
+    bookingTotal: Number(booking.sellingTotal),
     penaltyAmount: penalty.penaltyAmount,
     penaltyPercent: penalty.penaltyPercent,
     daysBefore: penalty.daysBefore,
@@ -557,7 +565,7 @@ export async function cancelPartnerBooking(req: {
     return { status: "requested", preview };
   }
 
-  const total = Number(booking.buyingTotal);
+  const total = Number(booking.sellingTotal);
 
   await db.$transaction(async (tx) => {
     if (booking.status === "CONFIRMED") {

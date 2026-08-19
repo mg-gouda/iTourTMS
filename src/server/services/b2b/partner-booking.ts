@@ -37,7 +37,10 @@ export interface PartnerBookingRoomInput {
   adults: number;
   children: number;
   infants: number;
+  /** What we pay the hotel for this room. */
   buyingTotal: number;
+  /** What the partner pays us for it — buying plus the staff trade markup. */
+  sellingTotal: number;
   guestNames?: { firstName: string; lastName: string; isLead?: boolean }[];
   specialRequests?: string;
 }
@@ -72,7 +75,8 @@ export interface PartnerBookingResult {
   /** Why it did not confirm outright, in words the partner can act on. */
   reason: string | null;
   onRequestDeadline: Date | null;
-  buyingTotal: number;
+  /** What the partner owes us. The hotel cost stays on our side of the wall. */
+  sellingTotal: number;
   clientPrice: number;
 }
 
@@ -167,10 +171,16 @@ export async function createPartnerBooking(
   const nights = Math.round(
     (input.checkOut.getTime() - input.checkIn.getTime()) / (1000 * 60 * 60 * 24),
   );
+  // Three different numbers, and mixing them is how a partner ends up seeing
+  // our cost, or being charged it:
+  //   buying  — what we pay the hotel
+  //   selling — what the partner pays us (buying + the staff trade markup)
+  //   client  — what the partner charges their traveller (selling + their PPPN)
   const buyingTotal = input.rooms.reduce((sum, r) => sum + r.buyingTotal, 0);
+  const sellingTotal = input.rooms.reduce((sum, r) => sum + r.sellingTotal, 0);
   const occupants = input.rooms.reduce((n, r) => n + r.adults + r.children + r.infants, 0);
   const partnerMarkup = Math.round(input.markupPppn * occupants * nights * 100) / 100;
-  const clientPrice = Math.round((buyingTotal + partnerMarkup) * 100) / 100;
+  const clientPrice = Math.round((sellingTotal + partnerMarkup) * 100) / 100;
 
   const roomCounts = new Map<string, number>();
   for (const room of input.rooms) {
@@ -247,11 +257,11 @@ export async function createPartnerBooking(
     const cap = capValue > 0 ? capValue : null;
 
     let overCredit = false;
-    if (creditLimit !== null && creditUsed + buyingTotal > creditLimit) {
+    if (creditLimit !== null && creditUsed + sellingTotal > creditLimit) {
       status = "PENDING_APPROVAL";
       overCredit = true;
       reason = `This booking is over your credit limit. It has gone to ${partner.name}'s account manager to approve.`;
-    } else if (cap !== null && buyingTotal > cap) {
+    } else if (cap !== null && sellingTotal > cap) {
       status = "PENDING_APPROVAL";
       reason = "This booking is above the value your account is set to confirm on its own, so a colleague of ours will approve it.";
     }
@@ -272,7 +282,7 @@ export async function createPartnerBooking(
         nights,
         currencyId: input.currencyId,
         buyingTotal,
-        sellingTotal: buyingTotal,
+        sellingTotal,
         leadGuestFirstName: input.leadGuestFirstName,
         leadGuestLastName: input.leadGuestLastName,
         leadGuestName: `${input.leadGuestFirstName} ${input.leadGuestLastName}`.trim(),
@@ -312,8 +322,8 @@ export async function createPartnerBooking(
             infants: room.infants,
             buyingTotal: room.buyingTotal,
             buyingRatePerNight: Math.round((room.buyingTotal / nights) * 100) / 100,
-            sellingTotal: room.buyingTotal,
-            sellingRatePerNight: Math.round((room.buyingTotal / nights) * 100) / 100,
+            sellingTotal: room.sellingTotal,
+            sellingRatePerNight: Math.round((room.sellingTotal / nights) * 100) / 100,
             specialRequests: room.specialRequests ?? null,
           })),
         },
@@ -330,10 +340,10 @@ export async function createPartnerBooking(
           companyId: input.companyId,
           tourOperatorId: input.tourOperatorId,
           requestedById: input.partnerUserId,
-          amount: buyingTotal,
+          amount: sellingTotal,
           currentUsed: creditUsed,
           creditLimit,
-          overageAmount: creditUsed + buyingTotal - creditLimit,
+          overageAmount: creditUsed + sellingTotal - creditLimit,
           pendingType: "b2b_booking",
           pendingPayload: { bookingId: booking.id, code: booking.code },
         },
@@ -343,7 +353,7 @@ export async function createPartnerBooking(
     // Credit is consumed by a booking that is going ahead. An on-request or a
     // rejected approval must not eat the partner's limit while it waits.
     if (status === "CONFIRMED") {
-      const running = creditUsed + buyingTotal;
+      const running = creditUsed + sellingTotal;
       await tx.tourOperator.update({
         where: { id: input.tourOperatorId },
         data: { creditUsed: running },
@@ -353,7 +363,7 @@ export async function createPartnerBooking(
           companyId: input.companyId,
           tourOperatorId: input.tourOperatorId,
           type: "BOOKING_CHARGE",
-          amount: buyingTotal,
+          amount: sellingTotal,
           runningBalance: running,
           bookingId: booking.id,
           reference: booking.code,
@@ -375,7 +385,7 @@ export async function createPartnerBooking(
     checkIn: input.checkIn,
     checkOut: input.checkOut,
     nights,
-    total: buyingTotal,
+    total: sellingTotal,
     currencyCode: currencyCode ?? "",
     leadGuest: `${input.leadGuestFirstName} ${input.leadGuestLastName}`.trim(),
     onRequestDeadline: booking.onRequestDeadline,
@@ -387,10 +397,10 @@ export async function createPartnerBooking(
     // Warn while it is still avoidable, and only on the crossing itself.
     if (
       result.creditLimit !== null &&
-      crossedCreditWarning(result.creditUsed, result.creditUsed + buyingTotal, result.creditLimit)
+      crossedCreditWarning(result.creditUsed, result.creditUsed + sellingTotal, result.creditLimit)
     ) {
       void notifyPartnerCreditWarning(input.tourOperatorId, {
-        used: result.creditUsed + buyingTotal,
+        used: result.creditUsed + sellingTotal,
         limit: result.creditLimit,
         currencyCode: currencyCode ?? "",
       });
@@ -400,7 +410,7 @@ export async function createPartnerBooking(
   } else if (result.overCredit && result.creditLimit !== null) {
     void notifyPartnerCreditLimitHit(input.tourOperatorId, {
       code: booking.code,
-      overage: result.creditUsed + buyingTotal - result.creditLimit,
+      overage: result.creditUsed + sellingTotal - result.creditLimit,
       currencyCode: currencyCode ?? "",
     });
   }
@@ -425,7 +435,7 @@ export async function createPartnerBooking(
       entityType: "Booking",
       entityId: booking.id,
       ip: input.ip,
-      metadata: { code: booking.code, status, buyingTotal },
+      metadata: { code: booking.code, status, buyingTotal, sellingTotal },
     }),
   ]);
 
@@ -435,7 +445,7 @@ export async function createPartnerBooking(
     status: booking.status,
     reason,
     onRequestDeadline: booking.onRequestDeadline,
-    buyingTotal,
+    sellingTotal,
     clientPrice,
   };
 }

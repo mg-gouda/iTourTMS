@@ -168,10 +168,10 @@ export default function PartnerBookingDetailPage() {
           </CardHeader>
           <CardContent>
             <p className="text-lg font-semibold">
-              {money(booking.partnerClientPrice ?? booking.buyingTotal, booking.currency?.code)}
+              {money(booking.partnerClientPrice ?? booking.sellingTotal, booking.currency?.code)}
             </p>
             <p className="text-muted-foreground text-xs">
-              Net {money(booking.buyingTotal, booking.currency?.code)}
+              Net {money(booking.sellingTotal, booking.currency?.code)}
             </p>
           </CardContent>
         </Card>
@@ -223,7 +223,7 @@ export default function PartnerBookingDetailPage() {
                         {room.infants ? `, ${room.infants} infants` : ""}
                       </td>
                       <td className="p-3 text-right">
-                        {money(room.buyingTotal, booking.currency?.code)}
+                        {money(room.sellingTotal, booking.currency?.code)}
                       </td>
                     </tr>
                   ))}

@@ -34,7 +34,7 @@ export const partnerReportsRouter = createTRPCRouter({
         noOfRooms: true,
         adults: true,
         children: true,
-        buyingTotal: true,
+        sellingTotal: true,
         partnerClientPrice: true,
         hotel: { select: { id: true, name: true, city: true } },
         currency: { select: { code: true } },
@@ -61,8 +61,8 @@ export const partnerReportsRouter = createTRPCRouter({
       row.bookings += 1;
       row.roomNights += (b.nights ?? 0) * (b.noOfRooms ?? 1);
       row.pax += b.adults + b.children;
-      row.net += num(b.buyingTotal);
-      row.client += num(b.partnerClientPrice ?? b.buyingTotal);
+      row.net += num(b.sellingTotal);
+      row.client += num(b.partnerClientPrice ?? b.sellingTotal);
       byHotel.set(key, row);
     }
 
@@ -105,7 +105,7 @@ export const partnerReportsRouter = createTRPCRouter({
           noOfRooms: true,
           adults: true,
           children: true,
-          buyingTotal: true,
+          sellingTotal: true,
           partnerClientPrice: true,
           leadGuestFirstName: true,
           leadGuestLastName: true,
@@ -130,7 +130,7 @@ export const partnerReportsRouter = createTRPCRouter({
         checkIn: true,
         cancelledAt: true,
         cancellationReason: true,
-        buyingTotal: true,
+        sellingTotal: true,
         sourcePenaltyAmount: true,
         hotel: { select: { name: true } },
         currency: { select: { code: true } },
@@ -141,7 +141,7 @@ export const partnerReportsRouter = createTRPCRouter({
       rows,
       totals: {
         count: rows.length,
-        value: rows.reduce((t, r) => t + num(r.buyingTotal), 0),
+        value: rows.reduce((t, r) => t + num(r.sellingTotal), 0),
         penalties: rows.reduce((t, r) => t + num(r.sourcePenaltyAmount), 0),
       },
     };
@@ -157,12 +157,12 @@ export const partnerReportsRouter = createTRPCRouter({
     const [booked, cancelled, movements, partner] = await Promise.all([
       ctx.db.booking.aggregate({
         where: { ...scope, status: { in: [...PRODUCTIVE] }, bookingDate: { gte: input.from, lte: input.to } },
-        _sum: { buyingTotal: true, partnerClientPrice: true },
+        _sum: { sellingTotal: true, partnerClientPrice: true },
         _count: true,
       }),
       ctx.db.booking.aggregate({
         where: { ...scope, status: "CANCELLED", cancelledAt: { gte: input.from, lte: input.to } },
-        _sum: { buyingTotal: true, sourcePenaltyAmount: true },
+        _sum: { sellingTotal: true, sourcePenaltyAmount: true },
         _count: true,
       }),
       ctx.db.b2bCreditTransaction.groupBy({
@@ -179,7 +179,7 @@ export const partnerReportsRouter = createTRPCRouter({
     const movement = (type: string) =>
       num(movements.find((m) => m.type === type)?._sum.amount);
 
-    const net = num(booked._sum.buyingTotal);
+    const net = num(booked._sum.sellingTotal);
     const client = num(booked._sum.partnerClientPrice);
 
     return {
@@ -189,7 +189,7 @@ export const partnerReportsRouter = createTRPCRouter({
       // What the partner keeps: their own price less what they owe us.
       margin: client - net,
       cancellations: cancelled._count,
-      cancelledValue: num(cancelled._sum.buyingTotal),
+      cancelledValue: num(cancelled._sum.sellingTotal),
       penalties: num(cancelled._sum.sourcePenaltyAmount),
       charged: movement("BOOKING_CHARGE"),
       paid: movement("PAYMENT_RECEIVED"),

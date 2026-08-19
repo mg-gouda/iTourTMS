@@ -55,7 +55,7 @@ export const partnerDashboardRouter = createTRPCRouter({
           status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
           checkIn: { gte: new Date(now.getFullYear(), 0, 1) },
         },
-        _sum: { buyingTotal: true },
+        _sum: { sellingTotal: true },
       }),
     ]);
 
@@ -73,7 +73,7 @@ export const partnerDashboardRouter = createTRPCRouter({
         currency: partner.partner?.creditCurrency ?? null,
       },
       bookings: { confirmed, onRequest, pending, arrivingIn30Days: arrivals },
-      yearToDateNet: Number(spend._sum.buyingTotal ?? 0),
+      yearToDateNet: Number(spend._sum.sellingTotal ?? 0),
       upcoming,
     };
   }),
