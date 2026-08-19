@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { assertMayChangeCredit } from "@/server/services/b2b/credit-permission";
 
 const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
@@ -121,6 +122,10 @@ export const travelAgentRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      if (input.data.creditLimit !== undefined) {
+        assertMayChangeCredit(ctx.session);
+      }
+
       const agent = await ctx.db.tourOperator.findFirst({
         where: { id: input.id, companyId: ctx.companyId, partnerType: "travel_agent" },
         select: { partnerId: true },

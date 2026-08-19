@@ -5,6 +5,7 @@ import {
   tourOperatorUpdateSchema,
 } from "@/lib/validations/contracting";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { assertMayChangeCredit } from "@/server/services/b2b/credit-permission";
 
 const p = (code: string) => modulePermissionProcedure("contracting", code);
 
@@ -99,6 +100,10 @@ export const tourOperatorRouter = createTRPCRouter({
   update: p("contracting:contract:update")
     .input(z.object({ id: z.string(), data: tourOperatorUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
+      if (input.data.creditLimit !== undefined) {
+        assertMayChangeCredit(ctx.session);
+      }
+
       const to = await ctx.db.tourOperator.findFirst({
         where: { id: input.id, companyId: ctx.companyId },
         select: { partnerId: true },

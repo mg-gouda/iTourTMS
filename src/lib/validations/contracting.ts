@@ -622,6 +622,11 @@ export const tourOperatorUpdateSchema = z.object({
   countryId: z.string().nullable().optional(),
   marketId: z.string().nullable().optional(),
   active: z.boolean().optional(),
+  // Commercial terms. Changing the credit limit needs the credit permission —
+  // see the guard in the tour-operator router.
+  creditLimit: z.number().min(0).optional(),
+  paymentTermDays: z.number().int().min(0).max(365).optional(),
+  commissionPct: z.number().min(0).max(100).optional(),
 });
 
 // ── Markup Rules ──

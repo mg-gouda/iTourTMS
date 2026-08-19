@@ -90,6 +90,9 @@ export default function TourOperatorDetailPage() {
         countryId: to.country?.id ?? undefined,
         marketId: to.market?.id ?? undefined,
         active: to.active,
+        creditLimit: Number(to.creditLimit ?? 0),
+        paymentTermDays: to.paymentTermDays ?? 30,
+        commissionPct: Number(to.commissionPct ?? 0),
       });
     }
   }, [to, form]);
@@ -397,6 +400,70 @@ export default function TourOperatorDetailPage() {
                       />
                     </div>
 
+                    {/* Commercial terms. These are the TourOperator columns the
+                        B2B booking engine enforces, not the finance Partner
+                        record — a limit set anywhere else does not gate a
+                        partner's bookings. */}
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <FormField
+                        control={form.control}
+                        name="creditLimit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Credit limit</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                value={String(field.value ?? 0)}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
+                              />
+                            </FormControl>
+                            <p className="text-muted-foreground text-xs">
+                              0 means no limit. Above it, bookings wait for approval.
+                            </p>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="paymentTermDays"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Payment terms (days)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={String(field.value ?? 30)}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="commissionPct"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Commission %</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min={0}
+                                max={100}
+                                value={String(field.value ?? 0)}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <FormField
                       control={form.control}
                       name="active"
@@ -464,14 +531,21 @@ export default function TourOperatorDetailPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Credit Days</dt>
-                    <dd className="font-mono">{Number(to.partner?.creditLimit ?? 0)}</dd>
+                    <dt className="text-muted-foreground">Credit limit</dt>
+                    <dd className="font-mono">
+                      {Number(to.creditLimit ?? 0) > 0
+                        ? Number(to.creditLimit).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                          })
+                        : "No limit"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Credit Amount</dt>
+                    <dt className="text-muted-foreground">Credit used</dt>
                     <dd className="font-mono">
-                      {to.partner?.creditCurrency ? `${to.partner.creditCurrency} ` : ""}
-                      {Number(to.partner?.creditUsed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {Number(to.creditUsed ?? 0).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })}
                     </dd>
                   </div>
                 </dl>
