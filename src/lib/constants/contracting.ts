@@ -90,6 +90,7 @@ export const MARKUP_TYPE_LABELS: Record<string, string> = {
   PERCENTAGE: "Percentage",
   FIXED_PER_NIGHT: "Fixed Per Night",
   FIXED_PER_BOOKING: "Fixed Per Booking",
+  PER_PERSON_PER_NIGHT: "Per Person Per Night",
 };
 
 export const SPECIAL_MEAL_OCCASION_LABELS: Record<string, string> = {

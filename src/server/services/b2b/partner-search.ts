@@ -4,7 +4,9 @@ import { db } from "@/server/db";
 import { redis } from "@/server/redis";
 import {
   applyPartnerMarkup,
+  applyStaffMarkup,
   loadPartnerMarkupRules,
+  loadStaffMarkupRules,
   pickMarkupRule,
 } from "@/server/services/b2b/partner-markup";
 
@@ -143,18 +145,36 @@ export async function partnerSearch(params: PartnerSearchParams): Promise<Partne
     skipMarkup: true,
   });
 
-  const rulesByHotel = await loadPartnerMarkupRules(
-    params.tourOperatorId,
-    result.hotels.map((h) => h.hotelId),
-  );
+  const [rulesByHotel, staffRules] = await Promise.all([
+    loadPartnerMarkupRules(params.tourOperatorId, result.hotels.map((h) => h.hotelId)),
+    loadStaffMarkupRules(params.companyId, params.tourOperatorId),
+  ]);
   const occupants = params.adults + params.children + params.infants;
+  const stayDate = params.checkIn.toISOString().slice(0, 10);
 
   const hotels: PartnerHotelResult[] = result.hotels.map((hotel) => {
     const rooms: PartnerRoomResult[] = hotel.rooms.map((room) => {
+      // Contract rate is our cost. The trade margin staff set for this partner
+      // is what turns it into the price they actually owe us.
+      const staff = applyStaffMarkup(
+        staffRules,
+        room.total,
+        {
+          contractId: hotel.contractId,
+          hotelId: hotel.hotelId,
+          destinationId: hotel.destinationId,
+          marketId: null,
+          nights: hotel.nights,
+          occupants,
+        },
+        params.tourOperatorId,
+        stayDate,
+      );
+
       const rule = pickMarkupRule(rulesByHotel.get(hotel.hotelId), null);
       const pppn = rule?.amountPppn ?? 0;
       const { markupAmount, clientPrice } = applyPartnerMarkup(
-        room.total,
+        staff.net,
         pppn,
         occupants,
         hotel.nights,
@@ -163,10 +183,10 @@ export async function partnerSearch(params: PartnerSearchParams): Promise<Partne
       return {
         ...room,
         // Net is what the partner owes us — the only figure on our documents.
-        markupAmount: 0,
-        displayTotal: room.total,
-        pricePerNight: Math.round((room.total / hotel.nights) * 100) / 100,
-        net: room.total,
+        markupAmount: staff.markupAmount,
+        displayTotal: staff.net,
+        pricePerNight: Math.round((staff.net / hotel.nights) * 100) / 100,
+        net: staff.net,
         partnerMarkup: markupAmount,
         clientPrice,
         markupPppn: pppn,
@@ -245,6 +265,10 @@ export async function quotePartnerRooms(params: {
   }
 
   const quotes: RoomQuote[] = [];
+  // The same trade margin search applied. Quoting the bare contract rate here
+  // would let a partner book at our cost after being shown their own price.
+  const staffRules = await loadStaffMarkupRules(params.companyId, params.tourOperatorId);
+  const stayDate = params.checkIn.toISOString().slice(0, 10);
 
   for (const [, rooms] of groups) {
     const sample = rooms[0];
@@ -271,9 +295,24 @@ export async function quotePartnerRooms(params: {
       );
       if (!match || match.availability === "sold_out") throw new Error("NOT_AVAILABLE");
 
+      const staff = applyStaffMarkup(
+        staffRules,
+        match.total,
+        {
+          contractId: hotel.contractId,
+          hotelId: hotel.hotelId,
+          destinationId: hotel.destinationId,
+          marketId: null,
+          nights: hotel.nights,
+          occupants: room.adults + room.children + room.infants,
+        },
+        params.tourOperatorId,
+        stayDate,
+      );
+
       quotes.push({
         ...room,
-        net: match.total,
+        net: staff.net,
         contractId: hotel.contractId,
         currencyCode: hotel.currency,
       });

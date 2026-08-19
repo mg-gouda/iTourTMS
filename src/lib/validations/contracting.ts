@@ -628,7 +628,7 @@ export const tourOperatorUpdateSchema = z.object({
 
 export const markupRuleCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING"]),
+  markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING", "PER_PERSON_PER_NIGHT"]),
   value: z.number().min(0, "Value must be >= 0"),
   contractId: z.string().optional(),
   hotelId: z.string().optional(),

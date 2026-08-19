@@ -57,7 +57,7 @@ export const markupRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1),
-        markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING"]),
+        markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING", "PER_PERSON_PER_NIGHT"]),
         value: z.number(),
         contractId: z.string().optional(),
         hotelId: z.string().optional(),
@@ -82,7 +82,7 @@ export const markupRouter = createTRPCRouter({
         id: z.string(),
         data: z.object({
           name: z.string().min(1).optional(),
-          markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING"]).optional(),
+          markupType: z.enum(["PERCENTAGE", "FIXED_PER_NIGHT", "FIXED_PER_BOOKING", "PER_PERSON_PER_NIGHT"]).optional(),
           value: z.number().optional(),
           contractId: z.string().optional(),
           hotelId: z.string().optional(),

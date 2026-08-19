@@ -95,4 +95,7 @@ export const B2C_MARKUP_TYPE_LABELS: Record<MarkupType, string> = {
   PERCENTAGE: "Percentage (%)",
   FIXED_PER_NIGHT: "Fixed per Night",
   FIXED_PER_BOOKING: "Fixed per Booking",
+  // Trade-only: the B2C markup form does not offer it, but the map is keyed by
+  // the shared enum, so it has to name every member.
+  PER_PERSON_PER_NIGHT: "Per Person per Night",
 };

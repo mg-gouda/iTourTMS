@@ -85,6 +85,7 @@ export default function EditMarkupPage({
                   <SelectItem value="PERCENTAGE">{tc("percentage")}</SelectItem>
                   <SelectItem value="FIXED_PER_NIGHT">{t("fixedPerNight")}</SelectItem>
                   <SelectItem value="FIXED_PER_BOOKING">{t("fixedPerBooking")}</SelectItem>
+                  <SelectItem value="PER_PERSON_PER_NIGHT">Per person per night</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -126,7 +127,7 @@ export default function EditMarkupPage({
                   id,
                   data: {
                     name,
-                    markupType: markupType as "PERCENTAGE" | "FIXED_PER_NIGHT" | "FIXED_PER_BOOKING",
+                    markupType: markupType as "PERCENTAGE" | "FIXED_PER_NIGHT" | "FIXED_PER_BOOKING" | "PER_PERSON_PER_NIGHT",
                     value: Number(value),
                     priority,
                     active,

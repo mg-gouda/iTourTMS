@@ -2872,6 +2872,10 @@ enum MarkupType {
   PERCENTAGE
   FIXED_PER_NIGHT
   FIXED_PER_BOOKING
+  // B2B margin is quoted per person per night, which none of the above can
+  // express: "+2 per night" for a couple over 7 nights is 14, not the 28 a
+  // trade partner means when they say 2 PPPN.
+  PER_PERSON_PER_NIGHT
 }
 
 model MarkupRule {

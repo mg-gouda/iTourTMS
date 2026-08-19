@@ -37,6 +37,7 @@ const MARKUP_TYPE_SHORT: Record<string, string> = {
   PERCENTAGE: "%",
   FIXED_PER_NIGHT: "/night",
   FIXED_PER_BOOKING: "/booking",
+  PER_PERSON_PER_NIGHT: "pppn",
 };
 
 type MarkupRow = {
@@ -91,6 +92,7 @@ export default function B2bMarkupsPage() {
     PERCENTAGE: tc("percentage"),
     FIXED_PER_NIGHT: t("fixedPerNight"),
     FIXED_PER_BOOKING: t("fixedPerBooking"),
+    PER_PERSON_PER_NIGHT: "Per person per night",
   };
 
   const columns: ColumnDef<MarkupRow>[] = useMemo(() => [
@@ -186,7 +188,7 @@ export default function B2bMarkupsPage() {
     e.preventDefault();
     createMutation.mutate({
       name: form.name,
-      markupType: form.markupType as "PERCENTAGE" | "FIXED_PER_NIGHT" | "FIXED_PER_BOOKING",
+      markupType: form.markupType as "PERCENTAGE" | "FIXED_PER_NIGHT" | "FIXED_PER_BOOKING" | "PER_PERSON_PER_NIGHT",
       value: form.value,
       tourOperatorId: form.tourOperatorId || undefined,
       hotelId: form.hotelId || undefined,

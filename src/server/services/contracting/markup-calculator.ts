@@ -130,12 +130,16 @@ export function applyMarkup(
   markupType: string,
   markupValue: number,
   nights: number = 1,
+  /** Everyone in the room. Only PER_PERSON_PER_NIGHT multiplies by it. */
+  occupants: number = 1,
 ): number {
   switch (markupType) {
     case "PERCENTAGE":
       return baseRate * (1 + markupValue / 100);
     case "FIXED_PER_NIGHT":
       return baseRate + markupValue * nights;
+    case "PER_PERSON_PER_NIGHT":
+      return baseRate + markupValue * nights * occupants;
     case "FIXED_PER_BOOKING":
       return baseRate + markupValue;
     default:
