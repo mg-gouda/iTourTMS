@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Combobox } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
@@ -51,6 +52,9 @@ export default function TravelAgentDetailPage() {
   const tc = useTranslations("common");
 
   const { data: agent, isLoading } = trpc.b2bPortal.travelAgent.getById.useQuery({ id });
+  // Country and market are foreign keys; nobody can type an id from memory.
+  const { data: countries } = trpc.setup.getCountries.useQuery();
+  const { data: markets } = trpc.contracting.market.list.useQuery();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(updateSchema),
@@ -180,10 +184,28 @@ export default function TravelAgentDetailPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="countryId" render={({ field }) => (
-                      <FormItem><FormLabel>{t("countryId")}</FormLabel><FormControl><Input placeholder={t("countryId")} {...field} /></FormControl></FormItem>
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <Combobox
+                          options={(countries ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                          value={field.value || undefined}
+                          onValueChange={field.onChange}
+                          placeholder="Select a country"
+                          searchPlaceholder="Search countries…"
+                        />
+                      </FormItem>
                     )} />
                     <FormField control={form.control} name="marketId" render={({ field }) => (
-                      <FormItem><FormLabel>{t("marketId")}</FormLabel><FormControl><Input placeholder={t("marketId")} {...field} /></FormControl></FormItem>
+                      <FormItem>
+                        <FormLabel>Market</FormLabel>
+                        <Combobox
+                          options={(markets ?? []).map((m) => ({ value: m.id, label: m.name }))}
+                          value={field.value || undefined}
+                          onValueChange={field.onChange}
+                          placeholder="Select a market"
+                          searchPlaceholder="Search markets…"
+                        />
+                      </FormItem>
                     )} />
                   </div>
                   <div className="grid grid-cols-3 gap-4">

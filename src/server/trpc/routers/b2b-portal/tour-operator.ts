@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { assertMayChangeCredit } from "@/server/services/b2b/credit-permission";
+import { optionalId } from "@/lib/validations/contracting";
 
 const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
@@ -77,8 +78,8 @@ export const tourOperatorRouter = createTRPCRouter({
         contactPerson: z.string().optional(),
         email: z.string().email().optional(),
         phone: z.string().optional(),
-        countryId: z.string().optional(),
-        marketId: z.string().optional(),
+        countryId: optionalId,
+        marketId: optionalId,
         active: z.boolean().optional(),
         partnerType: z.string().default("tour_operator"),
         creditLimit: z.number().optional(),
@@ -114,8 +115,8 @@ export const tourOperatorRouter = createTRPCRouter({
           contactPerson: z.string().optional(),
           email: z.string().email().optional(),
           phone: z.string().optional(),
-          countryId: z.string().optional(),
-          marketId: z.string().optional(),
+          countryId: optionalId,
+          marketId: optionalId,
           active: z.boolean().optional(),
           creditLimit: z.number().optional(),
           paymentTermDays: z.number().int().optional(),

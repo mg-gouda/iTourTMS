@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+/**
+ * An optional foreign key coming from a form.
+ *
+ * An untouched select or input sends "", which is not a valid id and blows up
+ * as a foreign-key violation the moment it reaches the database. Treat blank
+ * as "not set" instead.
+ */
+export const optionalId = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((v) => (v && v.trim() ? v.trim() : null));
+
 // ── Destination Schemas ──
 
 export const destinationCreateSchema = z.object({
@@ -608,8 +621,8 @@ export const tourOperatorCreateSchema = z.object({
   contactPerson: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
-  countryId: z.string().optional(),
-  marketId: z.string().optional(),
+  countryId: optionalId,
+  marketId: optionalId,
   active: z.boolean().default(true),
 });
 
@@ -619,8 +632,8 @@ export const tourOperatorUpdateSchema = z.object({
   contactPerson: z.string().nullable().optional(),
   email: z.string().email().optional().or(z.literal("")).nullable().optional(),
   phone: z.string().nullable().optional(),
-  countryId: z.string().nullable().optional(),
-  marketId: z.string().nullable().optional(),
+  countryId: optionalId,
+  marketId: optionalId,
   active: z.boolean().optional(),
   // Commercial terms. Changing the credit limit needs the credit permission —
   // see the guard in the tour-operator router.
