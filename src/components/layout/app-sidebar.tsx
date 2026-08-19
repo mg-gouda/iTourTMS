@@ -431,6 +431,7 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
           routes: [
             { label: "Rate Sheets", href: "/b2b-portal/rate-sheets" },
             { label: "Markup Rules", href: "/b2b-portal/markups" },
+            { label: "Product Markups", href: "/b2b-portal/product-markups" },
             { label: "Credit Management", href: "/b2b-portal/credit" },
           ],
         },

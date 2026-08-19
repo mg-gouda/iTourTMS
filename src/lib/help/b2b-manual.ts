@@ -428,6 +428,9 @@ export const HELP_LINKS: Record<string, string> = {
   "/b2b/credit": "your-money",
   "/b2b/rate-sheets": "reports",
   "/b2b/markup": "your-markup",
+  "/b2b/excursions": "understanding-price",
+  "/b2b/transfers": "understanding-price",
+  "/b2b/packages": "understanding-price",
   "/b2b/users": "getting-started",
   "/b2b/account": "getting-started",
 };

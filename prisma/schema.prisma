@@ -224,6 +224,7 @@ model Company {
 
   // B2B partner portal
   partnerMarkupRules   PartnerMarkupRule[]
+  partnerProductMarkups PartnerProductMarkup[]
   partnerInvites       PartnerInvite[]
   partnerAuditEvents   PartnerAuditEvent[]
   partnerTermsVersions PartnerTermsVersion[]
@@ -2805,6 +2806,7 @@ model TourOperator {
   company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   accountManager     User?                  @relation("PartnerAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
   portalMarkupRules  PartnerMarkupRule[]
+  productMarkups     PartnerProductMarkup[]
   portalInvites      PartnerInvite[]
   portalAuditEvents  PartnerAuditEvent[]
   targetedOffers     ContractSpecialOfferPartner[]
@@ -7558,6 +7560,49 @@ model PartnerMarkupRule {
 
 /// One-time link a staff member sends so a partner user can set their first
 /// password and enrol 2FA. Only the hash is stored.
+/** The three things a partner can be sold besides a hotel stay. */
+enum PartnerProductType {
+  EXCURSION
+  TRANSFER
+  PACKAGE
+}
+
+/**
+ * The trade margin on an excursion, transfer or package.
+ *
+ * Hotel rates get theirs from MarkupRule, which is scoped by contract, hotel
+ * and destination — none of which mean anything for a day trip or an airport
+ * transfer. This is the same idea with the scope those products actually have:
+ * a partner, a product type, and optionally one specific product.
+ *
+ * A row with productId null is the partner's default for that whole type; a
+ * row naming a product overrides it for that one.
+ */
+model PartnerProductMarkup {
+  id             String             @id @default(cuid())
+  companyId      String
+  tourOperatorId String
+  productType    PartnerProductType
+  /** Null = every product of this type for this partner. */
+  productId      String?
+  markupType     MarkupType         @default(PERCENTAGE)
+  value          Decimal            @db.Decimal(12, 4)
+  active         Boolean            @default(true)
+  validFrom      DateTime?          @db.Date
+  validTo        DateTime?          @db.Date
+  createdById    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+
+  @@unique([tourOperatorId, productType, productId])
+  @@index([companyId, productType])
+  @@index([tourOperatorId])
+  @@map("b2b_partner_product_markup")
+}
+
 model PartnerInvite {
   id             String    @id @default(cuid())
   companyId      String
