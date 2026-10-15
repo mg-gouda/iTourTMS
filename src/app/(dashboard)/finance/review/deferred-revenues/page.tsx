@@ -1,6 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
@@ -71,6 +73,7 @@ export default function DeferredRevenuesPage() {
       ),
     },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   return (
     <PermissionGuard permission="finance:auditTrail:read">
@@ -83,7 +86,7 @@ export default function DeferredRevenuesPage() {
         <Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4" />New</Button>
       </div>
       {isLoading ? <div className="text-muted-foreground py-10 text-center">Loading...</div> : (
-        <DataTable columns={columns} data={(data as any) ?? []} searchKey="name" searchPlaceholder="Search..." />
+        <DataTable columns={shownColumns} data={(data as any) ?? []} searchKey="name" searchPlaceholder="Search..." />
       )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

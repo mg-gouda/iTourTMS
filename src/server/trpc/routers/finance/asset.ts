@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -32,6 +33,7 @@ export const assetRouter = createTRPCRouter({
       return ctx.db.accountAsset.findMany({
         where: { companyId: ctx.companyId, ...(input.state ? { state: input.state as any } : {}) },
         include: {
+          branch: { select: { code: true, name: true } },
           account: { select: { id: true, code: true, name: true } },
           partner: { select: { id: true, name: true } },
           _count: { select: { depreciationLines: true } },
@@ -78,6 +80,7 @@ export const assetRouter = createTRPCRouter({
         data: {
           ...rest,
           companyId: ctx.companyId,
+          branchId: activeBranch(ctx.branch),
           acquisitionDate: new Date(acquisitionDate),
           originalValue: new Decimal(originalValue),
           salvageValue: new Decimal(salvageValue),

@@ -86,7 +86,7 @@ export const BRANCH_OWNED: Partial<Record<Prisma.ModelName, Rule>> = {
   OpsFlightFareLine: { via: (ids) => ({ ticket: { branchId: { in: ids } } }) },
 
   // Finance: each branch keeps its own books. The chart of accounts, taxes,
-  // fiscal years and lock dates are company-wide. A journal is either a
+  // fiscal years, lock dates and loans are company-wide. A journal is either a
   // branch's own (its cash, its bank) or shared by every branch.
   Move: { direct: true },
   Payment: { direct: true },
@@ -98,6 +98,12 @@ export const BRANCH_OWNED: Partial<Record<Prisma.ModelName, Rule>> = {
   RecurringEntryLine: { via: (ids) => ({ recurringEntry: { branchId: { in: ids } } }) },
   PartialReconcile: { via: (ids) => ({ debitMoveLine: { move: { branchId: { in: ids } } } }) },
   Journal: { via: (ids) => ({ OR: [{ branchId: null }, { branchId: { in: ids } }] }) },
+  AccountAsset: { direct: true },
+  DeferredRevenue: { direct: true },
+  DeferredExpense: { direct: true },
+  AccountAssetLine: { via: (ids) => ({ asset: { branchId: { in: ids } } }) },
+  DeferredRevenueSchedule: { via: (ids) => ({ deferred: { branchId: { in: ids } } }) },
+  DeferredExpenseSchedule: { via: (ids) => ({ deferred: { branchId: { in: ids } } }) },
 };
 
 function opsPackageScope(ids: string[]) {

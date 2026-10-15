@@ -1,6 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
@@ -90,6 +92,7 @@ export default function AssetsPage() {
       ),
     },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   return (
     <PermissionGuard permission="finance:asset:read">
@@ -103,7 +106,7 @@ export default function AssetsPage() {
       </div>
 
       {isLoading ? <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div> : (
-        <DataTable columns={columns} data={(data as any) ?? []} searchKey="name" searchPlaceholder={tc("search")} />
+        <DataTable columns={shownColumns} data={(data as any) ?? []} searchKey="name" searchPlaceholder={tc("search")} />
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>

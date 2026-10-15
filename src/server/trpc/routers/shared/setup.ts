@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
 import { createTRPCRouter, publicProcedure } from "@/server/trpc";
+import { SEQUENCE_DEFAULTS } from "@/server/services/finance/sequence-generator";
 import { hashPassword } from "@/lib/password";
 import {
   verifyLicenseKey,
@@ -289,29 +290,15 @@ export const setupRouter = createTRPCRouter({
           },
         });
 
-        // 6. Create default sequences
-        const sequenceDefaults = [
-          { code: "invoice", prefix: "INV", padding: 5 },
-          { code: "booking", prefix: "BK", padding: 6 },
-          { code: "contract", prefix: "CTR", padding: 5 },
-          { code: "payment", prefix: "PAY", padding: 5 },
-          { code: "voucher", prefix: "VCH", padding: 5 },
-          { code: "lead", prefix: "LD", padding: 5 },
-          { code: "traffic_job", prefix: "TJ", padding: 5 },
-          { code: "ops_file", prefix: "FI", padding: 5 },
-          { code: "ops_quotation", prefix: "QT", padding: 5 },
-        ];
-
-        for (const seq of sequenceDefaults) {
-          await tx.sequence.create({
-            data: {
-              companyId: company.id,
-              code: seq.code,
-              prefix: seq.prefix,
-              padding: seq.padding,
-            },
-          });
-        }
+        // 6. Create default sequences — the same table the generator falls back on.
+        await tx.sequence.createMany({
+          data: Object.entries(SEQUENCE_DEFAULTS).map(([code, d]) => ({
+            companyId: company.id,
+            code,
+            prefix: d.prefix,
+            padding: d.padding ?? 5,
+          })),
+        });
 
         // 7. Apply COA template if selected (runs outside tx to avoid timeouts)
         // We'll handle this post-transaction below

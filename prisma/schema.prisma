@@ -395,6 +395,9 @@ model Branch {
 
   company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users   UserBranch[]
+  accountAssets AccountAsset[]
+  deferredRevenues DeferredRevenue[]
+  deferredExpenses DeferredExpense[]
   journals Journal[]
   moves Move[]
   payments Payment[]
@@ -1761,6 +1764,7 @@ model AnalyticAccount {
 model AccountAsset {
   id                       String      @id @default(cuid())
   companyId                String
+  branchId                 String
   name                     String
   code                     String?
   accountId                String
@@ -1782,6 +1786,7 @@ model AccountAsset {
   updatedAt                DateTime    @updatedAt
 
   company               Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch                Branch             @relation(fields: [branchId], references: [id])
   account               FinAccount         @relation("AssetAccount", fields: [accountId], references: [id])
   depreciationAccount   FinAccount?        @relation("AssetDepAccount", fields: [depreciationAccountId], references: [id])
   accumulationAccount   FinAccount?        @relation("AssetAccumAccount", fields: [accumulationAccountId], references: [id])
@@ -1789,6 +1794,7 @@ model AccountAsset {
   depreciationLines     AccountAssetLine[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, state])
   @@map("fin_account_asset")
 }
@@ -1970,6 +1976,7 @@ model WorkingFile {
 model DeferredRevenue {
   id               String        @id @default(cuid())
   companyId        String
+  branchId         String
   name             String
   moveLineId       String?       @unique
   amount           Decimal       @db.Decimal(12, 4)
@@ -1984,12 +1991,14 @@ model DeferredRevenue {
   updatedAt        DateTime      @updatedAt
 
   company         Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch          Branch                     @relation(fields: [branchId], references: [id])
   moveLine        MoveLineItem?              @relation(fields: [moveLineId], references: [id])
   account         FinAccount                 @relation("DeferredRevAccount", fields: [accountId], references: [id])
   revenueAccount  FinAccount                 @relation("DeferredRevTargetAccount", fields: [revenueAccountId], references: [id])
   schedule        DeferredRevenueSchedule[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, state])
   @@map("fin_deferred_revenue")
 }
@@ -2014,6 +2023,7 @@ model DeferredRevenueSchedule {
 model DeferredExpense {
   id               String        @id @default(cuid())
   companyId        String
+  branchId         String
   name             String
   moveLineId       String?       @unique
   amount           Decimal       @db.Decimal(12, 4)
@@ -2028,12 +2038,14 @@ model DeferredExpense {
   updatedAt        DateTime      @updatedAt
 
   company        Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch         Branch                     @relation(fields: [branchId], references: [id])
   moveLine       MoveLineItem?              @relation("DeferredExpMoveLine", fields: [moveLineId], references: [id])
   account        FinAccount                 @relation("DeferredExpAccount", fields: [accountId], references: [id])
   expenseAccount FinAccount                 @relation("DeferredExpTargetAccount", fields: [expenseAccountId], references: [id])
   schedule       DeferredExpenseSchedule[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, state])
   @@map("fin_deferred_expense")
 }

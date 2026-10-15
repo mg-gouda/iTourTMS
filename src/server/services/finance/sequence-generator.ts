@@ -1,6 +1,40 @@
 import type { PrismaClient } from "@prisma/client";
 
 /**
+ * Numbering for every document code the app asks generateSequenceNumber for.
+ * Setup seeds these, and a company that predates one gets it on first use —
+ * several finance codes were never seeded, so posting simply failed.
+ */
+export const SEQUENCE_DEFAULTS: Record<string, { prefix: string; padding?: number }> = {
+  out_invoice: { prefix: "INV" },
+  out_refund: { prefix: "RINV" },
+  in_invoice: { prefix: "BILL" },
+  in_refund: { prefix: "RBILL" },
+  journal_entry: { prefix: "MISC" },
+  payment: { prefix: "PAY" },
+  inbound_payment: { prefix: "RCPT" },
+  bank_statement: { prefix: "BNK" },
+  batch_payment: { prefix: "BATCH" },
+  booking: { prefix: "BK", padding: 6 },
+  guest_booking: { prefix: "GB" },
+  hotel_credit: { prefix: "HCN" },
+  voucher: { prefix: "VCH" },
+  traffic_job: { prefix: "TJ" },
+  contract: { prefix: "CTR" },
+};
+
+/** Creates the company sequence for `code` from SEQUENCE_DEFAULTS if it is missing. */
+async function ensureSequence(db: Pick<PrismaClient, "sequence">, companyId: string, code: string) {
+  const d = SEQUENCE_DEFAULTS[code];
+  if (!d) return;
+  await db.sequence.upsert({
+    where: { companyId_code: { companyId, code } },
+    update: {},
+    create: { companyId, code, prefix: d.prefix, padding: d.padding ?? 5 },
+  });
+}
+
+/**
  * Generate the next sequence number for a given code.
  * Handles year-based reset and padding.
  *
@@ -14,6 +48,7 @@ export async function generateSequenceNumber(
   baseCode: string,
   branchId?: string | null,
 ): Promise<string> {
+  await ensureSequence(db, companyId, baseCode);
   const code = branchId ? await branchSequenceCode(db, companyId, baseCode, branchId) : baseCode;
   const now = new Date();
   const year = now.getFullYear();

@@ -107,3 +107,8 @@ DO $$ BEGIN
       FROM fin_fiscal_year fy WHERE fy."closingMoveId" = m.id AND m."closesFiscalYearId" IS NULL;
   END IF;
 END $$;
+
+-- Fixed assets and deferrals belong to the branch that holds them.
+SELECT pg_temp.own_by_branch('fin_account_asset');
+SELECT pg_temp.own_by_branch('fin_deferred_revenue');
+SELECT pg_temp.own_by_branch('fin_deferred_expense');

@@ -443,7 +443,7 @@ async function seedFixedAsset(journals: { saleId: string; purchId: string; cashI
     where: { id: "demo-asset-001" },
     create: {
       id: "demo-asset-001",
-      companyId: CO, name: "Company Vehicle — Toyota Coaster",
+      companyId: CO, branchId: HQ, name: "Company Vehicle — Toyota Coaster",
       code: "ASSET-001", accountId: ACC_FIXED,
       journalId: journals.bankId,
       state: "DRAFT",
@@ -463,7 +463,7 @@ async function seedFixedAsset(journals: { saleId: string; purchId: string; cashI
     where: { id: "demo-asset-002" },
     create: {
       id: "demo-asset-002",
-      companyId: CO, name: "Office Equipment — Laptops (5 units)",
+      companyId: CO, branchId: HQ, name: "Office Equipment — Laptops (5 units)",
       code: "ASSET-002", accountId: "cmpdstows003w01t4hlw4zjos", // 12130000 ASSET_FIXED
       journalId: journals.cashId,
       state: "DRAFT",
