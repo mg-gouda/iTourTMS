@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { postingJournal, postTwoLineEntry } from "@/server/services/finance/simple-entry";
 import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
@@ -140,6 +141,58 @@ export const assetRouter = createTRPCRouter({
       return ctx.db.accountAsset.update({
         where: { id: input.id },
         data: { state: "OPEN" },
+      });
+    }),
+
+  /** Posts every depreciation line due by today, in the asset's branch's books. */
+  postDue: p("finance:asset:update")
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const asset = await ctx.db.accountAsset.findFirst({
+        where: { id: input.id, companyId: ctx.companyId },
+        include: {
+          depreciationLines: { where: { isPosted: false }, orderBy: { date: "asc" } },
+        },
+      });
+      if (!asset) throw new TRPCError({ code: "NOT_FOUND" });
+      if (asset.state !== "OPEN") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Compute the depreciation board first." });
+      }
+      const { depreciationAccountId: expense, accumulationAccountId: accumulated } = asset;
+      if (!expense || !accumulated) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the depreciation and accumulation accounts first." });
+      }
+      const due = asset.depreciationLines.filter((l) => l.date <= new Date());
+      if (!due.length) return { posted: 0 };
+
+      const journalId = await postingJournal(ctx.db, ctx.companyId, asset.branchId, asset.journalId);
+      return ctx.db.$transaction(async (tx) => {
+        let total = new Decimal(0);
+        for (const line of due) {
+          const move = await postTwoLineEntry(tx, {
+            companyId: ctx.companyId,
+            branchId: asset.branchId,
+            journalId,
+            date: line.date,
+            ref: `Depreciation: ${asset.name} — ${line.name}`,
+            debitAccountId: expense,
+            creditAccountId: accumulated,
+            amount: new Decimal(line.depreciation.toString()),
+          });
+          await tx.accountAssetLine.update({ where: { id: line.id }, data: { moveId: move.id, isPosted: true } });
+          total = total.plus(line.depreciation.toString());
+        }
+        const last = due[due.length - 1];
+        await tx.accountAsset.update({
+          where: { id: asset.id },
+          data: {
+            netBookValue: last.residual,
+            accumulatedDepreciation: new Decimal(asset.accumulatedDepreciation.toString()).plus(total),
+            // Fully depreciated once nothing is left to post.
+            ...(due.length === asset.depreciationLines.length && { state: "CLOSED" as const }),
+          },
+        });
+        return { posted: due.length };
       });
     }),
 

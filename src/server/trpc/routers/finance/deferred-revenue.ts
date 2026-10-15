@@ -1,10 +1,54 @@
+import type { PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { postingJournal, postTwoLineEntry } from "@/server/services/finance/simple-entry";
 import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
+
+/**
+ * Revenue recognition schedule lines as real entries in the deferral's branch's books:
+ * Dr accountId / Cr revenueAccountId. `only` posts that one line; otherwise every line
+ * due by today.
+ */
+async function postLines(ctx: { db: PrismaClient; companyId: string }, deferredId: string, only?: string) {
+  const deferred = await ctx.db.deferredRevenue.findFirst({
+    where: { id: deferredId, companyId: ctx.companyId },
+    include: { schedule: { where: { isRecognized: false }, orderBy: { date: "asc" } } },
+  });
+  if (!deferred) throw new TRPCError({ code: "NOT_FOUND" });
+  const lines = deferred.schedule.filter((l) => (only ? l.id === only : l.date <= new Date()));
+  if (!lines.length) return { posted: 0 };
+
+  const journalId = await postingJournal(ctx.db, ctx.companyId, deferred.branchId, deferred.journalId);
+  return ctx.db.$transaction(async (tx) => {
+    let total = new Decimal(0);
+    for (const line of lines) {
+      const move = await postTwoLineEntry(tx, {
+        companyId: ctx.companyId,
+        branchId: deferred.branchId,
+        journalId,
+        date: line.date,
+        ref: `Revenue recognition: ${deferred.name}`,
+        debitAccountId: deferred.accountId,
+        creditAccountId: deferred.revenueAccountId,
+        amount: new Decimal(line.amount.toString()),
+      });
+      await tx.deferredRevenueSchedule.update({ where: { id: line.id }, data: { isRecognized: true, moveId: move.id } });
+      total = total.plus(line.amount.toString());
+    }
+    await tx.deferredRevenue.update({
+      where: { id: deferred.id },
+      data: {
+        recognizedAmount: new Decimal(deferred.recognizedAmount.toString()).plus(total),
+        ...(lines.length === deferred.schedule.length && { state: "CLOSED" as const }),
+      },
+    });
+    return { posted: lines.length };
+  });
+}
 
 function buildMonthlySchedule(amount: Decimal, startDate: Date, endDate: Date) {
   const lines: { date: Date; amount: Decimal }[] = [];
@@ -88,20 +132,19 @@ export const deferredRevenueRouter = createTRPCRouter({
       return rec;
     }),
 
+  /** Posts one schedule line now, whatever its date. */
   recognize: p("finance:deferred:update")
     .input(z.object({ scheduleId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const line = await ctx.db.deferredRevenueSchedule.findFirst({ where: { id: input.scheduleId } });
       if (!line) throw new TRPCError({ code: "NOT_FOUND" });
-      await ctx.db.deferredRevenueSchedule.update({ where: { id: input.scheduleId }, data: { isRecognized: true } });
-      const deferred = await ctx.db.deferredRevenue.findFirst({ where: { id: line.deferredId } });
-      if (deferred) {
-        await ctx.db.deferredRevenue.update({
-          where: { id: line.deferredId },
-          data: { recognizedAmount: new Decimal(deferred.recognizedAmount.toString()).plus(new Decimal(line.amount.toString())) },
-        });
-      }
+      return postLines(ctx, line.deferredId, line.id);
     }),
+
+  /** Posts every schedule line due by today. */
+  postDue: p("finance:deferred:update")
+    .input(z.object({ id: z.string() }))
+    .mutation(({ ctx, input }) => postLines(ctx, input.id)),
 
   close: p("finance:deferred:confirm")
     .input(z.object({ id: z.string() }))

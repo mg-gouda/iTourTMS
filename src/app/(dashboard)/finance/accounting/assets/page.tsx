@@ -58,10 +58,15 @@ export default function AssetsPage() {
   const { data: accounts } = trpc.finance.account.list.useQuery({ accountType: "ASSET_FIXED" });
   const createMut = trpc.finance.asset.create.useMutation({ onSuccess: () => { utils.finance.asset.list.invalidate(); setOpen(false); toast.success(t("assetCreated")); } });
   const computeMut = trpc.finance.asset.compute.useMutation({ onSuccess: () => { utils.finance.asset.list.invalidate(); toast.success(t("depreciationComputed")); } });
+  const { data: depAccounts } = trpc.finance.account.list.useQuery({ accountType: "EXPENSE_DEPRECIATION" });
+  const postDueMut = trpc.finance.asset.postDue.useMutation({
+    onSuccess: (r) => { utils.finance.asset.list.invalidate(); toast.success(r.posted ? `${r.posted} depreciation entr${r.posted === 1 ? "y" : "ies"} posted` : "Nothing due yet"); },
+    onError: (e) => toast.error(e.message),
+  });
   const closeMut = trpc.finance.asset.close.useMutation({ onSuccess: () => { utils.finance.asset.list.invalidate(); toast.success(t("assetClosed")); } });
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", accountId: "", originalValue: "", salvageValue: "0", usefulLifeYears: "5", acquisitionDate: new Date().toISOString().split("T")[0], method: "STRAIGHT_LINE" });
+  const [form, setForm] = useState({ name: "", accountId: "", depreciationAccountId: "", accumulationAccountId: "", originalValue: "", salvageValue: "0", usefulLifeYears: "5", acquisitionDate: new Date().toISOString().split("T")[0], method: "STRAIGHT_LINE" });
 
   const columns: ColumnDef<AssetRow, unknown>[] = [
     { accessorKey: "name", header: t("assetName") },
@@ -83,6 +88,9 @@ export default function AssetsPage() {
           <DropdownMenuContent align="end">
             {row.original.state === "DRAFT" && (
               <DropdownMenuItem onClick={() => computeMut.mutate({ id: row.original.id })}>{t("computeDepreciation")}</DropdownMenuItem>
+            )}
+            {row.original.state === "OPEN" && (
+              <DropdownMenuItem onClick={() => postDueMut.mutate({ id: row.original.id })}>Post due depreciation</DropdownMenuItem>
             )}
             {row.original.state === "OPEN" && (
               <DropdownMenuItem onClick={() => closeMut.mutate({ id: row.original.id })}>{t("closeAsset")}</DropdownMenuItem>
@@ -124,6 +132,26 @@ export default function AssetsPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5"><Label>Depreciation expense</Label>
+                <Combobox
+                  options={(depAccounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                  value={form.depreciationAccountId}
+                  onValueChange={(v) => setForm({ ...form, depreciationAccountId: v })}
+                  placeholder={tc("select")}
+                  searchPlaceholder={tc("search")}
+                />
+              </div>
+              <div className="grid gap-1.5"><Label>Accumulated depreciation</Label>
+                <Combobox
+                  options={(accounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                  value={form.accumulationAccountId}
+                  onValueChange={(v) => setForm({ ...form, accumulationAccountId: v })}
+                  placeholder={tc("select")}
+                  searchPlaceholder={tc("search")}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5"><Label>{t("originalValue")}</Label><Input type="number" value={form.originalValue} onChange={(e) => setForm({ ...form, originalValue: e.target.value })} /></div>
               <div className="grid gap-1.5"><Label>{t("salvageValue")}</Label><Input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></div>
             </div>
@@ -145,7 +173,7 @@ export default function AssetsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{tc("cancel")}</Button>
-            <Button disabled={createMut.isPending} onClick={() => createMut.mutate({ ...form, originalValue: Number(form.originalValue), salvageValue: Number(form.salvageValue), usefulLifeYears: Number(form.usefulLifeYears), method: form.method as any })}>{tc("create")}</Button>
+            <Button disabled={createMut.isPending} onClick={() => createMut.mutate({ ...form, depreciationAccountId: form.depreciationAccountId || undefined, accumulationAccountId: form.accumulationAccountId || undefined, originalValue: Number(form.originalValue), salvageValue: Number(form.salvageValue), usefulLifeYears: Number(form.usefulLifeYears), method: form.method as any })}>{tc("create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

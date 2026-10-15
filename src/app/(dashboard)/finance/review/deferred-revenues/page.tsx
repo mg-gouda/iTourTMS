@@ -39,6 +39,10 @@ export default function DeferredRevenuesPage() {
   const { data, isLoading } = trpc.finance.deferredRevenue.list.useQuery({});
   const { data: accounts } = trpc.finance.account.list.useQuery({});
   const createMut = trpc.finance.deferredRevenue.create.useMutation({ onSuccess: () => { utils.finance.deferredRevenue.list.invalidate(); setOpen(false); toast.success("Deferred revenue created"); } });
+  const postDueMut = trpc.finance.deferredRevenue.postDue.useMutation({
+    onSuccess: (r) => { utils.finance.deferredRevenue.list.invalidate(); toast.success(r.posted ? `${r.posted} entr${r.posted === 1 ? "y" : "ies"} posted` : "Nothing due yet"); },
+    onError: (e) => toast.error(e.message),
+  });
   const closeMut = trpc.finance.deferredRevenue.close.useMutation({ onSuccess: () => { utils.finance.deferredRevenue.list.invalidate(); toast.success("Closed"); } });
 
   const [open, setOpen] = useState(false);
@@ -67,6 +71,7 @@ export default function DeferredRevenuesPage() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-xs"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {row.original.state !== "CLOSED" && <DropdownMenuItem onClick={() => postDueMut.mutate({ id: row.original.id })}>Recognise due revenue</DropdownMenuItem>}
             {row.original.state !== "CLOSED" && <DropdownMenuItem onClick={() => closeMut.mutate({ id: row.original.id })}>Close</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
