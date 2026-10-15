@@ -115,6 +115,7 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
           label: "Transactions",
           routes: [
             { label: "Journal Entries", href: "/finance/accounting/journal-entries" },
+            { label: "Inter-branch Transfer", href: "/finance/accounting/inter-branch" },
             { label: "Analytic Items", href: "/finance/accounting/analytic-items" },
           ],
         },

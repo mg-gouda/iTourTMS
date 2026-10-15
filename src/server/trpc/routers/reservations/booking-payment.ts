@@ -139,7 +139,6 @@ export const bookingPaymentRouter = createTRPCRouter({
       // Optionally create finance records
       if (input.createFinanceRecords && input.journalId) {
         await createFinanceRecords(
-          ctx.db,
           ctx.companyId,
           {
             ...payment,

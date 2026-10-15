@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { useShowBranch } from "@/hooks/use-branch-columns";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/constants/finance";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
@@ -22,6 +24,24 @@ export function ProfitAndLossReport() {
     { dateFrom: params?.dateFrom ?? new Date(), dateTo: params?.dateTo ?? new Date() },
     { enabled: !!params },
   );
+
+  // Head office: one column per branch beside the consolidated figure.
+  const showBranch = useShowBranch();
+  const [compare, setCompare] = useState(false);
+  const { data: byBranch, isFetching: fetchingBranches } = trpc.finance.branchReport.profitAndLoss.useQuery(
+    { dateFrom: params?.dateFrom ?? new Date(), dateTo: params?.dateTo ?? new Date() },
+    { enabled: !!params && compare && showBranch },
+  );
+  const comparing = compare && showBranch && !!byBranch;
+  const shownColumns: ReportColumn[] = comparing
+    ? [
+        ...byBranch.map((c) => ({ key: c.branch.id, label: c.branch.code, align: "right" as const, format: "currency" as const })),
+        { key: "balance", label: "Consolidated", align: "right", format: "currency" },
+      ]
+    : columns;
+  type PL = NonNullable<typeof data>;
+  const split = (pick: (r: PL) => number | undefined): Record<string, number> =>
+    comparing ? Object.fromEntries(byBranch.map((c) => [c.branch.id, pick(c.report) ?? 0])) : {};
 
   function buildRows(): ReportRow[] {
     if (!data) return [];
@@ -42,14 +62,14 @@ export function ProfitAndLossReport() {
       rows.push({
         type: "data",
         label: `${acc.code} — ${acc.name}`,
-        values: { balance: acc.balance },
+        values: { balance: acc.balance, ...split((r) => r.incomeAccounts.find((a) => a.accountId === acc.accountId)?.balance) },
         drilldownHref: `/finance/reports/general-ledger?accountId=${acc.accountId}&dateFrom=${params!.dateFrom.toISOString().split("T")[0]}&dateTo=${params!.dateTo.toISOString().split("T")[0]}`,
       });
     }
     rows.push({
       type: "subtotal",
       label: "Total Income",
-      values: { balance: data.totalIncome },
+      values: { balance: data.totalIncome, ...split((r) => r.totalIncome) },
     });
 
     // Expense section
@@ -67,21 +87,21 @@ export function ProfitAndLossReport() {
       rows.push({
         type: "data",
         label: `${acc.code} — ${acc.name}`,
-        values: { balance: acc.balance },
+        values: { balance: acc.balance, ...split((r) => r.expenseAccounts.find((a) => a.accountId === acc.accountId)?.balance) },
         drilldownHref: `/finance/reports/general-ledger?accountId=${acc.accountId}&dateFrom=${params!.dateFrom.toISOString().split("T")[0]}&dateTo=${params!.dateTo.toISOString().split("T")[0]}`,
       });
     }
     rows.push({
       type: "subtotal",
       label: "Total Expenses",
-      values: { balance: data.totalExpenses },
+      values: { balance: data.totalExpenses, ...split((r) => r.totalExpenses) },
     });
 
     // Net Profit
     rows.push({
       type: "total",
       label: "Net Profit",
-      values: { balance: data.netProfit },
+      values: { balance: data.netProfit, ...split((r) => r.netProfit) },
     });
 
     return rows;
@@ -96,6 +116,13 @@ export function ProfitAndLossReport() {
             Income and expense summary for the selected period
           </p>
         </div>
+        <div className="flex items-center gap-4">
+        {showBranch && (
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={compare} onCheckedChange={setCompare} />
+            Compare branches
+          </label>
+        )}
         {data && (
           <button
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
@@ -112,6 +139,7 @@ export function ProfitAndLossReport() {
             Export Excel
           </button>
         )}
+        </div>
       </div>
 
       <DateRangeFilter
@@ -119,7 +147,7 @@ export function ProfitAndLossReport() {
         isPending={isFetching}
       />
 
-      {isFetching && (
+      {(isFetching || (compare && fetchingBranches)) && (
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-3">
@@ -139,7 +167,7 @@ export function ProfitAndLossReport() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ReportTable columns={columns} rows={buildRows()} />
+            <ReportTable columns={shownColumns} rows={buildRows()} />
 
             <div className="mt-6 flex justify-end">
               <div className="w-64 space-y-2 text-sm">

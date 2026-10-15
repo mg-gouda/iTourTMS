@@ -7,6 +7,7 @@ import {
   recurringEntryUpdateSchema,
 } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch, entryBranch } from "@/server/branch-scope";
 import {
   computeNextRunDate,
   collectDueDates,
@@ -84,6 +85,7 @@ export const recurringEntryRouter = createTRPCRouter({
       return ctx.db.recurringEntry.create({
         data: {
           companyId: ctx.companyId,
+          branchId: await entryBranch(ctx.db, input.journalId, () => activeBranch(ctx.branch)),
           name: input.name,
           journalId: input.journalId,
           partnerId: input.partnerId,

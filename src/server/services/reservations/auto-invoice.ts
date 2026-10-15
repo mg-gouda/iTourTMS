@@ -1,13 +1,16 @@
-import type { PrismaClient } from "@prisma/client";
+import { branchForHotel, journalFor } from "@/server/branch-scope";
+import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { logger } from "@/lib/logger";
 
 /**
  * Creates a vendor bill (IN_INVOICE) for the hotel buying total when a booking is confirmed.
  * Skips silently if no purchase journal or payable account is configured.
+ *
+ * Bookings are company-wide; the bill lands in the books of the branch serving
+ * the hotel, so this posts on the unscoped client.
  */
 export async function createBookingVendorBill(
-  db: PrismaClient,
   companyId: string,
   bookingId: string,
 ): Promise<string | null> {
@@ -20,10 +23,8 @@ export async function createBookingVendorBill(
     const amount = Number(booking.buyingTotal);
     if (amount <= 0) return null;
 
-    const purchaseJournal = await db.journal.findFirst({
-      where: { companyId, type: "PURCHASE" },
-      select: { id: true },
-    });
+    const branchId = await branchForHotel(db, companyId, booking.hotelId);
+    const purchaseJournal = await journalFor(db, companyId, "PURCHASE", branchId);
     if (!purchaseJournal) {
       logger.warn({ companyId }, "Auto vendor bill skipped: no purchase journal configured");
       return null;
@@ -50,12 +51,13 @@ export async function createBookingVendorBill(
       return null;
     }
 
-    const moveName = await generateSequenceNumber(db, companyId, "in_invoice")
+    const moveName = await generateSequenceNumber(db, companyId, "in_invoice", branchId)
       .catch(() => `BILL-${Date.now()}`);
 
     const move = await db.move.create({
       data: {
         companyId,
+        branchId,
         name: moveName,
         moveType: "IN_INVOICE",
         state: "POSTED",
@@ -113,7 +115,6 @@ export async function createBookingVendorBill(
  * Skips if no receivable account or journal is configured.
  */
 export async function createBookingInvoice(
-  db: PrismaClient,
   companyId: string,
   bookingId: string,
   userId: string,
@@ -128,10 +129,8 @@ export async function createBookingInvoice(
     });
 
     // Find sales journal
-    const salesJournal = await db.journal.findFirst({
-      where: { companyId, type: "SALE" },
-      select: { id: true },
-    });
+    const branchId = await branchForHotel(db, companyId, booking.hotelId);
+    const salesJournal = await journalFor(db, companyId, "SALE", branchId);
     if (!salesJournal) {
       logger.warn({ companyId }, "Auto-invoice skipped: no sales journal configured");
       return null;
@@ -157,7 +156,7 @@ export async function createBookingInvoice(
       return null;
     }
 
-    const moveName = await generateSequenceNumber(db, companyId, "out_invoice")
+    const moveName = await generateSequenceNumber(db, companyId, "out_invoice", branchId)
       .catch(() => `INV-${Date.now()}`);
 
     // TourOperator is not a Partner — invoices are unlinked to partner for now
@@ -167,6 +166,7 @@ export async function createBookingInvoice(
     const move = await db.move.create({
       data: {
         companyId,
+        branchId,
         name: moveName,
         moveType: "OUT_INVOICE",
         state: "POSTED",

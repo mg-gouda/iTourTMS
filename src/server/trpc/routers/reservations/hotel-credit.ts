@@ -153,7 +153,6 @@ export const hotelCreditRouter = createTRPCRouter({
     });
 
     await createHotelCreditFinanceRecord(
-      ctx.db,
       ctx.companyId,
       {
         id: creditNote.id,

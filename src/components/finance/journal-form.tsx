@@ -43,11 +43,13 @@ export function JournalForm({ defaultValues }: JournalFormProps) {
       lossAccountId: null,
       currencyId: null,
       sequencePrefix: null,
+      branchId: null,
       ...defaultValues,
     },
   });
 
   const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: mine } = trpc.branch.mine.useQuery();
 
   const createMutation = trpc.finance.journal.create.useMutation({
     onSuccess: () => {
@@ -124,6 +126,33 @@ export function JournalForm({ defaultValues }: JournalFormProps) {
               </FormItem>
             )}
           />
+
+          {(mine?.branches.length ?? 0) > 1 && (
+            <FormField
+              control={form.control}
+              name="branchId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Branch</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      options={[
+                        { value: "", label: "Shared — every branch" },
+                        ...(mine?.branches ?? []).map((b) => ({ value: b.id, label: `${b.name} only` })),
+                      ]}
+                      value={field.value ?? ""}
+                      onValueChange={(v) => field.onChange(v || null)}
+                      placeholder="Shared — every branch"
+                    />
+                  </FormControl>
+                  <p className="text-muted-foreground text-xs">
+                    A branch&apos;s own cash or bank. Entries on it go in that branch&apos;s books.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}

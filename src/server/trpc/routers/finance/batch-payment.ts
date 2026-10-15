@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { batchPaymentCreateSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { assertJournalInBranch } from "@/server/branch-scope";
 import {
   buildPaymentMoveLines,
   updateMovePaymentState,
@@ -135,6 +136,7 @@ export const batchPaymentRouter = createTRPCRouter({
           currencyId: true,
           amountResidual: true,
           amountTotal: true,
+          branchId: true,
         },
       });
 
@@ -152,11 +154,20 @@ export const batchPaymentRouter = createTRPCRouter({
         totalAmount = totalAmount.plus(residual.greaterThan(0) ? residual : new Decimal(inv.amountTotal.toString()));
       }
 
+      // One batch, one set of books.
+      const branchIds = [...new Set(invoices.map((i) => i.branchId))];
+      if (branchIds.length > 1) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Those invoices belong to different branches — batch each branch separately." });
+      }
+      const branchId = branchIds[0];
+      await assertJournalInBranch(ctx.db, input.journalId, branchId);
+
       return ctx.db.$transaction(async (tx: any) => {
         // Create batch payment
         const batch = await tx.batchPayment.create({
           data: {
             companyId: ctx.companyId,
+            branchId,
             journalId: input.journalId,
             date: input.date,
             paymentType: input.paymentType,
@@ -176,6 +187,7 @@ export const batchPaymentRouter = createTRPCRouter({
           await tx.payment.create({
             data: {
               companyId: ctx.companyId,
+              branchId,
               paymentType: input.paymentType,
               partnerId: inv.partnerId,
               amount: paymentAmount.toDecimalPlaces(4),
@@ -288,6 +300,7 @@ export const batchPaymentRouter = createTRPCRouter({
         ctx.db,
         ctx.companyId,
         "batch_payment",
+        batch.branchId,
       );
 
       return ctx.db.$transaction(async (tx: any) => {
@@ -312,6 +325,7 @@ export const batchPaymentRouter = createTRPCRouter({
             tx,
             ctx.companyId,
             "payment",
+            payment.branchId,
           );
 
           const companyCurrencyId =
@@ -321,6 +335,7 @@ export const batchPaymentRouter = createTRPCRouter({
           const move = await tx.move.create({
             data: {
               companyId: ctx.companyId,
+              branchId: payment.branchId,
               name: `${paymentName} - Journal Entry`,
               moveType: "ENTRY",
               state: "POSTED",

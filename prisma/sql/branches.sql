@@ -84,3 +84,26 @@ CREATE UNIQUE INDEX IF NOT EXISTS "crm_excursion_breakdown_companyId_branchId_ex
 DROP INDEX IF EXISTS "crm_excursion_dispatch_companyId_excursionId_dispatchDate_key";
 CREATE UNIQUE INDEX IF NOT EXISTS "crm_excursion_dispatch_companyId_branchId_excursionId_dispa_key"
   ON "crm_excursion_dispatch"("companyId", "branchId", "excursionId", "dispatchDate");
+
+-- Finance: every entry, payment, statement, batch and recurring template
+-- belongs to a branch's books. Existing history is head office's.
+SELECT pg_temp.own_by_branch('fin_move');
+SELECT pg_temp.own_by_branch('fin_payment');
+SELECT pg_temp.own_by_branch('fin_bank_statement');
+SELECT pg_temp.own_by_branch('fin_batch_payment');
+SELECT pg_temp.own_by_branch('fin_recurring_entry');
+
+-- Journals may belong to one branch (its own cash/bank) or be shared (null).
+ALTER TABLE "Journal" ADD COLUMN IF NOT EXISTS "branchId" TEXT;
+
+-- Year-end closing is one entry per branch, so the entry points at its year
+-- (fin_move.closesFiscalYearId) instead of the year at one entry. Carry the
+-- existing links across before the schema diff drops "closingMoveId".
+ALTER TABLE fin_move ADD COLUMN IF NOT EXISTS "closesFiscalYearId" TEXT;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'fin_fiscal_year' AND column_name = 'closingMoveId') THEN
+    UPDATE fin_move m SET "closesFiscalYearId" = fy.id
+      FROM fin_fiscal_year fy WHERE fy."closingMoveId" = m.id AND m."closesFiscalYearId" IS NULL;
+  END IF;
+END $$;

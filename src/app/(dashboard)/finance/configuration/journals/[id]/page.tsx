@@ -49,6 +49,7 @@ export default function EditJournalPage({
           lossAccountId: data.lossAccountId,
           currencyId: data.currencyId,
           sequencePrefix: data.sequencePrefix,
+          branchId: data.branchId,
         }}
       />
     </div>

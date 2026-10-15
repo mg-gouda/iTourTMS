@@ -1,5 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { Decimal } from "decimal.js";
+import { branchForHotel, entryBranch, journalFor } from "@/server/branch-scope";
+import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
 /**
@@ -55,7 +57,6 @@ export async function updateBookingPaymentStatus(
  * Returns the created finMoveId and finPaymentId.
  */
 export async function createFinanceRecords(
-  db: PrismaClient,
   companyId: string,
   bookingPayment: {
     id: string;
@@ -74,8 +75,16 @@ export async function createFinanceRecords(
   const moveType = bookingPayment.isRefund ? "OUT_REFUND" : "OUT_INVOICE";
   const seqCode = moveType === "OUT_INVOICE" ? "out_invoice" : "out_refund";
 
+  // Posted unscoped in the books of the branch serving the hotel, unless the
+  // chosen journal is a branch's own cash/bank.
+  const booking = await db.booking.findUniqueOrThrow({
+    where: { id: bookingPayment.bookingId },
+    select: { hotelId: true },
+  });
+  const branchId = await entryBranch(db, journalId, () => branchForHotel(db, companyId, booking.hotelId));
+
   // Generate sequence number
-  const moveName = await generateSequenceNumber(db, companyId, seqCode);
+  const moveName = await generateSequenceNumber(db, companyId, seqCode, branchId);
 
   // Find receivable account for move line
   const receivableAccount = await db.finAccount.findFirst({
@@ -91,6 +100,7 @@ export async function createFinanceRecords(
   const move = await db.move.create({
     data: {
       companyId,
+      branchId,
       name: moveName,
       moveType,
       state: "POSTED",
@@ -121,11 +131,13 @@ export async function createFinanceRecords(
     db,
     companyId,
     bookingPayment.isRefund ? "out_refund" : "inbound_payment",
+    branchId,
   ).catch(() => `PAY-${Date.now()}`);
 
   const payment = await db.payment.create({
     data: {
       companyId,
+      branchId,
       name: paymentName,
       paymentType: "INBOUND",
       amount: Number(bookingPayment.amount),
@@ -156,7 +168,6 @@ export async function createFinanceRecords(
  * Links the move back to the HotelCreditNote record.
  */
 export async function createHotelCreditFinanceRecord(
-  db: PrismaClient,
   companyId: string,
   creditNote: {
     id: string;
@@ -167,20 +178,17 @@ export async function createHotelCreditFinanceRecord(
     sourceBookingCode?: string | null;
   },
 ): Promise<{ finMoveId: string }> {
-  // Auto-select Purchase journal, fall back to General
-  const journal = await db.journal.findFirst({
-    where: { companyId, type: "PURCHASE" },
-    select: { id: true },
-  }) ?? await db.journal.findFirst({
-    where: { companyId, type: "GENERAL" },
-    select: { id: true },
-  });
+  // Auto-select Purchase journal, fall back to General — the hotel's branch's own first
+  const branchId = await branchForHotel(db, companyId, creditNote.hotelId);
+  const journal =
+    (await journalFor(db, companyId, "PURCHASE", branchId)) ??
+    (await journalFor(db, companyId, "GENERAL", branchId));
 
   if (!journal) {
     throw new Error("No Purchase or General journal found. Please set up journals in Finance configuration.");
   }
 
-  const moveName = await generateSequenceNumber(db, companyId, "in_refund").catch(
+  const moveName = await generateSequenceNumber(db, companyId, "in_refund", branchId).catch(
     () => `HCN-${Date.now()}`,
   );
 
@@ -205,6 +213,7 @@ export async function createHotelCreditFinanceRecord(
   const move = await db.move.create({
     data: {
       companyId,
+      branchId,
       name: moveName,
       moveType: "IN_REFUND",
       state: "POSTED",

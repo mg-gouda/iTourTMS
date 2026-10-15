@@ -1311,8 +1311,8 @@ export const bookingRouter = createTRPCRouter({
           await syncTrafficJobsForBooking(ctx.companyId, booking.id, userId);
 
           // Auto-create customer invoice + vendor bill (fire-and-forget)
-          createBookingInvoice(ctx.db, ctx.companyId, booking.id, userId).catch(() => {});
-          createBookingVendorBill(ctx.db, ctx.companyId, booking.id).catch(() => {});
+          createBookingInvoice(ctx.companyId, booking.id, userId).catch(() => {});
+          createBookingVendorBill(ctx.companyId, booking.id).catch(() => {});
 
           // Notify booking creator
           notifyBookingStatusChange(ctx.db, ctx.companyId, booking.id, booking.code, "CONFIRMED", userId).catch(() => {});
@@ -1381,7 +1381,6 @@ export const bookingRouter = createTRPCRouter({
               });
 
               await createHotelCreditFinanceRecord(
-                ctx.db,
                 ctx.companyId,
                 {
                   id: creditNote.id,

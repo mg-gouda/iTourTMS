@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { paymentCreateSchema, registerPaymentSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch, assertJournalInBranch, entryBranch } from "@/server/branch-scope";
 import {
   buildPaymentMoveLines,
   computeExchangeDifference,
@@ -91,6 +92,7 @@ export const paymentRouter = createTRPCRouter({
       const items = await ctx.db.payment.findMany({
         where: where as any,
         include: {
+          branch: { select: { code: true, name: true } },
           partner: { select: { id: true, name: true } },
           journal: { select: { id: true, code: true, name: true } },
           currency: { select: { id: true, code: true, symbol: true } },
@@ -158,10 +160,21 @@ export const paymentRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { invoiceMoveIds, ...data } = input;
 
+      // Paying invoices: their branch. Otherwise the journal decides.
+      const invoices = invoiceMoveIds.length
+        ? await ctx.db.move.findMany({ where: { id: { in: invoiceMoveIds } }, select: { branchId: true } })
+        : [];
+      if (new Set(invoices.map((i) => i.branchId)).size > 1) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Those invoices belong to different branches — pay each branch separately." });
+      }
+      const branchId = invoices[0]?.branchId ?? (await entryBranch(ctx.db, data.journalId, () => activeBranch(ctx.branch)));
+      await assertJournalInBranch(ctx.db, data.journalId, branchId);
+
       return ctx.db.payment.create({
         data: {
           ...data,
           companyId: ctx.companyId,
+          branchId,
           state: "DRAFT",
           ...(invoiceMoveIds.length > 0 && {
             invoices: { connect: invoiceMoveIds.map((id) => ({ id })) },
@@ -242,7 +255,7 @@ export const paymentRouter = createTRPCRouter({
       validateBalance(paymentLines);
 
       // Generate sequence number
-      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment");
+      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment", payment.branchId);
 
       // Execute in transaction
       return ctx.db.$transaction(async (tx: any) => {
@@ -250,6 +263,7 @@ export const paymentRouter = createTRPCRouter({
         const move = await tx.move.create({
           data: {
             companyId: ctx.companyId,
+            branchId: payment.branchId,
             name: `${name} - Journal Entry`,
             moveType: "ENTRY",
             state: "POSTED",
@@ -357,10 +371,11 @@ export const paymentRouter = createTRPCRouter({
                   payment.partnerId,
                 );
 
-                const exchName = await generateSequenceNumber(tx, ctx.companyId, "journal_entry");
+                const exchName = await generateSequenceNumber(tx, ctx.companyId, "journal_entry", payment.branchId);
                 await tx.move.create({
                   data: {
                     companyId: ctx.companyId,
+                    branchId: payment.branchId,
                     name: exchName,
                     moveType: "ENTRY",
                     state: "POSTED",
@@ -527,6 +542,7 @@ export const paymentRouter = createTRPCRouter({
           currencyId: true,
           state: true,
           amountResidual: true,
+          branchId: true,
         },
       });
 
@@ -546,10 +562,13 @@ export const paymentRouter = createTRPCRouter({
         ? "INBOUND"
         : "OUTBOUND";
 
+      await assertJournalInBranch(ctx.db, input.journalId, invoice.branchId);
+
       // Create payment in draft
       const payment = await ctx.db.payment.create({
         data: {
           companyId: ctx.companyId,
+          branchId: invoice.branchId,
           paymentType,
           partnerId: invoice.partnerId,
           amount: input.amount,
@@ -613,12 +632,13 @@ export const paymentRouter = createTRPCRouter({
 
       validateBalance(paymentLines);
 
-      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment");
+      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment", payment.branchId);
 
       return ctx.db.$transaction(async (tx: any) => {
         const move = await tx.move.create({
           data: {
             companyId: ctx.companyId,
+            branchId: payment.branchId,
             name: `${name} - Journal Entry`,
             moveType: "ENTRY",
             state: "POSTED",

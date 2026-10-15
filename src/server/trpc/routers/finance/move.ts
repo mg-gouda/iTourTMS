@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { moveCreateSchema, moveUpdateSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch, entryBranch } from "@/server/branch-scope";
 import {
   computeInvoiceLines,
   computeMoveTotals,
@@ -93,6 +94,7 @@ export const moveRouter = createTRPCRouter({
       const items = await ctx.db.move.findMany({
         where: where as any,
         include: {
+          branch: { select: { code: true, name: true } },
           partner: { select: { id: true, name: true } },
           journal: { select: { id: true, code: true, name: true } },
           currency: { select: { id: true, code: true, symbol: true } },
@@ -256,6 +258,7 @@ export const moveRouter = createTRPCRouter({
           data: {
             ...moveData,
             companyId: ctx.companyId,
+            branchId: await entryBranch(ctx.db, moveData.journalId, () => activeBranch(ctx.branch)),
             companyCurrencyId,
             invoiceDate: input.invoiceDate ?? input.date,
             amountUntaxed: totals.amountUntaxed,
@@ -323,6 +326,7 @@ export const moveRouter = createTRPCRouter({
           data: {
             ...moveData,
             companyId: ctx.companyId,
+            branchId: await entryBranch(ctx.db, moveData.journalId, () => activeBranch(ctx.branch)),
             companyCurrencyId,
             amountUntaxed: totals.amountUntaxed,
             amountTax: totals.amountTax,
@@ -371,6 +375,13 @@ export const moveRouter = createTRPCRouter({
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message: "Only draft moves can be updated",
+        });
+      }
+
+      // Moving a draft onto a branch's own journal moves it into that branch's books.
+      if (moveData.journalId) {
+        Object.assign(moveData, {
+          branchId: await entryBranch(ctx.db, moveData.journalId, () => existing.branchId),
         });
       }
 
@@ -610,7 +621,7 @@ export const moveRouter = createTRPCRouter({
 
       // Generate sequence number
       const seqCode = getSequenceCode(move.moveType);
-      const name = await generateSequenceNumber(ctx.db, ctx.companyId, seqCode);
+      const name = await generateSequenceNumber(ctx.db, ctx.companyId, seqCode, move.branchId);
 
       return ctx.db.move.update({
         where: { id: input.id },
@@ -668,12 +679,13 @@ export const moveRouter = createTRPCRouter({
       );
 
       const seqCode = getSequenceCode(move.moveType);
-      const reversalName = await generateSequenceNumber(ctx.db, ctx.companyId, seqCode);
+      const reversalName = await generateSequenceNumber(ctx.db, ctx.companyId, seqCode, move.branchId);
 
       const [reversal] = await ctx.db.$transaction([
         ctx.db.move.create({
           data: {
             companyId: ctx.companyId,
+            branchId: move.branchId,
             name: reversalName,
             moveType: move.moveType,
             state: "POSTED",
@@ -812,6 +824,7 @@ export const moveRouter = createTRPCRouter({
       return ctx.db.move.create({
         data: {
           companyId: ctx.companyId,
+          branchId: move.branchId,
           moveType: refundMoveType as any,
           state: "DRAFT",
           date: new Date(),

@@ -12,6 +12,7 @@ interface FareLine {
 interface TicketData {
   id: string;
   companyId: string;
+  branchId: string;
   transactionType: OpsFlightTxType;
   vendorId?: string | null;
   customerPartnerId?: string | null;
@@ -25,9 +26,13 @@ interface TicketData {
   fareLines: FareLine[];
 }
 
-async function getJournalAndCurrency(companyId: string, journalType: "SALE" | "PURCHASE", db: PrismaClient) {
+async function getJournalAndCurrency(companyId: string, journalType: "SALE" | "PURCHASE", branchId: string, db: PrismaClient) {
   const [journal, company] = await Promise.all([
-    db.journal.findFirst({ where: { companyId, type: journalType } }),
+    // The ticket's branch's own journal if it has one, else a shared one.
+    db.journal.findFirst({
+      where: { companyId, type: journalType, OR: [{ branchId }, { branchId: null }] },
+      orderBy: { branchId: { sort: "asc", nulls: "last" } },
+    }),
     db.company.findFirst({ where: { id: companyId }, select: { baseCurrencyId: true } }),
   ]);
   if (!journal) throw new Error(`No active ${journalType} journal found for company`);
@@ -81,7 +86,7 @@ async function createVendorMove(ticket: TicketData, db: PrismaClient) {
   const isRefund = txType === "REFUND";
   const moveType = isRefund ? "IN_REFUND" : "IN_INVOICE";
 
-  const { journal, currencyId } = await getJournalAndCurrency(ticket.companyId, "PURCHASE", db);
+  const { journal, currencyId } = await getJournalAndCurrency(ticket.companyId, "PURCHASE", ticket.branchId, db);
   const payableAccId = await getPartnerAccounts(ticket.vendorId, "payable", ticket.companyId, db);
   const expenseAccId = await getIncomeExpenseAccount("EXPENSE", ticket.companyId, db);
 
@@ -137,6 +142,7 @@ async function createVendorMove(ticket: TicketData, db: PrismaClient) {
   const move = await db.move.create({
     data: {
       companyId: ticket.companyId,
+      branchId: ticket.branchId,
       moveType: moveType as any,
       date,
       journalId: journal.id,
@@ -176,7 +182,7 @@ async function createCustomerMove(ticket: TicketData, db: PrismaClient) {
   const isRefund = txType === "REFUND";
   const moveType = isRefund ? "OUT_REFUND" : "OUT_INVOICE";
 
-  const { journal, currencyId } = await getJournalAndCurrency(ticket.companyId, "SALE", db);
+  const { journal, currencyId } = await getJournalAndCurrency(ticket.companyId, "SALE", ticket.branchId, db);
   const receivableAccId = await getPartnerAccounts(ticket.customerPartnerId, "receivable", ticket.companyId, db);
   const incomeAccId = await getIncomeExpenseAccount("INCOME", ticket.companyId, db);
 
@@ -231,6 +237,7 @@ async function createCustomerMove(ticket: TicketData, db: PrismaClient) {
   const move = await db.move.create({
     data: {
       companyId: ticket.companyId,
+      branchId: ticket.branchId,
       moveType: moveType as any,
       date,
       journalId: journal.id,

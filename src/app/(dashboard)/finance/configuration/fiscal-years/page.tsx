@@ -24,7 +24,6 @@ type FiscalYearRow = {
   dateTo: string | Date;
   state: string;
   _count: { periods: number };
-  closingMove: { id: string; name: string } | null;
 };
 
 export default function FiscalYearsPage() {

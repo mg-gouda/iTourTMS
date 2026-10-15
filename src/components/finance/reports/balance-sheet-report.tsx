@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { useShowBranch } from "@/hooks/use-branch-columns";
 import { formatCurrency } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 
@@ -27,6 +29,8 @@ function buildSectionRows(
   groups: SectionGroup[],
   subtotal: number,
   asOfDate: string,
+  /** Per-branch values for an account (or, with null, the section subtotal) when comparing. */
+  split: (accountId: string | null) => Record<string, number> = () => ({}),
 ): ReportRow[] {
   const rows: ReportRow[] = [];
   rows.push({ type: "section", label: sectionLabel, values: {} });
@@ -44,7 +48,7 @@ function buildSectionRows(
       rows.push({
         type: "data",
         label: `${acc.code} — ${acc.name}`,
-        values: { balance: acc.balance },
+        values: { balance: acc.balance, ...split(acc.accountId) },
         drilldownHref: href,
       });
     }
@@ -53,7 +57,7 @@ function buildSectionRows(
   rows.push({
     type: "subtotal",
     label: `Total ${sectionLabel}`,
-    values: { balance: subtotal },
+    values: { balance: subtotal, ...split(null) },
   });
 
   return rows;
@@ -67,19 +71,48 @@ export function BalanceSheetReport() {
     { enabled: !!asOfDate },
   );
 
+  // Head office: one column per branch beside the consolidated figure.
+  const showBranch = useShowBranch();
+  const [compare, setCompare] = useState(false);
+  const { data: byBranch, isFetching: fetchingBranches } = trpc.finance.branchReport.balanceSheet.useQuery(
+    { asOfDate: asOfDate ?? new Date() },
+    { enabled: !!asOfDate && compare && showBranch },
+  );
+  const comparing = compare && showBranch && !!byBranch;
+  const shownColumns: ReportColumn[] = comparing
+    ? [
+        ...byBranch.map((c) => ({ key: c.branch.id, label: c.branch.code, align: "right" as const, format: "currency" as const })),
+        { key: "balance", label: "Consolidated", align: "right", format: "currency" },
+      ]
+    : columns;
+  type BS = NonNullable<typeof data>;
+  const perBranch = (pick: (r: BS) => number | undefined): Record<string, number> =>
+    comparing ? Object.fromEntries(byBranch.map((c) => [c.branch.id, pick(c.report) ?? 0])) : {};
+  const sectionSplit =
+    (section: "assets" | "liabilities" | "equity", total: "totalAssets" | "totalLiabilities" | "totalEquity") =>
+    (accountId: string | null) =>
+      perBranch((r) =>
+        accountId === null
+          ? r[total]
+          : r[section].flatMap((g) => g.accounts).find((a) => a.accountId === accountId)?.balance,
+      );
+
   function buildRows(): ReportRow[] {
     if (!data) return [];
     const dateStr = asOfDate!.toISOString().split("T")[0];
     const rows: ReportRow[] = [];
 
-    rows.push(...buildSectionRows("Assets", data.assets, data.totalAssets, dateStr));
-    rows.push(...buildSectionRows("Liabilities", data.liabilities, data.totalLiabilities, dateStr));
-    rows.push(...buildSectionRows("Equity", data.equity, data.totalEquity, dateStr));
+    rows.push(...buildSectionRows("Assets", data.assets, data.totalAssets, dateStr, sectionSplit("assets", "totalAssets")));
+    rows.push(...buildSectionRows("Liabilities", data.liabilities, data.totalLiabilities, dateStr, sectionSplit("liabilities", "totalLiabilities")));
+    rows.push(...buildSectionRows("Equity", data.equity, data.totalEquity, dateStr, sectionSplit("equity", "totalEquity")));
 
     rows.push({
       type: "total",
       label: "Liabilities + Equity",
-      values: { balance: data.totalLiabilities + data.totalEquity },
+      values: {
+        balance: data.totalLiabilities + data.totalEquity,
+        ...perBranch((r) => r.totalLiabilities + r.totalEquity),
+      },
     });
 
     return rows;
@@ -94,6 +127,13 @@ export function BalanceSheetReport() {
             Assets, liabilities, and equity as of a specific date
           </p>
         </div>
+        <div className="flex items-center gap-4">
+        {showBranch && (
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={compare} onCheckedChange={setCompare} />
+            Compare branches
+          </label>
+        )}
         {data && (
           <button
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
@@ -107,6 +147,7 @@ export function BalanceSheetReport() {
             Export Excel
           </button>
         )}
+        </div>
       </div>
 
       <AsOfDateFilter
@@ -114,7 +155,7 @@ export function BalanceSheetReport() {
         isPending={isFetching}
       />
 
-      {isFetching && (
+      {(isFetching || (compare && fetchingBranches)) && (
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-3">
@@ -137,7 +178,7 @@ export function BalanceSheetReport() {
             </div>
           </CardHeader>
           <CardContent>
-            <ReportTable columns={columns} rows={buildRows()} />
+            <ReportTable columns={shownColumns} rows={buildRows()} />
 
             <div className="mt-6 flex justify-end">
               <div className="w-72 space-y-2 text-sm">

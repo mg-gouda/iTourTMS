@@ -8,6 +8,7 @@ import {
   bankStatementUpdateSchema,
 } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch, entryBranch } from "@/server/branch-scope";
 import {
   buildStatementMoveLines,
   computeBalanceEnd,
@@ -109,6 +110,7 @@ export const bankStatementRouter = createTRPCRouter({
         data: {
           ...data,
           companyId: ctx.companyId,
+          branchId: await entryBranch(ctx.db, data.journalId, () => activeBranch(ctx.branch)),
           state: "DRAFT",
           lines: {
             create: lines.map((line, idx) => ({
@@ -291,6 +293,7 @@ export const bankStatementRouter = createTRPCRouter({
         ctx.db,
         ctx.companyId,
         "bank_statement",
+        statement.branchId,
       );
 
       // Get company currency
@@ -304,6 +307,7 @@ export const bankStatementRouter = createTRPCRouter({
         const move = await tx.move.create({
           data: {
             companyId: ctx.companyId,
+            branchId: statement.branchId,
             name: `${name} - Bank Statement`,
             moveType: "ENTRY",
             state: "POSTED",
@@ -395,6 +399,7 @@ export const bankStatementRouter = createTRPCRouter({
       return ctx.db.bankStatement.create({
         data: {
           companyId: ctx.companyId,
+          branchId: await entryBranch(ctx.db, input.journalId, () => activeBranch(ctx.branch)),
           journalId: input.journalId,
           date: input.date,
           balanceStart: input.balanceStart,

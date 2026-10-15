@@ -84,6 +84,20 @@ export const BRANCH_OWNED: Partial<Record<Prisma.ModelName, Rule>> = {
   OpsPackageComponent: { via: (ids) => ({ package: opsPackageScope(ids) }) },
   OpsFlightLeg: { via: (ids) => ({ ticket: { branchId: { in: ids } } }) },
   OpsFlightFareLine: { via: (ids) => ({ ticket: { branchId: { in: ids } } }) },
+
+  // Finance: each branch keeps its own books. The chart of accounts, taxes,
+  // fiscal years and lock dates are company-wide. A journal is either a
+  // branch's own (its cash, its bank) or shared by every branch.
+  Move: { direct: true },
+  Payment: { direct: true },
+  BankStatement: { direct: true },
+  BatchPayment: { direct: true },
+  RecurringEntry: { direct: true },
+  MoveLineItem: { via: (ids) => ({ move: { branchId: { in: ids } } }) },
+  BankStatementLine: { via: (ids) => ({ statement: { branchId: { in: ids } } }) },
+  RecurringEntryLine: { via: (ids) => ({ recurringEntry: { branchId: { in: ids } } }) },
+  PartialReconcile: { via: (ids) => ({ debitMoveLine: { move: { branchId: { in: ids } } } }) },
+  Journal: { via: (ids) => ({ OR: [{ branchId: null }, { branchId: { in: ids } }] }) },
 };
 
 function opsPackageScope(ids: string[]) {
@@ -249,6 +263,62 @@ export async function branchForDestination(
   if (hit) return hit.id;
   if (!hq) throw new Error(`Company ${companyId} has no head-office branch`);
   return hq.id;
+}
+
+/**
+ * Which branch's books an entry goes in: a branch journal (its cash, its bank)
+ * decides; a shared journal leaves it to `fallback`.
+ */
+export async function entryBranch(
+  db: Pick<PrismaClient, "journal">,
+  journalId: string,
+  fallback: () => string | Promise<string>,
+): Promise<string> {
+  const journal = await db.journal.findUnique({ where: { id: journalId }, select: { branchId: true } });
+  return journal?.branchId ?? (await fallback());
+}
+
+/**
+ * A document tied to existing entries (a payment against an invoice) lives in
+ * their branch. Paying from another branch's own cash/bank would split one
+ * transaction across two sets of books, so that is an inter-branch transfer.
+ */
+export async function assertJournalInBranch(
+  db: Pick<PrismaClient, "journal">,
+  journalId: string,
+  branchId: string,
+): Promise<void> {
+  const journal = await db.journal.findUnique({ where: { id: journalId }, select: { branchId: true } });
+  if (journal?.branchId && journal.branchId !== branchId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "That journal belongs to another branch. Pay from this branch's journal, or record an inter-branch transfer.",
+    });
+  }
+}
+
+/** Branch operating at a hotel — where its transfers, invoices and bills belong. */
+export async function branchForHotel(
+  db: PrismaClient,
+  companyId: string,
+  hotelId: string,
+): Promise<string> {
+  const hotel = await db.hotel.findUnique({ where: { id: hotelId }, select: { destinationId: true } });
+  return branchForDestination(db, companyId, hotel?.destinationId);
+}
+
+/** A journal of `type` to post in `branchId`: the branch's own if it has one, else a shared one. */
+export function journalFor(
+  db: PrismaClient,
+  companyId: string,
+  type: "SALE" | "PURCHASE" | "GENERAL" | "BANK" | "CASH",
+  branchId: string,
+) {
+  return db.journal.findFirst({
+    where: { companyId, type, OR: [{ branchId }, { branchId: null }] },
+    orderBy: { branchId: { sort: "asc", nulls: "last" } },
+    select: { id: true },
+  });
 }
 
 export function readBranchCookie(headers: Headers | undefined): string | undefined {

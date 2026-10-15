@@ -1,6 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -122,6 +124,7 @@ const columns: ColumnDef<MoveRow, unknown>[] = [
 ];
 
 export default function VendorBillsPage() {
+  const shownColumns = useBranchColumns(columns);
   const router = useRouter();
   const t = useTranslations("finance");
   const tc = useTranslations("common");
@@ -151,7 +154,7 @@ export default function VendorBillsPage() {
         <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
       ) : (
         <DataTable
-          columns={columns}
+          columns={shownColumns}
           data={(data?.items as any) ?? []}
           searchKey="name"
           searchPlaceholder="Search bills..."

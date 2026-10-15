@@ -7,6 +7,7 @@ import { budgetRouter } from "./budget";
 import { batchPaymentRouter } from "./batch-payment";
 import { currencyRouter } from "./currency";
 import { fiscalPositionRouter } from "./fiscal-position";
+import { interBranchRouter } from "./inter-branch";
 import { journalRouter } from "./journal";
 import { moveRouter } from "./move";
 import { paymentRouter } from "./payment";
@@ -15,6 +16,7 @@ import { paymentTermRouter } from "./payment-term";
 import { reconciliationRouter } from "./reconciliation";
 import { recurringEntryRouter } from "./recurring-entry";
 import { reportRouter } from "./report";
+import { branchReportRouter } from "./report-by-branch";
 import { taxRouter } from "./tax";
 import { analyticRouter } from "./analytic";
 import { assetRouter } from "./asset";
@@ -37,6 +39,7 @@ export const financeRouter = createTRPCRouter({
   budget: budgetRouter,
   currency: currencyRouter,
   fiscalPosition: fiscalPositionRouter,
+  interBranch: interBranchRouter,
   journal: journalRouter,
   move: moveRouter,
   payment: paymentRouter,
@@ -46,6 +49,7 @@ export const financeRouter = createTRPCRouter({
   reconciliation: reconciliationRouter,
   recurringEntry: recurringEntryRouter,
   report: reportRouter,
+  branchReport: branchReportRouter,
   analytic: analyticRouter,
   asset: assetRouter,
   loan: loanRouter,

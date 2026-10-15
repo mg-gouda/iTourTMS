@@ -395,6 +395,12 @@ model Branch {
 
   company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users   UserBranch[]
+  journals Journal[]
+  moves Move[]
+  payments Payment[]
+  bankStatements BankStatement[]
+  batchPayments BatchPayment[]
+  recurringEntrys RecurringEntry[]
   crmLeads CrmLead[]
   crmOpportunitys CrmOpportunity[]
   crmActivitys CrmActivity[]
@@ -1119,6 +1125,8 @@ model FinAccount {
 model Journal {
   id                  String      @id @default(cuid())
   companyId           String
+  /** Set for a branch's own cash/bank journal; null = shared by all branches. */
+  branchId            String?
   name                String
   code                String
   type                JournalType
@@ -1134,6 +1142,7 @@ model Journal {
   updatedAt           DateTime    @updatedAt
 
   company          Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch           Branch?     @relation(fields: [branchId], references: [id])
   defaultAccount   FinAccount? @relation("JournalDefaultAccount", fields: [defaultAccountId], references: [id])
   suspenseAccount  FinAccount? @relation("JournalSuspenseAccount", fields: [suspenseAccountId], references: [id])
   profitAccount    FinAccount? @relation("JournalProfitAccount", fields: [profitAccountId], references: [id])
@@ -1147,6 +1156,7 @@ model Journal {
 
   @@unique([code, companyId])
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, type])
 }
 
@@ -1263,6 +1273,7 @@ model PaymentTermLine {
 model Move {
   id                String        @id @default(cuid())
   companyId         String
+  branchId          String
   name              String?       // sequence number e.g. INV/2026/00001
   moveType          MoveType      @default(ENTRY)
   state             MoveState     @default(DRAFT)
@@ -1288,6 +1299,7 @@ model Move {
   updatedAt         DateTime      @updatedAt
 
   company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch          Branch          @relation(fields: [branchId], references: [id])
   journal         Journal         @relation(fields: [journalId], references: [id])
   partner         Partner?        @relation(fields: [partnerId], references: [id])
   currency        Currency        @relation("MoveCurrency", fields: [currencyId], references: [id])
@@ -1300,7 +1312,8 @@ model Move {
   paymentInvoices Payment[]       @relation("PaymentInvoices")
   paymentMove     Payment?        @relation("PaymentMove")
   exchangeReconciles PartialReconcile[] @relation("ExchangeMove")
-  closingForYear     FiscalYear?        @relation("YearClosingMove")
+  closesFiscalYearId String?
+  closingForYear     FiscalYear?        @relation("YearClosingMove", fields: [closesFiscalYearId], references: [id])
   assetLine          AccountAssetLine?
   loanSchedule       LoanScheduleLine?
   deferredRevSchedule DeferredRevenueSchedule?  @relation("DeferredRevMove")
@@ -1312,6 +1325,7 @@ model Move {
   customerFlightTicket OpsFlightTicket?  @relation("FlightTicketCustomerMove")
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, moveType])
   @@index([companyId, state])
   @@index([partnerId])
@@ -1424,6 +1438,7 @@ model FiscalPositionAccountMap {
 model Payment {
   id          String      @id @default(cuid())
   companyId   String
+  branchId    String
   name        String?
   paymentType PaymentType
   partnerId   String?
@@ -1441,6 +1456,7 @@ model Payment {
   opsFileId      String?
 
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [branchId], references: [id])
   partner      Partner?      @relation(fields: [partnerId], references: [id])
   currency     Currency      @relation(fields: [currencyId], references: [id])
   journal      Journal       @relation(fields: [journalId], references: [id])
@@ -1450,6 +1466,7 @@ model Payment {
   opsFile      OpsFile?      @relation("OpsFilePayments", fields: [opsFileId], references: [id])
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, state])
   @@index([partnerId])
   @@index([batchPaymentId])
@@ -1488,6 +1505,7 @@ model PartialReconcile {
 model BankStatement {
   id             String             @id @default(cuid())
   companyId      String
+  branchId       String
   name           String?
   journalId      String
   date           DateTime           @db.Date
@@ -1501,10 +1519,12 @@ model BankStatement {
   updatedAt      DateTime           @updatedAt
 
   company Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch              @relation(fields: [branchId], references: [id])
   journal Journal             @relation(fields: [journalId], references: [id])
   lines   BankStatementLine[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, journalId])
   @@index([date])
   @@map("fin_bank_statement")
@@ -1540,6 +1560,7 @@ model BankStatementLine {
 model BatchPayment {
   id           String      @id @default(cuid())
   companyId    String
+  branchId     String
   name         String?
   journalId    String
   date         DateTime    @db.Date
@@ -1551,10 +1572,12 @@ model BatchPayment {
   updatedAt    DateTime    @updatedAt
 
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch   Branch    @relation(fields: [branchId], references: [id])
   journal  Journal   @relation(fields: [journalId], references: [id])
   payments Payment[] @relation("BatchPaymentPayments")
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, state])
   @@map("fin_batch_payment")
 }
@@ -1569,14 +1592,14 @@ model FiscalYear {
   dateFrom      DateTime        @db.Date
   dateTo        DateTime        @db.Date
   state         FiscalYearState @default(OPEN)
-  closingMoveId String?         @unique
   closedBy      String?
   closedAt      DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
   company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  closingMove  Move?          @relation("YearClosingMove", fields: [closingMoveId], references: [id])
+  /** One per branch: each branch's books close their own P&L. */
+  closingMoves Move[]         @relation("YearClosingMove")
   closedByUser User?          @relation("FiscalYearClosedBy", fields: [closedBy], references: [id])
   periods      FiscalPeriod[]
   budgets      Budget[]
@@ -1619,6 +1642,7 @@ model FiscalPeriod {
 model RecurringEntry {
   id             String             @id @default(cuid())
   companyId      String
+  branchId       String
   name           String
   journalId      String
   partnerId      String?
@@ -1634,11 +1658,13 @@ model RecurringEntry {
   updatedAt      DateTime           @updatedAt
 
   company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch        Branch               @relation(fields: [branchId], references: [id])
   journal       Journal              @relation(fields: [journalId], references: [id])
   partner       Partner?             @relation(fields: [partnerId], references: [id])
   lineTemplates RecurringEntryLine[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, state])
   @@index([nextRunDate])
   @@map("fin_recurring_entry")

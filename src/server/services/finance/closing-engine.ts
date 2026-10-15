@@ -7,9 +7,8 @@
  */
 
 import Decimal from "decimal.js";
-import type { PrismaClient } from "@prisma/client";
-
 import { CLOSING_PL_TYPES } from "@/lib/constants/finance";
+import { db } from "@/server/db";
 import type { ComputedLine } from "./move-engine";
 import { generateSequenceNumber } from "./sequence-generator";
 
@@ -23,7 +22,7 @@ export interface PLAccountBalance {
 }
 
 export interface ClosingResult {
-  closingMoveId: string;
+  closingMoveIds: string[];
   totalIncome: Decimal;
   totalExpenses: Decimal;
   netProfitLoss: Decimal;
@@ -82,14 +81,15 @@ export function buildClosingLines(
     seq += 10;
   }
 
-  // Retained earnings line: absorbs the difference
-  // Net profit (income > expense) → credit retained earnings
-  // Net loss (expense > income) → debit retained earnings
+  // Retained earnings line: the other side of the closing lines.
+  // Closing income is a debit, so net profit leaves more debits → credit
+  // retained earnings; a loss leaves more credits → debit it. (These were
+  // the wrong way round, so closing entries never balanced.)
   const reDebit = totalClosingCredit.greaterThan(totalClosingDebit)
-    ? new Decimal(0)
-    : totalClosingDebit.minus(totalClosingCredit);
-  const reCredit = totalClosingCredit.greaterThan(totalClosingDebit)
     ? totalClosingCredit.minus(totalClosingDebit)
+    : new Decimal(0);
+  const reCredit = totalClosingDebit.greaterThan(totalClosingCredit)
+    ? totalClosingDebit.minus(totalClosingCredit)
     : new Decimal(0);
 
   if (!reDebit.isZero() || !reCredit.isZero()) {
@@ -110,24 +110,21 @@ export function buildClosingLines(
   }
 
   // Net P/L: positive = profit, negative = loss
-  const netProfitLoss = totalClosingCredit
-    .minus(totalClosingDebit)
+  const netProfitLoss = totalClosingDebit
+    .minus(totalClosingCredit)
     .toDecimalPlaces(4);
 
   return { lines, netProfitLoss };
 }
 
 /**
- * Execute the full year-end closing process.
+ * Close a fiscal year: every branch's P&L goes to retained earnings in that
+ * branch's own books, one closing entry per branch with activity.
  *
- * 1. Compute P&L balances for the fiscal year
- * 2. Build closing journal entry lines
- * 3. Create the closing Move (directly POSTED)
- * 4. Mark all periods as CLOSED
- * 5. Mark the fiscal year as CLOSED
+ * Runs on the unscoped client — closing the year is company-wide, whichever
+ * branch the person doing it happens to be looking at.
  */
 export async function executeYearEndClose(
-  db: PrismaClient,
   companyId: string,
   fiscalYearId: string,
   retainedEarningsAccountId: string,
@@ -135,155 +132,119 @@ export async function executeYearEndClose(
   closingDate: Date,
   userId: string,
 ): Promise<ClosingResult> {
-  // 1. Fetch P&L account balances for the fiscal year
-  const fiscalYear = await db.fiscalYear.findUniqueOrThrow({
-    where: { id: fiscalYearId },
-  });
-
-  const plAggregations = await db.moveLineItem.groupBy({
-    by: ["accountId"],
-    where: {
-      move: {
-        companyId,
-        state: "POSTED",
-        date: { gte: fiscalYear.dateFrom, lte: fiscalYear.dateTo },
-      },
-      account: {
-        accountType: { in: CLOSING_PL_TYPES as any },
-      },
-    },
-    _sum: { debit: true, credit: true },
-  });
-
-  const plBalances: PLAccountBalance[] = plAggregations.map((agg) => ({
-    accountId: agg.accountId,
-    accountType: "", // not needed for buildClosingLines
-    totalDebit: new Decimal(agg._sum.debit?.toString() ?? "0"),
-    totalCredit: new Decimal(agg._sum.credit?.toString() ?? "0"),
-  }));
-
-  // 2. Build closing lines
-  const { lines, netProfitLoss } = buildClosingLines(
-    plBalances,
-    retainedEarningsAccountId,
-  );
-
-  if (lines.length === 0) {
-    // No P&L activity — still close the year but no journal entry needed
-    await db.$transaction([
-      db.fiscalPeriod.updateMany({
-        where: { fiscalYearId },
-        data: { state: "CLOSED" },
-      }),
-      db.fiscalYear.update({
-        where: { id: fiscalYearId },
-        data: {
-          state: "CLOSED",
-          closedBy: userId,
-          closedAt: new Date(),
-        },
-      }),
-    ]);
-
-    return {
-      closingMoveId: "",
-      totalIncome: new Decimal(0),
-      totalExpenses: new Decimal(0),
-      netProfitLoss: new Decimal(0),
-      lineCount: 0,
-    };
-  }
-
-  // 3. Compute totals for the closing move
-  let amountTotal = new Decimal(0);
-  for (const line of lines) {
-    amountTotal = amountTotal.plus(line.debit);
-  }
-
-  // 4. Get company currency and generate sequence
+  const fiscalYear = await db.fiscalYear.findUniqueOrThrow({ where: { id: fiscalYearId } });
   const company = await db.company.findUniqueOrThrow({
     where: { id: companyId },
     select: { baseCurrencyId: true },
   });
   const currencyId = company.baseCurrencyId ?? "";
-  const moveName = await generateSequenceNumber(db, companyId, "journal_entry");
+  const branches = await db.branch.findMany({ where: { companyId }, select: { id: true } });
 
-  // 5. Create everything in a transaction
-  const closingMove = await db.$transaction(async (tx) => {
-    const move = await tx.move.create({
-      data: {
-        companyId,
-        name: moveName,
-        moveType: "ENTRY",
-        state: "POSTED",
-        date: closingDate,
-        journalId,
-        currencyId,
-        companyCurrencyId: currencyId,
-        ref: `Year-end closing for ${fiscalYear.name}`,
-        amountUntaxed: amountTotal,
-        amountTax: 0,
-        amountTotal: amountTotal,
-        amountResidual: 0,
-        postedAt: new Date(),
-        lineItems: {
-          create: lines.map((line) => ({
-            accountId: line.accountId,
-            name: line.name,
-            displayType: line.displayType as any,
-            currencyId,
-            debit: line.debit,
-            credit: line.credit,
-            balance: line.balance,
-            amountCurrency: line.amountCurrency,
-            quantity: line.quantity,
-            priceUnit: line.priceUnit,
-            discount: line.discount,
-            sequence: line.sequence,
-          })),
+  let totalIncome = new Decimal(0);
+  let totalExpenses = new Decimal(0);
+  let netProfitLoss = new Decimal(0);
+  const closings: { branchId: string; name: string; lines: ComputedLine[]; amountTotal: Decimal }[] = [];
+
+  for (const branch of branches) {
+    const plAggregations = await db.moveLineItem.groupBy({
+      by: ["accountId"],
+      where: {
+        move: {
+          companyId,
+          branchId: branch.id,
+          state: "POSTED",
+          date: { gte: fiscalYear.dateFrom, lte: fiscalYear.dateTo },
+        },
+        account: {
+          accountType: { in: CLOSING_PL_TYPES as any },
         },
       },
+      _sum: { debit: true, credit: true },
     });
 
-    // Close all periods
+    const plBalances: PLAccountBalance[] = plAggregations.map((agg) => ({
+      accountId: agg.accountId,
+      accountType: "", // not needed for buildClosingLines
+      totalDebit: new Decimal(agg._sum.debit?.toString() ?? "0"),
+      totalCredit: new Decimal(agg._sum.credit?.toString() ?? "0"),
+    }));
+
+    for (const b of plBalances) {
+      const net = b.totalCredit.minus(b.totalDebit);
+      if (net.greaterThan(0)) totalIncome = totalIncome.plus(net);
+      else totalExpenses = totalExpenses.plus(net.negated());
+    }
+
+    const built = buildClosingLines(plBalances, retainedEarningsAccountId);
+    netProfitLoss = netProfitLoss.plus(built.netProfitLoss);
+    if (built.lines.length === 0) continue;
+
+    closings.push({
+      branchId: branch.id,
+      name: await generateSequenceNumber(db, companyId, "journal_entry", branch.id),
+      lines: built.lines,
+      amountTotal: built.lines.reduce((sum, l) => sum.plus(l.debit), new Decimal(0)),
+    });
+  }
+
+  const closingMoveIds = await db.$transaction(async (tx) => {
+    const ids: string[] = [];
+    for (const c of closings) {
+      const move = await tx.move.create({
+        data: {
+          companyId,
+          branchId: c.branchId,
+          closesFiscalYearId: fiscalYearId,
+          name: c.name,
+          moveType: "ENTRY",
+          state: "POSTED",
+          date: closingDate,
+          journalId,
+          currencyId,
+          companyCurrencyId: currencyId,
+          ref: `Year-end closing for ${fiscalYear.name}`,
+          amountUntaxed: c.amountTotal,
+          amountTax: 0,
+          amountTotal: c.amountTotal,
+          amountResidual: 0,
+          postedAt: new Date(),
+          lineItems: {
+            create: c.lines.map((line) => ({
+              accountId: line.accountId,
+              name: line.name,
+              displayType: line.displayType as any,
+              currencyId,
+              debit: line.debit,
+              credit: line.credit,
+              balance: line.balance,
+              amountCurrency: line.amountCurrency,
+              quantity: line.quantity,
+              priceUnit: line.priceUnit,
+              discount: line.discount,
+              sequence: line.sequence,
+            })),
+          },
+        },
+      });
+      ids.push(move.id);
+    }
+
     await tx.fiscalPeriod.updateMany({
       where: { fiscalYearId },
       data: { state: "CLOSED" },
     });
-
-    // Close the fiscal year
     await tx.fiscalYear.update({
       where: { id: fiscalYearId },
-      data: {
-        state: "CLOSED",
-        closingMoveId: move.id,
-        closedBy: userId,
-        closedAt: new Date(),
-      },
+      data: { state: "CLOSED", closedBy: userId, closedAt: new Date() },
     });
-
-    return move;
+    return ids;
   });
 
-  // Compute income/expense totals for the result
-  const totalIncome = plBalances
-    .filter((b) => b.totalCredit.greaterThan(b.totalDebit))
-    .reduce(
-      (sum, b) => sum.plus(b.totalCredit.minus(b.totalDebit)),
-      new Decimal(0),
-    );
-  const totalExpenses = plBalances
-    .filter((b) => b.totalDebit.greaterThan(b.totalCredit))
-    .reduce(
-      (sum, b) => sum.plus(b.totalDebit.minus(b.totalCredit)),
-      new Decimal(0),
-    );
-
   return {
-    closingMoveId: closingMove.id,
+    closingMoveIds,
     totalIncome,
     totalExpenses,
     netProfitLoss,
-    lineCount: lines.length,
+    lineCount: closings.reduce((n, c) => n + c.lines.length, 0),
   };
 }

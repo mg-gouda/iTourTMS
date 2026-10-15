@@ -215,6 +215,7 @@ export const reconciliationRouter = createTRPCRouter({
           statement: {
             select: {
               journalId: true,
+              branchId: true,
               journal: {
                 select: {
                   defaultAccountId: true,
@@ -299,6 +300,7 @@ export const reconciliationRouter = createTRPCRouter({
           await tx.move.create({
             data: {
               companyId: ctx.companyId,
+              branchId: statementLines[0].statement.branchId,
               name: "Write-Off",
               moveType: "ENTRY",
               state: "POSTED",

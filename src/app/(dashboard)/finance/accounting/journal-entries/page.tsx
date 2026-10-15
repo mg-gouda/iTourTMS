@@ -1,6 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -127,6 +129,7 @@ export default function JournalEntriesPage() {
       },
     },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   return (
     <PermissionGuard permission="finance:move:read">
@@ -150,7 +153,7 @@ export default function JournalEntriesPage() {
         <div className="text-muted-foreground py-10 text-center">{tc("loading")}</div>
       ) : (
         <DataTable
-          columns={columns}
+          columns={shownColumns}
           data={(data?.items as any) ?? []}
           searchKey="name"
           searchPlaceholder={tc("search")}

@@ -10,6 +10,7 @@ import Decimal from "decimal.js";
 // ── Types ──
 
 export interface RecurringTemplateWithLines {
+  branchId: string;
   id: string;
   companyId: string;
   name: string;
@@ -111,6 +112,7 @@ export function buildMoveDataFromTemplate(
 
   return {
     companyId: template.companyId,
+    branchId: template.branchId,
     moveType: "ENTRY" as any,
     state: "DRAFT" as any,
     date: moveDate,

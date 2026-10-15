@@ -198,9 +198,9 @@ export default function FiscalYearDetailPage() {
       </div>
 
       {/* Closing info */}
-      {isClosed && year.closingMove && (
+      {isClosed && (
         <Card>
-          <CardContent className="flex items-center gap-4 pt-6">
+          <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-6">
             <span className="text-sm text-muted-foreground">
               Closed on{" "}
               {year.closedAt
@@ -208,12 +208,15 @@ export default function FiscalYearDetailPage() {
                 : "—"}{" "}
               by {year.closedByUser?.name ?? year.closedByUser?.email ?? "—"}
             </span>
-            <Link
-              href={`/finance/accounting/journal-entries/${year.closingMove.id}`}
-              className="text-sm font-medium text-primary underline"
-            >
-              View Closing Entry ({year.closingMove.name})
-            </Link>
+            {year.closingMoves.map((m) => (
+              <Link
+                key={m.id}
+                href={`/finance/accounting/journal-entries/${m.id}`}
+                className="text-sm font-medium text-primary underline"
+              >
+                Closing entry {m.name} ({m.branch.code})
+              </Link>
+            ))}
           </CardContent>
         </Card>
       )}

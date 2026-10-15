@@ -417,6 +417,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
           {
             id: ticket.id,
             companyId,
+            branchId: ticket.branchId,
             transactionType: input.transactionType as OpsFlightTxType,
             vendorId: input.vendorId || null,
             customerPartnerId: input.customerPartnerId || null,
@@ -596,8 +597,13 @@ export const opsFlightTicketRouter = createTRPCRouter({
       }
 
       const journal = await db.journal.findFirst({
-        where: { companyId, isActive: true, type: { in: ["GENERAL", "SALE"] } },
-        orderBy: { type: "asc" },
+        where: {
+          companyId,
+          isActive: true,
+          type: { in: ["GENERAL", "SALE"] },
+          OR: [{ branchId: ticket.branchId }, { branchId: null }],
+        },
+        orderBy: [{ type: "asc" }, { branchId: { sort: "asc", nulls: "last" } }],
       });
       if (!journal) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No active journal found. Please configure a journal in Finance first." });
 
@@ -624,6 +630,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
         const move = await tx.move.create({
           data: {
             companyId,
+            branchId: ticket.branchId,
             moveType: "ENTRY",
             state: "POSTED",
             date: ticket.departureDate,
@@ -651,6 +658,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
             {
               id: ticket.id,
               companyId,
+              branchId: ticket.branchId,
               transactionType: ticket.transactionType,
               vendorId: ticket.vendorId,
               customerPartnerId: ticket.customerPartnerId,

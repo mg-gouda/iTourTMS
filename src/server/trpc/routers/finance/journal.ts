@@ -6,6 +6,13 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
+/** Journals are scoped without stamping, so a named branch is checked here. */
+function assertOwnBranch(ids: string[], branchId: string | null | undefined) {
+  if (branchId && !ids.includes(branchId)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "That branch is not one of yours." });
+  }
+}
+
 export const journalRouter = createTRPCRouter({
   list: p("finance:journal:read")
     .input(
@@ -46,6 +53,7 @@ export const journalRouter = createTRPCRouter({
   create: p("finance:journal:create")
     .input(journalSchema)
     .mutation(async ({ ctx, input }) => {
+      assertOwnBranch(ctx.branch.ids, input.branchId);
       return ctx.db.journal.create({
         data: { ...input, companyId: ctx.companyId },
       });
@@ -55,6 +63,7 @@ export const journalRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }).merge(journalSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      assertOwnBranch(ctx.branch.ids, data.branchId);
       const owned = await ctx.db.journal.findFirst({
         where: { id, companyId: ctx.companyId },
         select: { id: true },

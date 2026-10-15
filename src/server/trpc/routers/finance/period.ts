@@ -8,6 +8,7 @@ import {
   fiscalPeriodUnlockSchema,
 } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { db } from "@/server/db";
 import { generatePeriods } from "@/server/services/finance/period-engine";
 import { executeYearEndClose } from "@/server/services/finance/closing-engine";
 
@@ -30,7 +31,11 @@ export const periodRouter = createTRPCRouter({
         },
         include: {
           _count: { select: { periods: true } },
-          closingMove: { select: { id: true, name: true } },
+          // Nested, so scoped by hand: the caller sees their branches' closings.
+          closingMoves: {
+            where: { branchId: { in: ctx.branch.ids } },
+            select: { id: true, name: true, branch: { select: { code: true } } },
+          },
         },
         orderBy: { dateFrom: "desc" },
       });
@@ -48,7 +53,11 @@ export const periodRouter = createTRPCRouter({
               lockedByUser: { select: { id: true, name: true, email: true } },
             },
           },
-          closingMove: { select: { id: true, name: true } },
+          // Nested, so scoped by hand: the caller sees their branches' closings.
+          closingMoves: {
+            where: { branchId: { in: ctx.branch.ids } },
+            select: { id: true, name: true, branch: { select: { code: true } } },
+          },
           closedByUser: { select: { id: true, name: true, email: true } },
         },
       });
@@ -130,8 +139,9 @@ export const periodRouter = createTRPCRouter({
         });
       }
 
-      // Check for posted moves in the date range
-      const postedCount = await ctx.db.move.count({
+      // Check for posted moves in the date range — in every branch: fiscal
+      // years are company-wide, so this count is unscoped.
+      const postedCount = await db.move.count({
         where: {
           companyId: ctx.companyId,
           state: "POSTED",
@@ -310,11 +320,16 @@ export const periodRouter = createTRPCRouter({
           message: "Invalid closing journal. Must be a General (Miscellaneous) journal.",
         });
       }
+      if (journal.branchId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Close the year on a shared journal — it posts a closing entry in every branch.",
+        });
+      }
 
       const closingDate = input.closingDate ?? year.dateTo;
 
       return executeYearEndClose(
-        ctx.db as any,
         ctx.companyId,
         input.fiscalYearId,
         input.retainedEarningsAccountId,
@@ -357,15 +372,12 @@ export const periodRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.$transaction(async (tx) => {
+      return db.$transaction(async (tx) => {
         // Delete the closing move if it exists
-        if (year.closingMoveId) {
-          // Delete line items first, then the move
-          await tx.moveLineItem.deleteMany({
-            where: { moveId: year.closingMoveId },
-          });
-          await tx.move.delete({ where: { id: year.closingMoveId } });
-        }
+        // One closing entry per branch; reopening removes them all, so this
+        // runs unscoped — like closing, it is company-wide.
+        await tx.moveLineItem.deleteMany({ where: { move: { closesFiscalYearId: year.id } } });
+        await tx.move.deleteMany({ where: { closesFiscalYearId: year.id } });
 
         // Set all periods back to LOCKED (not OPEN — intentional)
         await tx.fiscalPeriod.updateMany({
@@ -378,7 +390,6 @@ export const periodRouter = createTRPCRouter({
           where: { id: year.id },
           data: {
             state: "OPEN",
-            closingMoveId: null,
             closedBy: null,
             closedAt: null,
           },
@@ -402,7 +413,8 @@ export const periodRouter = createTRPCRouter({
         });
       }
 
-      const count = await ctx.db.move.count({
+      // Periods lock for every branch, so drafts are counted in all of them.
+      const count = await db.move.count({
         where: {
           companyId: ctx.companyId,
           state: "DRAFT",

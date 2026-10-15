@@ -40,6 +40,8 @@ export const journalSchema = z.object({
   lossAccountId: z.string().nullish(),
   currencyId: z.string().nullish(),
   sequencePrefix: z.string().nullish(),
+  /** A branch's own cash/bank journal; null/absent = shared by every branch. */
+  branchId: z.string().nullish(),
 });
 
 // ── Tax Schemas ──
