@@ -8,6 +8,14 @@ import type { PartnerRole } from "@prisma/client";
 import { partnerAuth } from "@/lib/auth-partner";
 import { logger } from "@/lib/logger";
 import { db } from "@/server/db";
+import {
+  allowedBranches,
+  pickScope,
+  readBranchCookie,
+  scopeDb,
+  type AllowedBranch,
+  type BranchScope,
+} from "@/server/branch-scope";
 import { redis } from "@/server/redis";
 
 export async function createTRPCContext(opts?: {
@@ -24,6 +32,7 @@ export async function createTRPCContext(opts?: {
     // Needed by the unauthenticated procedures that have to rate-limit per
     // caller (see setup.activateLicense). Null when it can't be established.
     clientIp: opts?.headers ? getClientIp(opts.headers) : null,
+    headers: opts?.headers,
   };
 }
 
@@ -72,11 +81,21 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: "FORBIDDEN", message: "Not available to partner accounts" });
   }
 
+  // Every staff query from here on is confined to the caller's branches.
+  const { companyId } = ctx.session.user;
+  const branches: AllowedBranch[] = companyId
+    ? await allowedBranches(ctx.db, ctx.redis, { ...ctx.session.user, companyId })
+    : [];
+  const branch: BranchScope = pickScope(branches, readBranchCookie(ctx.headers));
+
   return next({
     ctx: {
       ...ctx,
+      db: scopeDb(ctx.db, branch),
       session: ctx.session,
       user: ctx.session.user,
+      branch,
+      branches,
     },
   });
 });

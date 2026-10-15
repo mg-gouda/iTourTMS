@@ -1797,7 +1797,8 @@
     "savePermissions": "Save Permissions",
     "noUsersInRole": "No users assigned to this role",
     "resetTwoFactor": "Reset 2FA",
-    "twoFactorReset": "Two-factor authentication cleared — the user can enroll again"
+    "twoFactorReset": "Two-factor authentication cleared — the user can enroll again",
+    "branchesTab": "Branches"
   },
   "profile": {
     "title": "My Profile",

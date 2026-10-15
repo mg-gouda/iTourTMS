@@ -53,6 +53,8 @@ const adminUserRouter = createTRPCRouter({
           updatedAt: true,
           passwordExpiresAt: true,
           twoFactorEnabled: true,
+          allBranches: true,
+          branches: { select: { branchId: true } },
           userRoles: {
             select: {
               role: { select: { id: true, name: true, displayName: true, description: true } },

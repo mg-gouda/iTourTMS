@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { UserBranchesCard } from "@/components/shared/user-branches-card";
 import { P } from "@/lib/constants/permissions";
 import { trpc } from "@/lib/trpc";
 
@@ -289,6 +290,13 @@ export default function UserDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        <UserBranchesCard
+          userId={user.id}
+          allBranches={user.allBranches}
+          branchIds={user.branches.map((b) => b.branchId)}
+          isSuperAdmin={user.userRoles.some((ur) => ur.role.name === "super_admin")}
+        />
 
         <div className="flex justify-end">
           <Button

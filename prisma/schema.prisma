@@ -226,6 +226,7 @@ model Company {
   partnerMarkupRules   PartnerMarkupRule[]
   partnerProductMarkups PartnerProductMarkup[]
   partnerProductBookings PartnerProductBooking[]
+  branches             Branch[]
   partnerInvites       PartnerInvite[]
   partnerAuditEvents   PartnerAuditEvent[]
   partnerTermsVersions PartnerTermsVersion[]
@@ -294,6 +295,8 @@ model User {
   companyId     String?
   locale        String    @default("en")
   density       String    @default("comfortable") // comfortable | compact (UI row/control sizing)
+  /** Sees every branch (HQ staff). Otherwise limited to `branches`. super_admin always sees all. */
+  allBranches   Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -301,6 +304,7 @@ model User {
   accounts  AuthAccount[]
   sessions  Session[]
   userRoles UserRole[]
+  branches  UserBranch[]
   closedFiscalYears   FiscalYear[]   @relation("FiscalYearClosedBy")
   lockedFiscalPeriods FiscalPeriod[] @relation("FiscalPeriodLockedBy")
 
@@ -365,6 +369,48 @@ model User {
   @@index([companyId])
   @@index([email])
   @@index([tourOperatorId])
+}
+
+/**
+ * An office of the company — Cairo, Hurghada, Luxor.
+ *
+ * Master data (hotels, contracts, price lists, the excursion catalogue) stays
+ * company-wide; operational records and the books belong to a branch. Which
+ * models are branch-owned, and how a query is narrowed to the caller's
+ * branches, lives in one place: src/server/branch-scope.ts.
+ */
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String
+  /** Short code that also goes into document numbers, e.g. INV/HRG/2026/00001. */
+  code      String   @db.VarChar(8)
+  name      String
+  /** Head office: owns what no other branch claims, and is the fallback. */
+  isHq      Boolean  @default(false)
+  /** Destinations this branch operates in; records created there land here. */
+  destinationIds String[]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users   UserBranch[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("branch")
+}
+
+model UserBranch {
+  userId   String
+  branchId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([userId, branchId])
+  @@index([branchId])
+  @@map("user_branch")
 }
 
 model Role {

@@ -221,6 +221,8 @@ export const setupRouter = createTRPCRouter({
             fiscalYearStart: input.company.fiscalYearStart,
             fiscalYearEnd: input.company.fiscalYearEnd,
             timezone: input.company.timezone,
+            // Every company has a head office; more branches are added in Settings.
+            branches: { create: { code: "HQ", name: "Head Office", isHq: true } },
           },
         });
 

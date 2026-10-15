@@ -20,6 +20,7 @@ import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BranchesTab } from "./_components/branches-tab";
 import { trpc } from "@/lib/trpc";
 
 // ---------------------------------------------------------------------------
@@ -101,6 +102,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="general">
         <TabsList>
           <TabsTrigger value="general">{t("generalTab")}</TabsTrigger>
+          <TabsTrigger value="branches">{t("branchesTab")}</TabsTrigger>
           <TabsTrigger value="license">{t("licenseTab")}</TabsTrigger>
           <TabsTrigger value="branding">{t("brandingTab")}</TabsTrigger>
           <TabsTrigger value="contracting">{t("contractingTab")}</TabsTrigger>
@@ -110,6 +112,10 @@ export default function SettingsPage() {
 
         <TabsContent value="general" className="mt-4">
           <GeneralSettings data={data} isLoading={isLoading} onSaved={refresh} />
+        </TabsContent>
+
+        <TabsContent value="branches" className="mt-4">
+          <BranchesTab />
         </TabsContent>
 
         <TabsContent value="license" className="mt-4">

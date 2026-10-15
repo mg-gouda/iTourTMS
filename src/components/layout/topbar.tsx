@@ -33,6 +33,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { getModuleRoutes } from "@/components/layout/app-sidebar";
+import { BranchSwitcher } from "@/components/layout/branch-switcher";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 
@@ -148,6 +149,8 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        <BranchSwitcher />
+
         {/* Search */}
         <div className="relative hidden md:block">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
