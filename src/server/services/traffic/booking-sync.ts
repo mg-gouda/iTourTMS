@@ -1,5 +1,5 @@
-import type { PrismaClient } from "@prisma/client";
-
+import { branchForDestination } from "@/server/branch-scope";
+import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
 /**
@@ -8,9 +8,12 @@ import { generateSequenceNumber } from "@/server/services/finance/sequence-gener
  * - Arrival flight present → create/update ARR job
  * - Departure flight present → create/update DEP job
  * - Flight cleared → cancel the corresponding job
+ *
+ * Hotel bookings are company-wide but transfers belong to the branch operating
+ * at the hotel, so this runs on the unscoped client: a Cairo agent saving a
+ * Luxor booking must find (not duplicate) the Luxor job.
  */
 export async function syncTrafficJobsForBooking(
-  db: PrismaClient,
   companyId: string,
   bookingId: string,
   userId: string,
@@ -20,6 +23,7 @@ export async function syncTrafficJobsForBooking(
     select: {
       id: true,
       hotelId: true,
+      hotel: { select: { destinationId: true } },
       checkIn: true,
       checkOut: true,
       adults: true,
@@ -40,6 +44,7 @@ export async function syncTrafficJobsForBooking(
   });
 
   const paxCount = booking.adults + booking.children + booking.infants;
+  const branchId = await branchForDestination(db, companyId, booking.hotel?.destinationId);
 
   // ── Arrival ──
   const existingArr = existingJobs.find((j) => j.serviceType === "ARR");
@@ -62,11 +67,12 @@ export async function syncTrafficJobsForBooking(
       }
     } else {
       // Create new ARR job
-      const code = await generateSequenceNumber(db, companyId, "traffic_job");
+      const code = await generateSequenceNumber(db, companyId, "traffic_job", branchId);
       await db.ttTrafficJob.create({
         data: {
           code,
           companyId,
+          branchId,
           serviceType: "ARR",
           serviceDate: booking.checkIn,
           pickupTime: booking.arrivalTime,
@@ -106,11 +112,12 @@ export async function syncTrafficJobsForBooking(
         });
       }
     } else {
-      const code = await generateSequenceNumber(db, companyId, "traffic_job");
+      const code = await generateSequenceNumber(db, companyId, "traffic_job", branchId);
       await db.ttTrafficJob.create({
         data: {
           code,
           companyId,
+          branchId,
           serviceType: "DEP",
           serviceDate: booking.checkOut,
           pickupTime: booking.departTime,

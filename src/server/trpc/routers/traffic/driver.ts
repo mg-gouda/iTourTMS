@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { driverCreateSchema, driverUpdateSchema } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -18,6 +19,7 @@ export const driverRouter = createTRPCRouter({
     return ctx.db.ttDriver.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         user: { select: { id: true, name: true, email: true, image: true } },
         _count: { select: { driverVehicles: true, assignments: true } },
       },
@@ -60,7 +62,7 @@ export const driverRouter = createTRPCRouter({
         throw new Error("This user is already registered as a driver.");
       }
       return ctx.db.ttDriver.create({
-        data: { ...input, companyId: ctx.companyId },
+        data: { ...input, companyId: ctx.companyId, branchId: activeBranch(ctx.branch) },
       });
     }),
 

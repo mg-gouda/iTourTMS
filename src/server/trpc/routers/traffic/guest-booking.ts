@@ -3,6 +3,7 @@ import { z } from "zod";
 import { guestBookingCreateSchema, guestBookingUpdateSchema } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -16,6 +17,7 @@ export const guestBookingRouter = createTRPCRouter({
           ...(input?.status ? { status: input.status as never } : {}),
         },
         include: {
+          branch: { select: { code: true, name: true } },
           vehicleType: { select: { id: true, name: true, code: true } },
           currency: { select: { id: true, code: true, symbol: true } },
           _count: { select: { payments: true } },
@@ -40,9 +42,9 @@ export const guestBookingRouter = createTRPCRouter({
   create: p("traffic:guestBooking:create")
     .input(guestBookingCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      const code = await generateSequenceNumber(ctx.db, ctx.companyId, "guest_booking");
+      const code = await generateSequenceNumber(ctx.db, ctx.companyId, "guest_booking", activeBranch(ctx.branch));
       return ctx.db.ttGuestBooking.create({
-        data: { ...input, code, companyId: ctx.companyId },
+        data: { ...input, code, companyId: ctx.companyId, branchId: activeBranch(ctx.branch) },
       });
     }),
 

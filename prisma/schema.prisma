@@ -395,6 +395,12 @@ model Branch {
 
   company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users   UserBranch[]
+  ttTrafficJobs TtTrafficJob[]
+  ttVehicles TtVehicle[]
+  ttDrivers TtDriver[]
+  ttReps TtRep[]
+  ttGuestBookings TtGuestBooking[]
+  ttTrafficFlights TtTrafficFlight[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -3986,6 +3992,7 @@ model TtVehicleType {
 model TtVehicle {
   id            String             @id @default(cuid())
   companyId     String
+  branchId      String
   vehicleTypeId String
   supplierId    String?
   plateNumber   String
@@ -4002,6 +4009,7 @@ model TtVehicle {
   updatedAt     DateTime           @updatedAt
 
   company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch       Branch               @relation(fields: [branchId], references: [id])
   vehicleType  TtVehicleType        @relation(fields: [vehicleTypeId], references: [id])
   supplier     Partner?             @relation(fields: [supplierId], references: [id])
   compliances  TtVehicleCompliance[]
@@ -4011,6 +4019,7 @@ model TtVehicle {
 
   @@unique([companyId, plateNumber])
   @@index([companyId])
+  @@index([branchId])
   @@index([vehicleTypeId])
   @@index([supplierId])
   @@map("tt_vehicle")
@@ -4041,6 +4050,7 @@ model TtVehicleCompliance {
 model TtDriver {
   id            String         @id @default(cuid())
   companyId     String
+  branchId      String
   userId        String         @unique
   licenseNumber String?
   licenseExpiry DateTime?      @db.Date
@@ -4052,12 +4062,14 @@ model TtDriver {
   updatedAt     DateTime       @updatedAt
 
   company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch         Branch               @relation(fields: [branchId], references: [id])
   user           User                 @relation(fields: [userId], references: [id])
   driverVehicles TtDriverVehicle[]
   assignments    TtTrafficAssignment[]
   excursionBreakdowns CrmExcursionBreakdown[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([userId])
   @@map("tt_driver")
 }
@@ -4084,6 +4096,7 @@ model TtDriverVehicle {
 model TtRep {
   id        String   @id @default(cuid())
   companyId String
+  branchId  String
   userId    String   @unique
   phone     String?
   notes     String?  @db.Text
@@ -4092,6 +4105,7 @@ model TtRep {
   updatedAt DateTime @updatedAt
 
   company    Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch     Branch               @relation(fields: [branchId], references: [id])
   user       User                 @relation(fields: [userId], references: [id])
   repZones   TtRepZone[]
   assignments TtTrafficAssignment[]
@@ -4099,6 +4113,7 @@ model TtRep {
   dispatchRuns        CrmDispatchRun[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([userId])
   @@map("tt_rep")
 }
@@ -4199,6 +4214,7 @@ model TtSupplierTripPrice {
 model TtTrafficJob {
   id              String        @id @default(cuid())
   companyId       String
+  branchId        String
   code            String
   serviceType     TtServiceType
   status          TtJobStatus   @default(PENDING)
@@ -4246,6 +4262,7 @@ model TtTrafficJob {
   updatedAt        DateTime     @updatedAt
 
   company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch         Branch                @relation(fields: [branchId], references: [id])
   vehicleType    TtVehicleType?        @relation(fields: [vehicleTypeId], references: [id])
   pickupAirport  Airport?              @relation("TtJobPickupAirport", fields: [pickupAirportId], references: [id])
   pickupHotel    Hotel?                @relation("TtJobPickupHotel", fields: [pickupHotelId], references: [id])
@@ -4264,6 +4281,7 @@ model TtTrafficJob {
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, serviceDate])
   @@index([companyId, status])
   @@index([partnerId])
@@ -4276,6 +4294,7 @@ model TtTrafficJob {
 model TtTrafficFlight {
   id            String   @id @default(cuid())
   companyId     String
+  branchId      String
   flightNumber  String
   airlineCode   String?
   arrAirportId  String?
@@ -4289,11 +4308,13 @@ model TtTrafficFlight {
   updatedAt     DateTime @updatedAt
 
   company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch     Branch    @relation(fields: [branchId], references: [id])
   arrAirport Airport?  @relation("TtFlightArrAirport", fields: [arrAirportId], references: [id])
   depAirport Airport?  @relation("TtFlightDepAirport", fields: [depAirportId], references: [id])
   jobs       TtTrafficJob[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, flightDate])
   @@index([flightNumber])
   @@map("tt_traffic_flight")
@@ -4358,6 +4379,7 @@ model TtNoShowEvidence {
 model TtGuestBooking {
   id            String          @id @default(cuid())
   companyId     String
+  branchId      String
   code          String
   status        TtBookingStatus @default(QUOTE)
   vehicleTypeId String
@@ -4378,12 +4400,14 @@ model TtGuestBooking {
   updatedAt     DateTime        @updatedAt
 
   company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch      Branch           @relation(fields: [branchId], references: [id])
   vehicleType TtVehicleType    @relation(fields: [vehicleTypeId], references: [id])
   currency    Currency         @relation("TtGuestBookingCurrency", fields: [currencyId], references: [id])
   payments    TtGuestPayment[]
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, status])
   @@map("tt_guest_booking")
 }

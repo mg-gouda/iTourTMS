@@ -132,7 +132,9 @@
     "eligible": "مؤهل",
     "notEligible": "غير مؤهل",
     "country": "الدولة",
-    "paymentTerm": "شروط الدفع"
+    "paymentTerm": "شروط الدفع",
+    "allStatuses": "كل الحالات",
+    "allServices": "كل الخدمات"
   },
   "auth": {
     "login": "تسجيل الدخول",

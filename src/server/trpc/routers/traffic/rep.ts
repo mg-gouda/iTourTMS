@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { repCreateSchema, repUpdateSchema } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -10,6 +11,7 @@ export const repRouter = createTRPCRouter({
     return ctx.db.ttRep.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         user: { select: { id: true, name: true, email: true, image: true } },
         _count: { select: { repZones: true, assignments: true } },
       },
@@ -52,7 +54,7 @@ export const repRouter = createTRPCRouter({
         throw new Error("This user is already registered as a rep.");
       }
       return ctx.db.ttRep.create({
-        data: { ...input, companyId: ctx.companyId },
+        data: { ...input, companyId: ctx.companyId, branchId: activeBranch(ctx.branch) },
       });
     }),
 

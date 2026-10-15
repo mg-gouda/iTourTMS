@@ -6,6 +6,7 @@ import {
   vehicleComplianceCreateSchema,
 } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -14,6 +15,7 @@ export const vehicleRouter = createTRPCRouter({
     return ctx.db.ttVehicle.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         vehicleType: { select: { id: true, name: true, code: true } },
         supplier: { select: { id: true, name: true } },
         _count: { select: { compliances: true, driverVehicles: true, assignments: true } },
@@ -50,7 +52,7 @@ export const vehicleRouter = createTRPCRouter({
         throw new Error(`A vehicle with plate "${input.plateNumber}" already exists.`);
       }
       return ctx.db.ttVehicle.create({
-        data: { ...input, companyId: ctx.companyId },
+        data: { ...input, companyId: ctx.companyId, branchId: activeBranch(ctx.branch) },
       });
     }),
 

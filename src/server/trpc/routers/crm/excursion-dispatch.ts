@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
+import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -212,6 +214,7 @@ export const excursionDispatchRouter = createTRPCRouter({
       }
 
       const created: string[] = [];
+      const branchId = activeBranch(ctx.branch);
 
       for (const run of dispatch.runs) {
         if (run.trafficJobId) continue; // already generated
@@ -231,19 +234,14 @@ export const excursionDispatchRouter = createTRPCRouter({
           .join("\n")
           .trim();
 
-        // Auto-generate job code
-        const seq = await ctx.db.sequence.upsert({
-          where: { companyId_code: { companyId: ctx.companyId, code: "traffic_job" } },
-          create: { companyId: ctx.companyId, code: "traffic_job", prefix: "FT", padding: 5, nextNumber: 2 },
-          update: { nextNumber: { increment: 1 } },
-        });
-        const jobCode = `FT-${String(seq.nextNumber - 1).padStart(5, "0")}`;
+        const jobCode = await generateSequenceNumber(ctx.db, ctx.companyId, "traffic_job", branchId);
 
         const firstStop = run.stops[0];
 
         const job = await ctx.db.ttTrafficJob.create({
           data: {
             companyId: ctx.companyId,
+            branchId,
             code: jobCode,
             serviceType: "EXCURSION",
             status: "PENDING",

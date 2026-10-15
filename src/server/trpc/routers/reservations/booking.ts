@@ -418,7 +418,7 @@ export const bookingRouter = createTRPCRouter({
       await logBookingAction(ctx.db, booking.id, "CREATED", `Booking ${code} created`, ctx.session.user.id);
 
       // Auto-create traffic jobs from flight data
-      await syncTrafficJobsForBooking(ctx.db, ctx.companyId, booking.id, ctx.session.user.id);
+      await syncTrafficJobsForBooking(ctx.companyId, booking.id, ctx.session.user.id);
 
       // Send notification to managers if stop-sale override
       if (input.stopSaleOverride) {
@@ -1191,7 +1191,7 @@ export const bookingRouter = createTRPCRouter({
       );
 
       // Sync traffic jobs with updated flight data
-      await syncTrafficJobsForBooking(ctx.db, ctx.companyId, input.id, ctx.session.user.id);
+      await syncTrafficJobsForBooking(ctx.companyId, input.id, ctx.session.user.id);
 
       // Keep the base currency line aligned with any new totals
       await syncBaseCurrencyLine(ctx.db, input.id);
@@ -1308,7 +1308,7 @@ export const bookingRouter = createTRPCRouter({
           await logBookingAction(ctx.db, booking.id, "CONFIRMED", `Booking confirmed. Voucher ${voucherCode} issued.`, userId);
 
           // Sync traffic jobs (create ARR/DEP jobs if flight data exists)
-          await syncTrafficJobsForBooking(ctx.db, ctx.companyId, booking.id, userId);
+          await syncTrafficJobsForBooking(ctx.companyId, booking.id, userId);
 
           // Auto-create customer invoice + vendor bill (fire-and-forget)
           createBookingInvoice(ctx.db, ctx.companyId, booking.id, userId).catch(() => {});

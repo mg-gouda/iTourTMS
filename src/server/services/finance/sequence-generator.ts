@@ -11,8 +11,10 @@ import type { PrismaClient } from "@prisma/client";
 export async function generateSequenceNumber(
   db: PrismaClient,
   companyId: string,
-  code: string,
+  baseCode: string,
+  branchId?: string | null,
 ): Promise<string> {
+  const code = branchId ? await branchSequenceCode(db, companyId, baseCode, branchId) : baseCode;
   const now = new Date();
   const year = now.getFullYear();
 
@@ -86,4 +88,44 @@ export async function generateSequenceNumber(
   });
 
   return formattedSequence;
+}
+
+/**
+ * Each branch numbers its own documents: FT-HRG-2026-00001. Head office keeps
+ * the company sequence, so existing numbering carries on unbroken. A branch's
+ * sequence is cloned from the company one the first time it is needed, kept
+ * under `code@BRANCH` so the (companyId, code) key still holds.
+ */
+async function branchSequenceCode(
+  db: PrismaClient,
+  companyId: string,
+  code: string,
+  branchId: string,
+): Promise<string> {
+  const branch = await db.branch.findFirst({
+    where: { id: branchId, companyId },
+    select: { code: true, isHq: true },
+  });
+  if (!branch || branch.isHq) return code;
+
+  const key = `${code}@${branch.code}`;
+  const base = await db.sequence.findUnique({ where: { companyId_code: { companyId, code } } });
+  if (!base) return code; // let the caller's "Sequence not found" stand
+
+  await db.sequence.upsert({
+    where: { companyId_code: { companyId, code: key } },
+    update: {},
+    create: {
+      companyId,
+      code: key,
+      prefix: `${base.prefix}${base.separator}${branch.code}`,
+      separator: base.separator,
+      padding: base.padding,
+      formatType: base.formatType,
+      startNumber: base.startNumber,
+      nextNumber: base.startNumber,
+      resetPolicy: base.resetPolicy,
+    },
+  });
+  return key;
 }

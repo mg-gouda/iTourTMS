@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -167,6 +169,7 @@ export default function TrafficJobsPage() {
     },
   },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   const { data: jobs, isLoading } = trpc.traffic.trafficJob.list.useQuery(
     {
@@ -252,7 +255,7 @@ export default function TrafficJobsPage() {
         </div>
       ) : (
         <DataTable
-          columns={columns}
+          columns={shownColumns}
           data={(jobs ?? []) as Job[]}
           onRowClick={(row) => router.push(`/traffic/jobs/${row.id}`)}
         />

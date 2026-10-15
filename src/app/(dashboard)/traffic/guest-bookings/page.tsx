@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,6 +34,7 @@ export default function GuestBookingsPage() {
     { id: "price", header: t("quotedPrice"), accessorFn: (r) => `${r.currency?.symbol ?? ""}${Number(r.quotedPrice).toFixed(2)}` },
     { id: "paid", header: tCommon("paid"), accessorFn: (r) => `${r.currency?.symbol ?? ""}${Number(r.paidAmount).toFixed(2)}` },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   return (
 
@@ -42,7 +45,7 @@ export default function GuestBookingsPage() {
         <Button asChild><Link href="/traffic/guest-bookings/new"><Plus className="mr-2 h-4 w-4" />{t("newGuestBooking")}</Link></Button>
       </div>
       {isLoading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
-        <DataTable columns={columns} data={(data ?? []) as GuestBooking[]} onRowClick={(row) => router.push(`/traffic/guest-bookings/${row.id}`)} />
+        <DataTable columns={shownColumns} data={(data ?? []) as GuestBooking[]} onRowClick={(row) => router.push(`/traffic/guest-bookings/${row.id}`)} />
       )}
     </div>
   

@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,6 +33,7 @@ export default function FlightsPage() {
     { accessorKey: "terminal", header: t("terminal"), cell: ({ row }) => row.original.terminal ?? "—" },
     { id: "jobs", header: t("trafficJobs"), accessorFn: (row) => row._count.jobs },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   return (
 
@@ -41,7 +44,7 @@ export default function FlightsPage() {
         <Button asChild><Link href="/traffic/flights/new"><Plus className="mr-2 h-4 w-4" />{t("newFlight")}</Link></Button>
       </div>
       {isLoading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
-        <DataTable columns={columns} data={(data ?? []) as Flight[]} onRowClick={(row) => router.push(`/traffic/flights/${row.id}`)} />
+        <DataTable columns={shownColumns} data={(data ?? []) as Flight[]} onRowClick={(row) => router.push(`/traffic/flights/${row.id}`)} />
       )}
     </div>
   

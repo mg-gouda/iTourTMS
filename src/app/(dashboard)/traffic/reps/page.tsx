@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -26,6 +28,7 @@ export default function RepsPage() {
     { id: "zones", header: t("zones"), accessorFn: (row) => row._count.repZones },
     { id: "assignments", header: t("trafficJobs"), accessorFn: (row) => row._count.assignments },
   ];
+  const shownColumns = useBranchColumns(columns);
   const { data, isLoading } = trpc.traffic.rep.list.useQuery();
 
   return (
@@ -37,7 +40,7 @@ export default function RepsPage() {
         <Button asChild><Link href="/traffic/reps/new"><Plus className="mr-2 h-4 w-4" />{t("newRep")}</Link></Button>
       </div>
       {isLoading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
-        <DataTable columns={columns} data={(data ?? []) as Rep[]} onRowClick={(row) => router.push(`/traffic/reps/${row.id}`)} />
+        <DataTable columns={shownColumns} data={(data ?? []) as Rep[]} onRowClick={(row) => router.push(`/traffic/reps/${row.id}`)} />
       )}
     </div>
   

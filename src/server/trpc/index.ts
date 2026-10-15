@@ -61,6 +61,11 @@ const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
     logger.info({ path, type, duration }, "tRPC OK");
   } else {
     logger.error({ path, type, duration, error: result.error }, "tRPC Error");
+    // findFirstOrThrow/update on a missing row — including one in another
+    // branch — is a not-found, not a server fault.
+    if ((result.error.cause as { code?: string } | undefined)?.code === "P2025") {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Record not found", cause: result.error.cause });
+    }
   }
 
   return result;

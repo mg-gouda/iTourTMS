@@ -1,5 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 
+import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
+
 /**
  * Dispatches confirmed OpsFile components to their respective execution modules:
  * - ACCOMMODATION → Reservations (informational note, no auto-booking)
@@ -14,7 +16,8 @@ export async function dispatchOpsFile(
   db: PrismaClient,
   fileId: string,
   companyId: string,
-  userId: string
+  userId: string,
+  branchId: string,
 ): Promise<{ dispatched: number; errors: string[] }> {
   const file = await db.opsFile.findFirstOrThrow({
     where: { id: fileId, companyId },
@@ -43,17 +46,12 @@ export async function dispatchOpsFile(
           dispatched++;
         } else if (component.type === "TRANSFER") {
           // Create a generic traffic job for this transfer
-          const seq = await db.sequence.upsert({
-            where: { companyId_code: { companyId, code: "traffic_job" } },
-            create: { companyId, code: "traffic_job", prefix: "TJ", separator: "-", padding: 5, nextNumber: 2 },
-            update: { nextNumber: { increment: 1 } },
-          });
-          const num = seq.nextNumber - 1;
-          const jobCode = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+          const jobCode = await generateSequenceNumber(db, companyId, "traffic_job", branchId);
 
           await db.ttTrafficJob.create({
             data: {
               companyId,
+              branchId,
               code: jobCode,
               serviceType: "AIRPORT_MEET" as const,
               serviceDate: component.serviceDate ?? file.travelFrom,

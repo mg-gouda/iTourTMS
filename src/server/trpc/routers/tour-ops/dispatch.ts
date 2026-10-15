@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 import { dispatchOpsFile } from "@/server/services/tour-ops/dispatch";
 
 const p = (code: string) => modulePermissionProcedure("tour-ops", code);
@@ -16,7 +17,7 @@ export const opsDispatchRouter = createTRPCRouter({
       if (file.status !== "CONFIRMED" && file.status !== "IN_PROGRESS") {
         throw new TRPCError({ code: "FORBIDDEN", message: "File must be confirmed before dispatch" });
       }
-      await dispatchOpsFile(ctx.db, input.fileId, ctx.companyId, ctx.session.user.id);
+      await dispatchOpsFile(ctx.db, input.fileId, ctx.companyId, ctx.session.user.id, activeBranch(ctx.branch));
       return { success: true };
     }),
 });

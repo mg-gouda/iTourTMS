@@ -132,7 +132,9 @@
     "eligible": "Eligible",
     "notEligible": "Not Eligible",
     "country": "Country",
-    "paymentTerm": "Payment Term"
+    "paymentTerm": "Payment Term",
+    "allStatuses": "All statuses",
+    "allServices": "All services"
   },
   "auth": {
     "login": "Sign In",

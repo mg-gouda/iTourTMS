@@ -40,7 +40,24 @@ type Rule =
   | { via: (ids: string[]) => Record<string, unknown> };
 
 /** Branch-owned models. Everything not listed is shared across branches. */
-export const BRANCH_OWNED: Partial<Record<Prisma.ModelName, Rule>> = {};
+export const BRANCH_OWNED: Partial<Record<Prisma.ModelName, Rule>> = {
+  // Traffic: jobs, fleet and people are local; zones, vehicle types and
+  // price lists are shared.
+  TtTrafficJob: { direct: true },
+  TtTrafficFlight: { direct: true },
+  TtVehicle: { direct: true },
+  TtDriver: { direct: true },
+  TtRep: { direct: true },
+  TtGuestBooking: { direct: true },
+  TtTrafficAssignment: { via: (ids) => ({ job: { branchId: { in: ids } } }) },
+  TtStatusChangeLog: { via: (ids) => ({ job: { branchId: { in: ids } } }) },
+  TtNoShowEvidence: { via: (ids) => ({ job: { branchId: { in: ids } } }) },
+  TtOperationalCost: { via: (ids) => ({ job: { branchId: { in: ids } } }) },
+  TtVehicleCompliance: { via: (ids) => ({ vehicle: { branchId: { in: ids } } }) },
+  TtDriverVehicle: { via: (ids) => ({ driver: { branchId: { in: ids } } }) },
+  TtRepZone: { via: (ids) => ({ rep: { branchId: { in: ids } } }) },
+  TtGuestPayment: { via: (ids) => ({ guestBooking: { branchId: { in: ids } } }) },
+};
 
 const WHERE_OPS = new Set([
   "findUnique",
@@ -170,6 +187,32 @@ export function pickScope(allowed: AllowedBranch[], cookie: string | undefined):
   if (picked) return { ids: [picked.id], activeId: picked.id };
   const ids = allowed.map((b) => b.id);
   return { ids, activeId: ids.length === 1 ? ids[0] : null };
+}
+
+/** The branch new records go to; refuses before anything (like a document number) is used up. */
+export function activeBranch(scope: BranchScope): string {
+  if (!scope.activeId) throw new TRPCError({ code: "BAD_REQUEST", message: NO_BRANCH });
+  return scope.activeId;
+}
+
+/**
+ * Where a record raised by a company-wide process (a hotel booking, a partner
+ * request) belongs: the branch operating in that destination, else head office.
+ */
+export async function branchForDestination(
+  db: PrismaClient,
+  companyId: string,
+  destinationId: string | null | undefined,
+): Promise<string> {
+  const branches = await db.branch.findMany({
+    where: { companyId, active: true },
+    select: { id: true, isHq: true, destinationIds: true },
+  });
+  const hit = destinationId && branches.find((b) => b.destinationIds.includes(destinationId));
+  const hq = branches.find((b) => b.isHq);
+  if (hit) return hit.id;
+  if (!hq) throw new Error(`Company ${companyId} has no head-office branch`);
+  return hq.id;
 }
 
 export function readBranchCookie(headers: Headers | undefined): string | undefined {

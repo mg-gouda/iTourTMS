@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { trafficFlightCreateSchema, trafficFlightUpdateSchema } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -15,6 +16,7 @@ export const trafficFlightRouter = createTRPCRouter({
           ...(input?.flightDate ? { flightDate: input.flightDate } : {}),
         },
         include: {
+          branch: { select: { code: true, name: true } },
           arrAirport: { select: { id: true, code: true, name: true } },
           depAirport: { select: { id: true, code: true, name: true } },
           _count: { select: { jobs: true } },
@@ -45,7 +47,7 @@ export const trafficFlightRouter = createTRPCRouter({
     .input(trafficFlightCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.create({
-        data: { ...input, companyId: ctx.companyId },
+        data: { ...input, companyId: ctx.companyId, branchId: activeBranch(ctx.branch) },
       });
     }),
 

@@ -4,6 +4,7 @@ import { TT_JOB_STATUS_TRANSITIONS } from "@/lib/constants/traffic";
 import { trafficJobCreateSchema, trafficJobUpdateSchema } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -42,6 +43,7 @@ export const trafficJobRouter = createTRPCRouter({
           ...(input?.bookingId ? { bookingId: input.bookingId } : {}),
         },
         include: {
+          branch: { select: { code: true, name: true } },
           vehicleType: { select: { id: true, name: true, code: true } },
           pickupAirport: { select: { id: true, code: true, name: true } },
           pickupHotel: { select: { id: true, name: true, code: true } },
@@ -149,12 +151,13 @@ export const trafficJobRouter = createTRPCRouter({
   create: p("traffic:job:create")
     .input(trafficJobCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      const code = await generateSequenceNumber(ctx.db, ctx.companyId, "traffic_job");
+      const code = await generateSequenceNumber(ctx.db, ctx.companyId, "traffic_job", activeBranch(ctx.branch));
       return ctx.db.ttTrafficJob.create({
         data: {
           ...input,
           code,
           companyId: ctx.companyId,
+          branchId: activeBranch(ctx.branch),
           createdById: ctx.session.user.id,
         },
       });
@@ -220,12 +223,13 @@ export const trafficJobRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const results = [];
       for (const jobInput of input.jobs) {
-        const code = await generateSequenceNumber(ctx.db, ctx.companyId, "traffic_job");
+        const code = await generateSequenceNumber(ctx.db, ctx.companyId, "traffic_job", activeBranch(ctx.branch));
         const job = await ctx.db.ttTrafficJob.create({
           data: {
             ...jobInput,
             code,
             companyId: ctx.companyId,
+            branchId: activeBranch(ctx.branch),
             createdById: ctx.session.user.id,
           },
         });
