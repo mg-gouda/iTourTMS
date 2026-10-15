@@ -986,6 +986,7 @@ export async function seedFinance(companyId: string) {
       await prisma.recurringEntry.create({
         data: {
           companyId,
+          branchId: (await prisma.branch.upsert({ where: { companyId_code: { companyId: companyId, code: "HQ" } }, update: {}, create: { companyId: companyId, code: "HQ", name: "Head Office", isHq: true } })).id,
           name: "Monthly Rent",
           journalId: miscJournal.id,
           currencyId: usd.id,

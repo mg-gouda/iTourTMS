@@ -20,6 +20,7 @@ const prisma = new PrismaClient({ adapter });
 // ─── Hardcoded live IDs ────────────────────────────────────────────────────────
 
 const CO   = "cmovtevx9000001ox3d2ljx3w";  // Company
+let HQ = ""; // head-office branch, resolved in main()
 const HRG  = "cmpdtn4js00ei01t4cqs5b11n";  // Destination HRG
 const HTL  = "cmpdtpenu00ek01t4kovrrr73";  // Hotel BEACH ALBATROS
 const MKT  = "cmpdtb0kw00ec01t4m6xjj54u";  // Market JRD/JORDANIAN
@@ -52,6 +53,7 @@ const APT_CAI = "cmovt6aht00u44gpae3d0nzio";
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  HQ = (await prisma.branch.upsert({ where: { companyId_code: { companyId: CO, code: "HQ" } }, update: {}, create: { companyId: CO, code: "HQ", name: "Head Office", isHq: true } })).id;
   console.log("🌱 Starting demo seed…");
 
   await seedSequences();
@@ -181,7 +183,7 @@ async function seedFinanceInvoices(journals: { saleId: string; purchId: string; 
     where: { id: "demo-inv-001" },
     create: {
       id: "demo-inv-001",
-      companyId: CO, moveType: "OUT_INVOICE", state: "DRAFT",
+      companyId: CO, branchId: HQ, moveType: "OUT_INVOICE", state: "DRAFT",
       paymentState: "NOT_PAID", date: new Date("2026-05-01"),
       journalId: journals.saleId, partnerId: PART_TO,
       currencyId: USD, companyCurrencyId: EGP,
@@ -218,7 +220,7 @@ async function seedFinanceInvoices(journals: { saleId: string; purchId: string; 
     where: { id: "demo-inv-002" },
     create: {
       id: "demo-inv-002",
-      companyId: CO, moveType: "OUT_INVOICE", state: "DRAFT",
+      companyId: CO, branchId: HQ, moveType: "OUT_INVOICE", state: "DRAFT",
       paymentState: "NOT_PAID", date: new Date("2026-05-10"),
       journalId: journals.saleId,
       currencyId: USD, companyCurrencyId: EGP,
@@ -255,7 +257,7 @@ async function seedFinanceInvoices(journals: { saleId: string; purchId: string; 
     where: { id: "demo-bill-001" },
     create: {
       id: "demo-bill-001",
-      companyId: CO, moveType: "IN_INVOICE", state: "DRAFT",
+      companyId: CO, branchId: HQ, moveType: "IN_INVOICE", state: "DRAFT",
       paymentState: "NOT_PAID", date: new Date("2026-05-01"),
       journalId: journals.purchId, partnerId: PART_HTL,
       currencyId: USD, companyCurrencyId: EGP,
@@ -292,7 +294,7 @@ async function seedFinanceInvoices(journals: { saleId: string; purchId: string; 
     where: { id: "demo-bill-002" },
     create: {
       id: "demo-bill-002",
-      companyId: CO, moveType: "IN_INVOICE", state: "DRAFT",
+      companyId: CO, branchId: HQ, moveType: "IN_INVOICE", state: "DRAFT",
       paymentState: "NOT_PAID", date: new Date("2026-05-10"),
       journalId: journals.purchId,
       currencyId: EGP, companyCurrencyId: EGP,
@@ -334,7 +336,7 @@ async function seedFinancePayments(journals: { saleId: string; purchId: string; 
     where: { id: "demo-pay-001" },
     create: {
       id: "demo-pay-001",
-      companyId: CO, paymentType: "INBOUND",
+      companyId: CO, branchId: HQ, paymentType: "INBOUND",
       partnerId: PART_TO, amount: 1000,
       currencyId: USD, date: new Date("2026-05-05"),
       journalId: journals.cashId, ref: "PMT-DEMO-001",
@@ -347,7 +349,7 @@ async function seedFinancePayments(journals: { saleId: string; purchId: string; 
     where: { id: "demo-pay-002" },
     create: {
       id: "demo-pay-002",
-      companyId: CO, paymentType: "OUTBOUND",
+      companyId: CO, branchId: HQ, paymentType: "OUTBOUND",
       partnerId: PART_HTL, amount: 900,
       currencyId: USD, date: new Date("2026-05-08"),
       journalId: journals.bankId, ref: "PMT-DEMO-002",
@@ -366,7 +368,7 @@ async function seedBankStatement(journals: { saleId: string; purchId: string; ca
     where: { id: "demo-bs-001" },
     create: {
       id: "demo-bs-001",
-      companyId: CO, journalId: journals.bankId,
+      companyId: CO, branchId: HQ, journalId: journals.bankId,
       name: "Bank Statement — May 2026",
       date: new Date("2026-05-31"),
       dateFrom: new Date("2026-05-01"), dateTo: new Date("2026-05-31"),
@@ -802,7 +804,7 @@ async function seedCrm() {
   await prisma.crmLead.upsert({
     where: { companyId_code: { companyId: CO, code: "LD-DEMO-001" } },
     create: {
-      companyId: CO, code: "LD-DEMO-001",
+      companyId: CO, branchId: HQ, code: "LD-DEMO-001",
       firstName: "John", lastName: "Smith",
       email: "john.smith@demo.test", phone: "+447700900123",
       source: "WEBSITE", status: "NEW",
@@ -815,7 +817,7 @@ async function seedCrm() {
   await prisma.crmLead.upsert({
     where: { companyId_code: { companyId: CO, code: "LD-DEMO-002" } },
     create: {
-      companyId: CO, code: "LD-DEMO-002",
+      companyId: CO, branchId: HQ, code: "LD-DEMO-002",
       firstName: "Maria", lastName: "Gonzalez",
       email: "maria.g@demo.test", phone: "+34612345678",
       source: "REFERRAL", status: "CONTACTED",
@@ -982,7 +984,7 @@ async function seedCrm() {
   await prisma.crmBooking.upsert({
     where: { companyId_code: { companyId: CO, code: "CB-DEMO-001" } },
     create: {
-      companyId: CO, code: "CB-DEMO-001",
+      companyId: CO, branchId: HQ, code: "CB-DEMO-001",
       customerId: "demo-crm-cust-001",
       status: "DRAFT", travelDate: new Date("2026-07-10"),
       paxAdults: 2, paxChildren: 1, paxInfants: 0,
@@ -1021,7 +1023,7 @@ async function seedCrm() {
   await prisma.crmBooking.upsert({
     where: { companyId_code: { companyId: CO, code: "CB-DEMO-002" } },
     create: {
-      companyId: CO, code: "CB-DEMO-002",
+      companyId: CO, branchId: HQ, code: "CB-DEMO-002",
       customerId: "demo-crm-cust-002",
       status: "CONFIRMED", travelDate: new Date("2026-08-20"),
       paxAdults: 4, paxChildren: 0, paxInfants: 0,
@@ -1262,7 +1264,7 @@ async function seedTourOps() {
   const file2 = await prisma.opsFile.upsert({
     where: { companyId_code: { companyId: CO, code: "FI-00002" } },
     create: {
-      companyId: CO, code: "FI-00002",
+      companyId: CO, branchId: HQ, code: "FI-00002",
       clientType: "TOUR_OPERATOR", tourOperatorId: TO,
       guestName: "Demo Group B", guestEmail: "groupb@demo.test",
       travelFrom: new Date("2026-09-01"), travelTo: new Date("2026-09-08"),
@@ -1339,7 +1341,7 @@ async function seedTourOps() {
   await prisma.opsFlightTicket.upsert({
     where: { companyId_code: { companyId: CO, code: "TKT-DEMO-001" } },
     create: {
-      companyId: CO, code: "TKT-DEMO-001",
+      companyId: CO, branchId: HQ, code: "TKT-DEMO-001",
       opsFileId: OPS_FILE1,
       status: "DRAFT", flightType: "RETURN",
       clientName: "Demo Group A", issueDate: new Date("2026-05-20"),
@@ -1359,7 +1361,7 @@ async function seedTourOps() {
   await prisma.opsFlightTicket.upsert({
     where: { companyId_code: { companyId: CO, code: "TKT-DEMO-002" } },
     create: {
-      companyId: CO, code: "TKT-DEMO-002",
+      companyId: CO, branchId: HQ, code: "TKT-DEMO-002",
       opsFileId: file2.id,
       status: "DRAFT", flightType: "RETURN",
       clientName: "Demo Group B", issueDate: new Date("2026-05-20"),
@@ -1437,7 +1439,7 @@ async function seedTraffic() {
   await prisma.ttVehicle.upsert({
     where: { companyId_plateNumber: { companyId: CO, plateNumber: "HRG-001-DEMO" } },
     create: {
-      companyId: CO, vehicleTypeId: vtype1.id,
+      companyId: CO, branchId: HQ, vehicleTypeId: vtype1.id,
       plateNumber: "HRG-001-DEMO", make: "Toyota", model: "Camry",
       year: 2024, color: "White", ownership: "OWNED", status: "ACTIVE",
     },
@@ -1447,7 +1449,7 @@ async function seedTraffic() {
   await prisma.ttVehicle.upsert({
     where: { companyId_plateNumber: { companyId: CO, plateNumber: "HRG-002-DEMO" } },
     create: {
-      companyId: CO, vehicleTypeId: vtype2.id,
+      companyId: CO, branchId: HQ, vehicleTypeId: vtype2.id,
       plateNumber: "HRG-002-DEMO", make: "Yutong", model: "ZK6729D",
       year: 2023, color: "White", ownership: "OWNED", status: "ACTIVE",
     },
@@ -1479,7 +1481,7 @@ async function seedTraffic() {
   await prisma.ttTrafficJob.upsert({
     where: { companyId_code: { companyId: CO, code: "TJ-DEMO-001" } },
     create: {
-      companyId: CO, code: "TJ-DEMO-001",
+      companyId: CO, branchId: HQ, code: "TJ-DEMO-001",
       serviceType: "ARR", status: "PENDING",
       vehicleTypeId: vtype2.id,
       serviceDate: new Date("2026-07-01"),
@@ -1498,7 +1500,7 @@ async function seedTraffic() {
   await prisma.ttTrafficJob.upsert({
     where: { companyId_code: { companyId: CO, code: "TJ-DEMO-002" } },
     create: {
-      companyId: CO, code: "TJ-DEMO-002",
+      companyId: CO, branchId: HQ, code: "TJ-DEMO-002",
       serviceType: "DEP", status: "PENDING",
       vehicleTypeId: vtype2.id,
       serviceDate: new Date("2026-07-08"),

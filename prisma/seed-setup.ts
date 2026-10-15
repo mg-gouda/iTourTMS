@@ -88,6 +88,7 @@ async function main() {
     },
   });
   const cId = company.id;
+  const hqId = (await prisma.branch.upsert({ where: { companyId_code: { companyId: cId, code: "HQ" } }, update: {}, create: { companyId: cId, code: "HQ", name: "Head Office", isHq: true } })).id;
   console.log(`  ✓ Company "${company.name}" created`);
 
   // ── 3. Install all modules ──
@@ -371,6 +372,7 @@ async function main() {
       update: {},
       create: {
         companyId: cId,
+        branchId: hqId,
         vehicleTypeId: vtMap[v.typeCode],
         supplierId: v.typeCode === "BUS" ? supplierPartner.id : null,
         plateNumber: v.plateNumber,
@@ -388,6 +390,7 @@ async function main() {
   const driver = await prisma.ttDriver.create({
     data: {
       companyId: cId,
+      branchId: hqId,
       userId: driverUser.id,
       licenseNumber: "EG-DL-2024-001",
       licenseExpiry: new Date("2027-06-30"),
@@ -408,6 +411,7 @@ async function main() {
   const rep = await prisma.ttRep.create({
     data: {
       companyId: cId,
+      branchId: hqId,
       userId: repUser.id,
       phone: "+20-100-555-0002",
     },
