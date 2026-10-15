@@ -2,6 +2,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 import type { OpsFlightTicketStatus, OpsFlightType, OpsMarkupType, OpsPricingBasis, OpsFlightTxType } from "@prisma/client";
 import { createFlightTicketAccountingMoves } from "@/server/services/tour-ops/flight-ticket-accounting";
 
@@ -158,6 +160,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
         db.opsFlightTicket.findMany({
           where,
           include: {
+            branch: { select: { code: true, name: true } },
             opsFile: { select: { id: true, code: true } },
             createdBy: { select: { name: true } },
             legs: { orderBy: { sequence: "asc" } },
@@ -286,12 +289,11 @@ export const opsFlightTicketRouter = createTRPCRouter({
     .input(createSchema)
     .mutation(async ({ ctx, input }) => {
       const { companyId, db, session } = ctx;
-      const seq = await db.sequence.upsert({
-        where: { companyId_code: { companyId, code: "ops_flight_ticket" } },
-        create: { companyId, code: "ops_flight_ticket", prefix: "TK", separator: "-", padding: 5, nextNumber: 2 },
-        update: { nextNumber: { increment: 1 } },
-      });
-      const code = `${seq.prefix}${seq.separator}${String(seq.nextNumber - 1).padStart(seq.padding, "0")}`;
+      const file = input.opsFileId
+        ? await db.opsFile.findFirst({ where: { id: input.opsFileId }, select: { branchId: true } })
+        : null;
+      const branchId = file?.branchId ?? activeBranch(ctx.branch);
+      const code = await nextSerialCode(db, companyId, "ops_flight_ticket", { prefix: "TK" }, branchId);
 
       // Compute fare lines
       const computedFareLines = (input.fareLines ?? []).map((fl, i) => {
@@ -331,6 +333,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
           companyId,
           code,
           opsFileId: input.opsFileId || null,
+          branchId,
           clientName: input.clientName || null,
           issueDate: input.issueDate ? new Date(input.issueDate) : null,
           flightType: input.flightType as OpsFlightType,

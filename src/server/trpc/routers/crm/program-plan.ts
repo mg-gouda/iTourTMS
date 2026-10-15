@@ -6,6 +6,7 @@ import {
   programPlanUpdateSchema,
 } from "@/lib/validations/crm";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -14,6 +15,7 @@ export const programPlanRouter = createTRPCRouter({
     return ctx.db.crmProgramPlan.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         market: { select: { id: true, name: true, code: true } },
         _count: { select: { items: true } },
       },
@@ -84,6 +86,7 @@ export const programPlanRouter = createTRPCRouter({
       return ctx.db.crmProgramPlan.create({
         data: {
           companyId: ctx.companyId,
+          branchId: activeBranch(ctx.branch),
           name: input.name,
           description: input.description || null,
           marketId: input.marketId || null,

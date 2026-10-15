@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { customerCreateSchema, customerUpdateSchema } from "@/lib/validations/crm";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { inBranches } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -11,7 +12,15 @@ export const customerRouter = createTRPCRouter({
       where: { companyId: ctx.companyId },
       include: {
         partner: { select: { id: true, name: true } },
-        _count: { select: { activities: true, opportunities: true, bookings: true } },
+        // Customers are shared; what was sold to them is per branch. Nested
+        // relations bypass the branch scope, so they filter here.
+        _count: {
+          select: {
+            activities: { where: inBranches(ctx.branch) },
+            opportunities: { where: inBranches(ctx.branch) },
+            bookings: { where: inBranches(ctx.branch) },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 500,
@@ -26,15 +35,18 @@ export const customerRouter = createTRPCRouter({
         include: {
           partner: { select: { id: true, name: true } },
           activities: {
+            where: inBranches(ctx.branch),
             orderBy: { createdAt: "desc" },
             take: 20,
             include: { assignedTo: { select: { id: true, name: true } } },
           },
           opportunities: {
+            where: inBranches(ctx.branch),
             orderBy: { createdAt: "desc" },
             include: { owner: { select: { id: true, name: true } } },
           },
           bookings: {
+            where: inBranches(ctx.branch),
             orderBy: { travelDate: "desc" },
             select: {
               id: true,

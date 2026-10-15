@@ -30,6 +30,7 @@ import {
   OPS_FILE_STATUS_VARIANTS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { useShowBranch } from "@/hooks/use-branch-columns";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function OpsFilesPage() {
@@ -38,6 +39,7 @@ export default function OpsFilesPage() {
   const [clientType, setClientType] = useState("ALL");
   const [page, setPage] = useState(1);
 
+  const showBranch = useShowBranch();
   const { data, isLoading } = trpc.tourOps.file.list.useQuery({
     search: search || undefined,
     status: status === "ALL" ? undefined : status,
@@ -129,7 +131,11 @@ export default function OpsFilesPage() {
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => (window.location.href = `/tour-ops/files/${file.id}`)}
                   >
-                    <TableCell className="font-mono font-medium">{file.code}</TableCell>
+                    <TableCell className="font-mono font-medium">{file.code}
+                      {showBranch && (
+                        <span className="text-muted-foreground ms-2 text-xs font-normal">{file.branch.code}</span>
+                      )}
+                    </TableCell>
                     <TableCell>{clientName}</TableCell>
                     <TableCell>
                       <Badge variant="outline">

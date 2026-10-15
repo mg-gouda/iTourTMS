@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import { db } from "@/server/db";
 
 /**
  * CRM Booking Engine — business logic for excursion bookings.
@@ -28,11 +28,12 @@ export function validateTransition(currentStatus: string, action: string): strin
 
 /**
  * Recalculate a customer's lifetime value based on confirmed/completed bookings.
+ *
+ * Customers are shared across branches, so this sums every branch's bookings
+ * on the unscoped client — a branch-scoped sum would overwrite the total with
+ * one branch's share.
  */
-export async function recalcCustomerLifetimeValue(
-  db: PrismaClient,
-  customerId: string | null,
-): Promise<void> {
+export async function recalcCustomerLifetimeValue(customerId: string | null): Promise<void> {
   if (!customerId) return;
   const agg = await db.crmBooking.aggregate({
     where: { customerId, status: { in: ["CONFIRMED", "COMPLETED"] } },
@@ -59,25 +60,3 @@ export function calculateBookingTotals(
   };
 }
 
-/**
- * Generate the next booking code using the Sequence model.
- */
-export async function generateBookingCode(
-  db: PrismaClient,
-  companyId: string,
-): Promise<string> {
-  const seq = await db.sequence.upsert({
-    where: { companyId_code: { companyId, code: "crm_booking" } },
-    create: {
-      companyId,
-      code: "crm_booking",
-      prefix: "BK",
-      separator: "-",
-      padding: 5,
-      nextNumber: 2,
-    },
-    update: { nextNumber: { increment: 1 } },
-  });
-  const num = seq.nextNumber - 1;
-  return `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
-}

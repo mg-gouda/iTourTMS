@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Decimal from "decimal.js";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 import { getCreditStatus, checkCredit, recalcCreditUsed } from "@/server/services/tour-ops/credit";
 import { notifyRole } from "@/server/services/shared/notifications";
 
@@ -67,7 +68,7 @@ export const opsCalculatorRouter = createTRPCRouter({
 
       const file = await db.opsFile.findFirst({
         where: { id: input.fileId, companyId },
-        select: { id: true, travelFrom: true, clientType: true, tourOperatorId: true },
+        select: { id: true, travelFrom: true, clientType: true, tourOperatorId: true, branchId: true },
       });
       if (!file) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -175,14 +176,7 @@ export const opsCalculatorRouter = createTRPCRouter({
           }),
         });
 
-        // 4. Generate quotation code
-        const seq = await tx.sequence.upsert({
-          where: { companyId_code: { companyId, code: "ops_quotation" } },
-          create: { companyId, code: "ops_quotation", prefix: "QT", separator: "-", padding: 5, nextNumber: 2 },
-          update: { nextNumber: { increment: 1 } },
-        });
-        const num = seq.nextNumber - 1;
-        const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+        const code = await nextSerialCode(tx, companyId, "ops_quotation", { prefix: "QT" }, file.branchId);
 
         // 5. Create quotation with calculator-computed totals
         const totalCost = new Decimal(input.totalCostUSD).toDecimalPlaces(2).toNumber();

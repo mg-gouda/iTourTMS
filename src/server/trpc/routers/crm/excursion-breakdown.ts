@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -94,11 +95,13 @@ export const excursionBreakdownRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const date = new Date(input.excursionDate);
+      const branchId = activeBranch(ctx.branch);
 
       const breakdown = await ctx.db.crmExcursionBreakdown.upsert({
         where: {
-          companyId_excursionId_excursionDate_language: {
+          companyId_branchId_excursionId_excursionDate_language: {
             companyId: ctx.companyId,
+            branchId,
             excursionId: input.excursionId,
             excursionDate: date,
             language: input.language,
@@ -106,6 +109,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
         },
         create: {
           companyId: ctx.companyId,
+          branchId,
           excursionId: input.excursionId,
           excursionDate: date,
           language: input.language,

@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { leadCreateSchema, leadUpdateSchema } from "@/lib/validations/crm";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -10,6 +12,7 @@ export const leadRouter = createTRPCRouter({
     return ctx.db.crmLead.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         assignedTo: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -41,25 +44,12 @@ export const leadRouter = createTRPCRouter({
   create: p("crm:lead:create")
     .input(leadCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      // Auto-generate lead code using Sequence
-      const seq = await ctx.db.sequence.upsert({
-        where: { companyId_code: { companyId: ctx.companyId, code: "lead" } },
-        create: {
-          companyId: ctx.companyId,
-          code: "lead",
-          prefix: "LD",
-          padding: 5,
-          nextNumber: 2,
-        },
-        update: { nextNumber: { increment: 1 } },
-      });
-
-      const num = seq.nextNumber - 1; // after increment
-      const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+      const code = await nextSerialCode(ctx.db, ctx.companyId, "lead", { prefix: "LD" }, activeBranch(ctx.branch));
 
       return ctx.db.crmLead.create({
         data: {
           ...input,
+          branchId: activeBranch(ctx.branch),
           email: input.email || null,
           phone: input.phone || null,
           assignedToId: input.assignedToId || null,

@@ -17,7 +17,6 @@ export async function dispatchOpsFile(
   fileId: string,
   companyId: string,
   userId: string,
-  branchId: string,
 ): Promise<{ dispatched: number; errors: string[] }> {
   const file = await db.opsFile.findFirstOrThrow({
     where: { id: fileId, companyId },
@@ -46,12 +45,12 @@ export async function dispatchOpsFile(
           dispatched++;
         } else if (component.type === "TRANSFER") {
           // Create a generic traffic job for this transfer
-          const jobCode = await generateSequenceNumber(db, companyId, "traffic_job", branchId);
+          const jobCode = await generateSequenceNumber(db, companyId, "traffic_job", file.branchId);
 
           await db.ttTrafficJob.create({
             data: {
               companyId,
-              branchId,
+              branchId: file.branchId, // the file's branch runs its transfers
               code: jobCode,
               serviceType: "AIRPORT_MEET" as const,
               serviceDate: component.serviceDate ?? file.travelFrom,

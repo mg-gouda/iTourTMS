@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { opportunityCreateSchema, opportunityUpdateSchema } from "@/lib/validations/crm";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -10,6 +11,7 @@ export const opportunityRouter = createTRPCRouter({
     return ctx.db.crmOpportunity.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         owner: { select: { id: true, name: true } },
         lead: { select: { id: true, firstName: true, lastName: true, code: true } },
         customer: { select: { id: true, firstName: true, lastName: true } },
@@ -51,8 +53,12 @@ export const opportunityRouter = createTRPCRouter({
   create: p("crm:opportunity:create")
     .input(opportunityCreateSchema)
     .mutation(async ({ ctx, input }) => {
+      const lead = input.leadId
+        ? await ctx.db.crmLead.findFirst({ where: { id: input.leadId }, select: { branchId: true } })
+        : null;
       return ctx.db.crmOpportunity.create({
         data: {
+          branchId: lead?.branchId ?? activeBranch(ctx.branch),
           title: input.title,
           stage: input.stage,
           value: input.value ?? null,

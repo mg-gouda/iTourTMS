@@ -57,7 +57,38 @@ export const BRANCH_OWNED: Partial<Record<Prisma.ModelName, Rule>> = {
   TtDriverVehicle: { via: (ids) => ({ driver: { branchId: { in: ids } } }) },
   TtRepZone: { via: (ids) => ({ rep: { branchId: { in: ids } } }) },
   TtGuestPayment: { via: (ids) => ({ guestBooking: { branchId: { in: ids } } }) },
+
+  // CRM: the pipeline and daily excursion operations; the excursion
+  // catalogue, cost sheets, customers and suppliers are shared.
+  CrmLead: { direct: true },
+  CrmOpportunity: { direct: true },
+  CrmActivity: { direct: true },
+  CrmBooking: { direct: true },
+  CrmProgramPlan: { direct: true },
+  CrmExcursionTicket: { direct: true },
+  CrmExcursionBreakdown: { direct: true },
+  CrmExcursionDispatch: { direct: true },
+  CrmBookingItem: { via: (ids) => ({ booking: { branchId: { in: ids } } }) },
+  CrmProgramPlanItem: { via: (ids) => ({ programPlan: { branchId: { in: ids } } }) },
+  CrmProgramTourOperator: { via: (ids) => ({ programPlan: { branchId: { in: ids } } }) },
+  CrmDispatchRun: { via: (ids) => ({ dispatch: { branchId: { in: ids } } }) },
+  CrmDispatchRunStop: { via: (ids) => ({ run: { dispatch: { branchId: { in: ids } } } }) },
+
+  // Tour Ops: files and what hangs off them; rate sheets are shared, and so
+  // are template packages (no file).
+  OpsFile: { direct: true },
+  OpsFlightTicket: { direct: true },
+  OpsQuotation: { via: (ids) => ({ file: { branchId: { in: ids } } }) },
+  OpsPnL: { via: (ids) => ({ file: { branchId: { in: ids } } }) },
+  OpsPackage: { via: (ids) => opsPackageScope(ids) },
+  OpsPackageComponent: { via: (ids) => ({ package: opsPackageScope(ids) }) },
+  OpsFlightLeg: { via: (ids) => ({ ticket: { branchId: { in: ids } } }) },
+  OpsFlightFareLine: { via: (ids) => ({ ticket: { branchId: { in: ids } } }) },
 };
+
+function opsPackageScope(ids: string[]) {
+  return { OR: [{ fileId: null }, { file: { branchId: { in: ids } } }] };
+}
 
 const WHERE_OPS = new Set([
   "findUnique",
@@ -187,6 +218,11 @@ export function pickScope(allowed: AllowedBranch[], cookie: string | undefined):
   if (picked) return { ids: [picked.id], activeId: picked.id };
   const ids = allowed.map((b) => b.id);
   return { ids, activeId: ids.length === 1 ? ids[0] : null };
+}
+
+/** For nested relations, which the scoped client does not reach. */
+export function inBranches(scope: BranchScope) {
+  return { branchId: { in: scope.ids } };
 }
 
 /** The branch new records go to; refuses before anything (like a document number) is used up. */

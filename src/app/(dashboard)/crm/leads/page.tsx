@@ -1,6 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -91,6 +93,7 @@ export default function LeadsPage() {
       cell: ({ row }) => row.original.assignedTo?.name ?? "—",
     },
   ];
+  const shownColumns = useBranchColumns(columns);
 
   const filtered = useMemo(() => {
     let rows = (data ?? []) as LeadRow[];
@@ -172,7 +175,7 @@ export default function LeadsPage() {
         </div>
       ) : (
         <DataTable
-          columns={columns}
+          columns={shownColumns}
           data={filtered}
           searchKey="name"
           searchPlaceholder={t("searchLeads")}

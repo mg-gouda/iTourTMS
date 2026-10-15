@@ -1,32 +1,20 @@
-import type { PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
+import { recalcCustomerLifetimeValue } from "@/server/services/crm/booking-engine";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 import { bookingCreateSchema, bookingItemSchema, bookingUpdateSchema } from "@/lib/validations/crm";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
-
-async function recalcCustomerLifetimeValue(
-  db: PrismaClient,
-  customerId: string | null,
-) {
-  if (!customerId) return;
-  const agg = await db.crmBooking.aggregate({
-    where: { customerId, status: { in: ["CONFIRMED", "COMPLETED"] } },
-    _sum: { totalSelling: true },
-  });
-  await db.crmCustomer.update({
-    where: { id: customerId },
-    data: { lifetimeValue: agg._sum.totalSelling ?? 0 },
-  });
-}
 
 export const bookingRouter = createTRPCRouter({
   list: p("crm:booking:read").query(async ({ ctx }) => {
     return ctx.db.crmBooking.findMany({
       where: { companyId: ctx.companyId },
       include: {
+        branch: { select: { code: true, name: true } },
         customer: { select: { id: true, firstName: true, lastName: true } },
         bookedBy: { select: { id: true, name: true } },
         _count: { select: { items: true } },
@@ -65,13 +53,11 @@ export const bookingRouter = createTRPCRouter({
   create: p("crm:booking:create")
     .input(bookingCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      const seq = await ctx.db.sequence.upsert({
-        where: { companyId_code: { companyId: ctx.companyId, code: "booking" } },
-        create: { companyId: ctx.companyId, code: "booking", prefix: "BK", padding: 5, nextNumber: 2 },
-        update: { nextNumber: { increment: 1 } },
-      });
-      const num = seq.nextNumber - 1;
-      const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+      const opportunity = input.opportunityId
+        ? await ctx.db.crmOpportunity.findFirst({ where: { id: input.opportunityId }, select: { branchId: true } })
+        : null;
+      const branchId = opportunity?.branchId ?? activeBranch(ctx.branch);
+      const code = await nextSerialCode(ctx.db, ctx.companyId, "booking", { prefix: "BK" }, branchId);
 
       const { items, ...bookingData } = input;
 
@@ -81,6 +67,7 @@ export const bookingRouter = createTRPCRouter({
       const booking = await ctx.db.crmBooking.create({
         data: {
           companyId: ctx.companyId,
+          branchId,
           code,
           customerId: bookingData.customerId || null,
           opportunityId: bookingData.opportunityId || null,
@@ -112,7 +99,7 @@ export const bookingRouter = createTRPCRouter({
         },
         include: { items: true },
       });
-      await recalcCustomerLifetimeValue(ctx.db, booking.customerId);
+      await recalcCustomerLifetimeValue(booking.customerId);
       return booking;
     }),
 
@@ -132,9 +119,9 @@ export const bookingRouter = createTRPCRouter({
           travelDate: input.data.travelDate ? new Date(input.data.travelDate) : undefined,
         },
       });
-      await recalcCustomerLifetimeValue(ctx.db, existing.customerId);
+      await recalcCustomerLifetimeValue(existing.customerId);
       if (updated.customerId && updated.customerId !== existing.customerId) {
-        await recalcCustomerLifetimeValue(ctx.db, updated.customerId);
+        await recalcCustomerLifetimeValue(updated.customerId);
       }
       return updated;
     }),
@@ -184,7 +171,7 @@ export const bookingRouter = createTRPCRouter({
         },
         include: { items: true },
       });
-      await recalcCustomerLifetimeValue(ctx.db, existing.customerId);
+      await recalcCustomerLifetimeValue(existing.customerId);
       return updated;
     }),
 
@@ -196,7 +183,7 @@ export const bookingRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       const deleted = await ctx.db.crmBooking.delete({ where: { id: input.id } });
-      await recalcCustomerLifetimeValue(ctx.db, existing.customerId);
+      await recalcCustomerLifetimeValue(existing.customerId);
       return deleted;
     }),
 
@@ -211,17 +198,12 @@ export const bookingRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      const seq = await ctx.db.sequence.upsert({
-        where: { companyId_code: { companyId: ctx.companyId, code: "booking" } },
-        create: { companyId: ctx.companyId, code: "booking", prefix: "BK", padding: 5, nextNumber: 2 },
-        update: { nextNumber: { increment: 1 } },
-      });
-      const num = seq.nextNumber - 1;
-      const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+      const code = await nextSerialCode(ctx.db, ctx.companyId, "booking", { prefix: "BK" }, source.branchId);
 
       return ctx.db.crmBooking.create({
         data: {
           companyId: ctx.companyId,
+          branchId: source.branchId,
           code,
           customerId: source.customerId,
           opportunityId: source.opportunityId,
@@ -387,7 +369,7 @@ export const bookingRouter = createTRPCRouter({
         data: { status: newStatus },
       });
 
-      await recalcCustomerLifetimeValue(ctx.db, booking.customerId);
+      await recalcCustomerLifetimeValue(booking.customerId);
 
       return updated;
     }),

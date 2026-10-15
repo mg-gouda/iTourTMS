@@ -30,6 +30,7 @@ import {
   OPS_FLIGHT_TYPE_LABELS,
 } from "@/lib/constants/tour-ops";
 import { trpc } from "@/lib/trpc";
+import { useShowBranch } from "@/hooks/use-branch-columns";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export default function FlightTicketFilesPage() {
@@ -38,6 +39,7 @@ export default function FlightTicketFilesPage() {
   const [flightType, setFlightType] = useState("ALL");
   const [page, setPage] = useState(1);
 
+  const showBranch = useShowBranch();
   const { data, isLoading } = trpc.tourOps.flightTicket.list.useQuery({
     search: search || undefined,
     status: status === "ALL" ? undefined : status,
@@ -120,7 +122,11 @@ export default function FlightTicketFilesPage() {
               ) : (
                 items.map((t) => (
                   <TableRow key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => window.location.href = `/tour-ops/flight-tickets/${t.id}`}>
-                    <TableCell className="font-mono text-xs">{t.code}</TableCell>
+                    <TableCell className="font-mono text-xs">{t.code}
+                      {showBranch && (
+                        <span className="text-muted-foreground ms-2 text-xs font-normal">{t.branch.code}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs">{(t as any).clientName ?? <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-xs">{OPS_FLIGHT_TYPE_LABELS[t.flightType]}</TableCell>
                     <TableCell className="text-xs font-medium">{t.origin} → {t.destination}</TableCell>

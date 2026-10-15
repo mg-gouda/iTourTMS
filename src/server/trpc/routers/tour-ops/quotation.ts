@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Decimal } from "decimal.js";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 import { opsQuotationCreateSchema, opsQuotationUpdateSchema } from "@/lib/validations/tour-ops";
 import type { OpsPackageComponent, OpsQuotationStatus } from "@prisma/client";
 import type { db as dbType } from "@/server/db";
@@ -137,7 +138,7 @@ export const opsQuotationRouter = createTRPCRouter({
       const [file, pkg] = await Promise.all([
         db.opsFile.findFirst({
           where: { id: input.fileId, companyId },
-          select: { id: true, tourOperatorId: true },
+          select: { id: true, tourOperatorId: true, branchId: true },
         }),
         db.opsPackage.findFirst({
           where: { id: input.packageId, companyId },
@@ -165,13 +166,7 @@ export const opsQuotationRouter = createTRPCRouter({
         }
       }
 
-      const seq = await db.sequence.upsert({
-        where: { companyId_code: { companyId, code: "ops_quotation" } },
-        create: { companyId, code: "ops_quotation", prefix: "QT", separator: "-", padding: 5, nextNumber: 2 },
-        update: { nextNumber: { increment: 1 } },
-      });
-      const num = seq.nextNumber - 1;
-      const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+      const code = await nextSerialCode(db, companyId, "ops_quotation", { prefix: "QT" }, file.branchId);
 
       const quotation = await db.opsQuotation.create({
         data: {

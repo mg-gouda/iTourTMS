@@ -70,13 +70,12 @@ export const excursionDispatchRouter = createTRPCRouter({
   getDispatch: p("crm:booking:read")
     .input(z.object({ excursionId: z.string(), date: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.crmExcursionDispatch.findUnique({
+      return ctx.db.crmExcursionDispatch.findFirst({
+        // One per branch per day; the branch scope picks which.
         where: {
-          companyId_excursionId_dispatchDate: {
-            companyId: ctx.companyId,
-            excursionId: input.excursionId,
-            dispatchDate: parseLocalDate(input.date),
-          },
+          companyId: ctx.companyId,
+          excursionId: input.excursionId,
+          dispatchDate: parseLocalDate(input.date),
         },
         include: {
           excursion: { select: { id: true, name: true, code: true } },
@@ -110,16 +109,19 @@ export const excursionDispatchRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const date = parseLocalDate(input.date);
 
+      const branchId = activeBranch(ctx.branch);
       const dispatch = await ctx.db.crmExcursionDispatch.upsert({
         where: {
-          companyId_excursionId_dispatchDate: {
+          companyId_branchId_excursionId_dispatchDate: {
             companyId: ctx.companyId,
+            branchId,
             excursionId: input.excursionId,
             dispatchDate: date,
           },
         },
         create: {
           companyId: ctx.companyId,
+          branchId,
           excursionId: input.excursionId,
           dispatchDate: date,
           assemblyPointName: input.assemblyPointName ?? null,
@@ -177,13 +179,12 @@ export const excursionDispatchRouter = createTRPCRouter({
   generateJobs: p("crm:booking:create")
     .input(z.object({ excursionId: z.string(), date: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const dispatch = await ctx.db.crmExcursionDispatch.findUnique({
+      const dispatch = await ctx.db.crmExcursionDispatch.findFirst({
+        // One per branch per day; the branch scope picks which.
         where: {
-          companyId_excursionId_dispatchDate: {
-            companyId: ctx.companyId,
-            excursionId: input.excursionId,
-            dispatchDate: parseLocalDate(input.date),
-          },
+          companyId: ctx.companyId,
+          excursionId: input.excursionId,
+          dispatchDate: parseLocalDate(input.date),
         },
         include: {
           excursion: { select: { name: true } },
@@ -214,7 +215,7 @@ export const excursionDispatchRouter = createTRPCRouter({
       }
 
       const created: string[] = [];
-      const branchId = activeBranch(ctx.branch);
+      const branchId = dispatch.branchId;
 
       for (const run of dispatch.runs) {
         if (run.trafficJobId) continue; // already generated

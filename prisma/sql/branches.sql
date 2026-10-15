@@ -60,3 +60,27 @@ SELECT pg_temp.own_by_branch('tt_driver');
 SELECT pg_temp.own_by_branch('tt_rep');
 SELECT pg_temp.own_by_branch('tt_guest_booking');
 SELECT pg_temp.own_by_branch('tt_traffic_flight');
+
+-- CRM: the sales pipeline and daily excursion operations; the catalogue,
+-- customers and suppliers stay shared.
+SELECT pg_temp.own_by_branch('crm_lead');
+SELECT pg_temp.own_by_branch('crm_opportunity');
+SELECT pg_temp.own_by_branch('crm_activity');
+SELECT pg_temp.own_by_branch('crm_booking');
+SELECT pg_temp.own_by_branch('crm_program_plan');
+SELECT pg_temp.own_by_branch('crm_excursion_ticket');
+SELECT pg_temp.own_by_branch('crm_excursion_breakdown');
+SELECT pg_temp.own_by_branch('crm_excursion_dispatch');
+
+-- Tour Ops: files and flight tickets; rate sheets and templates stay shared.
+SELECT pg_temp.own_by_branch('ops_file');
+SELECT pg_temp.own_by_branch('ops_flight_ticket');
+
+-- Two branches may run the same excursion on the same day: the breakdown
+-- key widens to include the branch. Wider, so existing rows cannot clash.
+DROP INDEX IF EXISTS "crm_excursion_breakdown_companyId_excursionId_excursionDate_key";
+CREATE UNIQUE INDEX IF NOT EXISTS "crm_excursion_breakdown_companyId_branchId_excursionId_excu_key"
+  ON "crm_excursion_breakdown"("companyId", "branchId", "excursionId", "excursionDate", "language");
+DROP INDEX IF EXISTS "crm_excursion_dispatch_companyId_excursionId_dispatchDate_key";
+CREATE UNIQUE INDEX IF NOT EXISTS "crm_excursion_dispatch_companyId_branchId_excursionId_dispa_key"
+  ON "crm_excursion_dispatch"("companyId", "branchId", "excursionId", "dispatchDate");

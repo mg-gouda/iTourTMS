@@ -395,6 +395,16 @@ model Branch {
 
   company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users   UserBranch[]
+  crmLeads CrmLead[]
+  crmOpportunitys CrmOpportunity[]
+  crmActivitys CrmActivity[]
+  crmBookings CrmBooking[]
+  crmProgramPlans CrmProgramPlan[]
+  crmExcursionTickets CrmExcursionTicket[]
+  crmExcursionBreakdowns CrmExcursionBreakdown[]
+  crmExcursionDispatchs CrmExcursionDispatch[]
+  opsFiles OpsFile[]
+  opsFlightTickets OpsFlightTicket[]
   ttTrafficJobs TtTrafficJob[]
   ttVehicles TtVehicle[]
   ttDrivers TtDriver[]
@@ -4943,6 +4953,7 @@ enum CrmCurrency {
 model CrmLead {
   id          String         @id @default(cuid())
   companyId   String
+  branchId    String
   code        String         // auto-generated: LD-00001
   firstName   String
   lastName    String
@@ -4958,6 +4969,7 @@ model CrmLead {
   updatedAt   DateTime       @updatedAt
 
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch     Branch   @relation(fields: [branchId], references: [id])
   assignedTo User?    @relation("CrmLeadAssignee", fields: [assignedToId], references: [id])
   createdBy  User?    @relation("CrmLeadCreator", fields: [createdById], references: [id])
 
@@ -4966,6 +4978,7 @@ model CrmLead {
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, status])
   @@index([assignedToId])
   @@map("crm_lead")
@@ -4976,6 +4989,7 @@ model CrmLead {
 model CrmOpportunity {
   id          String              @id @default(cuid())
   companyId   String
+  branchId    String
   title       String
   stage       CrmOpportunityStage @default(PROSPECTING)
   value       Decimal?            @db.Decimal(12, 2)
@@ -4990,6 +5004,7 @@ model CrmOpportunity {
   updatedAt   DateTime            @updatedAt
 
   company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch   Branch        @relation(fields: [branchId], references: [id])
   owner    User?         @relation("CrmOpportunityOwner", fields: [ownerId], references: [id])
   lead     CrmLead?      @relation(fields: [leadId], references: [id])
   customer CrmCustomer?  @relation(fields: [customerId], references: [id])
@@ -4998,6 +5013,7 @@ model CrmOpportunity {
   bookings   CrmBooking[]
 
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, stage])
   @@index([ownerId])
   @@map("crm_opportunity")
@@ -5008,6 +5024,7 @@ model CrmOpportunity {
 model CrmActivity {
   id           String          @id @default(cuid())
   companyId    String
+  branchId     String
   type         CrmActivityType
   subject      String
   description  String?         @db.Text
@@ -5022,6 +5039,7 @@ model CrmActivity {
   updatedAt    DateTime        @updatedAt
 
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch      Branch          @relation(fields: [branchId], references: [id])
   assignedTo  User?           @relation("CrmActivityAssignee", fields: [assignedToId], references: [id])
   lead        CrmLead?        @relation(fields: [leadId], references: [id])
   opportunity CrmOpportunity? @relation(fields: [opportunityId], references: [id])
@@ -5029,6 +5047,7 @@ model CrmActivity {
   booking     CrmBooking?     @relation(fields: [bookingId], references: [id])
 
   @@index([companyId])
+  @@index([branchId])
   @@index([leadId])
   @@index([opportunityId])
   @@index([customerId])
@@ -5341,6 +5360,7 @@ enum CrmBookingStatus {
 model CrmBooking {
   id            String           @id @default(cuid())
   companyId     String
+  branchId      String
   code          String           // auto-generated BK-00001
   customerId    String?
   opportunityId String?
@@ -5358,6 +5378,7 @@ model CrmBooking {
   updatedAt     DateTime         @updatedAt
 
   company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch      Branch           @relation(fields: [branchId], references: [id])
   customer    CrmCustomer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   opportunity CrmOpportunity?  @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   bookedBy    User?            @relation("CrmBookingCreator", fields: [bookedById], references: [id])
@@ -5366,6 +5387,7 @@ model CrmBooking {
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([branchId])
   @@index([customerId])
   @@map("crm_booking")
 }
@@ -5400,6 +5422,7 @@ model CrmBookingItem {
 model CrmProgramPlan {
   id          String   @id @default(cuid())
   companyId   String
+  branchId    String
   name        String
   description String?  @db.Text
   marketId    String?
@@ -5408,11 +5431,13 @@ model CrmProgramPlan {
   updatedAt   DateTime @updatedAt
 
   company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch        Branch           @relation(fields: [branchId], references: [id])
   market        Market?          @relation(fields: [marketId], references: [id], onDelete: SetNull)
   items         CrmProgramPlanItem[]
   tourOperators CrmProgramTourOperator[]
 
   @@index([companyId])
+  @@index([branchId])
   @@map("crm_program_plan")
 }
 
@@ -5498,6 +5523,7 @@ enum CrmTicketStatus {
 model CrmExcursionTicket {
   id             String          @id @default(cuid())
   companyId      String
+  branchId       String
   ticketNo       String          // TKT-00001
   tourOperatorId String?
   hotelId        String
@@ -5522,6 +5548,7 @@ model CrmExcursionTicket {
   updatedAt      DateTime        @updatedAt
 
   company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch       Branch                @relation(fields: [branchId], references: [id])
   tourOperator TourOperator?         @relation(fields: [tourOperatorId], references: [id], onDelete: SetNull)
   hotel        Hotel                 @relation(fields: [hotelId], references: [id])
   excursion    CrmExcursion          @relation(fields: [excursionId], references: [id])
@@ -5529,6 +5556,7 @@ model CrmExcursionTicket {
 
   @@unique([companyId, ticketNo])
   @@index([companyId])
+  @@index([branchId])
   @@index([excursionId])
   @@index([hotelId])
   @@index([tourOperatorId])
@@ -5548,6 +5576,7 @@ enum CrmBreakdownStatus {
 model CrmExcursionBreakdown {
   id            String             @id @default(cuid())
   companyId     String
+  branchId      String
   excursionId   String
   excursionDate DateTime           @db.Date
   language      String             @default("EN")
@@ -5560,14 +5589,16 @@ model CrmExcursionBreakdown {
   updatedAt     DateTime           @updatedAt
 
   company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch    Branch        @relation(fields: [branchId], references: [id])
   excursion CrmExcursion  @relation(fields: [excursionId], references: [id])
   rep       TtRep?        @relation(fields: [repId], references: [id], onDelete: SetNull)
   vehicle   TtVehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   driver    TtDriver?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
   tickets   CrmExcursionTicket[]
 
-  @@unique([companyId, excursionId, excursionDate, language])
+  @@unique([companyId, branchId, excursionId, excursionDate, language])
   @@index([companyId])
+  @@index([branchId])
   @@index([excursionId])
   @@index([excursionDate])
   @@map("crm_excursion_breakdown")
@@ -5584,6 +5615,7 @@ enum CrmDispatchStatus {
 model CrmExcursionDispatch {
   id                  String            @id @default(cuid())
   companyId           String
+  branchId            String
   excursionId         String
   dispatchDate        DateTime          @db.Date
   assemblyPointName   String?
@@ -5595,11 +5627,13 @@ model CrmExcursionDispatch {
   updatedAt           DateTime          @updatedAt
 
   company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch    Branch       @relation(fields: [branchId], references: [id])
   excursion CrmExcursion @relation(fields: [excursionId], references: [id])
   runs      CrmDispatchRun[]
 
-  @@unique([companyId, excursionId, dispatchDate])
+  @@unique([companyId, branchId, excursionId, dispatchDate])
   @@index([companyId])
+  @@index([branchId])
   @@index([excursionId])
   @@map("crm_excursion_dispatch")
 }
@@ -5802,6 +5836,7 @@ enum OpsFlightTicketStatus {
 model OpsFile {
   id             String        @id @default(cuid())
   companyId      String
+  branchId       String
   code           String
   clientType     OpsClientType @default(B2C)
   customerId     String?
@@ -5823,6 +5858,7 @@ model OpsFile {
   updatedAt      DateTime      @updatedAt
 
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [branchId], references: [id])
   customer     CrmCustomer?  @relation(fields: [customerId], references: [id])
   tourOperator TourOperator? @relation(fields: [tourOperatorId], references: [id])
   createdBy    User          @relation("OpsFileCreatedBy", fields: [createdById], references: [id])
@@ -5837,6 +5873,7 @@ model OpsFile {
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, status])
   @@index([companyId, travelFrom])
   @@map("ops_file")
@@ -6000,6 +6037,7 @@ model OpsPnL {
 model OpsFlightTicket {
   id                 String                @id @default(cuid())
   companyId          String
+  branchId           String
   code               String
   opsFileId          String?
   status             OpsFlightTicketStatus @default(DRAFT)
@@ -6048,6 +6086,7 @@ model OpsFlightTicket {
   updatedAt          DateTime              @updatedAt
 
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch          Branch           @relation(fields: [branchId], references: [id])
   opsFile         OpsFile?         @relation("OpsFileFlightTickets", fields: [opsFileId], references: [id])
   parentTicket    OpsFlightTicket? @relation("TicketLineage", fields: [parentTicketId], references: [id])
   derivedTickets  OpsFlightTicket[] @relation("TicketLineage")
@@ -6063,6 +6102,7 @@ model OpsFlightTicket {
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([branchId])
   @@index([companyId, status])
   @@index([opsFileId])
   @@index([currencyId])

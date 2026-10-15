@@ -1,6 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { CalendarDays, FileSpreadsheet, List, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -105,6 +107,7 @@ export default function BookingsPage() {
       ),
     },
   ];
+  const shownColumns = useBranchColumns(columns);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [view, setView] = useState<"list" | "calendar">("list");
 
@@ -178,7 +181,7 @@ export default function BookingsPage() {
         <BookingCalendar bookings={filtered} />
       ) : (
         <DataTable
-          columns={columns}
+          columns={shownColumns}
           data={filtered}
           searchKey="customer"
           searchPlaceholder={t("searchBookings")}

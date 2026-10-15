@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 import { opsFileCreateSchema, opsFileUpdateSchema } from "@/lib/validations/tour-ops";
 import { OPS_FILE_STATUS_TRANSITIONS } from "@/lib/constants/tour-ops";
 import type { OpsFileStatus } from "@prisma/client";
@@ -43,6 +45,7 @@ export const opsFileRouter = createTRPCRouter({
         db.opsFile.findMany({
           where,
           include: {
+            branch: { select: { code: true, name: true } },
             customer: { select: { id: true, firstName: true, lastName: true } },
             tourOperator: { select: { id: true, name: true } },
             createdBy: { select: { id: true, name: true } },
@@ -89,17 +92,12 @@ export const opsFileRouter = createTRPCRouter({
     .input(opsFileCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const { companyId, db, session } = ctx;
-      const seq = await db.sequence.upsert({
-        where: { companyId_code: { companyId, code: "ops_file" } },
-        create: { companyId, code: "ops_file", prefix: "FI", separator: "-", padding: 5, nextNumber: 2 },
-        update: { nextNumber: { increment: 1 } },
-      });
-      const num = seq.nextNumber - 1;
-      const code = `${seq.prefix}${seq.separator}${String(num).padStart(seq.padding, "0")}`;
+      const code = await nextSerialCode(db, companyId, "ops_file", { prefix: "FI" }, activeBranch(ctx.branch));
 
       const file = await db.opsFile.create({
         data: {
           companyId,
+          branchId: activeBranch(ctx.branch),
           code,
           clientType: input.clientType,
           customerId: input.customerId || null,

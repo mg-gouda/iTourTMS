@@ -129,3 +129,40 @@ async function branchSequenceCode(
   });
   return key;
 }
+
+/**
+ * Yearless running codes — LD-00001, FI-00001 — taken with one atomic
+ * increment, created on first use. Per branch: LD-HRG-00001 (head office
+ * keeps the plain company counter).
+ */
+export async function nextSerialCode(
+  db: Pick<PrismaClient, "sequence" | "branch">, // works inside a $transaction too
+  companyId: string,
+  code: string,
+  defaults: { prefix: string; separator?: string; padding?: number },
+  branchId?: string | null,
+): Promise<string> {
+  const separator = defaults.separator ?? "-";
+  const padding = defaults.padding ?? 5;
+  let key = code;
+  let prefix = defaults.prefix;
+
+  const branch = branchId
+    ? await db.branch.findFirst({ where: { id: branchId, companyId }, select: { code: true, isHq: true } })
+    : null;
+  if (branch && !branch.isHq) {
+    const base = await db.sequence.findUnique({
+      where: { companyId_code: { companyId, code } },
+      select: { prefix: true, separator: true },
+    });
+    key = `${code}@${branch.code}`;
+    prefix = `${base?.prefix ?? defaults.prefix}${base?.separator ?? separator}${branch.code}`;
+  }
+
+  const seq = await db.sequence.upsert({
+    where: { companyId_code: { companyId, code: key } },
+    create: { companyId, code: key, prefix, separator, padding, nextNumber: 2 },
+    update: { nextNumber: { increment: 1 } },
+  });
+  return `${seq.prefix}${seq.separator}${String(seq.nextNumber - 1).padStart(seq.padding, "0")}`;
+}

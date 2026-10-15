@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { activityCreateSchema, activityUpdateSchema } from "@/lib/validations/crm";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -51,8 +52,17 @@ export const activityRouter = createTRPCRouter({
   create: p("crm:activity:create")
     .input(activityCreateSchema)
     .mutation(async ({ ctx, input }) => {
+      // A note on a Luxor lead belongs to Luxor, whatever branch is picked above.
+      const parent = input.leadId
+        ? await ctx.db.crmLead.findFirst({ where: { id: input.leadId }, select: { branchId: true } })
+        : input.opportunityId
+          ? await ctx.db.crmOpportunity.findFirst({ where: { id: input.opportunityId }, select: { branchId: true } })
+          : input.bookingId
+            ? await ctx.db.crmBooking.findFirst({ where: { id: input.bookingId }, select: { branchId: true } })
+            : null;
       return ctx.db.crmActivity.create({
         data: {
+          branchId: parent?.branchId ?? activeBranch(ctx.branch),
           type: input.type,
           subject: input.subject,
           description: input.description || null,

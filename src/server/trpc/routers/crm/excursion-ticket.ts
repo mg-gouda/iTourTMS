@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { activeBranch } from "@/server/branch-scope";
+import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -112,13 +114,7 @@ export const excursionTicketRouter = createTRPCRouter({
   create: p("crm:excursion:create")
     .input(ticketCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      const seq = await ctx.db.sequence.upsert({
-        where: { companyId_code: { companyId: ctx.companyId, code: "excursion_ticket" } },
-        create: { companyId: ctx.companyId, code: "excursion_ticket", prefix: "TKT", padding: 5, nextNumber: 2 },
-        update: { nextNumber: { increment: 1 } },
-      });
-      const num = seq.nextNumber - 1;
-      const ticketNo = `TKT-${String(num).padStart(5, "0")}`;
+      const ticketNo = await nextSerialCode(ctx.db, ctx.companyId, "excursion_ticket", { prefix: "TKT" }, activeBranch(ctx.branch));
 
       // Auto-fill pickup time if not provided
       let pickupTime = input.pickupTime;
@@ -133,6 +129,7 @@ export const excursionTicketRouter = createTRPCRouter({
       return ctx.db.crmExcursionTicket.create({
         data: {
           companyId: ctx.companyId,
+          branchId: activeBranch(ctx.branch),
           ticketNo,
           tourOperatorId: input.tourOperatorId || null,
           hotelId: input.hotelId,
