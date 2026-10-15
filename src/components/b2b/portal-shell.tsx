@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   HelpCircle,
   Bus,
+  ClipboardList,
   LayoutDashboard,
   Package,
   Percent,
@@ -37,6 +38,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/b2b/excursions", label: "Excursions", icon: Ticket },
       { href: "/b2b/transfers", label: "Transfers", icon: Bus },
       { href: "/b2b/packages", label: "Tour Packages", icon: Package },
+      { href: "/b2b/requests", label: "Requests", icon: ClipboardList },
     ],
   },
   {

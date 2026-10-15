@@ -12,6 +12,7 @@ import { searchRouter } from "./search";
 import { partnerUserRouter } from "./partner-user";
 import { onboardingRouter } from "./onboarding";
 import { portalAccessRouter } from "./portal-access";
+import { productBookingRouter } from "./product-booking";
 import { productMarkupRouter } from "./product-markup";
 
 export const b2bPortalRouter = createTRPCRouter({
@@ -27,5 +28,6 @@ export const b2bPortalRouter = createTRPCRouter({
   partnerUser: partnerUserRouter,
   onboarding: onboardingRouter,
   portalAccess: portalAccessRouter,
+  productBooking: productBookingRouter,
   productMarkup: productMarkupRouter,
 });

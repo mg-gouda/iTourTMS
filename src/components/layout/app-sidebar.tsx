@@ -424,6 +424,7 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
             { label: "Search & Book", href: "/b2b-portal/search" },
             { label: "Reservations", href: "/b2b-portal/reservations" },
             { label: "Vouchers", href: "/b2b-portal/vouchers" },
+            { label: "Product Requests", href: "/b2b-portal/product-bookings" },
           ],
         },
         {

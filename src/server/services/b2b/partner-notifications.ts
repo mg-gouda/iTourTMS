@@ -265,3 +265,34 @@ export async function notifyPartnerOfBookingOutcome(
     // Never let telling somebody about the work undo the work.
   }
 }
+
+/** Tells a partner whether we can do the excursion, transfer or package they asked for. */
+export async function notifyPartnerProductAnswer(
+  tourOperatorId: string,
+  detail: {
+    code: string;
+    productName: string;
+    serviceDate: Date;
+    status: string;
+    net: number;
+    currency: string;
+    staffNote: string | null;
+  },
+): Promise<void> {
+  const confirmed = detail.status === "CONFIRMED";
+  await send(
+    tourOperatorId,
+    "booking",
+    `${confirmed ? "Confirmed" : "Not available"} — ${detail.code}, ${detail.productName}`,
+    shell(
+      confirmed ? `${detail.code} is confirmed` : `We could not confirm ${detail.code}`,
+      [
+        `<strong>${detail.productName}</strong> on ${day(detail.serviceDate)}`,
+        confirmed
+          ? `Total: ${money(detail.net, detail.currency)}`
+          : "Nothing is owed for this request.",
+        detail.staffNote ? `Note from us: ${detail.staffNote}` : "",
+      ].filter(Boolean),
+    ),
+  );
+}

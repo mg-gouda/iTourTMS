@@ -1,6 +1,7 @@
 "use client";
 
 import { Package, Search } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,8 @@ export default function PartnerPackagesPage() {
       ) : (
         <div className="space-y-3">
           {data.map((p) => (
-            <Card key={p.id}>
+            <Link key={p.id} href={`/b2b/packages/${p.id}`} className="block">
+            <Card className="hover:border-primary/40 transition-colors">
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
@@ -85,12 +87,13 @@ export default function PartnerPackagesPage() {
                 </div>
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}
 
       <p className="text-muted-foreground text-xs">
-        To book a package, contact your account manager with the name and your travel dates.
+        Open a package to see what is in it and request a date.
       </p>
     </div>
   );

@@ -225,6 +225,7 @@ model Company {
   // B2B partner portal
   partnerMarkupRules   PartnerMarkupRule[]
   partnerProductMarkups PartnerProductMarkup[]
+  partnerProductBookings PartnerProductBooking[]
   partnerInvites       PartnerInvite[]
   partnerAuditEvents   PartnerAuditEvent[]
   partnerTermsVersions PartnerTermsVersion[]
@@ -322,6 +323,8 @@ model User {
 
   // B2B portal relations
   managedPartners    TourOperator[]      @relation("PartnerAccountManager")
+  productRequests    PartnerProductBooking[] @relation("PartnerProductRequester")
+  productAnswers     PartnerProductBooking[] @relation("PartnerProductAnswerer")
   partnerInvites     PartnerInvite[]
   partnerAuditEvents PartnerAuditEvent[]
   notifications      Notification[]     @relation("NotificationRecipient")
@@ -2807,6 +2810,7 @@ model TourOperator {
   accountManager     User?                  @relation("PartnerAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
   portalMarkupRules  PartnerMarkupRule[]
   productMarkups     PartnerProductMarkup[]
+  productBookings    PartnerProductBooking[]
   portalInvites      PartnerInvite[]
   portalAuditEvents  PartnerAuditEvent[]
   targetedOffers     ContractSpecialOfferPartner[]
@@ -7565,6 +7569,76 @@ enum PartnerProductType {
   EXCURSION
   TRANSFER
   PACKAGE
+}
+
+/**
+ * Where a partner's product request has got to.
+ *
+ * Hotel stays confirm themselves against allotment. None of these products has
+ * an availability engine — a day trip needs a guide and a seat, a transfer
+ * needs a vehicle — so every request is answered by a person, and the states
+ * say so rather than pretending otherwise.
+ */
+enum PartnerProductBookingStatus {
+  REQUESTED
+  CONFIRMED
+  DECLINED
+  CANCELLED
+}
+
+/**
+ * A partner asking for an excursion, transfer or package.
+ *
+ * The price is captured at request time, all three figures of it: what staff
+ * quote, what the partner owes us, and the margin between. A markup edited
+ * next week must not silently rewrite what was agreed today.
+ */
+model PartnerProductBooking {
+  id             String                     @id @default(cuid())
+  companyId      String
+  tourOperatorId String
+  code           String
+  productType    PartnerProductType
+  productId      String
+  /** Name as it read when requested; the product itself may be renamed later. */
+  productName    String
+  status         PartnerProductBookingStatus @default(REQUESTED)
+
+  serviceDate    DateTime  @db.Date
+  adults         Int       @default(1)
+  children       Int       @default(0)
+  /** Vehicles for a transfer priced per vehicle; otherwise 1. */
+  units          Int       @default(1)
+
+  /** Our cost basis at the time — never shown to the partner. */
+  staffPrice     Decimal   @db.Decimal(12, 4)
+  /** What the partner owes us: staff price plus their trade margin. */
+  net            Decimal   @db.Decimal(12, 4)
+  markupAmount   Decimal   @default(0) @db.Decimal(12, 4)
+  currency       String    @db.VarChar(8)
+
+  leadGuestName  String?
+  partnerReference String?
+  notes          String?   @db.Text
+  /** Why staff declined, so the partner is told something useful. */
+  staffNote      String?   @db.Text
+
+  requestedById  String?
+  answeredById   String?
+  answeredAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tourOperator TourOperator @relation(fields: [tourOperatorId], references: [id], onDelete: Cascade)
+  requestedBy  User?        @relation("PartnerProductRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  answeredBy   User?        @relation("PartnerProductAnswerer", fields: [answeredById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([tourOperatorId, createdAt])
+  @@index([serviceDate])
+  @@map("b2b_partner_product_booking")
 }
 
 /**

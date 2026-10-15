@@ -1,6 +1,7 @@
 "use client";
 
 import { Bus, Search, Users } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +59,8 @@ export default function PartnerTransfersPage() {
       ) : (
         <div className="space-y-3">
           {data.map((t) => (
-            <Card key={t.id}>
+            <Link key={t.id} href={`/b2b/transfers/${t.id}`} className="block">
+            <Card className="hover:border-primary/40 transition-colors">
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -82,12 +84,13 @@ export default function PartnerTransfersPage() {
                 </div>
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}
 
       <p className="text-muted-foreground text-xs">
-        To arrange a transfer, contact your account manager with the route, date and flight.
+        Open a transfer to see the detail and request a date.
       </p>
     </div>
   );

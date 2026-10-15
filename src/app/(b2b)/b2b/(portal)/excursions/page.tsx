@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, Search, Users } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +57,8 @@ export default function PartnerExcursionsPage() {
       ) : (
         <div className="space-y-3">
           {data.map((e) => (
-            <Card key={e.id}>
+            <Link key={e.id} href={`/b2b/excursions/${e.id}`} className="block">
+            <Card className="hover:border-primary/40 transition-colors">
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -96,12 +98,13 @@ export default function PartnerExcursionsPage() {
                 </div>
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}
 
       <p className="text-muted-foreground text-xs">
-        To book an excursion, contact your account manager with the code and your travel dates.
+        Open an excursion to read the programme and request a date.
       </p>
     </div>
   );
