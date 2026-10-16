@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { fiscalPositionSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -77,7 +78,7 @@ export const fiscalPositionRouter = createTRPCRouter({
     }),
 
   update: p("finance:settings:update")
-    .input(z.object({ id: z.string() }).merge(fiscalPositionSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(fiscalPositionSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, taxMaps, accountMaps, ...data } = input;
 

@@ -6,6 +6,7 @@ import { activeBranch } from "@/server/branch-scope";
 import { nextSerialCode } from "@/server/services/finance/sequence-generator";
 import type { OpsFlightTicketStatus, OpsFlightType, OpsMarkupType, OpsPricingBasis, OpsFlightTxType } from "@prisma/client";
 import { createFlightTicketAccountingMoves } from "@/server/services/tour-ops/flight-ticket-accounting";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("tour-ops", code);
 
@@ -445,7 +446,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
   // ── Update ────────────────────────────────────────────────────────────────
 
   update: p("tour-ops:flightTicket:update")
-    .input(z.object({ id: z.string(), data: createSchema.partial() }))
+    .input(z.object({ id: z.string(), data: patch(createSchema) }))
     .mutation(async ({ ctx, input }) => {
       const ticket = await ctx.db.opsFlightTicket.findFirst({
         where: { id: input.id, companyId: ctx.companyId },

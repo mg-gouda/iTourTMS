@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Partner (Tour Operator / Travel Agent) ──
 
@@ -19,7 +20,7 @@ export const b2bPartnerCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const b2bPartnerUpdateSchema = b2bPartnerCreateSchema.partial();
+export const b2bPartnerUpdateSchema = patch(b2bPartnerCreateSchema);
 
 // ── Credit Transaction ──
 

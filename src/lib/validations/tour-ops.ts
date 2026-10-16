@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── File Schemas ──
 
@@ -17,7 +18,7 @@ export const opsFileCreateSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const opsFileUpdateSchema = opsFileCreateSchema.partial();
+export const opsFileUpdateSchema = patch(opsFileCreateSchema);
 
 // ── Package Schemas ──
 
@@ -30,7 +31,7 @@ export const opsPackageCreateSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const opsPackageUpdateSchema = opsPackageCreateSchema.partial();
+export const opsPackageUpdateSchema = patch(opsPackageCreateSchema);
 
 // ── Component Schemas ──
 
@@ -87,7 +88,7 @@ export const opsQuotationCreateSchema = z.object({
   terms: z.string().optional().or(z.literal("")),
 });
 
-export const opsQuotationUpdateSchema = opsQuotationCreateSchema.partial();
+export const opsQuotationUpdateSchema = patch(opsQuotationCreateSchema);
 
 // ── Master Data Schemas ──
 
@@ -97,7 +98,7 @@ export const opsTransportDestinationCreateSchema = z.object({
   nameAr: z.string().optional().or(z.literal("")),
   sortOrder: z.number().int().default(0),
 });
-export const opsTransportDestinationUpdateSchema = opsTransportDestinationCreateSchema.partial();
+export const opsTransportDestinationUpdateSchema = patch(opsTransportDestinationCreateSchema);
 
 export const opsTransportRouteCreateSchema = z.object({
   destinationId: z.string().min(1, "Destination is required"),
@@ -105,7 +106,7 @@ export const opsTransportRouteCreateSchema = z.object({
   nameAr: z.string().optional().or(z.literal("")),
   sortOrder: z.number().int().default(0),
 });
-export const opsTransportRouteUpdateSchema = opsTransportRouteCreateSchema.partial();
+export const opsTransportRouteUpdateSchema = patch(opsTransportRouteCreateSchema);
 
 export const opsTransportRateSchema = z.object({
   vehicleType: z.enum(["SEDAN", "VAN_11", "VAN_16", "BUS_25", "BUS_45"]),
@@ -136,7 +137,7 @@ export const opsSightseeingEntryCreateSchema = z.object({
   nameAr: z.string().optional().or(z.literal("")),
   sortOrder: z.number().int().default(0),
 });
-export const opsSightseeingEntryUpdateSchema = opsSightseeingEntryCreateSchema.partial();
+export const opsSightseeingEntryUpdateSchema = patch(opsSightseeingEntryCreateSchema);
 
 export const opsSightseeingSeasonCreateSchema = z.object({
   entryId: z.string().min(1),
@@ -146,14 +147,14 @@ export const opsSightseeingSeasonCreateSchema = z.object({
   isActive: z.boolean().default(true),
   priceEGP: z.number().min(0).default(0),
 });
-export const opsSightseeingSeasonUpdateSchema = opsSightseeingSeasonCreateSchema.partial().omit({ entryId: true });
+export const opsSightseeingSeasonUpdateSchema = patch(opsSightseeingSeasonCreateSchema).omit({ entryId: true });
 
 export const opsGuidanceRateCreateSchema = z.object({
   destinationCode: z.string().min(1, "Destination is required"),
   guideType: z.enum(["LOCAL_GUIDE", "TOUR_MANAGER", "EGYPTOLOGIST", "REP"]),
   currency: z.string().default("EGP"),
 });
-export const opsGuidanceRateUpdateSchema = opsGuidanceRateCreateSchema.partial();
+export const opsGuidanceRateUpdateSchema = patch(opsGuidanceRateCreateSchema);
 
 export const opsGuidanceSeasonCreateSchema = z.object({
   guidanceId: z.string().min(1),
@@ -163,7 +164,7 @@ export const opsGuidanceSeasonCreateSchema = z.object({
   isActive: z.boolean().default(true),
   pricePerDay: z.number().min(0).default(0),
 });
-export const opsGuidanceSeasonUpdateSchema = opsGuidanceSeasonCreateSchema.partial().omit({ guidanceId: true });
+export const opsGuidanceSeasonUpdateSchema = patch(opsGuidanceSeasonCreateSchema).omit({ guidanceId: true });
 
 export const opsMealRateCreateSchema = z.object({
   supplierId: z.string().optional().or(z.literal("")),
@@ -172,7 +173,7 @@ export const opsMealRateCreateSchema = z.object({
   mealType: z.enum(["BREAKFAST", "LUNCH", "DINNER", "HALF_BOARD", "FULL_BOARD"]),
   currency: z.string().default("EGP"),
 });
-export const opsMealRateUpdateSchema = opsMealRateCreateSchema.partial();
+export const opsMealRateUpdateSchema = patch(opsMealRateCreateSchema);
 
 export const opsMealSeasonCreateSchema = z.object({
   mealRateId: z.string().min(1),
@@ -182,4 +183,4 @@ export const opsMealSeasonCreateSchema = z.object({
   isActive: z.boolean().default(true),
   pricePerPax: z.number().min(0).default(0),
 });
-export const opsMealSeasonUpdateSchema = opsMealSeasonCreateSchema.partial().omit({ mealRateId: true });
+export const opsMealSeasonUpdateSchema = patch(opsMealSeasonCreateSchema).omit({ mealRateId: true });

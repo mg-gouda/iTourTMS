@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Guest Schemas ──
 
@@ -20,7 +21,7 @@ export const guestCreateSchema = z.object({
   isVip: z.boolean().default(false),
 });
 
-export const guestUpdateSchema = guestCreateSchema.partial();
+export const guestUpdateSchema = patch(guestCreateSchema);
 
 // ── Booking Room Schema ──
 

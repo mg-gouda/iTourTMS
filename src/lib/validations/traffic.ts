@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Airport Schemas ──
 
@@ -12,7 +13,7 @@ export const airportCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const airportUpdateSchema = airportCreateSchema.partial();
+export const airportUpdateSchema = patch(airportCreateSchema);
 
 // ── Zone Schemas ──
 
@@ -25,7 +26,7 @@ export const ttZoneCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const ttZoneUpdateSchema = ttZoneCreateSchema.partial();
+export const ttZoneUpdateSchema = patch(ttZoneCreateSchema);
 
 // ── Vehicle Type Schemas ──
 
@@ -39,7 +40,7 @@ export const vehicleTypeCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const vehicleTypeUpdateSchema = vehicleTypeCreateSchema.partial();
+export const vehicleTypeUpdateSchema = patch(vehicleTypeCreateSchema);
 
 // ── Vehicle Schemas ──
 
@@ -58,7 +59,7 @@ export const vehicleCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const vehicleUpdateSchema = vehicleCreateSchema.partial();
+export const vehicleUpdateSchema = patch(vehicleCreateSchema);
 
 // ── Vehicle Compliance Schemas ──
 
@@ -72,7 +73,7 @@ export const vehicleComplianceCreateSchema = z.object({
   fileUrl: z.string().nullish(),
 });
 
-export const vehicleComplianceUpdateSchema = vehicleComplianceCreateSchema.partial();
+export const vehicleComplianceUpdateSchema = patch(vehicleComplianceCreateSchema);
 
 // ── Driver Schemas ──
 
@@ -86,7 +87,7 @@ export const driverCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const driverUpdateSchema = driverCreateSchema.omit({ userId: true }).partial();
+export const driverUpdateSchema = patch(driverCreateSchema.omit({ userId: true }));
 
 // ── Rep Schemas ──
 
@@ -97,7 +98,7 @@ export const repCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const repUpdateSchema = repCreateSchema.omit({ userId: true }).partial();
+export const repUpdateSchema = patch(repCreateSchema.omit({ userId: true }));
 
 // ── Price Item Schemas ──
 
@@ -116,7 +117,7 @@ export const priceItemCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const priceItemUpdateSchema = priceItemCreateSchema.partial();
+export const priceItemUpdateSchema = patch(priceItemCreateSchema);
 
 // ── Partner Price Override Schemas ──
 
@@ -143,7 +144,7 @@ export const supplierTripPriceCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const supplierTripPriceUpdateSchema = supplierTripPriceCreateSchema.partial();
+export const supplierTripPriceUpdateSchema = patch(supplierTripPriceCreateSchema);
 
 // ── Traffic Job Schemas ──
 
@@ -175,7 +176,7 @@ export const trafficJobCreateSchema = z.object({
   cost: z.number().default(0),
 });
 
-export const trafficJobUpdateSchema = trafficJobCreateSchema.partial();
+export const trafficJobUpdateSchema = patch(trafficJobCreateSchema);
 
 // ── Traffic Flight Schemas ──
 
@@ -191,7 +192,7 @@ export const trafficFlightCreateSchema = z.object({
   notes: z.string().nullish(),
 });
 
-export const trafficFlightUpdateSchema = trafficFlightCreateSchema.partial();
+export const trafficFlightUpdateSchema = patch(trafficFlightCreateSchema);
 
 // ── Traffic Assignment Schemas ──
 
@@ -203,7 +204,7 @@ export const trafficAssignmentCreateSchema = z.object({
   notes: z.string().nullish(),
 });
 
-export const trafficAssignmentUpdateSchema = trafficAssignmentCreateSchema.omit({ jobId: true }).partial();
+export const trafficAssignmentUpdateSchema = patch(trafficAssignmentCreateSchema.omit({ jobId: true }));
 
 // ── Guest Booking Schemas ──
 
@@ -226,7 +227,7 @@ export const guestBookingCreateSchema = z.object({
   notes: z.string().nullish(),
 });
 
-export const guestBookingUpdateSchema = guestBookingCreateSchema.partial();
+export const guestBookingUpdateSchema = patch(guestBookingCreateSchema);
 
 // ── Settings Schema ──
 
@@ -251,4 +252,4 @@ export const operationalCostCreateSchema = z.object({
   notes: z.string().nullish(),
 });
 
-export const operationalCostUpdateSchema = operationalCostCreateSchema.omit({ jobId: true }).partial();
+export const operationalCostUpdateSchema = patch(operationalCostCreateSchema.omit({ jobId: true }));

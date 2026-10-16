@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { cruiseStopSaleCreateSchema } from "@/lib/validations/nile-cruises";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("nile-cruises", code);
 
@@ -41,7 +42,7 @@ export const cruiseStopSaleRouter = createTRPCRouter({
     }),
 
   update: p("nile-cruises:contract:update")
-    .input(z.object({ id: z.string(), data: cruiseStopSaleCreateSchema.partial() }))
+    .input(z.object({ id: z.string(), data: patch(cruiseStopSaleCreateSchema) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.cruiseStopSale.update({
         where: { id: input.id, companyId: ctx.companyId },

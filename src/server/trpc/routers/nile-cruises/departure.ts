@@ -5,6 +5,7 @@ import {
   cruiseDepartureUpdateSchema,
   cruiseDeparturePatternCreateSchema,
 } from "@/lib/validations/nile-cruises";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("nile-cruises", code);
 
@@ -215,7 +216,7 @@ export const cruiseDeparturePatternRouter = createTRPCRouter({
     }),
 
   update: p("nile-cruises:departure:update")
-    .input(z.object({ id: z.string(), data: cruiseDeparturePatternCreateSchema.partial() }))
+    .input(z.object({ id: z.string(), data: patch(cruiseDeparturePatternCreateSchema) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.cruiseDeparturePattern.update({
         where: { id: input.id, companyId: ctx.companyId },

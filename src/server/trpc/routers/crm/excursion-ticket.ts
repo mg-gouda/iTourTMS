@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { activeBranch } from "@/server/branch-scope";
 import { nextSerialCode } from "@/server/services/finance/sequence-generator";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
@@ -156,7 +157,7 @@ export const excursionTicketRouter = createTRPCRouter({
     }),
 
   update: p("crm:excursion:update")
-    .input(z.object({ id: z.string(), data: ticketCreateSchema.partial() }))
+    .input(z.object({ id: z.string(), data: patch(ticketCreateSchema) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursionTicket.findFirstOrThrow({
         where: { id: input.id, companyId: ctx.companyId },

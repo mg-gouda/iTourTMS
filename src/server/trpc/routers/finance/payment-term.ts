@@ -4,6 +4,7 @@ import { z } from "zod";
 import { paymentTermSchema } from "@/lib/validations/finance";
 import { computePaymentTermDueDates } from "@/server/services/finance/payment-term-calculator";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -53,7 +54,7 @@ export const paymentTermRouter = createTRPCRouter({
     }),
 
   update: p("finance:paymentTerm:update")
-    .input(z.object({ id: z.string() }).merge(paymentTermSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(paymentTermSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, lines, ...data } = input;
 

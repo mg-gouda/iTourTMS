@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Account Schemas ──
 
@@ -128,7 +129,7 @@ export const moveCreateSchema = z.object({
   lineItems: z.array(moveLineItemSchema).min(1, "At least one line item is required"),
 });
 
-export const moveUpdateSchema = moveCreateSchema.partial().extend({
+export const moveUpdateSchema = patch(moveCreateSchema).extend({
   lineItems: z.array(moveLineItemSchema).min(1, "At least one line item is required").optional(),
 });
 
@@ -196,7 +197,7 @@ export const bankStatementCreateSchema = z.object({
   lines: z.array(bankStatementLineSchema).min(1, "At least one line is required"),
 });
 
-export const bankStatementUpdateSchema = bankStatementCreateSchema.partial().extend({
+export const bankStatementUpdateSchema = patch(bankStatementCreateSchema).extend({
   lines: z.array(bankStatementLineSchema).min(1, "At least one line is required").optional(),
 });
 
@@ -292,9 +293,7 @@ export const recurringEntryCreateSchema = z.object({
     .min(1, "At least one line is required"),
 });
 
-export const recurringEntryUpdateSchema = recurringEntryCreateSchema
-  .partial()
-  .extend({
+export const recurringEntryUpdateSchema = patch(recurringEntryCreateSchema).extend({
     lineTemplates: z.array(recurringEntryLineSchema).min(1).optional(),
   });
 
@@ -324,6 +323,6 @@ export const budgetCreateSchema = z.object({
     .min(1, "At least one budget line is required"),
 });
 
-export const budgetUpdateSchema = budgetCreateSchema.partial().extend({
+export const budgetUpdateSchema = patch(budgetCreateSchema).extend({
   lines: z.array(budgetLineSchema).min(1).optional(),
 });

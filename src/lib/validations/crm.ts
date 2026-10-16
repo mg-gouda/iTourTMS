@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Lead Schemas ──
 
@@ -10,10 +11,13 @@ export const leadCreateSchema = z.object({
   source: z.enum(["WEBSITE", "REFERRAL", "WALK_IN", "PHONE", "EMAIL", "SOCIAL_MEDIA", "PARTNER", "EVENT", "OTHER"]).default("WEBSITE"),
   status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST", "DORMANT"]).default("NEW"),
   assignedToId: z.string().optional().or(z.literal("")),
+  countryId: z.string().optional().or(z.literal("")),
+  teamId: z.string().optional().or(z.literal("")),
+  emailOptOut: z.boolean().optional(),
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const leadUpdateSchema = leadCreateSchema.partial();
+export const leadUpdateSchema = patch(leadCreateSchema);
 
 // ── Opportunity Schemas ──
 
@@ -29,7 +33,7 @@ export const opportunityCreateSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const opportunityUpdateSchema = opportunityCreateSchema.partial();
+export const opportunityUpdateSchema = patch(opportunityCreateSchema);
 
 // ── Activity Schemas ──
 
@@ -45,7 +49,7 @@ export const activityCreateSchema = z.object({
   bookingId: z.string().optional().or(z.literal("")),
 });
 
-export const activityUpdateSchema = activityCreateSchema.partial().extend({
+export const activityUpdateSchema = patch(activityCreateSchema).extend({
   completedAt: z.string().optional().or(z.literal("")).or(z.null()),
 });
 
@@ -63,7 +67,7 @@ export const customerCreateSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const customerUpdateSchema = customerCreateSchema.partial();
+export const customerUpdateSchema = patch(customerCreateSchema);
 
 // ── Supplier Schemas ──
 
@@ -77,7 +81,7 @@ export const supplierCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const supplierUpdateSchema = supplierCreateSchema.partial();
+export const supplierUpdateSchema = patch(supplierCreateSchema);
 
 // ── Excursion Schemas ──
 
@@ -96,7 +100,7 @@ export const excursionCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const excursionUpdateSchema = excursionCreateSchema.partial();
+export const excursionUpdateSchema = patch(excursionCreateSchema);
 
 // ── Program Schemas ──
 
@@ -108,7 +112,7 @@ export const programCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const programUpdateSchema = programCreateSchema.omit({ excursionId: true }).partial();
+export const programUpdateSchema = patch(programCreateSchema.omit({ excursionId: true }));
 
 // ── Program Item Schemas ──
 
@@ -121,7 +125,7 @@ export const programItemCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const programItemUpdateSchema = programItemCreateSchema.omit({ programId: true }).partial();
+export const programItemUpdateSchema = patch(programItemCreateSchema.omit({ programId: true }));
 
 // ── Age Group Schemas ──
 
@@ -143,7 +147,7 @@ export const addonCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const addonUpdateSchema = addonCreateSchema.omit({ excursionId: true }).partial();
+export const addonUpdateSchema = patch(addonCreateSchema.omit({ excursionId: true }));
 
 // ── Cost Sheet Schemas ──
 
@@ -164,7 +168,7 @@ export const costSheetCreateSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-export const costSheetUpdateSchema = costSheetCreateSchema.omit({ excursionId: true }).partial();
+export const costSheetUpdateSchema = patch(costSheetCreateSchema.omit({ excursionId: true }));
 
 // ── Cost Component Schemas ──
 
@@ -290,7 +294,7 @@ export const programPlanCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const programPlanUpdateSchema = programPlanCreateSchema.partial();
+export const programPlanUpdateSchema = patch(programPlanCreateSchema);
 
 export const programPlanSaveItemsSchema = z.object({
   programPlanId: z.string().min(1),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Boat ──
 
@@ -26,7 +27,7 @@ export const cruiseBoatCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const cruiseBoatUpdateSchema = cruiseBoatCreateSchema.partial();
+export const cruiseBoatUpdateSchema = patch(cruiseBoatCreateSchema);
 
 export type CruiseBoatCreateInput = z.infer<typeof cruiseBoatCreateSchema>;
 export type CruiseBoatUpdateInput = z.infer<typeof cruiseBoatUpdateSchema>;
@@ -41,7 +42,7 @@ export const cruiseDeckCreateSchema = z.object({
   planLayout: z.any().optional(),
 });
 
-export const cruiseDeckUpdateSchema = cruiseDeckCreateSchema.omit({ boatId: true }).partial();
+export const cruiseDeckUpdateSchema = patch(cruiseDeckCreateSchema.omit({ boatId: true }));
 
 // ── Cabin Category ──
 
@@ -66,7 +67,7 @@ export const cruiseCabinCategoryCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const cruiseCabinCategoryUpdateSchema = cruiseCabinCategoryCreateSchema.omit({ boatId: true }).partial();
+export const cruiseCabinCategoryUpdateSchema = patch(cruiseCabinCategoryCreateSchema.omit({ boatId: true }));
 
 // ── Cabin ──
 
@@ -88,7 +89,7 @@ export const cruiseCabinCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const cruiseCabinUpdateSchema = cruiseCabinCreateSchema.omit({ boatId: true }).partial();
+export const cruiseCabinUpdateSchema = patch(cruiseCabinCreateSchema.omit({ boatId: true }));
 
 // ── Cruise Type ──
 
@@ -103,7 +104,7 @@ export const cruiseTypeCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const cruiseTypeUpdateSchema = cruiseTypeCreateSchema.partial();
+export const cruiseTypeUpdateSchema = patch(cruiseTypeCreateSchema);
 
 // ── Itinerary ──
 
@@ -117,7 +118,7 @@ export const cruiseItineraryCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const cruiseItineraryUpdateSchema = cruiseItineraryCreateSchema.partial();
+export const cruiseItineraryUpdateSchema = patch(cruiseItineraryCreateSchema);
 
 export const cruiseItineraryDaySchema = z.object({
   dayNumber: z.number().int().min(1),
@@ -147,7 +148,7 @@ export const cruiseCancellationPolicyCreateSchema = z.object({
   freeCancellationDays: z.number().int().optional(),
 });
 
-export const cruiseCancellationPolicyUpdateSchema = cruiseCancellationPolicyCreateSchema.partial();
+export const cruiseCancellationPolicyUpdateSchema = patch(cruiseCancellationPolicyCreateSchema);
 
 export const cruiseCancellationPolicyTierSchema = z.object({
   daysBefore: z.number().int().min(0),
@@ -187,7 +188,7 @@ export const cruiseContractCreateSchema = z.object({
   parentContractId: z.string().optional(),
 });
 
-export const cruiseContractUpdateSchema = cruiseContractCreateSchema.partial();
+export const cruiseContractUpdateSchema = patch(cruiseContractCreateSchema);
 
 export type CruiseContractCreateInput = z.infer<typeof cruiseContractCreateSchema>;
 
@@ -203,7 +204,7 @@ export const cruiseSeasonCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const cruiseSeasonUpdateSchema = cruiseSeasonCreateSchema.omit({ contractId: true }).partial();
+export const cruiseSeasonUpdateSchema = patch(cruiseSeasonCreateSchema.omit({ contractId: true }));
 
 // ── Base Rate ──
 
@@ -288,7 +289,7 @@ export const cruiseOfferCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const cruiseOfferUpdateSchema = cruiseOfferCreateSchema.omit({ contractId: true }).partial();
+export const cruiseOfferUpdateSchema = patch(cruiseOfferCreateSchema.omit({ contractId: true }));
 
 // ── Gala Meal ──
 
@@ -303,7 +304,7 @@ export const cruiseGalaMealCreateSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const cruiseGalaMealUpdateSchema = cruiseGalaMealCreateSchema.omit({ contractId: true }).partial();
+export const cruiseGalaMealUpdateSchema = patch(cruiseGalaMealCreateSchema.omit({ contractId: true }));
 
 // ── Stop Sale ──
 
@@ -335,7 +336,7 @@ export const cruiseDepartureCreateSchema = z.object({
   totalPaxCapacity: z.number().int().min(1),
 });
 
-export const cruiseDepartureUpdateSchema = cruiseDepartureCreateSchema.partial();
+export const cruiseDepartureUpdateSchema = patch(cruiseDepartureCreateSchema);
 
 export const cruiseDeparturePatternCreateSchema = z.object({
   boatId: z.string().min(1),
@@ -397,7 +398,7 @@ export const cruiseBookingCreateSchema = z.object({
   opsFileId: z.string().optional(),
 });
 
-export const cruiseBookingUpdateSchema = cruiseBookingCreateSchema.partial();
+export const cruiseBookingUpdateSchema = patch(cruiseBookingCreateSchema);
 
 export type CruiseBookingCreateInput = z.infer<typeof cruiseBookingCreateSchema>;
 

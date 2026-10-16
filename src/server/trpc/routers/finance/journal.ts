@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { journalSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -60,7 +61,7 @@ export const journalRouter = createTRPCRouter({
     }),
 
   update: p("finance:journal:update")
-    .input(z.object({ id: z.string() }).merge(journalSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(journalSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       assertOwnBranch(ctx.branch.ids, data.branchId);

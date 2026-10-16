@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { cruisePassengerSchema, cruiseBulkSavePassengersSchema } from "@/lib/validations/nile-cruises";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("nile-cruises", code);
 
@@ -37,7 +38,7 @@ export const cruisePassengerRouter = createTRPCRouter({
     }),
 
   update: p("nile-cruises:booking:update")
-    .input(z.object({ id: z.string(), data: cruisePassengerSchema.omit({ bookingId: true }).partial() }))
+    .input(z.object({ id: z.string(), data: patch(cruisePassengerSchema.omit({ bookingId: true })) }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
       if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth as string);

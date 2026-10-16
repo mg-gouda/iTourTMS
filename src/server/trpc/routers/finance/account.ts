@@ -4,6 +4,7 @@ import { z } from "zod";
 import { accountGroupSchema, accountSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import type { PrismaClient } from "@prisma/client";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -94,7 +95,7 @@ export const accountRouter = createTRPCRouter({
     }),
 
   update: p("finance:account:update")
-    .input(z.object({ id: z.string() }).merge(accountSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(accountSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, tagIds, ...data } = input;
 
@@ -160,7 +161,7 @@ export const accountRouter = createTRPCRouter({
     }),
 
   updateGroup: p("finance:account:update")
-    .input(z.object({ id: z.string() }).merge(accountGroupSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(accountGroupSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const owned = await ctx.db.accountGroup.findFirst({

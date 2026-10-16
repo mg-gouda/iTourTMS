@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { taxGroupSchema, taxSchema } from "@/lib/validations/finance";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -66,7 +67,7 @@ export const taxRouter = createTRPCRouter({
     }),
 
   update: p("finance:tax:update")
-    .input(z.object({ id: z.string() }).merge(taxSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(taxSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, repartitionLines, ...data } = input;
 
@@ -128,7 +129,7 @@ export const taxRouter = createTRPCRouter({
     }),
 
   updateGroup: p("finance:tax:update")
-    .input(z.object({ id: z.string() }).merge(taxGroupSchema.partial()))
+    .input(z.object({ id: z.string() }).merge(patch(taxGroupSchema)))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const owned = await ctx.db.taxGroup.findFirst({

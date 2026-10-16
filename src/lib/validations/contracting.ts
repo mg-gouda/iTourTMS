@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 /**
  * An optional foreign key coming from a form.
@@ -24,7 +25,7 @@ export const destinationCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const destinationUpdateSchema = destinationCreateSchema.partial();
+export const destinationUpdateSchema = patch(destinationCreateSchema);
 
 // ── City Schemas ──
 
@@ -92,7 +93,7 @@ export const hotelCreateSchema = z.object({
   amenityIds: z.array(z.string()).default([]),
 });
 
-export const hotelUpdateSchema = hotelCreateSchema.partial();
+export const hotelUpdateSchema = patch(hotelCreateSchema);
 
 // ── Room Type Schemas ──
 
@@ -115,7 +116,7 @@ export const roomTypeCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const roomTypeUpdateSchema = roomTypeCreateSchema.partial().omit({ hotelId: true });
+export const roomTypeUpdateSchema = patch(roomTypeCreateSchema).omit({ hotelId: true });
 
 // ── Occupancy Schemas ──
 
@@ -161,7 +162,7 @@ export const mealBasisCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const mealBasisUpdateSchema = mealBasisCreateSchema.partial().omit({ hotelId: true, mealCode: true });
+export const mealBasisUpdateSchema = patch(mealBasisCreateSchema).omit({ hotelId: true, mealCode: true });
 
 // ── Hotel Image Schemas ──
 
@@ -659,7 +660,7 @@ export const markupRuleCreateSchema = z.object({
   validTo: z.string().optional(),
 });
 
-export const markupRuleUpdateSchema = markupRuleCreateSchema.partial();
+export const markupRuleUpdateSchema = patch(markupRuleCreateSchema);
 
 // ── Tariff ──
 

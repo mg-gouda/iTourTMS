@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { patch } from "@/lib/validations/patch";
 
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
@@ -28,7 +29,7 @@ const partnerCreateSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
 });
 
-const partnerUpdateSchema = partnerCreateSchema.partial().omit({ type: true });
+const partnerUpdateSchema = patch(partnerCreateSchema).omit({ type: true });
 
 export const partnerRouter = createTRPCRouter({
   list: p("finance:partner:read")

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patch } from "@/lib/validations/patch";
 
 // ── Branding ────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export const heroSlideCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const heroSlideUpdateSchema = heroSlideCreateSchema.partial().extend({
+export const heroSlideUpdateSchema = patch(heroSlideCreateSchema).extend({
   id: z.string(),
 });
 
@@ -93,7 +94,7 @@ export const publicPageCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const publicPageUpdateSchema = publicPageCreateSchema.partial().extend({
+export const publicPageUpdateSchema = patch(publicPageCreateSchema).extend({
   id: z.string(),
 });
 
@@ -113,7 +114,7 @@ export const blogPostCreateSchema = z.object({
   status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
 });
 
-export const blogPostUpdateSchema = blogPostCreateSchema.partial().extend({
+export const blogPostUpdateSchema = patch(blogPostCreateSchema).extend({
   id: z.string(),
 });
 
@@ -127,7 +128,7 @@ export const faqCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const faqUpdateSchema = faqCreateSchema.partial().extend({
+export const faqUpdateSchema = patch(faqCreateSchema).extend({
   id: z.string(),
 });
 
@@ -143,7 +144,7 @@ export const testimonialCreateSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const testimonialUpdateSchema = testimonialCreateSchema.partial().extend({
+export const testimonialUpdateSchema = patch(testimonialCreateSchema).extend({
   id: z.string(),
 });
 
@@ -190,7 +191,7 @@ export const b2cMarkupRuleCreateSchema = z.object({
   tiers: z.array(b2cMarkupTierSchema).default([]),
 });
 
-export const b2cMarkupRuleUpdateSchema = b2cMarkupRuleCreateSchema.partial().extend({
+export const b2cMarkupRuleUpdateSchema = patch(b2cMarkupRuleCreateSchema).extend({
   id: z.string(),
   tiers: z.array(b2cMarkupTierSchema).optional(),
 });
