@@ -90,7 +90,7 @@ export function MoveForm({ moveType, defaultValues, returnPath }: MoveFormProps)
 
   // Fetch reference data
   const { data: journals } = trpc.finance.journal.list.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const { data: partners } = trpc.finance.account.listPartners.useQuery();
   const { data: currencies } = trpc.finance.currency.list.useQuery();
   const { data: taxList } = trpc.finance.tax.list.useQuery();

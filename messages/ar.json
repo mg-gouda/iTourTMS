@@ -635,7 +635,12 @@
     "saveCoaAsTemplate": "حفظ دليل الحسابات كقالب",
     "templateName": "اسم القالب",
     "saveTemplateHint": "احفظ هيكل دليل الحسابات الحالي كقالب قابل لإعادة الاستخدام.",
-    "saveTemplate": "حفظ القالب"
+    "saveTemplate": "حفظ القالب",
+    "assetStateClosed": "مغلق",
+    "assetStateRunning": "قيد الاستهلاك",
+    "straightLine": "القسط الثابت",
+    "degressive": "القسط المتناقص",
+    "degressiveThenStraightLine": "متناقص ثم ثابت"
   },
   "contracting": {
     "title": "التعاقدات",

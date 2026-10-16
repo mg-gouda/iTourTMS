@@ -56,7 +56,7 @@ export default function EditBudgetPage() {
 
   const { data: budget, isLoading } = trpc.finance.budget.getById.useQuery({ id });
   const { data: fiscalYears } = trpc.finance.period.listYears.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 1000 });
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(budgetCreateSchema),

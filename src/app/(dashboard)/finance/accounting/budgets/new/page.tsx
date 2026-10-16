@@ -67,7 +67,7 @@ export default function NewBudgetPage() {
   });
 
   const { data: fiscalYears } = trpc.finance.period.listYears.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 1000 });
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
 
   const createMutation = trpc.finance.budget.create.useMutation({
     onSuccess: (result) => {

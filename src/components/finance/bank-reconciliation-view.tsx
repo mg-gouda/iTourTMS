@@ -55,7 +55,7 @@ export function BankReconciliationView() {
       { enabled: !!journalId },
     );
 
-  const { data: accounts } = trpc.finance.account.list.useQuery();
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
 
   const utils = trpc.useUtils();
 

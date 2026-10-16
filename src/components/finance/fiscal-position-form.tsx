@@ -71,7 +71,7 @@ export function FiscalPositionForm({ defaultValues }: FiscalPositionFormProps) {
   });
 
   const { data: taxList } = trpc.finance.tax.list.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const accountItems = accounts?.items ?? [];
 
   const createMutation = trpc.finance.fiscalPosition.create.useMutation({

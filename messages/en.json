@@ -635,7 +635,12 @@
     "saveCoaAsTemplate": "Save Chart of Accounts as Template",
     "templateName": "Template Name",
     "saveTemplateHint": "Save the current chart of accounts structure as a reusable template.",
-    "saveTemplate": "Save Template"
+    "saveTemplate": "Save Template",
+    "assetStateClosed": "Closed",
+    "assetStateRunning": "Running",
+    "straightLine": "Straight line",
+    "degressive": "Degressive",
+    "degressiveThenStraightLine": "Degressive, then straight line"
   },
   "contracting": {
     "title": "Contracting",

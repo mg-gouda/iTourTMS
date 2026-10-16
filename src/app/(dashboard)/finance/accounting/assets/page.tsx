@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { MoreHorizontal, Plus } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc";
+import { useAccountOptions } from "@/hooks/use-account-options";
 import { toast } from "sonner";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
@@ -55,10 +57,10 @@ export default function AssetsPage() {
 
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.finance.asset.list.useQuery({});
-  const { data: accounts } = trpc.finance.account.list.useQuery({ accountType: "ASSET_FIXED" });
+  const assetAccounts = useAccountOptions("ASSET_FIXED", "ASSET_NON_CURRENT");
+  const expenseAccounts = useAccountOptions("EXPENSE");
   const createMut = trpc.finance.asset.create.useMutation({ onSuccess: () => { utils.finance.asset.list.invalidate(); setOpen(false); toast.success(t("assetCreated")); } });
   const computeMut = trpc.finance.asset.compute.useMutation({ onSuccess: () => { utils.finance.asset.list.invalidate(); toast.success(t("depreciationComputed")); } });
-  const { data: depAccounts } = trpc.finance.account.list.useQuery({ accountType: "EXPENSE_DEPRECIATION" });
   const postDueMut = trpc.finance.asset.postDue.useMutation({
     onSuccess: (r) => { utils.finance.asset.list.invalidate(); toast.success(r.posted ? `${r.posted} depreciation entr${r.posted === 1 ? "y" : "ies"} posted` : "Nothing due yet"); },
     onError: (e) => toast.error(e.message),
@@ -69,7 +71,7 @@ export default function AssetsPage() {
   const [form, setForm] = useState({ name: "", accountId: "", depreciationAccountId: "", accumulationAccountId: "", originalValue: "", salvageValue: "0", usefulLifeYears: "5", acquisitionDate: new Date().toISOString().split("T")[0], method: "STRAIGHT_LINE" });
 
   const columns: ColumnDef<AssetRow, unknown>[] = [
-    { accessorKey: "name", header: t("assetName") },
+    { accessorKey: "name", header: t("assetName"), cell: ({ row }) => <Link href={`/finance/accounting/assets/${row.original.id}`} className="font-medium hover:underline">{row.original.name}</Link> },
     { accessorKey: "code", header: tc("code"), cell: ({ row }) => <span className="font-mono">{row.getValue("code") ?? "—"}</span> },
     { id: "account", accessorFn: (r) => r.account.name, header: t("assetAccount"), cell: ({ row }) => <span><span className="font-mono text-muted-foreground mr-1">{row.original.account.code}</span>{row.original.account.name}</span> },
     {
@@ -124,7 +126,7 @@ export default function AssetsPage() {
             <div className="grid gap-1.5"><Label>{t("assetName")}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="grid gap-1.5"><Label>{t("assetAccount")}</Label>
               <Combobox
-                options={(accounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                options={assetAccounts}
                 value={form.accountId}
                 onValueChange={(v) => setForm({ ...form, accountId: v })}
                 placeholder={tc("select")}
@@ -134,7 +136,7 @@ export default function AssetsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5"><Label>Depreciation expense</Label>
                 <Combobox
-                  options={(depAccounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                  options={expenseAccounts}
                   value={form.depreciationAccountId}
                   onValueChange={(v) => setForm({ ...form, depreciationAccountId: v })}
                   placeholder={tc("select")}
@@ -143,7 +145,7 @@ export default function AssetsPage() {
               </div>
               <div className="grid gap-1.5"><Label>Accumulated depreciation</Label>
                 <Combobox
-                  options={(accounts?.items ?? []).map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                  options={assetAccounts}
                   value={form.accumulationAccountId}
                   onValueChange={(v) => setForm({ ...form, accumulationAccountId: v })}
                   placeholder={tc("select")}

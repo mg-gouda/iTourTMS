@@ -54,7 +54,7 @@ export default function LoansPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.finance.loan.list.useQuery({});
-  const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const createMut = trpc.finance.loan.create.useMutation({
     onSuccess: () => { utils.finance.loan.list.invalidate(); setOpen(false); toast.success(t("loanCreated")); },
   });

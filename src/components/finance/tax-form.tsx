@@ -75,7 +75,7 @@ export function TaxForm({ defaultValues }: TaxFormProps) {
   });
 
   const { data: taxGroups } = trpc.finance.tax.listGroups.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
 
   const createMutation = trpc.finance.tax.create.useMutation({
     onSuccess: () => {

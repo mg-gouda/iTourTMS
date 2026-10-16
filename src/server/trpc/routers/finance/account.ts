@@ -33,7 +33,9 @@ export const accountRouter = createTRPCRouter({
         groupId: z.string().optional(),
         includeDeprecated: z.boolean().default(false),
         cursor: z.string().optional(),
-        limit: z.number().min(1).max(100).default(50),
+        // Pickers ask for the whole chart (real charts run to 500+ accounts);
+        // paged screens keep the default.
+        limit: z.number().min(1).max(2000).default(50),
       }).optional(),
     )
     .query(async ({ ctx, input }) => {

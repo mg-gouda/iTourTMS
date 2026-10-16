@@ -20,7 +20,7 @@ const today = () => new Date().toISOString().split("T")[0];
 export default function InterBranchTransferPage() {
   const { data: mine } = trpc.branch.mine.useQuery();
   const { data: journals } = trpc.finance.journal.list.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 100 });
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const [form, setForm] = useState({
     fromBranchId: "",
     toBranchId: "",

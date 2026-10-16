@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { useBranchColumns } from "@/hooks/use-branch-columns";
 import { MoreHorizontal, Plus } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ type DRRow = {
 export default function DeferredRevenuesPage() {
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.finance.deferredRevenue.list.useQuery({});
-  const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const createMut = trpc.finance.deferredRevenue.create.useMutation({ onSuccess: () => { utils.finance.deferredRevenue.list.invalidate(); setOpen(false); toast.success("Deferred revenue created"); } });
   const postDueMut = trpc.finance.deferredRevenue.postDue.useMutation({
     onSuccess: (r) => { utils.finance.deferredRevenue.list.invalidate(); toast.success(r.posted ? `${r.posted} entr${r.posted === 1 ? "y" : "ies"} posted` : "Nothing due yet"); },
@@ -49,7 +50,7 @@ export default function DeferredRevenuesPage() {
   const [form, setForm] = useState({ name: "", amount: "", startDate: "", endDate: "", accountId: "", revenueAccountId: "" });
 
   const columns: ColumnDef<DRRow, unknown>[] = [
-    { accessorKey: "name", header: "Name" },
+    { accessorKey: "name", header: "Name", cell: ({ row }) => <Link href={`/finance/review/deferred-revenues/${row.original.id}`} className="font-medium hover:underline">{row.original.name}</Link> },
     { id: "amount", accessorFn: (r) => r.amount, header: ({ column }) => <DataTableColumnHeader column={column} title="Total Amount" />, cell: ({ row }) => <span className="font-mono tabular-nums">{Number(row.original.amount).toFixed(2)}</span> },
     {
       id: "recognized",

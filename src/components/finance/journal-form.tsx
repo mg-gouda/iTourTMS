@@ -48,7 +48,7 @@ export function JournalForm({ defaultValues }: JournalFormProps) {
     },
   });
 
-  const { data: accounts } = trpc.finance.account.list.useQuery({});
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const { data: mine } = trpc.branch.mine.useQuery();
 
   const createMutation = trpc.finance.journal.create.useMutation({

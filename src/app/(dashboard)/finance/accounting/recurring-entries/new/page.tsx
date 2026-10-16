@@ -63,7 +63,7 @@ export default function NewRecurringEntryPage() {
   });
 
   const { data: journals } = trpc.finance.journal.list.useQuery();
-  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 1000 });
+  const { data: accounts } = trpc.finance.account.list.useQuery({ limit: 2000 });
   const { data: currencies } = trpc.finance.currency.list.useQuery();
 
   const createMutation = trpc.finance.recurringEntry.create.useMutation({

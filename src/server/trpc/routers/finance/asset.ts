@@ -46,14 +46,18 @@ export const assetRouter = createTRPCRouter({
   getById: p("finance:asset:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const asset = await (ctx.db.accountAsset as any).findFirst({
+      const asset = await ctx.db.accountAsset.findFirst({
         where: { id: input.id, companyId: ctx.companyId },
         include: {
+          branch: { select: { code: true, name: true } },
           account: { select: { id: true, code: true, name: true } },
           depreciationAccount: { select: { id: true, code: true, name: true } },
           accumulationAccount: { select: { id: true, code: true, name: true } },
           partner: { select: { id: true, name: true } },
-          depreciationLines: { orderBy: { date: "asc" } },
+          depreciationLines: {
+            orderBy: { date: "asc" },
+            include: { move: { select: { id: true, name: true } } },
+          },
         },
       });
       if (!asset) throw new TRPCError({ code: "NOT_FOUND" });

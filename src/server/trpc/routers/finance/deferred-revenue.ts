@@ -86,12 +86,16 @@ export const deferredRevenueRouter = createTRPCRouter({
   getById: p("finance:deferred:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const rec = await (ctx.db.deferredRevenue as any).findFirst({
+      const rec = await ctx.db.deferredRevenue.findFirst({
         where: { id: input.id, companyId: ctx.companyId },
         include: {
           account: { select: { id: true, code: true, name: true } },
           revenueAccount: { select: { id: true, code: true, name: true } },
-          schedule: { orderBy: { date: "asc" } },
+          branch: { select: { code: true, name: true } },
+          schedule: {
+            orderBy: { date: "asc" },
+            include: { move: { select: { id: true, name: true } } },
+          },
         },
       });
       if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
