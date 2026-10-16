@@ -131,6 +131,8 @@ export const bookingCreateSchema = z
     leadGuestEmail: z.string().email().nullish().or(z.literal("")),
     leadGuestPhone: z.string().nullish(),
     rooms: z.array(bookingRoomSchema).min(1, "At least one room is required"),
+    /** Booking this one continues as the next segment of a split stay. */
+    splitStayOf: z.string().nullish(),
   })
   .refine((d) => d.checkOut > d.checkIn, {
     message: "Departure must be after arrival",

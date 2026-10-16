@@ -1,4 +1,4 @@
-import { branchForDestination } from "@/server/branch-scope";
+import { branchForDestination, branchForHotel } from "@/server/branch-scope";
 import { db } from "@/server/db";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 
@@ -35,6 +35,8 @@ export async function syncTrafficJobsForBooking(
       arrivalTime: true,
       departFlightNo: true,
       departTime: true,
+      status: true,
+      splitStayId: true,
     },
   });
 
@@ -42,6 +44,17 @@ export async function syncTrafficJobsForBooking(
     where: { bookingId, companyId },
     select: { id: true, serviceType: true, status: true },
   });
+
+  // A cancelled or no-show guest needs no transfers — they used to stay on
+  // the dispatch board.
+  if (DEAD.includes(booking.status)) {
+    await db.ttTrafficJob.updateMany({
+      where: { id: { in: existingJobs.filter((j) => !FINAL.includes(j.status)).map((j) => j.id) } },
+      data: { status: "CANCELLED" },
+    });
+    if (booking.splitStayId) await syncSplitStayTransfers(companyId, booking.splitStayId, userId);
+    return;
+  }
 
   const paxCount = booking.adults + booking.children + booking.infants;
   const branchId = await branchForDestination(db, companyId, booking.hotel?.destinationId);
@@ -134,6 +147,96 @@ export async function syncTrafficJobsForBooking(
     await db.ttTrafficJob.update({
       where: { id: existingDep.id },
       data: { status: "CANCELLED" },
+    });
+  }
+
+  if (booking.splitStayId) await syncSplitStayTransfers(companyId, booking.splitStayId, userId);
+}
+
+const DEAD = ["CANCELLED", "NO_SHOW"];
+const FINAL = ["CANCELLED", "COMPLETED"];
+
+/**
+ * A split stay moves the guest between hotels: one inter-hotel transfer per
+ * change of hotel, on the day the next segment starts, from the previous
+ * hotel to the next. Kept in step as segments are added, moved or cancelled.
+ * The job belongs to the arriving segment's booking and to the branch at the
+ * pickup hotel, whose drivers collect the guest.
+ */
+export async function syncSplitStayTransfers(companyId: string, splitStayId: string, userId: string) {
+  const segments = await db.booking.findMany({
+    where: { companyId, splitStayId, status: { notIn: DEAD as never } },
+    orderBy: { checkIn: "asc" },
+    select: {
+      id: true,
+      hotelId: true,
+      checkIn: true,
+      adults: true,
+      children: true,
+      infants: true,
+      leadGuestName: true,
+      leadGuestPhone: true,
+    },
+  });
+
+  const wanted = new Map<string, { from: string; to: string; date: Date; pax: number; lead: string | null; phone: string | null }>();
+  for (let i = 1; i < segments.length; i++) {
+    const prev = segments[i - 1];
+    const cur = segments[i];
+    if (prev.hotelId === cur.hotelId) continue; // room change in the same hotel: no ride
+    wanted.set(cur.id, {
+      from: prev.hotelId,
+      to: cur.hotelId,
+      date: cur.checkIn,
+      pax: cur.adults + cur.children + cur.infants,
+      lead: cur.leadGuestName,
+      phone: cur.leadGuestPhone,
+    });
+  }
+
+  const existing = await db.ttTrafficJob.findMany({
+    where: { companyId, serviceType: "INTER_HOTEL", booking: { splitStayId } },
+    select: { id: true, bookingId: true, status: true },
+  });
+
+  for (const job of existing) {
+    if (FINAL.includes(job.status)) continue;
+    const want = job.bookingId ? wanted.get(job.bookingId) : undefined;
+    if (!want) {
+      await db.ttTrafficJob.update({ where: { id: job.id }, data: { status: "CANCELLED" } });
+      continue;
+    }
+    await db.ttTrafficJob.update({
+      where: { id: job.id },
+      data: {
+        serviceDate: want.date,
+        pickupHotelId: want.from,
+        dropoffHotelId: want.to,
+        paxCount: want.pax,
+        leadPassenger: want.lead,
+        passengerPhone: want.phone,
+      },
+    });
+    wanted.delete(job.bookingId!);
+  }
+
+  for (const [bookingId, want] of wanted) {
+    const branchId = await branchForHotel(db, companyId, want.from);
+    await db.ttTrafficJob.create({
+      data: {
+        code: await generateSequenceNumber(db, companyId, "traffic_job", branchId),
+        companyId,
+        branchId,
+        serviceType: "INTER_HOTEL",
+        serviceDate: want.date,
+        pickupHotelId: want.from,
+        dropoffHotelId: want.to,
+        paxCount: want.pax,
+        leadPassenger: want.lead,
+        passengerPhone: want.phone,
+        bookingId,
+        createdById: userId,
+      },
     });
   }
 }

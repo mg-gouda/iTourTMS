@@ -150,7 +150,24 @@ export const bookingRouter = createTRPCRouter({
         },
       });
 
-      return booking;
+      // The other segments of a split stay, in travel order.
+      const splitStay = booking?.splitStayId
+        ? await ctx.db.booking.findMany({
+            where: { companyId: ctx.companyId, splitStayId: booking.splitStayId },
+            orderBy: { checkIn: "asc" },
+            select: {
+              id: true,
+              code: true,
+              status: true,
+              checkIn: true,
+              checkOut: true,
+              sellingTotal: true,
+              hotel: { select: { name: true } },
+            },
+          })
+        : [];
+
+      return booking && { ...booking, splitStay };
     }),
 
   // ── Check stop sales for a hotel + date range ──
@@ -298,10 +315,23 @@ export const bookingRouter = createTRPCRouter({
         source = "TOUR_OPERATOR";
       }
 
+      // Next segment of a split stay: every segment shares the first one's id.
+      let splitStayId: string | null = null;
+      if (input.splitStayOf) {
+        const prev = await ctx.db.booking.findFirst({
+          where: { id: input.splitStayOf, companyId: ctx.companyId },
+          select: { id: true, splitStayId: true },
+        });
+        if (!prev) throw new TRPCError({ code: "NOT_FOUND", message: "The booking to continue from was not found." });
+        splitStayId = prev.splitStayId ?? prev.id;
+        if (!prev.splitStayId) await ctx.db.booking.update({ where: { id: prev.id }, data: { splitStayId } });
+      }
+
       const booking = await ctx.db.booking.create({
         data: {
           companyId: ctx.companyId,
           code,
+          splitStayId,
           status: input.stopSaleOverride ? "PENDING_APPROVAL" : "NEW_BOOKING",
           source,
           hotelId: input.hotelId,
@@ -1408,6 +1438,8 @@ export const bookingRouter = createTRPCRouter({
             bookingId: booking.id, bookingCode: booking.code, hotelId: booking.hotelId,
             reason: input.reason ?? null,
           });
+          // The guest's transfers go with the booking.
+          await syncTrafficJobsForBooking(ctx.companyId, booking.id, userId);
           return updated;
         }
 
@@ -1456,6 +1488,7 @@ export const bookingRouter = createTRPCRouter({
           });
 
           await logBookingAction(ctx.db, booking.id, "STATUS_CHANGED", "Marked as no-show", userId);
+          await syncTrafficJobsForBooking(ctx.companyId, booking.id, userId);
           return updated;
         }
 
@@ -1636,6 +1669,7 @@ export const bookingRouter = createTRPCRouter({
         `Cancelled. Penalty: ${penaltyAmount.toFixed(2)}${input.waivePenalty ? " (waived)" : ""}. ${input.reason ?? ""}`,
         userId,
       );
+      await syncTrafficJobsForBooking(ctx.companyId, booking.id, userId);
 
       return { ...updated, penaltyAmount };
     }),

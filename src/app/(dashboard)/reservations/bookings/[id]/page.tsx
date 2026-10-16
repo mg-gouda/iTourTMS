@@ -84,6 +84,7 @@ import { CostExplanation, RateHistoryIcon } from "@/components/reservations/cost
 import type { ExplainableBreakdown } from "@/lib/reservations/cost-explanation";
 import { splitLegacyName } from "@/lib/reservations/guest-names";
 import { trpc } from "@/lib/trpc";
+import { SplitStayCard } from "@/components/reservations/split-stay-card";
 import { toast } from "sonner";
 
 import { PermissionGuard } from "@/components/shared/permission-guard";
@@ -526,6 +527,7 @@ export default function BookingDetailPage() {
 
         {/* Overview */}
         <TabsContent value="overview" className="space-y-4">
+          <SplitStayCard bookingId={booking.id} segments={booking.splitStay} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Stay Details */}
             <Card>

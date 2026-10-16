@@ -437,6 +437,35 @@ export default function NewBookingPage() {
   const [stopSaleStep, setStopSaleStep] = useState<1 | 2>(1);
   const pendingSubmitRef = useRef<FormValues | null>(null);
 
+  // "Add next segment" of a split stay: carry the partner, guest and dates over
+  // from the segment before; the server links the two.
+  const [splitOf, setSplitOf] = useState<string | null>(null);
+  useEffect(() => setSplitOf(new URLSearchParams(window.location.search).get("splitOf")), []);
+  const { data: prevSegment } = trpc.reservations.booking.getById.useQuery(
+    { id: splitOf ?? "" },
+    { enabled: !!splitOf },
+  );
+  useEffect(() => {
+    if (!prevSegment) return;
+    const carry = {
+      tourOperatorId: prevSegment.tourOperatorId ?? "",
+      marketId: prevSegment.marketId ?? "",
+      source: prevSegment.source as FormValues["source"],
+      currencyId: prevSegment.currencyId,
+      externalRef: prevSegment.externalRef ?? "",
+      checkIn: new Date(prevSegment.checkOut).toISOString().slice(0, 10),
+      adults: prevSegment.adults,
+      children: prevSegment.children,
+      infants: prevSegment.infants,
+      leadGuestName: prevSegment.leadGuestName ?? "",
+      leadGuestFirstName: prevSegment.leadGuestFirstName ?? "",
+      leadGuestLastName: prevSegment.leadGuestLastName ?? "",
+      leadGuestEmail: prevSegment.leadGuestEmail ?? "",
+      leadGuestPhone: prevSegment.leadGuestPhone ?? "",
+    };
+    for (const [k, v] of Object.entries(carry)) form.setValue(k as keyof FormValues, v as never);
+  }, [prevSegment, form]);
+
   // Mutation
   const createMutation = trpc.reservations.booking.create.useMutation({
     onSuccess: (data) => {
@@ -532,7 +561,7 @@ export default function NewBookingPage() {
   );
 
   function onSubmit(values: FormValues) {
-    const clean = preparePayload(values);
+    const clean = { ...preparePayload(values), splitStayOf: splitOf };
 
     // If stop sales exist, show warning first
     if (stopSales && stopSales.length > 0) {
@@ -567,7 +596,9 @@ export default function NewBookingPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("newBooking")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("createBooking")}
+            {prevSegment
+              ? `Next segment of a split stay — continues ${prevSegment.code} at ${prevSegment.hotel.name}. Pick the next hotel.`
+              : t("createBooking")}
           </p>
         </div>
         <div className="flex gap-2">

@@ -3409,6 +3409,8 @@ model Booking {
   creditApplied      Decimal             @default(0) @db.Decimal(12, 4)
 
   // Lead guest shortcut — split, with the combined name kept for older readers
+  /** Split stay: every segment of one trip shares the first segment's id. */
+  splitStayId        String?
   leadGuestName      String?
   leadGuestFirstName String?
   leadGuestLastName  String?
@@ -3565,6 +3567,7 @@ model Booking {
   @@index([seasonId])
   @@index([createdById])
   @@index([leadGuestEmail])
+  @@index([splitStayId])
   @@map("rv_booking")
 }
 
