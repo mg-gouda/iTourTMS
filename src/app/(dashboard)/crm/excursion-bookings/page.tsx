@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { useShowBranch } from "@/hooks/use-branch-columns";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
 
@@ -354,6 +355,7 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
 
 // ─── Main Page ────────────────────────────────────────────────────
 export default function ExcursionBookingsPage() {
+  const showBranch = useShowBranch();
   const t = useTranslations("crm");
   const tc = useTranslations("common");
   const [editId, setEditId] = useState<string | undefined>();
@@ -509,6 +511,9 @@ export default function ExcursionBookingsPage() {
                         <button onClick={() => startEdit(t.id)} className="font-mono text-xs font-bold text-primary hover:underline">
                           {t.ticketNo}
                         </button>
+                        {showBranch && (
+                          <span className="text-muted-foreground ms-1.5 font-mono text-[10px]">{t.branch.code}</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5">
                         {t.guestName ? (

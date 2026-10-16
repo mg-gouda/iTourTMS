@@ -28,6 +28,7 @@ const ticketCreateSchema = z.object({
 const TICKET_SELECT = {
   id: true,
   ticketNo: true,
+  branch: { select: { code: true } },
   tourOperatorId: true,
   hotelId: true,
   excursionId: true,
