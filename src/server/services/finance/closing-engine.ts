@@ -181,7 +181,7 @@ export async function executeYearEndClose(
 
     closings.push({
       branchId: branch.id,
-      name: await generateSequenceNumber(db, companyId, "journal_entry", branch.id),
+      name: await generateSequenceNumber(db, companyId, "journal_entry", branch.id, closingDate),
       lines: built.lines,
       amountTotal: built.lines.reduce((sum, l) => sum.plus(l.debit), new Decimal(0)),
     });

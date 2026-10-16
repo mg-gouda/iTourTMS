@@ -255,7 +255,7 @@ export const paymentRouter = createTRPCRouter({
       validateBalance(paymentLines);
 
       // Generate sequence number
-      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment", payment.branchId);
+      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment", payment.branchId, payment.date);
 
       // Execute in transaction
       return ctx.db.$transaction(async (tx: any) => {
@@ -371,7 +371,7 @@ export const paymentRouter = createTRPCRouter({
                   payment.partnerId,
                 );
 
-                const exchName = await generateSequenceNumber(tx, ctx.companyId, "journal_entry", payment.branchId);
+                const exchName = await generateSequenceNumber(tx, ctx.companyId, "journal_entry", payment.branchId, payment.date);
                 await tx.move.create({
                   data: {
                     companyId: ctx.companyId,
@@ -632,7 +632,7 @@ export const paymentRouter = createTRPCRouter({
 
       validateBalance(paymentLines);
 
-      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment", payment.branchId);
+      const name = await generateSequenceNumber(ctx.db, ctx.companyId, "payment", payment.branchId, payment.date);
 
       return ctx.db.$transaction(async (tx: any) => {
         const move = await tx.move.create({

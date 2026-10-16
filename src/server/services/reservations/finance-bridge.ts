@@ -84,7 +84,7 @@ export async function createFinanceRecords(
   const branchId = await entryBranch(db, journalId, () => branchForHotel(db, companyId, booking.hotelId));
 
   // Generate sequence number
-  const moveName = await generateSequenceNumber(db, companyId, seqCode, branchId);
+  const moveName = await generateSequenceNumber(db, companyId, seqCode, branchId, bookingPayment.paidAt);
 
   // Find receivable account for move line
   const receivableAccount = await db.finAccount.findFirst({
@@ -132,6 +132,7 @@ export async function createFinanceRecords(
     companyId,
     bookingPayment.isRefund ? "out_refund" : "inbound_payment",
     branchId,
+    bookingPayment.paidAt,
   ).catch(() => `PAY-${Date.now()}`);
 
   const payment = await db.payment.create({

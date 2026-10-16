@@ -56,7 +56,7 @@ export async function postTwoLineEntry(
     data: {
       companyId: e.companyId,
       branchId: e.branchId,
-      name: await generateSequenceNumber(db as PrismaClient, e.companyId, "journal_entry", e.branchId),
+      name: await generateSequenceNumber(db as PrismaClient, e.companyId, "journal_entry", e.branchId, e.date),
       moveType: "ENTRY",
       state: "POSTED",
       date: e.date,

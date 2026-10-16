@@ -47,11 +47,12 @@ export async function generateSequenceNumber(
   companyId: string,
   baseCode: string,
   branchId?: string | null,
+  /** The document's own date: an entry dated 2025 is numbered in 2025's run. */
+  date: Date = new Date(),
 ): Promise<string> {
   await ensureSequence(db, companyId, baseCode);
   const code = branchId ? await branchSequenceCode(db, companyId, baseCode, branchId) : baseCode;
   const now = new Date();
-  const year = now.getFullYear();
 
   // Use a transaction for atomic increment
   const sequence = await db.sequence.findUnique({
@@ -95,34 +96,46 @@ export async function generateSequenceNumber(
     return `${abbr}${sequence.separator}${paddedNumber}`;
   }
 
-  // Standard format: prefix/year/paddedNumber
-  let nextNumber = sequence.nextNumber;
-  const lastResetYear = sequence.lastReset.getFullYear();
-  const lastResetMonth = sequence.lastReset.getMonth();
+  // Standard format: PREFIX-YEAR-00001, counted within the document's period.
+  // Each period keeps its own counter row (`code#2025`, `code#2025-03`), taken
+  // in one atomic increment. A single resetting counter numbered by today's
+  // date could hand a backdated document a number already used in its year.
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const period =
+    sequence.resetPolicy === "monthly" ? `${year}-${month}` : sequence.resetPolicy === "yearly" ? `${year}` : null;
 
-  if (
-    (sequence.resetPolicy === "yearly" && lastResetYear < year) ||
-    (sequence.resetPolicy === "monthly" &&
-      (lastResetYear < year || lastResetMonth < now.getMonth()))
-  ) {
-    nextNumber = sequence.startNumber;
+  let counter: { nextNumber: number };
+  if (period) {
+    // The period the old single counter was last used in carries its count
+    // on, so numbering in progress continues unbroken; other periods start fresh.
+    const last = sequence.lastReset;
+    const sameAsLast =
+      last.getFullYear() === year && (sequence.resetPolicy === "yearly" || last.getMonth() === date.getMonth());
+    const seed = Math.max(sameAsLast ? sequence.nextNumber : sequence.startNumber, sequence.startNumber);
+    counter = await db.sequence.upsert({
+      where: { companyId_code: { companyId, code: `${code}#${period}` } },
+      update: { nextNumber: { increment: 1 } },
+      create: {
+        companyId,
+        code: `${code}#${period}`,
+        prefix: sequence.prefix,
+        separator: sequence.separator,
+        padding: sequence.padding,
+        startNumber: sequence.startNumber,
+        resetPolicy: "never",
+        nextNumber: seed + 1,
+      },
+    });
+  } else {
+    counter = await db.sequence.update({
+      where: { companyId_code: { companyId, code } },
+      data: { nextNumber: { increment: 1 }, lastReset: now },
+    });
   }
 
-  // Format the number
-  const paddedNumber = String(nextNumber).padStart(sequence.padding, "0");
-  const separator = sequence.separator;
-  const formattedSequence = `${sequence.prefix}${separator}${year}${separator}${paddedNumber}`;
-
-  // Increment
-  await db.sequence.update({
-    where: { companyId_code: { companyId, code } },
-    data: {
-      nextNumber: nextNumber + 1,
-      lastReset: now,
-    },
-  });
-
-  return formattedSequence;
+  const paddedNumber = String(counter.nextNumber - 1).padStart(sequence.padding, "0");
+  return `${sequence.prefix}${sequence.separator}${year}${sequence.separator}${paddedNumber}`;
 }
 
 /**

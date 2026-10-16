@@ -621,7 +621,7 @@ export const moveRouter = createTRPCRouter({
 
       // Generate sequence number
       const seqCode = getSequenceCode(move.moveType);
-      const name = await generateSequenceNumber(ctx.db, ctx.companyId, seqCode, move.branchId);
+      const name = await generateSequenceNumber(ctx.db, ctx.companyId, seqCode, move.branchId, move.date);
 
       return ctx.db.move.update({
         where: { id: input.id },

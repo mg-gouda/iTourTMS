@@ -301,6 +301,7 @@ export const batchPaymentRouter = createTRPCRouter({
         ctx.companyId,
         "batch_payment",
         batch.branchId,
+        batch.date,
       );
 
       return ctx.db.$transaction(async (tx: any) => {
@@ -326,6 +327,7 @@ export const batchPaymentRouter = createTRPCRouter({
             ctx.companyId,
             "payment",
             payment.branchId,
+            payment.date,
           );
 
           const companyCurrencyId =

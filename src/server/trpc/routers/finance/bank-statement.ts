@@ -294,6 +294,7 @@ export const bankStatementRouter = createTRPCRouter({
         ctx.companyId,
         "bank_statement",
         statement.branchId,
+        statement.date,
       );
 
       // Get company currency
