@@ -178,6 +178,8 @@ model Company {
   crmOpportunities     CrmOpportunity[]
   crmActivities        CrmActivity[]
   crmCustomers         CrmCustomer[]
+  crmSalesTeams        CrmSalesTeam[]
+  crmMailings          CrmMailing[]
   crmSuppliers         CrmSupplier[]
   crmExcursions        CrmExcursion[]
   crmBookings          CrmBooking[]
@@ -351,6 +353,9 @@ model User {
   crmOpportunitiesOwned CrmOpportunity[]  @relation("CrmOpportunityOwner")
   crmActivitiesAssigned CrmActivity[]     @relation("CrmActivityAssignee")
   crmBookingsCreated    CrmBooking[]      @relation("CrmBookingCreator")
+  crmTeamsLed           CrmSalesTeam[]    @relation("CrmSalesTeamLeader")
+  crmTeams              CrmSalesTeam[]    @relation("CrmSalesTeamMembers")
+  crmMailingsCreated    CrmMailing[]      @relation("CrmMailingCreator")
 
   // B2B relations
   tourOperatorId        String?
@@ -408,6 +413,8 @@ model Branch {
   crmOpportunitys CrmOpportunity[]
   crmActivitys CrmActivity[]
   crmBookings CrmBooking[]
+  crmSalesTeams CrmSalesTeam[]
+  crmMailings CrmMailing[]
   crmProgramPlans CrmProgramPlan[]
   crmExcursionTickets CrmExcursionTicket[]
   crmExcursionBreakdowns CrmExcursionBreakdown[]
@@ -518,6 +525,7 @@ model Country {
   companies       Company[]
   partners        Partner[]
   fiscalPositions FiscalPosition[]
+  crmLeads        CrmLead[]
 
   // Contracting relations
   destinations  Destination[]
@@ -5006,6 +5014,9 @@ model CrmLead {
   createdById  String?
   notes       String?        @db.Text
   convertedAt DateTime?
+  countryId   String?        // guest's home country; routes the lead to a team's territory
+  teamId      String?
+  emailOptOut Boolean        @default(false)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -5013,6 +5024,8 @@ model CrmLead {
   branch     Branch   @relation(fields: [branchId], references: [id])
   assignedTo User?    @relation("CrmLeadAssignee", fields: [assignedToId], references: [id])
   createdBy  User?    @relation("CrmLeadCreator", fields: [createdById], references: [id])
+  country    Country? @relation(fields: [countryId], references: [id])
+  team       CrmSalesTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   activities    CrmActivity[]
   opportunities CrmOpportunity[]
@@ -5022,7 +5035,77 @@ model CrmLead {
   @@index([branchId])
   @@index([companyId, status])
   @@index([assignedToId])
+  @@index([teamId])
   @@map("crm_lead")
+}
+
+// ── CRM Sales Team: people who work a territory (a set of markets) ──
+
+model CrmSalesTeam {
+  id        String   @id @default(cuid())
+  companyId String
+  branchId  String
+  name      String
+  leaderId  String?
+  marketIds String[] // territory: leads from these markets' countries route here
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  leader  User?   @relation("CrmSalesTeamLeader", fields: [leaderId], references: [id])
+  members User[]  @relation("CrmSalesTeamMembers")
+  leads   CrmLead[]
+
+  @@index([companyId])
+  @@index([branchId])
+  @@map("crm_sales_team")
+}
+
+// ── CRM Mailing: one email sent to a filtered audience of leads or customers ──
+
+model CrmMailing {
+  id          String    @id @default(cuid())
+  companyId   String
+  branchId    String
+  name        String
+  subject     String
+  body        String    @db.Text // plain text; {{firstName}} is replaced per recipient
+  audience    Json      // { target: "leads" | "customers", ...filters }
+  status      String    @default("DRAFT") // DRAFT, SENDING, SENT
+  sentAt      DateTime?
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch     Branch  @relation(fields: [branchId], references: [id])
+  createdBy  User?   @relation("CrmMailingCreator", fields: [createdById], references: [id])
+  recipients CrmMailingRecipient[]
+
+  @@index([companyId])
+  @@index([branchId])
+  @@map("crm_mailing")
+}
+
+model CrmMailingRecipient {
+  id         String    @id @default(cuid())
+  mailingId  String
+  email      String
+  name       String
+  leadId     String?
+  customerId String?
+  status     String    @default("PENDING") // PENDING, SENT, FAILED
+  error      String?
+  sentAt     DateTime?
+
+  mailing CrmMailing @relation(fields: [mailingId], references: [id], onDelete: Cascade)
+
+  @@index([mailingId])
+  @@map("crm_mailing_recipient")
 }
 
 // ── CRM Opportunity ──
@@ -5111,6 +5194,7 @@ model CrmCustomer {
   lifetimeValue Decimal? @db.Decimal(12, 2)
   partnerId    String?
   notes        String?  @db.Text
+  emailOptOut  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -289,6 +289,8 @@ export function getModuleRoutes(t: NavTranslations): Record<string, ModuleRouteC
             { label: "Leads", href: "/crm/leads" },
             { label: "Pipeline", href: "/crm/pipeline" },
             { label: "Contacts", href: "/crm/contacts" },
+            { label: "Sales Teams", href: "/crm/teams" },
+            { label: "Mailings", href: "/crm/mailings" },
             { label: "Bookings", href: "/crm/bookings" },
           ],
         },

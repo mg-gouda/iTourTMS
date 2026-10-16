@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CRM_LEAD_SOURCE_LABELS } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { leadCreateSchema } from "@/lib/validations/crm";
+import { LeadTerritoryFields } from "@/components/crm/lead-territory-fields";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
 
@@ -50,6 +51,8 @@ export default function NewLeadPage() {
       source: "WEBSITE",
       status: "NEW",
       assignedToId: "",
+      countryId: "",
+      teamId: "",
       notes: "",
     },
   });
@@ -157,6 +160,8 @@ export default function NewLeadPage() {
               </FormItem>
             )}
           />
+
+          <LeadTerritoryFields control={form.control} />
 
           <FormField
             control={form.control}

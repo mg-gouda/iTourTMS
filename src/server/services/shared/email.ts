@@ -21,6 +21,7 @@ export async function sendEmail(opts: {
   html: string;
   text?: string;
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
+  headers?: Record<string, string>;
 }) {
   if (!process.env.SMTP_HOST) {
     console.log(`[email] SMTP not configured — skipping email to ${opts.to}: ${opts.subject}`);
@@ -34,6 +35,7 @@ export async function sendEmail(opts: {
     html: opts.html,
     text: opts.text,
     attachments: opts.attachments,
+    headers: opts.headers,
   });
 }
 

@@ -18,9 +18,13 @@ import { opportunityRouter } from "./opportunity";
 import { programRouter } from "./program";
 import { sellingPriceRouter } from "./selling-price";
 import { supplierRouter } from "./supplier";
+import { salesTeamRouter } from "./sales-team";
+import { mailingRouter } from "./mailing";
 
 export const crmRouter = createTRPCRouter({
   lead: leadRouter,
+  salesTeam: salesTeamRouter,
+  mailing: mailingRouter,
   opportunity: opportunityRouter,
   activity: activityRouter,
   customer: customerRouter,

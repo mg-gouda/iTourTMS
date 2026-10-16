@@ -12,7 +12,8 @@ const totpToken = z.object({ token: z.string().regex(/^\d{6}$/) });
 export const userRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.user.findMany({
-      where: { companyId: ctx.user.companyId, isActive: true },
+      // Staff only: partner-portal users are not assignable.
+      where: { companyId: ctx.user.companyId, isActive: true, tourOperatorId: null },
       select: { id: true, name: true, email: true, image: true },
       orderBy: { name: "asc" },
     });

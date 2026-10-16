@@ -3,8 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Check, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +22,13 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormDescription,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { LeadScoreBadge } from "@/components/crm/lead-score-badge";
+import { LeadTerritoryFields } from "@/components/crm/lead-territory-fields";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -62,25 +66,7 @@ export default function LeadDetailPage() {
 
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
 
-  const form = useForm<LeadFormValues>({
-    resolver: zodResolver(leadUpdateSchema),
-    defaultValues: {},
-  });
-
-  useEffect(() => {
-    if (lead) {
-      form.reset({
-        firstName: lead.firstName,
-        lastName: lead.lastName,
-        email: lead.email ?? "",
-        phone: lead.phone ?? "",
-        source: lead.source,
-        status: lead.status,
-        assignedToId: lead.assignedToId ?? "",
-        notes: lead.notes ?? "",
-      });
-    }
-  }, [lead, form]);
+  const { data: teams } = trpc.crm.salesTeam.list.useQuery();
 
   const updateMutation = trpc.crm.lead.update.useMutation({
     onSuccess: () => {
@@ -184,8 +170,13 @@ export default function LeadDetailPage() {
             <Badge variant={CRM_LEAD_STATUS_VARIANTS[lead.status] as "default"}>
               {CRM_LEAD_STATUS_LABELS[lead.status]}
             </Badge>
+            <LeadScoreBadge score={lead.score} band={lead.band} reasons={lead.scoreReasons} />
           </div>
-          <p className="font-mono text-sm text-muted-foreground">{lead.code}</p>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-mono">{lead.code}</span>
+            {lead.team && <> · {lead.team.name}</>}
+            {lead.country && <> · {lead.country.name}</>}
+          </p>
         </div>
         <div className="flex gap-2">
           {lead.status !== "WON" && lead.status !== "LOST" && (
@@ -227,6 +218,27 @@ export default function LeadDetailPage() {
         <TabsContent value="details" className="mt-4">
           <Card>
             <CardContent className="pt-6">
+              {!users || !teams ? (
+                <Skeleton className="h-96 w-full" />
+              ) : (
+              <LoadedForm
+                // Remount on a fresh lead so the selects mount with their values.
+                key={String(lead.updatedAt)}
+                defaults={{
+                  firstName: lead.firstName,
+                  lastName: lead.lastName,
+                  email: lead.email ?? "",
+                  phone: lead.phone ?? "",
+                  source: lead.source,
+                  status: lead.status,
+                  assignedToId: lead.assignedToId ?? "",
+                  countryId: lead.countryId ?? "",
+                  teamId: lead.teamId ?? "",
+                  emailOptOut: lead.emailOptOut,
+                  notes: lead.notes ?? "",
+                }}
+              >
+              {(form) => (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -325,6 +337,8 @@ export default function LeadDetailPage() {
                     />
                   </div>
 
+                  <LeadTerritoryFields control={form.control} />
+
                   <FormField
                     control={form.control}
                     name="assignedToId"
@@ -352,6 +366,22 @@ export default function LeadDetailPage() {
 
                   <FormField
                     control={form.control}
+                    name="emailOptOut"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
+                        <div>
+                          <FormLabel>Unsubscribed from mailings</FormLabel>
+                          <FormDescription>Mass mailings skip this lead.</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
@@ -371,6 +401,9 @@ export default function LeadDetailPage() {
                   </Button>
                 </form>
               </Form>
+              )}
+              </LoadedForm>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -580,4 +613,19 @@ export default function LeadDetailPage() {
     </PermissionGuard>
 
   );
+}
+
+/**
+ * Holds the lead form, created only once its data has loaded: Radix selects
+ * that mount empty and get a value later show a blank label.
+ */
+function LoadedForm({
+  defaults,
+  children,
+}: {
+  defaults: LeadFormValues;
+  children: (form: UseFormReturn<LeadFormValues>) => React.ReactNode;
+}) {
+  const form = useForm<LeadFormValues>({ resolver: zodResolver(leadUpdateSchema), defaultValues: defaults });
+  return <>{children(form)}</>;
 }

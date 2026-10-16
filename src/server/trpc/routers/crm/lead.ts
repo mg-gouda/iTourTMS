@@ -4,28 +4,36 @@ import { leadCreateSchema, leadUpdateSchema } from "@/lib/validations/crm";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { activeBranch } from "@/server/branch-scope";
 import { nextSerialCode } from "@/server/services/finance/sequence-generator";
+import { routeLead, scoreInclude, withScore } from "@/server/services/crm/lead-routing";
 
 const p = (code: string) => modulePermissionProcedure("crm", code);
 
 export const leadRouter = createTRPCRouter({
   list: p("crm:lead:read").query(async ({ ctx }) => {
-    return ctx.db.crmLead.findMany({
+    const leads = await ctx.db.crmLead.findMany({
       where: { companyId: ctx.companyId },
       include: {
         branch: { select: { code: true, name: true } },
         assignedTo: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
+        country: { select: { id: true, name: true } },
+        ...scoreInclude,
       },
       orderBy: { createdAt: "desc" },
       take: 500,
     });
+    return leads.map(withScore);
   }),
 
   getById: p("crm:lead:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.crmLead.findFirstOrThrow({
+      const lead = await ctx.db.crmLead.findFirstOrThrow({
         where: { id: input.id, companyId: ctx.companyId },
         include: {
+          _count: scoreInclude._count,
+          team: { select: { id: true, name: true } },
+          country: { select: { id: true, name: true } },
           assignedTo: { select: { id: true, name: true } },
           createdBy: { select: { id: true, name: true } },
           activities: {
@@ -39,20 +47,23 @@ export const leadRouter = createTRPCRouter({
           },
         },
       });
+      return withScore(lead);
     }),
 
   create: p("crm:lead:create")
     .input(leadCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      const code = await nextSerialCode(ctx.db, ctx.companyId, "lead", { prefix: "LD" }, activeBranch(ctx.branch));
+      const branchId = activeBranch(ctx.branch);
+      const code = await nextSerialCode(ctx.db, ctx.companyId, "lead", { prefix: "LD" }, branchId);
 
       return ctx.db.crmLead.create({
         data: {
           ...input,
-          branchId: activeBranch(ctx.branch),
+          branchId,
           email: input.email || null,
           phone: input.phone || null,
-          assignedToId: input.assignedToId || null,
+          countryId: input.countryId || null,
+          ...(await routeLead(ctx.db, ctx.companyId, branchId, input)),
           notes: input.notes || null,
           code,
           companyId: ctx.companyId,
@@ -64,14 +75,30 @@ export const leadRouter = createTRPCRouter({
   update: p("crm:lead:update")
     .input(z.object({ id: z.string(), data: leadUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
+      const { email, phone, assignedToId, countryId, teamId, notes } = input.data;
+      const lead = await ctx.db.crmLead.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { branchId: true, countryId: true },
+      });
+      // Team left on "route by country": find it from the (new) country.
+      const routed =
+        teamId === ""
+          ? await routeLead(ctx.db, ctx.companyId, lead.branchId, {
+              countryId: countryId === undefined ? lead.countryId : countryId,
+              assignedToId,
+            })
+          : null;
       return ctx.db.crmLead.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: {
           ...input.data,
-          email: input.data.email || null,
-          phone: input.data.phone || null,
-          assignedToId: input.data.assignedToId || null,
-          notes: input.data.notes || null,
+          ...(email !== undefined && { email: email || null }),
+          ...(phone !== undefined && { phone: phone || null }),
+          ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
+          ...(countryId !== undefined && { countryId: countryId || null }),
+          ...(teamId !== undefined && { teamId: teamId || null }),
+          ...(notes !== undefined && { notes: notes || null }),
+          ...(routed && { teamId: routed.teamId, assignedToId: assignedToId || routed.assignedToId }),
         },
       });
     }),

@@ -57,6 +57,8 @@ export function proxy(request: NextRequest) {
     "/api/v1",
     "/api/b2c",
     "/api/cron",
+    // Signed unsubscribe links in CRM mailings; the token is the auth.
+    "/api/crm/unsubscribe",
   ];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next({ request: { headers } });

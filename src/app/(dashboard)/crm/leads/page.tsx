@@ -29,6 +29,7 @@ import {
   CRM_LEAD_STATUS_VARIANTS,
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
+import { LeadScoreBadge } from "@/components/crm/lead-score-badge";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type LeadRow = {
@@ -40,6 +41,10 @@ type LeadRow = {
   source: string;
   status: string;
   assignedTo: { id: string; name: string | null } | null;
+  team: { id: string; name: string } | null;
+  score: number;
+  band: "hot" | "warm" | "cold";
+  scoreReasons: string[];
   createdAt: Date;
 };
 
@@ -50,6 +55,7 @@ export default function LeadsPage() {
   const { data, isLoading } = trpc.crm.lead.list.useQuery();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [bandFilter, setBandFilter] = useState<string>("all");
 
   const columns: ColumnDef<LeadRow>[] = [
     {
@@ -65,6 +71,14 @@ export default function LeadsPage() {
         <span className="font-medium">
           {row.original.firstName} {row.original.lastName}
         </span>
+      ),
+    },
+    {
+      id: "score",
+      accessorFn: (row) => row.score,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Score" />,
+      cell: ({ row }) => (
+        <LeadScoreBadge score={row.original.score} band={row.original.band} reasons={row.original.scoreReasons} />
       ),
     },
     {
@@ -92,6 +106,12 @@ export default function LeadsPage() {
       accessorFn: (row) => row.assignedTo?.name ?? "",
       cell: ({ row }) => row.original.assignedTo?.name ?? "—",
     },
+    {
+      id: "team",
+      header: "Team",
+      accessorFn: (row) => row.team?.name ?? "",
+      cell: ({ row }) => row.original.team?.name ?? <span className="text-muted-foreground">—</span>,
+    },
   ];
   const shownColumns = useBranchColumns(columns);
 
@@ -99,8 +119,9 @@ export default function LeadsPage() {
     let rows = (data ?? []) as LeadRow[];
     if (statusFilter !== "all") rows = rows.filter((r) => r.status === statusFilter);
     if (sourceFilter !== "all") rows = rows.filter((r) => r.source === sourceFilter);
+    if (bandFilter !== "all") rows = rows.filter((r) => r.band === bandFilter);
     return rows;
-  }, [data, statusFilter, sourceFilter]);
+  }, [data, statusFilter, sourceFilter, bandFilter]);
 
   const filterToolbar = (
     <>
@@ -124,6 +145,17 @@ export default function LeadsPage() {
           {Object.entries(CRM_LEAD_SOURCE_LABELS).map(([v, l]) => (
             <SelectItem key={v} value={v}>{l}</SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+      <Select value={bandFilter} onValueChange={setBandFilter}>
+        <SelectTrigger className="h-9 w-[130px]" aria-label="Score band">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any score</SelectItem>
+          <SelectItem value="hot">Hot (70+)</SelectItem>
+          <SelectItem value="warm">Warm (40–69)</SelectItem>
+          <SelectItem value="cold">Cold (under 40)</SelectItem>
         </SelectContent>
       </Select>
     </>
