@@ -10,6 +10,8 @@ export interface ManualWindow {
   resolve?: (db: PrismaClient) => Promise<string | null>;
   /** Put the page in the state to capture (open a tab, a dialog…). */
   setup?: (page: Page) => Promise<void>;
+  /** Regexes for element labels that are data (names, codes) — described in prose, not numbered. */
+  skip?: string[];
 }
 
 export const tab = (value: string) => async (page: Page) => {

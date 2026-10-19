@@ -178,10 +178,11 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Caption inside a <label> wrapper, so every field is announced by name.
   const L = ({ children, req }: { children: React.ReactNode; req?: boolean }) => (
-    <label className="mb-1 block text-[11px] font-medium text-foreground/60">
-      {children}{req && <span className="ml-0.5 text-destructive">*</span>}
-    </label>
+    <span className="mb-1 block text-[11px] font-medium text-foreground/60">
+      {children}{req && <span className="ms-0.5 text-destructive">*</span>}
+    </span>
   );
 
   return (
@@ -207,7 +208,7 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
 
       {/* ── Row 1: Hotel · Excursion · Exc.Date · Arrival · Source ── */}
       <div className="grid grid-cols-12 gap-x-2.5 gap-y-2.5">
-        <div className="col-span-3">
+        <label className="col-span-3 block">
           <L req>Hotel</L>
           <Combobox
             options={hotels?.map((h) => ({
@@ -220,8 +221,8 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
             searchPlaceholder="Search hotel…"
             className="h-8 text-xs"
           />
-        </div>
-        <div className="col-span-3">
+        </label>
+        <label className="col-span-3 block">
           <L req>Excursion</L>
           <Combobox
             options={excursions?.map((e) => ({ value: e.id, label: `${e.name} (${e.code})` })) ?? []}
@@ -231,16 +232,16 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
             searchPlaceholder="Search excursion…"
             className="h-8 text-xs"
           />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L req>Exc. Date</L>
           <Input type="date" className="h-8 text-xs" value={form.excursionDate} onChange={(e) => setForm((f) => ({ ...f, excursionDate: e.target.value }))} />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L>Arrival Date</L>
           <Input type="date" className="h-8 text-xs" value={form.arrivalDate} onChange={(e) => setForm((f) => ({ ...f, arrivalDate: e.target.value }))} />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L>Source</L>
           <Select value={form.source} onValueChange={(v) => setForm((f) => ({ ...f, source: v as typeof form.source }))}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -251,12 +252,12 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
               <SelectItem value="B2B">B2B Portal</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </label>
       </div>
 
       {/* ── Row 2: Tour Op · Guest · Mobile · Guide · Pickup · Room ── */}
       <div className="grid grid-cols-12 gap-x-2.5 gap-y-2.5">
-        <div className="col-span-3">
+        <label className="col-span-3 block">
           <L>Tour Operator</L>
           <Combobox
             options={[
@@ -269,20 +270,20 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
             searchPlaceholder="Search tour operator…"
             className="h-8 text-xs"
           />
-        </div>
-        <div className="col-span-3">
+        </label>
+        <label className="col-span-3 block">
           <L>Guest Name</L>
           <Input className="h-8 text-xs" placeholder="Full name" value={form.guestName} onChange={(e) => setForm((f) => ({ ...f, guestName: e.target.value }))} />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L>Mobile</L>
           <Input className="h-8 text-xs" placeholder="+1 234 567 8900" value={form.guestMobile} onChange={(e) => setForm((f) => ({ ...f, guestMobile: e.target.value }))} />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L>Hotel Guide</L>
           <Input className="h-8 text-xs" placeholder="Guide name" value={form.hotelGuideName} onChange={(e) => setForm((f) => ({ ...f, hotelGuideName: e.target.value }))} />
-        </div>
-        <div className="col-span-1">
+        </label>
+        <label className="col-span-1 block">
           <L>Pickup</L>
           <div className="relative">
             <Input type="time" className="h-8 text-[11px] px-1.5" value={form.pickupTime}
@@ -291,24 +292,24 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
               <span className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded bg-primary/10 px-0.5 text-[9px] font-medium text-primary">auto</span>
             )}
           </div>
-        </div>
-        <div className="col-span-1">
+        </label>
+        <label className="col-span-1 block">
           <L>Room</L>
           <Input className="h-8 text-xs" placeholder="204" value={form.roomNo} onChange={(e) => setForm((f) => ({ ...f, roomNo: e.target.value }))} />
-        </div>
+        </label>
       </div>
 
       {/* ── Row 3: Adt · CHD · Price · Curr · Lang · Remarks ── */}
       <div className="grid grid-cols-12 gap-x-2.5 gap-y-2.5">
-        <div className="col-span-1">
+        <label className="col-span-1 block">
           <L req>Adt</L>
           <Input type="number" min={1} className="h-8 text-xs text-center" value={form.adults} onChange={(e) => setForm((f) => ({ ...f, adults: Math.max(1, Number(e.target.value)) }))} />
-        </div>
-        <div className="col-span-1">
+        </label>
+        <label className="col-span-1 block">
           <L>CHD</L>
           <Input type="number" min={0} className="h-8 text-xs text-center" value={form.children} onChange={(e) => setForm((f) => ({ ...f, children: Math.max(0, Number(e.target.value)) }))} />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L>Price / Person</L>
           <div className="relative">
             <Input type="number" min={0} step="0.01" className="h-8 text-xs pr-8" placeholder="0.00" value={form.price}
@@ -317,13 +318,13 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
               <span className="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-primary/10 px-0.5 text-[9px] font-medium text-primary">auto</span>
             )}
           </div>
-        </div>
-        <div className="col-span-1">
+        </label>
+        <label className="col-span-1 block">
           <L>Curr.</L>
           <Input className="h-8 text-xs text-center uppercase tracking-widest" placeholder="USD" maxLength={3}
             value={form.priceCurrency} onChange={(e) => setForm((f) => ({ ...f, priceCurrency: e.target.value.toUpperCase() }))} />
-        </div>
-        <div className="col-span-2">
+        </label>
+        <label className="col-span-2 block">
           <L>Language</L>
           <Select value={form.language} onValueChange={(v) => setForm((f) => ({ ...f, language: v }))}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -338,12 +339,12 @@ function BookingForm({ onDone, editId }: BookingFormProps) {
               <SelectItem value="ES">Spanish</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <div className="col-span-5">
+        </label>
+        <label className="col-span-5 block">
           <L>Remarks</L>
           <Textarea rows={1} className="text-xs resize-none py-1.5 min-h-[32px]" placeholder="Optional remarks…"
             value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
-        </div>
+        </label>
       </div>
 
       {!form.pickupTime && form.hotelId && form.excursionId && (

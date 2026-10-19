@@ -55,8 +55,15 @@ export const crm: ManualWindow[] = [
   { id: "exc-programs", route: "/crm/exc-programs" },
   { id: "exc-program-new", route: "/crm/exc-programs/new" },
   { id: "exc-program-detail", route: "/crm/exc-programs/:id", resolve: plan },
-  { id: "to-assign", route: "/crm/to-assign" },
-  { id: "pickup-time-sheet", route: "/crm/pickup-time-sheet" },
+  {
+    id: "to-assign",
+    route: "/crm/to-assign",
+    // The assignment panel appears once a programme is picked from the list.
+    setup: async (p) => {
+      await p.locator("main main button").filter({ hasText: /excursion/i }).first().click();
+    },
+  },
+  { id: "pickup-time-sheet", route: "/crm/pickup-time-sheet", skip: ["^(?!Save$|Hotel)"] },
   { id: "excursion-bookings", route: "/crm/excursion-bookings" },
   { id: "excursion-breakdown", route: "/crm/excursion-breakdown" },
   { id: "excursion-dispatch", route: "/crm/excursion-dispatch" },

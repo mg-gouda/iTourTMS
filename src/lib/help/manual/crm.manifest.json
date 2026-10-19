@@ -1,0 +1,4970 @@
+{
+  "dashboard": {
+    "route": "/crm",
+    "items": [
+      {
+        "n": 1,
+        "kind": "tile",
+        "key": "Leads",
+        "x": 280,
+        "y": 184,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "New Lead",
+        "x": 568,
+        "y": 184,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 3,
+        "kind": "tile",
+        "key": "Qualified",
+        "x": 856,
+        "y": 184,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Opportunities",
+        "x": 1144,
+        "y": 184,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 374,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Confirmed",
+        "x": 568,
+        "y": 374,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Draft",
+        "x": 856,
+        "y": 374,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 8,
+        "kind": "tile",
+        "key": "Pending",
+        "x": 1144,
+        "y": 374,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 9,
+        "kind": "tile",
+        "key": "Total Revenue",
+        "x": 280,
+        "y": 564,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 10,
+        "kind": "tile",
+        "key": "Total Cost",
+        "x": 568,
+        "y": 564,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 11,
+        "kind": "tile",
+        "key": "Total Profit",
+        "x": 856,
+        "y": 564,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 12,
+        "kind": "tile",
+        "key": "Margin",
+        "x": 1144,
+        "y": 564,
+        "w": 272,
+        "h": 134
+      },
+      {
+        "n": 13,
+        "kind": "link",
+        "key": "View",
+        "x": 585,
+        "y": 751,
+        "w": 32,
+        "h": 16
+      }
+    ]
+  },
+  "leads": {
+    "route": "/crm/leads",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Export Excel",
+        "x": 1162,
+        "y": 82,
+        "w": 121,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "New Lead",
+        "x": 1291,
+        "y": 82,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "New Lead",
+        "x": 1291,
+        "y": 82,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Search leads...",
+        "x": 280,
+        "y": 144,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Score band",
+        "x": 988,
+        "y": 144,
+        "w": 130,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Code",
+        "x": 281,
+        "y": 197,
+        "w": 87,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Branch",
+        "x": 368,
+        "y": 197,
+        "w": 70,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Name",
+        "x": 438,
+        "y": 197,
+        "w": 131,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Score",
+        "x": 569,
+        "y": 197,
+        "w": 101,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Email",
+        "x": 670,
+        "y": 197,
+        "w": 246,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Source",
+        "x": 916,
+        "y": 197,
+        "w": 119,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Status",
+        "x": 1035,
+        "y": 197,
+        "w": 122,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "column",
+        "key": "Assigned To",
+        "x": 1157,
+        "y": 197,
+        "w": 100,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "column",
+        "key": "Team",
+        "x": 1257,
+        "y": 197,
+        "w": 158,
+        "h": 36
+      }
+    ]
+  },
+  "lead-new": {
+    "route": "/crm/leads/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "First Name",
+        "x": 592,
+        "y": 214,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Last Name",
+        "x": 856,
+        "y": 214,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Email",
+        "x": 592,
+        "y": 288,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Phone",
+        "x": 592,
+        "y": 362,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Source",
+        "x": 592,
+        "y": 436,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Sales team",
+        "x": 856,
+        "y": 510,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Guest country",
+        "x": 592,
+        "y": 544,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Assigned To",
+        "x": 592,
+        "y": 652,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Notes",
+        "x": 592,
+        "y": 726,
+        "w": 512,
+        "h": 64
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "New Lead",
+        "x": 592,
+        "y": 806,
+        "w": 101,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 701,
+        "y": 806,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "lead-details": {
+    "route": "/crm/leads/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Convert to Opportunity",
+        "x": 905,
+        "y": 121,
+        "w": 220,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Convert to Customer",
+        "x": 1134,
+        "y": 121,
+        "w": 204,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 121,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 192,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 357,
+        "y": 192,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "First Name",
+        "x": 305,
+        "y": 320,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Last Name",
+        "x": 856,
+        "y": 320,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Email",
+        "x": 305,
+        "y": 394,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Phone",
+        "x": 305,
+        "y": 468,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Source",
+        "x": 305,
+        "y": 542,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Status",
+        "x": 856,
+        "y": 542,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Sales team",
+        "x": 856,
+        "y": 616,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Guest country",
+        "x": 305,
+        "y": 630,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Assigned To",
+        "x": 305,
+        "y": 718,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "switch",
+        "key": "Unsubscribed from mailings",
+        "x": 1346,
+        "y": 787,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 17,
+        "kind": "field",
+        "key": "Notes",
+        "x": 305,
+        "y": 860,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Save Changes",
+        "x": 305,
+        "y": 940,
+        "w": 132,
+        "h": 36
+      }
+    ]
+  },
+  "lead-activities": {
+    "route": "/crm/leads/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Convert to Opportunity",
+        "x": 905,
+        "y": 121,
+        "w": 220,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Convert to Customer",
+        "x": 1134,
+        "y": 121,
+        "w": 204,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 121,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 192,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 357,
+        "y": 192,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Add Activity",
+        "x": 1282,
+        "y": 249,
+        "w": 134,
+        "h": 32
+      }
+    ]
+  },
+  "pipeline": {
+    "route": "/crm/pipeline",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Export Excel",
+        "x": 1112,
+        "y": 82,
+        "w": 121,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "New Opportunity",
+        "x": 1241,
+        "y": 82,
+        "w": 175,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "New Opportunity",
+        "x": 1241,
+        "y": 82,
+        "w": 175,
+        "h": 36
+      }
+    ]
+  },
+  "opportunity-new": {
+    "route": "/crm/pipeline/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Name",
+        "x": 592,
+        "y": 214,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Stage",
+        "x": 592,
+        "y": 288,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Probability (%)",
+        "x": 856,
+        "y": 288,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Expected Value ($)",
+        "x": 592,
+        "y": 362,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Expected Close",
+        "x": 856,
+        "y": 362,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Owner",
+        "x": 592,
+        "y": 436,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Linked Lead",
+        "x": 592,
+        "y": 510,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Linked Customer",
+        "x": 592,
+        "y": 584,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Notes",
+        "x": 592,
+        "y": 658,
+        "w": 512,
+        "h": 64
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "New Opportunity",
+        "x": 592,
+        "y": 738,
+        "w": 151,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 751,
+        "y": 738,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "opportunity-details": {
+    "route": "/crm/pipeline/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Create Booking",
+        "x": 1183,
+        "y": 122,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Create Booking",
+        "x": 1183,
+        "y": 122,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 191,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 357,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 471,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Name",
+        "x": 305,
+        "y": 319,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Stage",
+        "x": 305,
+        "y": 393,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Probability (%)",
+        "x": 856,
+        "y": 393,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Expected Value ($)",
+        "x": 305,
+        "y": 467,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Expected Close",
+        "x": 856,
+        "y": 467,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Owner",
+        "x": 305,
+        "y": 541,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Notes",
+        "x": 305,
+        "y": 615,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 15,
+        "kind": "button",
+        "key": "Save Changes",
+        "x": 305,
+        "y": 695,
+        "w": 132,
+        "h": 36
+      }
+    ]
+  },
+  "opportunity-bookings": {
+    "route": "/crm/pipeline/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Create Booking",
+        "x": 1183,
+        "y": 122,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Create Booking",
+        "x": 1183,
+        "y": 122,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 191,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 357,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 471,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Code",
+        "x": 281,
+        "y": 249,
+        "w": 187,
+        "h": 29
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Travel Date",
+        "x": 468,
+        "y": 249,
+        "w": 240,
+        "h": 29
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Booking Items",
+        "x": 708,
+        "y": 249,
+        "w": 252,
+        "h": 29
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Total",
+        "x": 960,
+        "y": 249,
+        "w": 190,
+        "h": 29
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Status",
+        "x": 1150,
+        "y": 249,
+        "w": 265,
+        "h": 29
+      }
+    ]
+  },
+  "opportunity-activities": {
+    "route": "/crm/pipeline/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Create Booking",
+        "x": 1183,
+        "y": 122,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Create Booking",
+        "x": 1183,
+        "y": 122,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 191,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 357,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 471,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Add Activity",
+        "x": 1282,
+        "y": 248,
+        "w": 134,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Mark complete",
+        "x": 1303,
+        "y": 333,
+        "w": 24,
+        "h": 24
+      }
+    ]
+  },
+  "contacts": {
+    "route": "/crm/contacts",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Contact",
+        "x": 1271,
+        "y": 82,
+        "w": 145,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Contact",
+        "x": 1271,
+        "y": 82,
+        "w": 145,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Search contacts...",
+        "x": 280,
+        "y": 144,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Name",
+        "x": 281,
+        "y": 197,
+        "w": 169,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Email",
+        "x": 450,
+        "y": 197,
+        "w": 307,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Nationality",
+        "x": 757,
+        "y": 197,
+        "w": 117,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Loyalty Tier",
+        "x": 874,
+        "y": 197,
+        "w": 156,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Lifetime Value",
+        "x": 1030,
+        "y": 197,
+        "w": 143,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Bookings",
+        "x": 1174,
+        "y": 197,
+        "w": 103,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Opportunities",
+        "x": 1277,
+        "y": 197,
+        "w": 139,
+        "h": 36
+      }
+    ]
+  },
+  "contact-new": {
+    "route": "/crm/contacts/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "First Name",
+        "x": 592,
+        "y": 214,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Last Name",
+        "x": 856,
+        "y": 214,
+        "w": 248,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Email",
+        "x": 592,
+        "y": 288,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Phone",
+        "x": 592,
+        "y": 362,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Nationality",
+        "x": 592,
+        "y": 436,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Date of Birth",
+        "x": 592,
+        "y": 510,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Loyalty Tier",
+        "x": 592,
+        "y": 584,
+        "w": 512,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Notes",
+        "x": 592,
+        "y": 658,
+        "w": 512,
+        "h": 64
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "New Contact",
+        "x": 592,
+        "y": 738,
+        "w": 121,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 721,
+        "y": 738,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "contact-profile": {
+    "route": "/crm/contacts/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Profile",
+        "x": 282,
+        "y": 191,
+        "w": 70,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 352,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 466,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Opportunities (#)",
+        "x": 580,
+        "y": 191,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "First Name",
+        "x": 305,
+        "y": 319,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Last Name",
+        "x": 856,
+        "y": 319,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Email",
+        "x": 305,
+        "y": 393,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Phone",
+        "x": 305,
+        "y": 467,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Nationality",
+        "x": 305,
+        "y": 541,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Date of Birth",
+        "x": 305,
+        "y": 615,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Loyalty Tier",
+        "x": 305,
+        "y": 689,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "switch",
+        "key": "Unsubscribed from mailings",
+        "x": 1346,
+        "y": 758,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Notes",
+        "x": 305,
+        "y": 831,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 16,
+        "kind": "button",
+        "key": "Save Changes",
+        "x": 305,
+        "y": 911,
+        "w": 132,
+        "h": 36
+      }
+    ]
+  },
+  "contact-activities": {
+    "route": "/crm/contacts/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Profile",
+        "x": 282,
+        "y": 191,
+        "w": 70,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 352,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 466,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Opportunities (#)",
+        "x": 580,
+        "y": 191,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Add Activity",
+        "x": 1282,
+        "y": 248,
+        "w": 134,
+        "h": 32
+      }
+    ]
+  },
+  "contact-bookings": {
+    "route": "/crm/contacts/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Profile",
+        "x": 282,
+        "y": 191,
+        "w": 70,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 352,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 466,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Opportunities (#)",
+        "x": 580,
+        "y": 191,
+        "w": 146,
+        "h": 31
+      }
+    ]
+  },
+  "contact-opportunities": {
+    "route": "/crm/contacts/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Profile",
+        "x": 282,
+        "y": 191,
+        "w": 70,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 352,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Bookings (#)",
+        "x": 466,
+        "y": 191,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Opportunities (#)",
+        "x": 580,
+        "y": 191,
+        "w": 146,
+        "h": 31
+      }
+    ]
+  },
+  "teams": {
+    "route": "/crm/teams",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New team",
+        "x": 1289,
+        "y": 72,
+        "w": 127,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Search teams…",
+        "x": 280,
+        "y": 168,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Team",
+        "x": 281,
+        "y": 221,
+        "w": 227,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Branch",
+        "x": 508,
+        "y": 221,
+        "w": 101,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Territory",
+        "x": 609,
+        "y": 221,
+        "w": 271,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Leader",
+        "x": 880,
+        "y": 221,
+        "w": 99,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Members",
+        "x": 980,
+        "y": 221,
+        "w": 121,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Open leads",
+        "x": 1101,
+        "y": 221,
+        "w": 189,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Won",
+        "x": 1290,
+        "y": 221,
+        "w": 125,
+        "h": 36
+      }
+    ]
+  },
+  "team-edit": {
+    "route": "/crm/teams",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Close",
+        "x": 1408,
+        "y": 16,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Name",
+        "x": 945,
+        "y": 102,
+        "w": 479,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "group",
+        "key": "Markets",
+        "x": 945,
+        "y": 178,
+        "w": 479,
+        "h": 96
+      },
+      {
+        "n": 4,
+        "kind": "group",
+        "key": "Members",
+        "x": 945,
+        "y": 336,
+        "w": 479,
+        "h": 28
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Leader",
+        "x": 945,
+        "y": 426,
+        "w": 479,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "switch",
+        "key": "Active (receives routed leads)",
+        "x": 1379,
+        "y": 491,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Save team",
+        "x": 1317,
+        "y": 848,
+        "w": 107,
+        "h": 36
+      }
+    ]
+  },
+  "mailings": {
+    "route": "/crm/mailings",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New mailing",
+        "x": 1273,
+        "y": 72,
+        "w": 143,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New mailing",
+        "x": 1273,
+        "y": 72,
+        "w": 143,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Search mailings…",
+        "x": 280,
+        "y": 144,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Mailing",
+        "x": 281,
+        "y": 197,
+        "w": 419,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Branch",
+        "x": 700,
+        "y": 197,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Audience",
+        "x": 825,
+        "y": 197,
+        "w": 150,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Status",
+        "x": 976,
+        "y": 197,
+        "w": 145,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Sent",
+        "x": 1121,
+        "y": 197,
+        "w": 97,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Date",
+        "x": 1218,
+        "y": 197,
+        "w": 197,
+        "h": 36
+      }
+    ]
+  },
+  "mailing-new": {
+    "route": "/crm/mailings/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Internal name",
+        "x": 280,
+        "y": 188,
+        "w": 760,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "option",
+        "key": "Send to",
+        "x": 1094,
+        "y": 216,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Subject line",
+        "x": 280,
+        "y": 260,
+        "w": 760,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "group",
+        "key": "Status",
+        "x": 1081,
+        "y": 281,
+        "w": 318,
+        "h": 62
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Message",
+        "x": 280,
+        "y": 332,
+        "w": 760,
+        "h": 320
+      },
+      {
+        "n": 7,
+        "kind": "group",
+        "key": "Source",
+        "x": 1081,
+        "y": 405,
+        "w": 318,
+        "h": 96
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Team",
+        "x": 1081,
+        "y": 563,
+        "w": 153,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Score",
+        "x": 1246,
+        "y": 563,
+        "w": 153,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Save draft and continue",
+        "x": 1081,
+        "y": 728,
+        "w": 318,
+        "h": 36
+      }
+    ]
+  },
+  "mailing-detail": {
+    "route": "/crm/mailings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1338,
+        "y": 112,
+        "w": 78,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Name",
+        "x": 281,
+        "y": 542,
+        "w": 302,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Email",
+        "x": 583,
+        "y": 542,
+        "w": 516,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Status",
+        "x": 1099,
+        "y": 542,
+        "w": 188,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Note",
+        "x": 1287,
+        "y": 542,
+        "w": 128,
+        "h": 36
+      }
+    ]
+  },
+  "bookings": {
+    "route": "/crm/bookings",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Export Excel",
+        "x": 1125,
+        "y": 84,
+        "w": 135,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "New Booking",
+        "x": 1269,
+        "y": 82,
+        "w": 147,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "New Booking",
+        "x": 1269,
+        "y": 82,
+        "w": 147,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Search bookings...",
+        "x": 280,
+        "y": 144,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Code",
+        "x": 281,
+        "y": 197,
+        "w": 121,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Branch",
+        "x": 402,
+        "y": 197,
+        "w": 98,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Customer",
+        "x": 500,
+        "y": 197,
+        "w": 183,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Travel Date",
+        "x": 683,
+        "y": 197,
+        "w": 184,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Pax Count",
+        "x": 867,
+        "y": 197,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Booking Items",
+        "x": 993,
+        "y": 197,
+        "w": 163,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Total",
+        "x": 1155,
+        "y": 197,
+        "w": 88,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Status",
+        "x": 1244,
+        "y": 197,
+        "w": 171,
+        "h": 36
+      }
+    ]
+  },
+  "booking-new": {
+    "route": "/crm/bookings/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Customer",
+        "x": 489,
+        "y": 295,
+        "w": 307,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Quick-create customer",
+        "x": 804,
+        "y": 295,
+        "w": 36,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Status",
+        "x": 856,
+        "y": 295,
+        "w": 351,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Travel Date",
+        "x": 489,
+        "y": 369,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Adults",
+        "x": 673,
+        "y": 369,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Children",
+        "x": 856,
+        "y": 369,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Infants",
+        "x": 1040,
+        "y": 369,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Notes",
+        "x": 489,
+        "y": 443,
+        "w": 718,
+        "h": 64
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Add",
+        "x": 1134,
+        "y": 583,
+        "w": 73,
+        "h": 32
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "New Booking",
+        "x": 464,
+        "y": 782,
+        "w": 123,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 595,
+        "y": 782,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "booking-items": {
+    "route": "/crm/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Edit",
+        "x": 744,
+        "y": 124,
+        "w": 75,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Duplicate",
+        "x": 828,
+        "y": 124,
+        "w": 115,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 950,
+        "y": 124,
+        "w": 71,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Completed",
+        "x": 1030,
+        "y": 124,
+        "w": 102,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Voucher",
+        "x": 1140,
+        "y": 124,
+        "w": 105,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Excel",
+        "x": 1253,
+        "y": 124,
+        "w": 85,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 124,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "tile",
+        "key": "Total Cost",
+        "x": 280,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 10,
+        "kind": "tile",
+        "key": "Selling Price",
+        "x": 568,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 11,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 12,
+        "kind": "tile",
+        "key": "Margin",
+        "x": 1144,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Booking Items (#)",
+        "x": 282,
+        "y": 341,
+        "w": 150,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 432,
+        "y": 341,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "column",
+        "key": "Booking Items",
+        "x": 306,
+        "y": 440,
+        "w": 252,
+        "h": 29
+      },
+      {
+        "n": 16,
+        "kind": "column",
+        "key": "Excursion",
+        "x": 558,
+        "y": 440,
+        "w": 266,
+        "h": 29
+      },
+      {
+        "n": 17,
+        "kind": "column",
+        "key": "Qty",
+        "x": 824,
+        "y": 440,
+        "w": 69,
+        "h": 29
+      },
+      {
+        "n": 18,
+        "kind": "column",
+        "key": "Unit Cost",
+        "x": 893,
+        "y": 440,
+        "w": 120,
+        "h": 29
+      },
+      {
+        "n": 19,
+        "kind": "column",
+        "key": "Unit Price",
+        "x": 1012,
+        "y": 440,
+        "w": 123,
+        "h": 29
+      },
+      {
+        "n": 20,
+        "kind": "column",
+        "key": "Total Cost",
+        "x": 1136,
+        "y": 440,
+        "w": 125,
+        "h": 29
+      },
+      {
+        "n": 21,
+        "kind": "column",
+        "key": "Total Price",
+        "x": 1261,
+        "y": 440,
+        "w": 129,
+        "h": 29
+      },
+      {
+        "n": 22,
+        "kind": "tile",
+        "key": "Notes",
+        "x": 280,
+        "y": 612,
+        "w": 1136,
+        "h": 126
+      }
+    ]
+  },
+  "booking-activities": {
+    "route": "/crm/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Edit",
+        "x": 744,
+        "y": 124,
+        "w": 75,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Duplicate",
+        "x": 828,
+        "y": 124,
+        "w": 115,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 950,
+        "y": 124,
+        "w": 71,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Completed",
+        "x": 1030,
+        "y": 124,
+        "w": 102,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Voucher",
+        "x": 1140,
+        "y": 124,
+        "w": 105,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Excel",
+        "x": 1253,
+        "y": 124,
+        "w": 85,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 124,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "tile",
+        "key": "Total Cost",
+        "x": 280,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 10,
+        "kind": "tile",
+        "key": "Selling Price",
+        "x": 568,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 11,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 12,
+        "kind": "tile",
+        "key": "Margin",
+        "x": 1144,
+        "y": 192,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Booking Items (#)",
+        "x": 282,
+        "y": 341,
+        "w": 150,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Activities (#)",
+        "x": 432,
+        "y": 341,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "button",
+        "key": "Add Activity",
+        "x": 1282,
+        "y": 398,
+        "w": 134,
+        "h": 32
+      },
+      {
+        "n": 16,
+        "kind": "tile",
+        "key": "Notes",
+        "x": 280,
+        "y": 576,
+        "w": 1136,
+        "h": 126
+      }
+    ]
+  },
+  "excursions": {
+    "route": "/crm/excursions",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Excursion",
+        "x": 1257,
+        "y": 82,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Excursion",
+        "x": 1257,
+        "y": 82,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Search excursions...",
+        "x": 280,
+        "y": 144,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Code",
+        "x": 281,
+        "y": 197,
+        "w": 192,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Name",
+        "x": 473,
+        "y": 197,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Product Type",
+        "x": 631,
+        "y": 197,
+        "w": 175,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Category",
+        "x": 806,
+        "y": 197,
+        "w": 148,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Trip Mode",
+        "x": 954,
+        "y": 197,
+        "w": 142,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Cost Sheets",
+        "x": 1096,
+        "y": 197,
+        "w": 166,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Status",
+        "x": 1262,
+        "y": 197,
+        "w": 153,
+        "h": 36
+      }
+    ]
+  },
+  "excursion-new": {
+    "route": "/crm/excursions/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Code",
+        "x": 512,
+        "y": 214,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Name",
+        "x": 856,
+        "y": 214,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Product Type",
+        "x": 512,
+        "y": 288,
+        "w": 213,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Category",
+        "x": 741,
+        "y": 288,
+        "w": 213,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Trip Mode",
+        "x": 971,
+        "y": 288,
+        "w": 213,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Duration",
+        "x": 512,
+        "y": 362,
+        "w": 672,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Min Pax",
+        "x": 512,
+        "y": 436,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Max Pax",
+        "x": 856,
+        "y": 436,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Description",
+        "x": 512,
+        "y": 510,
+        "w": 672,
+        "h": 64
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Inclusions",
+        "x": 512,
+        "y": 612,
+        "w": 672,
+        "h": 64
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Exclusions",
+        "x": 512,
+        "y": 714,
+        "w": 672,
+        "h": 64
+      },
+      {
+        "n": 13,
+        "kind": "checkbox",
+        "key": "Active",
+        "x": 512,
+        "y": 794,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 14,
+        "kind": "button",
+        "key": "New Excursion",
+        "x": 512,
+        "y": 826,
+        "w": 135,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 655,
+        "y": 826,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "excursion-info": {
+    "route": "/crm/excursions/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1234,
+        "y": 122,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Revenue",
+        "x": 568,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Pax Served",
+        "x": 1144,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 337,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Program (#)",
+        "x": 335,
+        "y": 337,
+        "w": 109,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Age Groups & Addons",
+        "x": 444,
+        "y": 337,
+        "w": 179,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Pickup Locations (#)",
+        "x": 623,
+        "y": 337,
+        "w": 166,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Cost Sheets (#)",
+        "x": 789,
+        "y": 337,
+        "w": 134,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Pricing",
+        "x": 923,
+        "y": 337,
+        "w": 73,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Code",
+        "x": 305,
+        "y": 465,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Name",
+        "x": 856,
+        "y": 465,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "field",
+        "key": "Product Type",
+        "x": 305,
+        "y": 539,
+        "w": 351,
+        "h": 36
+      },
+      {
+        "n": 17,
+        "kind": "field",
+        "key": "Category",
+        "x": 672,
+        "y": 539,
+        "w": 351,
+        "h": 36
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Trip Mode",
+        "x": 1040,
+        "y": 539,
+        "w": 351,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Duration",
+        "x": 305,
+        "y": 613,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "field",
+        "key": "Min Pax",
+        "x": 305,
+        "y": 687,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 21,
+        "kind": "field",
+        "key": "Max Pax",
+        "x": 856,
+        "y": 687,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 22,
+        "kind": "field",
+        "key": "Description",
+        "x": 305,
+        "y": 761,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 23,
+        "kind": "field",
+        "key": "Inclusions",
+        "x": 305,
+        "y": 863,
+        "w": 1086,
+        "h": 118
+      },
+      {
+        "n": 24,
+        "kind": "field",
+        "key": "Exclusions",
+        "x": 305,
+        "y": 1019,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 25,
+        "kind": "checkbox",
+        "key": "Active",
+        "x": 305,
+        "y": 1099,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 26,
+        "kind": "button",
+        "key": "Save Changes",
+        "x": 305,
+        "y": 1131,
+        "w": 132,
+        "h": 36
+      }
+    ]
+  },
+  "excursion-program": {
+    "route": "/crm/excursions/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1234,
+        "y": 122,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Revenue",
+        "x": 568,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Pax Served",
+        "x": 1144,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 337,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Program (#)",
+        "x": 335,
+        "y": 337,
+        "w": 109,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Age Groups & Addons",
+        "x": 444,
+        "y": 337,
+        "w": 179,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Pickup Locations (#)",
+        "x": 623,
+        "y": 337,
+        "w": 166,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Cost Sheets (#)",
+        "x": 789,
+        "y": 337,
+        "w": 134,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Pricing",
+        "x": 923,
+        "y": 337,
+        "w": 73,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "button",
+        "key": "Add Day",
+        "x": 1307,
+        "y": 394,
+        "w": 109,
+        "h": 32
+      }
+    ]
+  },
+  "excursion-extras": {
+    "route": "/crm/excursions/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1234,
+        "y": 122,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Revenue",
+        "x": 568,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Pax Served",
+        "x": 1144,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 337,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Program (#)",
+        "x": 335,
+        "y": 337,
+        "w": 109,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Age Groups & Addons",
+        "x": 444,
+        "y": 337,
+        "w": 179,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Pickup Locations (#)",
+        "x": 623,
+        "y": 337,
+        "w": 166,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Cost Sheets (#)",
+        "x": 789,
+        "y": 337,
+        "w": 134,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Pricing",
+        "x": 923,
+        "y": 337,
+        "w": 73,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "button",
+        "key": "Add Age Group",
+        "x": 1235,
+        "y": 419,
+        "w": 156,
+        "h": 32
+      },
+      {
+        "n": 15,
+        "kind": "button",
+        "key": "Add Addon",
+        "x": 1265,
+        "y": 699,
+        "w": 126,
+        "h": 32
+      }
+    ]
+  },
+  "excursion-pickup": {
+    "route": "/crm/excursions/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1234,
+        "y": 122,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Revenue",
+        "x": 568,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Pax Served",
+        "x": 1144,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 337,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Program (#)",
+        "x": 335,
+        "y": 337,
+        "w": 109,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Age Groups & Addons",
+        "x": 444,
+        "y": 337,
+        "w": 179,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Pickup Locations (#)",
+        "x": 623,
+        "y": 337,
+        "w": 166,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Cost Sheets (#)",
+        "x": 789,
+        "y": 337,
+        "w": 134,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Pricing",
+        "x": 923,
+        "y": 337,
+        "w": 73,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "button",
+        "key": "Add Location",
+        "x": 1277,
+        "y": 394,
+        "w": 139,
+        "h": 32
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Location name (e.g. Hurghada)",
+        "x": 293,
+        "y": 451,
+        "w": 208,
+        "h": 28
+      },
+      {
+        "n": 16,
+        "kind": "column",
+        "key": "Vehicle",
+        "x": 281,
+        "y": 488,
+        "w": 280,
+        "h": 29
+      },
+      {
+        "n": 17,
+        "kind": "column",
+        "key": "Min Pax",
+        "x": 561,
+        "y": 488,
+        "w": 151,
+        "h": 29
+      },
+      {
+        "n": 18,
+        "kind": "column",
+        "key": "Max Pax",
+        "x": 711,
+        "y": 488,
+        "w": 151,
+        "h": 29
+      },
+      {
+        "n": 19,
+        "kind": "column",
+        "key": "Cost",
+        "x": 862,
+        "y": 488,
+        "w": 194,
+        "h": 29
+      },
+      {
+        "n": 20,
+        "kind": "column",
+        "key": "CCY",
+        "x": 1056,
+        "y": 488,
+        "w": 140,
+        "h": 29
+      },
+      {
+        "n": 21,
+        "kind": "column",
+        "key": "ROE",
+        "x": 1195,
+        "y": 488,
+        "w": 151,
+        "h": 29
+      },
+      {
+        "n": 22,
+        "kind": "field",
+        "key": "Hi-Ace",
+        "x": 285,
+        "y": 521,
+        "w": 272,
+        "h": 28
+      },
+      {
+        "n": 23,
+        "kind": "button",
+        "key": "Add Vehicle Tier",
+        "x": 293,
+        "y": 560,
+        "w": 142,
+        "h": 24
+      }
+    ]
+  },
+  "excursion-costs": {
+    "route": "/crm/excursions/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1234,
+        "y": 122,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Revenue",
+        "x": 568,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Pax Served",
+        "x": 1144,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 337,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Program (#)",
+        "x": 335,
+        "y": 337,
+        "w": 109,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Age Groups & Addons",
+        "x": 444,
+        "y": 337,
+        "w": 179,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Pickup Locations (#)",
+        "x": 623,
+        "y": 337,
+        "w": 166,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Cost Sheets (#)",
+        "x": 789,
+        "y": 337,
+        "w": 134,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Pricing",
+        "x": 923,
+        "y": 337,
+        "w": 73,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "button",
+        "key": "New Cost Sheet",
+        "x": 1255,
+        "y": 394,
+        "w": 161,
+        "h": 32
+      },
+      {
+        "n": 15,
+        "kind": "column",
+        "key": "Type",
+        "x": 306,
+        "y": 554,
+        "w": 235,
+        "h": 29
+      },
+      {
+        "n": 16,
+        "kind": "column",
+        "key": "Description",
+        "x": 541,
+        "y": 554,
+        "w": 223,
+        "h": 29
+      },
+      {
+        "n": 17,
+        "kind": "column",
+        "key": "Pricing",
+        "x": 764,
+        "y": 554,
+        "w": 226,
+        "h": 29
+      },
+      {
+        "n": 18,
+        "kind": "column",
+        "key": "Qty",
+        "x": 990,
+        "y": 554,
+        "w": 105,
+        "h": 29
+      },
+      {
+        "n": 19,
+        "kind": "column",
+        "key": "Unit Cost",
+        "x": 1095,
+        "y": 554,
+        "w": 183,
+        "h": 29
+      },
+      {
+        "n": 20,
+        "kind": "column",
+        "key": "CCY",
+        "x": 1278,
+        "y": 554,
+        "w": 112,
+        "h": 29
+      }
+    ]
+  },
+  "excursion-pricing": {
+    "route": "/crm/excursions/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1234,
+        "y": 122,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 122,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Revenue",
+        "x": 568,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Profit",
+        "x": 856,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Pax Served",
+        "x": 1144,
+        "y": 188,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 337,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Program (#)",
+        "x": 335,
+        "y": 337,
+        "w": 109,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Age Groups & Addons",
+        "x": 444,
+        "y": 337,
+        "w": 179,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Pickup Locations (#)",
+        "x": 623,
+        "y": 337,
+        "w": 166,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Cost Sheets (#)",
+        "x": 789,
+        "y": 337,
+        "w": 134,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Pricing",
+        "x": 923,
+        "y": 337,
+        "w": 73,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "column",
+        "key": "Category",
+        "x": 306,
+        "y": 514,
+        "w": 293,
+        "h": 29
+      },
+      {
+        "n": 15,
+        "kind": "column",
+        "key": "Markup",
+        "x": 599,
+        "y": 514,
+        "w": 239,
+        "h": 29
+      },
+      {
+        "n": 16,
+        "kind": "column",
+        "key": "Cost",
+        "x": 838,
+        "y": 514,
+        "w": 187,
+        "h": 29
+      },
+      {
+        "n": 17,
+        "kind": "column",
+        "key": "Sell Price",
+        "x": 1025,
+        "y": 514,
+        "w": 198,
+        "h": 29
+      },
+      {
+        "n": 18,
+        "kind": "column",
+        "key": "Margin",
+        "x": 1224,
+        "y": 514,
+        "w": 166,
+        "h": 29
+      },
+      {
+        "n": 19,
+        "kind": "button",
+        "key": "Edit Prices",
+        "x": 305,
+        "y": 656,
+        "w": 99,
+        "h": 32
+      }
+    ]
+  },
+  "exc-programs": {
+    "route": "/crm/exc-programs",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Program",
+        "x": 1277,
+        "y": 104,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "Program",
+        "x": 1277,
+        "y": 104,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Name",
+        "x": 305,
+        "y": 173,
+        "w": 197,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Market",
+        "x": 502,
+        "y": 173,
+        "w": 387,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Excursions",
+        "x": 889,
+        "y": 173,
+        "w": 171,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Status",
+        "x": 1060,
+        "y": 173,
+        "w": 149,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1221,
+        "y": 218,
+        "w": 70,
+        "h": 32
+      }
+    ]
+  },
+  "exc-program-new": {
+    "route": "/crm/exc-programs/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Name",
+        "x": 329,
+        "y": 315,
+        "w": 526,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Description",
+        "x": 329,
+        "y": 389,
+        "w": 526,
+        "h": 64
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Market",
+        "x": 329,
+        "y": 491,
+        "w": 526,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "checkbox",
+        "key": "Active",
+        "x": 329,
+        "y": 543,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Excursion Programs",
+        "x": 329,
+        "y": 575,
+        "w": 171,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 508,
+        "y": 575,
+        "w": 79,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "link",
+        "key": "Cancel",
+        "x": 508,
+        "y": 575,
+        "w": 79,
+        "h": 36
+      }
+    ]
+  },
+  "exc-program-detail": {
+    "route": "/crm/exc-programs/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1322,
+        "y": 146,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Excursions",
+        "x": 1269,
+        "y": 212,
+        "w": 123,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Name",
+        "x": 329,
+        "y": 315,
+        "w": 297,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Description",
+        "x": 329,
+        "y": 389,
+        "w": 297,
+        "h": 64
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Mon",
+        "x": 923,
+        "y": 393,
+        "w": 43,
+        "h": 22
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Tue",
+        "x": 971,
+        "y": 393,
+        "w": 39,
+        "h": 22
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Wed",
+        "x": 1013,
+        "y": 393,
+        "w": 44,
+        "h": 22
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Thu",
+        "x": 1061,
+        "y": 393,
+        "w": 41,
+        "h": 22
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Fri",
+        "x": 1106,
+        "y": 393,
+        "w": 32,
+        "h": 22
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "Sat",
+        "x": 1142,
+        "y": 393,
+        "w": 38,
+        "h": 22
+      },
+      {
+        "n": 12,
+        "kind": "button",
+        "key": "Sun",
+        "x": 1184,
+        "y": 393,
+        "w": 41,
+        "h": 22
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "e.g. Minimum # pax required for private mode",
+        "x": 692,
+        "y": 481,
+        "w": 683,
+        "h": 32
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Market",
+        "x": 329,
+        "y": 491,
+        "w": 297,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "checkbox",
+        "key": "Active",
+        "x": 329,
+        "y": 543,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 16,
+        "kind": "button",
+        "key": "Save",
+        "x": 329,
+        "y": 575,
+        "w": 58,
+        "h": 32
+      }
+    ]
+  },
+  "to-assign": {
+    "route": "/crm/to-assign",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Add",
+        "x": 1260,
+        "y": 296,
+        "w": 90,
+        "h": 32
+      }
+    ]
+  },
+  "pickup-time-sheet": {
+    "route": "/crm/pickup-time-sheet",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Save",
+        "x": 1316,
+        "y": 98,
+        "w": 76,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "column",
+        "key": "Hotel \\ Excursion",
+        "x": 513,
+        "y": 222,
+        "w": 240,
+        "h": 50
+      }
+    ]
+  },
+  "excursion-bookings": {
+    "route": "/crm/excursion-bookings",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Clear",
+        "x": 1239,
+        "y": 169,
+        "w": 47,
+        "h": 28
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "New Ticket",
+        "x": 1292,
+        "y": 169,
+        "w": 100,
+        "h": 28
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 304,
+        "y": 228,
+        "w": 265,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Excursion",
+        "x": 579,
+        "y": 228,
+        "w": 265,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Exc. Date",
+        "x": 853,
+        "y": 228,
+        "w": 173,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Arrival Date",
+        "x": 1036,
+        "y": 228,
+        "w": 173,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Source",
+        "x": 1219,
+        "y": 228,
+        "w": 94,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Tour Operator",
+        "x": 304,
+        "y": 294,
+        "w": 265,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Guest Name",
+        "x": 579,
+        "y": 294,
+        "w": 265,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Mobile",
+        "x": 853,
+        "y": 294,
+        "w": 173,
+        "h": 32
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Hotel Guide",
+        "x": 1036,
+        "y": 294,
+        "w": 173,
+        "h": 32
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Pickup",
+        "x": 1219,
+        "y": 294,
+        "w": 82,
+        "h": 32
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Room",
+        "x": 1311,
+        "y": 294,
+        "w": 82,
+        "h": 32
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Adt",
+        "x": 304,
+        "y": 357,
+        "w": 82,
+        "h": 32
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "CHD",
+        "x": 396,
+        "y": 357,
+        "w": 82,
+        "h": 32
+      },
+      {
+        "n": 16,
+        "kind": "field",
+        "key": "Price / Person",
+        "x": 487,
+        "y": 357,
+        "w": 173,
+        "h": 32
+      },
+      {
+        "n": 17,
+        "kind": "field",
+        "key": "Curr.",
+        "x": 670,
+        "y": 357,
+        "w": 82,
+        "h": 32
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Language",
+        "x": 762,
+        "y": 357,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Remarks",
+        "x": 945,
+        "y": 357,
+        "w": 448,
+        "h": 34
+      },
+      {
+        "n": 20,
+        "kind": "field",
+        "key": "Search ticket, hotel, excursion, guest…",
+        "x": 304,
+        "y": 418,
+        "w": 660,
+        "h": 36
+      },
+      {
+        "n": 21,
+        "kind": "column",
+        "key": "TKT No.",
+        "x": 305,
+        "y": 484,
+        "w": 60,
+        "h": 52
+      },
+      {
+        "n": 22,
+        "kind": "column",
+        "key": "Guest",
+        "x": 365,
+        "y": 484,
+        "w": 72,
+        "h": 52
+      },
+      {
+        "n": 23,
+        "kind": "column",
+        "key": "Tour Operator",
+        "x": 437,
+        "y": 484,
+        "w": 101,
+        "h": 52
+      },
+      {
+        "n": 24,
+        "kind": "column",
+        "key": "Hotel",
+        "x": 538,
+        "y": 484,
+        "w": 101,
+        "h": 52
+      },
+      {
+        "n": 25,
+        "kind": "column",
+        "key": "Excursion",
+        "x": 639,
+        "y": 484,
+        "w": 108,
+        "h": 52
+      },
+      {
+        "n": 26,
+        "kind": "column",
+        "key": "Pickup",
+        "x": 747,
+        "y": 484,
+        "w": 77,
+        "h": 52
+      },
+      {
+        "n": 27,
+        "kind": "column",
+        "key": "Room",
+        "x": 824,
+        "y": 484,
+        "w": 68,
+        "h": 52
+      },
+      {
+        "n": 28,
+        "kind": "column",
+        "key": "Adt",
+        "x": 892,
+        "y": 484,
+        "w": 53,
+        "h": 52
+      },
+      {
+        "n": 29,
+        "kind": "column",
+        "key": "CHD",
+        "x": 945,
+        "y": 484,
+        "w": 55,
+        "h": 52
+      },
+      {
+        "n": 30,
+        "kind": "column",
+        "key": "Price",
+        "x": 1000,
+        "y": 484,
+        "w": 67,
+        "h": 52
+      },
+      {
+        "n": 31,
+        "kind": "column",
+        "key": "Exc. Date",
+        "x": 1066,
+        "y": 484,
+        "w": 61,
+        "h": 52
+      },
+      {
+        "n": 32,
+        "kind": "column",
+        "key": "Source",
+        "x": 1127,
+        "y": 484,
+        "w": 87,
+        "h": 52
+      },
+      {
+        "n": 33,
+        "kind": "column",
+        "key": "Status",
+        "x": 1214,
+        "y": 484,
+        "w": 108,
+        "h": 52
+      },
+      {
+        "n": 34,
+        "kind": "column",
+        "key": "Actions",
+        "x": 1322,
+        "y": 484,
+        "w": 135,
+        "h": 52
+      },
+      {
+        "n": 35,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1334,
+        "y": 572,
+        "w": 61,
+        "h": 28
+      },
+      {
+        "n": 36,
+        "kind": "button",
+        "key": "Edit",
+        "x": 1400,
+        "y": 572,
+        "w": 45,
+        "h": 28
+      }
+    ]
+  },
+  "excursion-breakdown": {
+    "route": "/crm/excursion-breakdown",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Breakdown",
+        "x": 1290,
+        "y": 106,
+        "w": 102,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Breakdown Summary",
+        "x": 1045,
+        "y": 258,
+        "w": 347,
+        "h": 242
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Breakdown notes...",
+        "x": 1070,
+        "y": 1033,
+        "w": 297,
+        "h": 64
+      }
+    ]
+  },
+  "excursion-dispatch": {
+    "route": "/crm/excursion-dispatch",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Save",
+        "x": 1136,
+        "y": 98,
+        "w": 60,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Generate Traffic Jobs",
+        "x": 1205,
+        "y": 98,
+        "w": 187,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Add Run",
+        "x": 1312,
+        "y": 275,
+        "w": 92,
+        "h": 28
+      }
+    ]
+  },
+  "suppliers": {
+    "route": "/crm/suppliers",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Supplier",
+        "x": 1267,
+        "y": 82,
+        "w": 149,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Search suppliers...",
+        "x": 280,
+        "y": 144,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Name",
+        "x": 281,
+        "y": 197,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Contact Person",
+        "x": 449,
+        "y": 197,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Email",
+        "x": 617,
+        "y": 197,
+        "w": 236,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Phone",
+        "x": 853,
+        "y": 197,
+        "w": 163,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Type",
+        "x": 1016,
+        "y": 197,
+        "w": 134,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Components",
+        "x": 1150,
+        "y": 197,
+        "w": 110,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Status",
+        "x": 1260,
+        "y": 197,
+        "w": 98,
+        "h": 36
+      }
+    ]
+  },
+  "supplier-new": {
+    "route": "/crm/suppliers/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Name",
+        "x": 512,
+        "y": 214,
+        "w": 672,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Contact Person",
+        "x": 512,
+        "y": 292,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Type",
+        "x": 856,
+        "y": 292,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Email",
+        "x": 512,
+        "y": 370,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Phone",
+        "x": 856,
+        "y": 370,
+        "w": 328,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Notes",
+        "x": 512,
+        "y": 448,
+        "w": 672,
+        "h": 64
+      },
+      {
+        "n": 8,
+        "kind": "checkbox",
+        "key": "Active",
+        "x": 512,
+        "y": 532,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "New Supplier",
+        "x": 512,
+        "y": 568,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 649,
+        "y": 568,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "supplier-details": {
+    "route": "/crm/suppliers/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 124,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 195,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Cost Components (#)",
+        "x": 357,
+        "y": 195,
+        "w": 174,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Name",
+        "x": 305,
+        "y": 323,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Contact Person",
+        "x": 305,
+        "y": 397,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Email",
+        "x": 305,
+        "y": 471,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Phone",
+        "x": 856,
+        "y": 471,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Type",
+        "x": 305,
+        "y": 545,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Notes",
+        "x": 305,
+        "y": 619,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 11,
+        "kind": "checkbox",
+        "key": "Active",
+        "x": 305,
+        "y": 699,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 12,
+        "kind": "button",
+        "key": "Save Changes",
+        "x": 305,
+        "y": 731,
+        "w": 132,
+        "h": 36
+      }
+    ]
+  },
+  "supplier-components": {
+    "route": "/crm/suppliers/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1346,
+        "y": 124,
+        "w": 70,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 195,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Cost Components (#)",
+        "x": 357,
+        "y": 195,
+        "w": 174,
+        "h": 31
+      }
+    ]
+  }
+}

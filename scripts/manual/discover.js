@@ -25,6 +25,12 @@
       const l = root.querySelector(`label[for="${CSS.escape(el.id)}"]`);
       if (l) return clean(l.textContent);
     }
+    // Implicit label: the field sits inside a <label> whose caption is a direct child.
+    const wrap = el.closest("label");
+    if (wrap) {
+      const cap = wrap.querySelector(":scope > span, :scope > div > span");
+      if (cap && !cap.contains(el)) return clean(cap.textContent);
+    }
     const aria = el.getAttribute("aria-label");
     if (aria) return clean(aria);
     const lb = el.getAttribute("aria-labelledby");
@@ -38,6 +44,8 @@
   const add = (el, kind, key) => {
     key = clean(key);
     if (!key || !visible(el)) return;
+    // Per-window skips (labels that are data, e.g. a destination or excursion name).
+    if ((window.__manualSkip || []).some((re) => new RegExp(re).test(key))) return;
     // Buttons and links labelled with data (a ticket number, a score) are records, not controls.
     if ((kind === "button" || kind === "link") && key.includes("#")) return;
     // Parts of a labelled group (filter chips) are documented as the group.

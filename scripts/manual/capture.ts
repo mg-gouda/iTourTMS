@@ -72,6 +72,7 @@ async function main() {
         await w.setup(page);
         await settle(page);
       }
+      await page.evaluate((skip) => ((window as unknown as { __manualSkip: string[] }).__manualSkip = skip), w.skip ?? []);
       const items = (await page.evaluate(discover)) as unknown[];
       await page.screenshot({ path: path.join(outDir, `${w.id}.png`), fullPage: true });
       manifest[w.id] = { route: w.route, items };
