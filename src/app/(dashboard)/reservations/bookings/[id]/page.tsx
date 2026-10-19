@@ -85,6 +85,7 @@ import type { ExplainableBreakdown } from "@/lib/reservations/cost-explanation";
 import { splitLegacyName } from "@/lib/reservations/guest-names";
 import { trpc } from "@/lib/trpc";
 import { SplitStayCard } from "@/components/reservations/split-stay-card";
+import { SpoCard } from "@/components/reservations/spo-card";
 import { toast } from "sonner";
 
 import { PermissionGuard } from "@/components/shared/permission-guard";
@@ -528,6 +529,14 @@ export default function BookingDetailPage() {
         {/* Overview */}
         <TabsContent value="overview" className="space-y-4">
           <SplitStayCard bookingId={booking.id} segments={booking.splitStay} />
+          <SpoCard
+            key={`${booking.spoFlag}-${booking.spoCode}-${String(booking.spoDate)}`}
+            bookingId={booking.id}
+            spoFlag={booking.spoFlag}
+            spoCode={booking.spoCode}
+            spoDate={booking.spoDate}
+            document={booking.documents.find((d) => d.kind === "SPO") ?? null}
+          />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Stay Details */}
             <Card>
@@ -2962,6 +2971,8 @@ function handleSendToHotel(booking: any, company: any) {
       departOriginApt: booking.departOriginApt,
       departDestApt: booking.departDestApt,
       departTerminal: booking.departTerminal,
+      // The hotel applies its offer by this code on the rooming list.
+      spoCode: booking.spoFlag ? booking.spoCode : null,
       company: company ? { name: company.name, phone: company.phone, email: company.email, website: company.website } : undefined,
     });
 

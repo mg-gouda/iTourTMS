@@ -356,6 +356,7 @@ model User {
   crmTeamsLed           CrmSalesTeam[]    @relation("CrmSalesTeamLeader")
   crmTeams              CrmSalesTeam[]    @relation("CrmSalesTeamMembers")
   crmMailingsCreated    CrmMailing[]      @relation("CrmMailingCreator")
+  bookingDocuments      BookingDocument[] @relation("BookingDocumentUploader")
 
   // B2B relations
   tourOperatorId        String?
@@ -3460,6 +3461,10 @@ model Booking {
   // Hotel payment
   hotelPaymentMethod HotelPaymentMethod?
   paymentOptionDate  DateTime?           @db.Date
+  // Special offer the hotel granted this booking; the offer document lives in BookingDocument (kind SPO).
+  spoFlag            Boolean             @default(false)
+  spoCode            String?
+  spoDate            DateTime?           @db.Date
 
   // Hotel confirmation
   hotelConfNo        String?
@@ -3544,6 +3549,7 @@ model Booking {
   rooms          BookingRoom[]
   currencyLines  BookingCurrencyLine[]
   rateChanges    BookingRateChange[]
+  documents      BookingDocument[]
   guests         BookingGuest[]
   payments       BookingPayment[]
   vouchers       Voucher[]
@@ -3600,6 +3606,26 @@ model BookingRateChange {
   @@index([bookingId])
   @@index([changedAt])
   @@map("rv_booking_rate_change")
+}
+
+/// A file kept with a booking, stored in the database so it is private (never
+/// under public/uploads) and backed up with the data. Today: the hotel's SPO.
+model BookingDocument {
+  id           String   @id @default(cuid())
+  bookingId    String
+  kind         String   // SPO
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  uploadedBy User?   @relation("BookingDocumentUploader", fields: [uploadedById], references: [id])
+
+  @@unique([bookingId, kind])
+  @@map("rv_booking_document")
 }
 
 /// One reporting line per currency on a booking. The base line mirrors the

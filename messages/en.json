@@ -1362,7 +1362,28 @@
     "sourceBooking": "Source Booking",
     "originalAmount": "Original Amount",
     "remaining": "Remaining",
-    "viewBooking": "View Booking"
+    "viewBooking": "View Booking",
+    "spo": {
+      "title": "Special offer (SPO)",
+      "desc": "Record the hotel's special offer on this booking and keep the offer document with it.",
+      "flag": "This booking has a special offer",
+      "code": "Offer code",
+      "date": "Offer date",
+      "save": "Save",
+      "saved": "Offer saved",
+      "document": "Offer document",
+      "noDocument": "No document attached yet.",
+      "upload": "Attach document",
+      "replace": "Replace",
+      "download": "Download",
+      "remove": "Remove",
+      "confirmRemove": "Remove the offer document?",
+      "uploading": "Uploading…",
+      "uploaded": "Document attached",
+      "removed": "Document removed",
+      "types": "PDF, Word (.docx), PNG, JPEG or WebP, up to 10 MB. Kept private with the booking.",
+      "by": "{name}, {date}"
+    }
   },
   "traffic": {
     "title": "Traffic & Transport",

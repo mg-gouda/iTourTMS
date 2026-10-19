@@ -105,6 +105,10 @@ export const bookingRouter = createTRPCRouter({
           currency: { select: { id: true, code: true, symbol: true } },
           markupRule: { select: { id: true, name: true, markupType: true, value: true } },
           createdBy: { select: { id: true, name: true } },
+          // Metadata only: the file itself is downloaded through /api/reservations/bookings/[id]/spo-document.
+          documents: {
+            select: { id: true, kind: true, fileName: true, mimeType: true, size: true, createdAt: true, uploadedBy: { select: { name: true } } },
+          },
           confirmedBy: { select: { id: true, name: true } },
           cancelledBy: { select: { id: true, name: true } },
           checkedInBy: { select: { id: true, name: true } },
@@ -587,6 +591,29 @@ export const bookingRouter = createTRPCRouter({
       return ctx.db.booking.update({
         where: { id: input.id },
         data,
+      });
+    }),
+
+  /** SPO details can change at any status — offers often arrive after confirmation. */
+  setSpo: p("reservations:booking:update")
+    .input(
+      z.object({
+        id: z.string(),
+        spoFlag: z.boolean(),
+        spoCode: z.string().trim().max(100).nullish(),
+        spoDate: z.string().date().nullish(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.booking.findFirstOrThrow({ where: { id: input.id, companyId: ctx.companyId }, select: { id: true } });
+      return ctx.db.booking.update({
+        where: { id: input.id },
+        data: {
+          spoFlag: input.spoFlag,
+          spoCode: input.spoFlag ? input.spoCode || null : null,
+          spoDate: input.spoFlag && input.spoDate ? new Date(input.spoDate) : null,
+        },
+        select: { id: true, spoFlag: true, spoCode: true, spoDate: true },
       });
     }),
 
