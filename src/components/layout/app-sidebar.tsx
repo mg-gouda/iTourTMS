@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
 import {
   Sidebar,
@@ -33,6 +33,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { isRTL } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -773,6 +774,8 @@ function CollapsibleModule({
 export function AppSidebar({ installedModules, sidebarLogoUrl, roles = [], permissions = [] }: AppSidebarProps) {
   const pathname = usePathname();
   const tNav = useTranslations("nav");
+  // Arabic puts the sidebar on the reading-start side.
+  const side = isRTL(useLocale()) ? "right" : "left";
 
   const moduleRoutes = getModuleRoutes(tNav);
   const mainNav = [
@@ -786,7 +789,7 @@ export function AppSidebar({ installedModules, sidebarLogoUrl, roles = [], permi
   const showAdminSection = canManageUsers || canManageRoles;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" side={side}>
       <SidebarHeader className="border-b px-4 py-3">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
           {sidebarLogoUrl ? (

@@ -22,17 +22,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
 
+// Only languages with a messages file (see src/lib/i18n/request.ts).
 const LANGUAGES = [
   { value: "en", label: "English" },
   { value: "ar", label: "العربية (Arabic)" },
-  { value: "fr", label: "Français (French)" },
-  { value: "de", label: "Deutsch (German)" },
-  { value: "es", label: "Español (Spanish)" },
-  { value: "pt", label: "Português (Portuguese)" },
-  { value: "tr", label: "Türkçe (Turkish)" },
-  { value: "ru", label: "Русский (Russian)" },
-  { value: "zh", label: "中文 (Chinese)" },
-  { value: "ja", label: "日本語 (Japanese)" },
 ] as const;
 
 export default function ProfilePage() {
@@ -189,6 +182,8 @@ function DisplayLanguageCard({ currentLocale }: { currentLocale: string }) {
 
   function handleChange(value: string) {
     setLocale(value);
+    // The session token keeps the sign-in locale; the cookie applies the change now.
+    document.cookie = `itms-locale=${value}; path=/; max-age=31536000; samesite=lax`;
     updateMutation.mutate({ locale: value });
   }
 
