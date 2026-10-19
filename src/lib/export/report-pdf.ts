@@ -15,6 +15,8 @@ export interface ReportPdfOptions {
   rows: string[][];
   orientation?: "portrait" | "landscape";
   columnStyles?: Record<number, { halign?: "left" | "center" | "right"; cellWidth?: number }>;
+  /** Per body cell colouring, e.g. a report's status coding. */
+  cellStyle?: (row: number, col: number) => { fillColor?: [number, number, number]; textColor?: [number, number, number] } | undefined;
 }
 
 export function exportReportToPdf(options: ReportPdfOptions): void {
@@ -70,6 +72,17 @@ export function exportReportToPdf(options: ReportPdfOptions): void {
       fillColor: [ALT_ROW.r, ALT_ROW.g, ALT_ROW.b],
     },
     columnStyles: options.columnStyles ?? {},
+    didParseCell: options.cellStyle
+      ? (h) => {
+          if (h.section !== "body") return;
+          const st = options.cellStyle!(h.row.index, h.column.index);
+          if (st?.fillColor) h.cell.styles.fillColor = st.fillColor;
+          if (st?.textColor) {
+            h.cell.styles.textColor = st.textColor;
+            h.cell.styles.fontStyle = "bold";
+          }
+        }
+      : undefined,
   });
 
   // ─── Footers ───────────────────────────────────────

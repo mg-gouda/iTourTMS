@@ -1988,11 +1988,24 @@ function exportMaterializationPdf(
   const { headers, rows } = buildMatRows(data);
   const fromLabel = format(new Date(dateFrom), "dd MMM yyyy");
   const toLabel = format(new Date(dateTo), "dd MMM yyyy");
+  // Same coding as the screen: sold days green, stop-sale days red, oversold in red.
+  const blocks = [...data.roomTypes.map((rt) => rt.days), data.hotelTotal.days];
+  const DAY0 = 5; // first day column after Room Type, TTL Allot, TTL Sold, Mat%, Row
   exportReportToPdf({
     title: `MATERIALIZATION — ${hotelName.toUpperCase()}`,
-    subtitle: `${fromLabel}  —  ${toLabel}`,
+    subtitle: `${fromLabel}  —  ${toLabel}     Green: sold · Red cell: stop sale · Red figure: oversold`,
     headers,
     rows: rows.map((r) => r.map(String)),
+    cellStyle: (row, col) => {
+      if (col < DAY0) return undefined;
+      const day = blocks[Math.floor(row / 3)]?.[col - DAY0] as { sold: number; avail: number; ss?: number } | undefined;
+      if (!day) return undefined;
+      const line = row % 3; // 0 alloc, 1 sold, 2 avail
+      if (line === 0 && (day.ss ?? 0) > 0) return { fillColor: [254, 226, 226] };
+      if (line === 1 && day.sold > 0) return { fillColor: [220, 252, 231], textColor: [21, 128, 61] };
+      if (line === 2 && day.avail < 0) return { textColor: [185, 28, 28] };
+      return undefined;
+    },
     columnStyles: {
       0: { cellWidth: 28 },
       1: { halign: "center", cellWidth: 14 },
