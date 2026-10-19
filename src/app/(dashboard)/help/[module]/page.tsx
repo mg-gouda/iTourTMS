@@ -17,7 +17,9 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ManualWindows } from "@/components/help/manual-windows";
 import { SectionCard } from "@/components/help/section-card";
+import { MANUALS } from "@/lib/help/manual";
 import { HELP_MODULE_MAP } from "../_data";
 
 const MODULE_ICONS: Record<string, React.ElementType> = {
@@ -141,6 +143,13 @@ export default async function ModuleHelpPage({ params }: PageProps) {
           <SectionCard key={section.id} section={section} moduleSlug={slug} />
         ))}
       </div>
+
+      {MANUALS[slug] && (
+        <>
+          <Separator />
+          <ManualWindows slug={slug} manifest={MANUALS[slug].manifest} docs={MANUALS[slug].docs} />
+        </>
+      )}
 
       {/* Footer navigation */}
       <Separator />
