@@ -64,7 +64,7 @@ export function DataTableColumnHeader<TData, TValue>({
     <Button
       variant="ghost"
       size="sm"
-      className={cn("-ml-3 h-8 text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground data-[state=open]:bg-primary-hover", className)}
+      className={cn("-ms-3 h-7 px-3 text-xs font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground data-[state=open]:bg-black/5", className)}
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       <span>{title}</span>
@@ -227,7 +227,7 @@ export function DataTable<TData, TValue>({
         )}
         {toolbar}
       </div>
-      <div className="overflow-hidden rounded-lg border shadow-sm">
+      <div className="overflow-hidden rounded-xl border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

@@ -174,7 +174,7 @@ export default function ExpiringContractsPage() {
         <div className="space-y-3">
           <Skeleton className="h-9 w-64" />
           <div className="overflow-hidden rounded-lg border shadow-sm">
-            <div className="bg-primary h-10" />
+            <div className="bg-muted h-9" />
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}

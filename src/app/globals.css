@@ -5,10 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
-    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-    "Liberation Mono", monospace;
+  /* Apple system faces first (SF Pro, SF Arabic, SF Mono on Apple devices), then each
+     platform's own UI face — no web font to download, and Arabic gets a real UI face. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", system-ui, "Segoe UI",
+    Roboto, "Noto Sans", "Noto Sans Arabic", "Segoe UI Arabic", Tahoma, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 @theme inline {
@@ -118,38 +120,30 @@
   padding-bottom: 0.75rem;
 }
 
-.page-header::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 3rem;
-  height: 2px;
-  border-radius: 1px;
-  background: linear-gradient(90deg, var(--primary), var(--primary-hover));
-}
-
 :root {
-  --radius: 0.625rem;
-  --background: #ffffff;
-  --foreground: #17141A;
+  /* Apple-style system palette (macOS/iPadOS), iTour purple as the accent tint.
+     Text pairs are AA on their surfaces; status reds/greens use the
+     higher-contrast system variants. */
+  --radius: 0.75rem;
+  --background: #ffffff;               /* systemBackground — the content */
+  --foreground: #1d1d1f;               /* label */
   --card: #ffffff;
-  --card-foreground: #17141A;
+  --card-foreground: #1d1d1f;
   --popover: #ffffff;
-  --popover-foreground: #17141A;
-  --primary: #660066;
+  --popover-foreground: #1d1d1f;
+  --primary: #660066;                  /* accent tint */
   --primary-foreground: #ffffff;
-  --primary-hover: #8A248A;
-  --secondary: #ebedf1;
-  --secondary-foreground: #660066;
-  --muted: #edf0f4;
-  --muted-foreground: #7F879C;
-  --accent: #f2e6f2;
-  --accent-foreground: #660066;
-  --destructive: #AF031D;
-  --border: #d5dae3;
-  --input: #d5dae3;
-  --ring: #7A3D7A;
+  --primary-hover: #7a1f7a;
+  --secondary: #ececf0;                /* gray button fill */
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;                    /* secondary grouped surface / fills */
+  --muted-foreground: #6e6e73;         /* secondaryLabel, 4.9:1 on white */
+  --accent: #f4ecf4;                   /* hover / selected rows, accent at ~8% */
+  --accent-foreground: #4d004d;
+  --destructive: #d70015;              /* systemRed, high-contrast variant */
+  --border: #e5e5ea;                   /* separator */
+  --input: #d2d2d7;                    /* control border */
+  --ring: #a35ca3;
   --chart-1: #660066;
   --chart-2: #7A3D7A;
   --chart-3: #B366B3;
@@ -158,36 +152,38 @@
   /* Occupancy forecast: rooms on the books, expected pickup (validated pair) */
   --chart-otb: #7E2A7E;
   --chart-pickup: #B56AB5;
-  --sidebar: #1A0A1A;
-  --sidebar-foreground: #d5d0e3;
-  --sidebar-primary: #B366B3;
-  --sidebar-primary-foreground: #1A0A1A;
-  --sidebar-accent: #660066;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #660066;
-  --sidebar-ring: #7A3D7A;
+  --sidebar: #f5f5f7;                  /* source-list material, made opaque-ish */
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-primary: #660066;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8dbe8;           /* selected item: accent tint */
+  --sidebar-accent-foreground: #4d004d;
+  --sidebar-border: #e5e5ea;
+  --sidebar-ring: #a35ca3;
 }
 
 .dark {
-  --background: #17141A;
-  --foreground: #e8ecf1;
-  --card: #1e1c22;
-  --card-foreground: #e8ecf1;
-  --popover: #1e1c22;
-  --popover-foreground: #e8ecf1;
-  --primary: #7A3D7A;
+  /* Stepped from the same palette for dark surfaces (not an inversion). Enabled
+     with the system appearance once the module pass removes hard-coded light colours. */
+  --background: #161618;
+  --foreground: #f5f5f7;
+  --card: #1c1c1e;
+  --card-foreground: #f5f5f7;
+  --popover: #2c2c2e;
+  --popover-foreground: #f5f5f7;
+  --primary: #8e3a8e;
   --primary-foreground: #ffffff;
-  --primary-hover: #B366B3;
-  --secondary: #660066;
-  --secondary-foreground: #e8ecf1;
-  --muted: #2a2830;
-  --muted-foreground: #7F879C;
-  --accent: #660066;
-  --accent-foreground: #e8ecf1;
-  --destructive: #cf2640;
-  --border: #343C4E;
-  --input: #343C4E;
-  --ring: #B366B3;
+  --primary-hover: #a24aa2;
+  --secondary: #2c2c2e;
+  --secondary-foreground: #f5f5f7;
+  --muted: #232325;
+  --muted-foreground: #98989d;
+  --accent: #33213a;
+  --accent-foreground: #e9c9e9;
+  --destructive: #ff6961;
+  --border: #38383a;
+  --input: #48484a;
+  --ring: #c27bc2;
   --chart-1: #B366B3;
   --chart-2: #7A3D7A;
   --chart-3: #800080;
@@ -195,14 +191,14 @@
   --chart-5: #cf2640;
   --chart-otb: #BD72BD;
   --chart-pickup: #8A3A8A;
-  --sidebar: #1A0A1A;
-  --sidebar-foreground: #d5d0e3;
-  --sidebar-primary: #B366B3;
-  --sidebar-primary-foreground: #1A0A1A;
-  --sidebar-accent: #660066;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #660066;
-  --sidebar-ring: #7A3D7A;
+  --sidebar: #1c1c1e;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #c27bc2;
+  --sidebar-primary-foreground: #161618;
+  --sidebar-accent: #3a2a3f;
+  --sidebar-accent-foreground: #f2d9f2;
+  --sidebar-border: #38383a;
+  --sidebar-ring: #c27bc2;
 }
 
 /* ─── Custom Scrollbar ─────────────────────────────── */

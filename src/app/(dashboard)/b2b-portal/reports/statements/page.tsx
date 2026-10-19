@@ -169,7 +169,7 @@ export default function StatementsPage() {
             <CardContent><Skeleton className="h-4 w-32" /></CardContent>
           </Card>
           <div className="overflow-hidden rounded-lg border shadow-sm">
-            <div className="bg-primary h-10" />
+            <div className="bg-muted h-9" />
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 border-b px-4 py-3">
                 <Skeleton className="h-4 w-24" />

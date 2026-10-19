@@ -566,7 +566,7 @@ function CollapsibleSubGroup({
   if (group.divider) {
     return (
       <div className="px-2 pt-3 pb-0.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35 select-none">
+        <p className="text-[11px] font-semibold text-sidebar-foreground/50 select-none">
           {group.label}
         </p>
       </div>
@@ -603,14 +603,14 @@ function CollapsibleSubGroup({
         aria-controls={contentId}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sidebar-foreground/60 transition-colors hover:bg-black/5 dark:hover:bg-white/5",
           hasActiveRoute && "text-sidebar-foreground",
         )}
       >
         <ChevronRight
           className={cn(
-            "h-3 w-3 shrink-0 transition-transform duration-200",
-            open && "rotate-90",
+            "h-3 w-3 shrink-0 transition-transform duration-200 rtl:rotate-180",
+            open && "rotate-90 rtl:rotate-90",
           )}
         />
         {group.label}
@@ -622,13 +622,13 @@ function CollapsibleSubGroup({
           open ? "max-h-96" : "max-h-0",
         )}
       >
-        <SidebarMenu className="ml-3 border-l border-sidebar-border pl-2">
+        <SidebarMenu className="ms-3 ps-1">
           {group.routes.map((route) => (
             <SidebarMenuItem key={route.href}>
               <SidebarMenuButton
                 asChild
                 isActive={pathname === route.href}
-                className="h-7 text-xs"
+                className="h-7 text-[13px]"
               >
                 <Link href={route.href}>
                   <span>{route.label}</span>
@@ -712,22 +712,22 @@ function CollapsibleModule({
 
   // Expanded mode: full collapsible tree
   return (
-    <SidebarGroup>
+    <SidebarGroup className="py-0.5">
       <button
         aria-expanded={open}
         aria-controls={contentId}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-semibold text-sidebar-foreground/80 transition-colors hover:bg-black/5 dark:hover:bg-white/5",
           hasActiveRoute && "text-sidebar-foreground",
         )}
       >
-        <Icon className="h-3.5 w-3.5 shrink-0" />
-        <span className="flex-1 text-left">{mod.displayName}</span>
+        <Icon className="text-primary h-4 w-4 shrink-0 dark:text-sidebar-primary" />
+        <span className="flex-1 text-start">{mod.displayName}</span>
         <ChevronRight
           className={cn(
-            "h-3 w-3 shrink-0 transition-transform duration-200",
-            open && "rotate-90",
+            "h-3 w-3 shrink-0 opacity-50 transition-transform duration-200 rtl:rotate-180",
+            open && "rotate-90 rtl:rotate-90",
           )}
         />
       </button>
@@ -799,7 +799,9 @@ export function AppSidebar({ installedModules, sidebarLogoUrl, roles = [], permi
             <img
               src={sidebarLogoUrl}
               alt="Logo"
-              className="h-8 w-auto shrink-0 object-contain"
+              // Brand logos are often white for dark chrome; on the light source list
+              // render them as a dark mark, untouched in dark mode.
+              className="h-8 w-auto shrink-0 object-contain brightness-0 opacity-85 dark:brightness-100 dark:opacity-100"
             />
           ) : (
             <>
