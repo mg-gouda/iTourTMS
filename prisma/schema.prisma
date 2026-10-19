@@ -4313,6 +4313,7 @@ model TtTrafficJob {
 
   // Dispatch
   dispatchLockedAt DateTime?
+  smsSentAt        DateTime?    // driver/guest SMS sent at dispatch lock; cleared when the assignment changes
   signImageUrl     String?
 
   // Audit

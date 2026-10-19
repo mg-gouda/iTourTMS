@@ -36,10 +36,11 @@ export const trafficAssignmentRouter = createTRPCRouter({
       const job = await ctx.db.ttTrafficJob.findFirst({
         where: { id: input.jobId, companyId: ctx.companyId },
       });
-      if (job && job.status === "CONFIRMED") {
+      if (job) {
         await ctx.db.ttTrafficJob.update({
           where: { id: input.jobId },
-          data: { status: "ASSIGNED" },
+          // A new assignment needs a fresh SMS at the next dispatch lock.
+          data: { smsSentAt: null, ...(job.status === "CONFIRMED" && { status: "ASSIGNED" as const }) },
         });
       }
       return assignment;
@@ -48,10 +49,12 @@ export const trafficAssignmentRouter = createTRPCRouter({
   update: p("traffic:dispatch:manage")
     .input(z.object({ id: z.string(), data: trafficAssignmentUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.ttTrafficAssignment.update({
+      const a = await ctx.db.ttTrafficAssignment.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: input.data,
       });
+      await ctx.db.ttTrafficJob.update({ where: { id: a.jobId }, data: { smsSentAt: null } });
+      return a;
     }),
 
   delete: p("traffic:dispatch:manage")

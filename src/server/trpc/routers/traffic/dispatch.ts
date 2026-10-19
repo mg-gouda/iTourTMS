@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { smsConfigured } from "@/server/services/shared/sms";
+import { sendDispatchSms } from "@/server/services/traffic/dispatch-sms";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -9,9 +11,9 @@ export const dispatchRouter = createTRPCRouter({
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
       const jobs = await ctx.db.ttTrafficJob.findMany({
         where: {
@@ -49,9 +51,9 @@ export const dispatchRouter = createTRPCRouter({
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
       // Get vehicle IDs already assigned for this date
       const assignedVehicleIds = (
@@ -83,9 +85,9 @@ export const dispatchRouter = createTRPCRouter({
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
       const assignedDriverIds = (
         await ctx.db.ttTrafficAssignment.findMany({
@@ -116,9 +118,9 @@ export const dispatchRouter = createTRPCRouter({
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
       const assignedRepIds = (
         await ctx.db.ttTrafficAssignment.findMany({
@@ -165,10 +167,10 @@ export const dispatchRouter = createTRPCRouter({
             repId: item.repId,
           },
         });
-        // Auto-update job status to ASSIGNED
+        // Auto-update job status to ASSIGNED; a new assignment needs a new SMS.
         await ctx.db.ttTrafficJob.update({
           where: { id: item.jobId },
-          data: { status: "ASSIGNED" },
+          data: { status: "ASSIGNED", smsSentAt: null },
         });
         results.push(assignment);
       }
@@ -179,27 +181,28 @@ export const dispatchRouter = createTRPCRouter({
     .input(z.object({ date: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
-      return ctx.db.ttTrafficJob.updateMany({
-        where: {
-          companyId: ctx.companyId,
-          serviceDate: { gte: dayStart, lt: dayEnd },
-          dispatchLockedAt: null,
-        },
+      const where = { companyId: ctx.companyId, serviceDate: { gte: dayStart, lt: dayEnd } };
+      const locked = await ctx.db.ttTrafficJob.updateMany({
+        where: { ...where, dispatchLockedAt: null },
         data: { dispatchLockedAt: new Date() },
       });
+      // Locking finalises the day: drivers and guests get their SMS.
+      const ids = (await ctx.db.ttTrafficJob.findMany({ where: { ...where, smsSentAt: null }, select: { id: true } })).map((j) => j.id);
+      void sendDispatchSms(ids).catch((e) => ctx.logger.error({ err: e }, "dispatch sms failed"));
+      return { ...locked, smsQueued: smsConfigured() ? ids.length : 0 };
     }),
 
   unlockDispatch: p("traffic:dispatch:manage")
     .input(z.object({ date: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
       return ctx.db.ttTrafficJob.updateMany({
         where: {

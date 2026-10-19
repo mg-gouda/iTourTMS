@@ -28,7 +28,10 @@ export default function DispatchConsolePage() {
   const { data, isLoading } = trpc.traffic.dispatch.getDailyDispatch.useQuery({ date });
 
   const lockMutation = trpc.traffic.dispatch.lockDispatch.useMutation({
-    onSuccess: () => { utils.traffic.dispatch.invalidate(); toast.success(t("dispatchLocked")); },
+    onSuccess: (r) => {
+      utils.traffic.dispatch.invalidate();
+      toast.success(t("dispatchLocked"), r.smsQueued ? { description: t("smsQueued", { count: r.smsQueued }) } : undefined);
+    },
     onError: (err) => toast.error(err.message),
   });
 

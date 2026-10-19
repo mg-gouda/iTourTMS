@@ -9,9 +9,9 @@ export const reportsRouter = createTRPCRouter({
     .input(z.object({ date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // dates arrive as UTC midnight; DATE columns compare by UTC day
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
       return ctx.db.ttTrafficJob.findMany({
         where: {

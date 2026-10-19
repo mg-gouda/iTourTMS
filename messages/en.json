@@ -1592,7 +1592,8 @@
     "enableGuestBookings": "Guest Bookings",
     "noVehicleTypesYet": "No vehicle types yet.",
     "noZonesYet": "No zones yet. Create your first zone.",
-    "vehicleCapacity": "Capacity"
+    "vehicleCapacity": "Capacity",
+    "smsQueued": "Texting drivers and guests for {count, plural, one {# job} other {# jobs}}."
   },
   "b2cSite": {
     "title": "B2C Website",
