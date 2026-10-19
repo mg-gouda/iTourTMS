@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export function ToggleChips({
   emptyHint?: string;
   label: string;
 }) {
+  const t = useTranslations("crm.chips");
   const on = new Set(value);
   return (
     <div className="space-y-1.5">
@@ -43,7 +45,7 @@ export function ToggleChips({
             </button>
           );
         })}
-        {!options.length && <span className="text-muted-foreground text-xs">Nothing to choose yet.</span>}
+        {!options.length && <span className="text-muted-foreground text-xs">{t("nothing")}</span>}
       </div>
       {emptyHint && !value.length && options.length > 0 && <p className="text-muted-foreground text-xs">{emptyHint}</p>}
     </div>

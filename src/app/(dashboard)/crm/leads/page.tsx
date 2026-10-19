@@ -30,6 +30,7 @@ import {
 } from "@/lib/constants/crm";
 import { trpc } from "@/lib/trpc";
 import { LeadScoreBadge } from "@/components/crm/lead-score-badge";
+import type { ScoreReason } from "@/server/services/crm/lead-score";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 
 type LeadRow = {
@@ -44,13 +45,14 @@ type LeadRow = {
   team: { id: string; name: string } | null;
   score: number;
   band: "hot" | "warm" | "cold";
-  scoreReasons: string[];
+  scoreReasons: ScoreReason[];
   createdAt: Date;
 };
 
 export default function LeadsPage() {
   const t = useTranslations("crm");
   const tc = useTranslations("common");
+  const ts = useTranslations("crm.score");
   const router = useRouter();
   const { data, isLoading } = trpc.crm.lead.list.useQuery();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -76,7 +78,7 @@ export default function LeadsPage() {
     {
       id: "score",
       accessorFn: (row) => row.score,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Score" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={ts("label")} />,
       cell: ({ row }) => (
         <LeadScoreBadge score={row.original.score} band={row.original.band} reasons={row.original.scoreReasons} />
       ),
@@ -108,7 +110,7 @@ export default function LeadsPage() {
     },
     {
       id: "team",
-      header: "Team",
+      header: t("territory.teamColumn"),
       accessorFn: (row) => row.team?.name ?? "",
       cell: ({ row }) => row.original.team?.name ?? <span className="text-muted-foreground">—</span>,
     },
@@ -148,14 +150,14 @@ export default function LeadsPage() {
         </SelectContent>
       </Select>
       <Select value={bandFilter} onValueChange={setBandFilter}>
-        <SelectTrigger className="h-9 w-[130px]" aria-label="Score band">
+        <SelectTrigger className="h-9 w-[130px]" aria-label={ts("filter")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Any score</SelectItem>
-          <SelectItem value="hot">Hot (70+)</SelectItem>
-          <SelectItem value="warm">Warm (40–69)</SelectItem>
-          <SelectItem value="cold">Cold (under 40)</SelectItem>
+          <SelectItem value="all">{ts("any")}</SelectItem>
+          <SelectItem value="hot">{ts("hotOnly")}</SelectItem>
+          <SelectItem value="warm">{ts("warmOnly")}</SelectItem>
+          <SelectItem value="cold">{ts("coldOnly")}</SelectItem>
         </SelectContent>
       </Select>
     </>

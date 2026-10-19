@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +29,8 @@ const EMPTY: Draft = { name: "", leaderId: "", memberIds: [], marketIds: [], act
 const NONE = "__none";
 
 export default function SalesTeamsPage() {
+  const t = useTranslations("crm.teams");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const { data: teams, isLoading } = trpc.crm.salesTeam.list.useQuery();
   const { data: options } = trpc.crm.salesTeam.options.useQuery();
@@ -40,24 +43,24 @@ export default function SalesTeamsPage() {
     setDraft(null);
     toast.success(msg);
   };
-  const save = trpc.crm.salesTeam.save.useMutation({ onSuccess: () => done("Team saved"), onError: (e) => toast.error(e.message) });
-  const remove = trpc.crm.salesTeam.delete.useMutation({ onSuccess: () => done("Team deleted"), onError: (e) => toast.error(e.message) });
+  const save = trpc.crm.salesTeam.save.useMutation({ onSuccess: () => done(t("saved")), onError: (e) => toast.error(e.message) });
+  const remove = trpc.crm.salesTeam.delete.useMutation({ onSuccess: () => done(t("deleted")), onError: (e) => toast.error(e.message) });
 
   const columns: ColumnDef<Team>[] = [
     {
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Team" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("team")} />,
       cell: ({ row }) => (
         <span className="flex items-center gap-2 font-medium">
           {row.original.name}
-          {!row.original.active && <Badge variant="secondary">Inactive</Badge>}
+          {!row.original.active && <Badge variant="secondary">{t("inactive")}</Badge>}
         </span>
       ),
     },
     {
       id: "territory",
-      header: "Territory",
-      accessorFn: (t) => t.marketIds.map((id) => markets.get(id)).join(", "),
+      header: t("territory"),
+      accessorFn: (tm) => tm.marketIds.map((id) => markets.get(id)).join(", "),
       cell: ({ row }) =>
         row.original.marketIds.length ? (
           <span className="flex flex-wrap gap-1">
@@ -68,33 +71,33 @@ export default function SalesTeamsPage() {
             ))}
           </span>
         ) : (
-          <span className="text-muted-foreground text-xs">No markets: gets leads only by hand</span>
+          <span className="text-muted-foreground text-xs">{t("noMarkets")}</span>
         ),
     },
     {
       id: "leader",
-      header: "Leader",
-      accessorFn: (t) => t.leader?.name ?? "",
+      header: t("leader"),
+      accessorFn: (tm) => tm.leader?.name ?? "",
       cell: ({ row }) => row.original.leader?.name ?? "—",
     },
     {
       id: "members",
-      header: "Members",
-      accessorFn: (t) => t.members.length,
+      header: t("members"),
+      accessorFn: (tm) => tm.members.length,
       cell: ({ row }) => (
         <span title={row.original.members.map((m) => m.name ?? m.email).join(", ")}>{row.original.members.length}</span>
       ),
     },
     {
       id: "open",
-      accessorFn: (t) => t.openLeads,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Open leads" />,
+      accessorFn: (tm) => tm.openLeads,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("openLeads")} />,
       cell: ({ row }) => <span className="font-mono tabular-nums">{row.original.openLeads}</span>,
     },
     {
       id: "won",
-      accessorFn: (t) => t.wonLeads,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Won" />,
+      accessorFn: (tm) => tm.wonLeads,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("won")} />,
       cell: ({ row }) => <span className="font-mono tabular-nums">{row.original.wonLeads}</span>,
     },
   ];
@@ -108,14 +111,11 @@ export default function SalesTeamsPage() {
       <div className="animate-fade-in space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Sales teams</h1>
-            <p className="text-muted-foreground max-w-prose">
-              Each team works a territory of markets. A new lead from one of those countries goes to the team member with
-              the fewest open leads.
-            </p>
+            <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+            <p className="text-muted-foreground max-w-prose">{t("subtitle")}</p>
           </div>
           <Button onClick={() => setDraft(EMPTY)}>
-            <Plus className="me-2 size-4" /> New team
+            <Plus className="me-2 size-4" /> {t("new")}
           </Button>
         </div>
 
@@ -125,14 +125,11 @@ export default function SalesTeamsPage() {
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-12 text-center">
             <Users className="text-muted-foreground size-8" aria-hidden />
             <div>
-              <p className="font-medium">No sales teams yet</p>
-              <p className="text-muted-foreground mt-1 max-w-md text-sm">
-                Create one per market you sell to (say “UK & Ireland”), add its people, and leads start routing
-                themselves.
-              </p>
+              <p className="font-medium">{t("emptyTitle")}</p>
+              <p className="text-muted-foreground mt-1 max-w-md text-sm">{t("emptyBody")}</p>
             </div>
             <Button variant="outline" onClick={() => setDraft(EMPTY)}>
-              <Plus className="me-2 size-4" /> Create the first team
+              <Plus className="me-2 size-4" /> {t("emptyCta")}
             </Button>
           </div>
         ) : (
@@ -140,15 +137,15 @@ export default function SalesTeamsPage() {
             columns={shown}
             data={teams}
             searchKey="name"
-            searchPlaceholder="Search teams…"
-            onRowClick={(t) =>
+            searchPlaceholder={t("search")}
+            onRowClick={(tm) =>
               setDraft({
-                id: t.id,
-                name: t.name,
-                leaderId: t.leaderId ?? "",
-                memberIds: t.members.map((m) => m.id),
-                marketIds: t.marketIds,
-                active: t.active,
+                id: tm.id,
+                name: tm.name,
+                leaderId: tm.leaderId ?? "",
+                memberIds: tm.members.map((m) => m.id),
+                marketIds: tm.marketIds,
+                active: tm.active,
               })
             }
           />
@@ -158,8 +155,8 @@ export default function SalesTeamsPage() {
       <Sheet open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <SheetContent className="flex w-full flex-col gap-0 sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>{draft?.id ? "Edit team" : "New team"}</SheetTitle>
-            <SheetDescription>Markets decide which leads the team receives.</SheetDescription>
+            <SheetTitle>{draft?.id ? t("edit") : t("new")}</SheetTitle>
+            <SheetDescription>{t("sheetHint")}</SheetDescription>
           </SheetHeader>
           {draft && (
             <form
@@ -171,37 +168,37 @@ export default function SalesTeamsPage() {
               }}
             >
               <div className="space-y-1.5">
-                <Label htmlFor="team-name">Name</Label>
+                <Label htmlFor="team-name">{t("name")}</Label>
                 <Input id="team-name" value={draft.name} onChange={(e) => set({ name: e.target.value })} required autoFocus />
               </div>
               <div className="space-y-1.5">
-                <Label>Territory (markets)</Label>
+                <Label>{t("territoryLabel")}</Label>
                 <ToggleChips
-                  label="Markets"
+                  label={t("markets")}
                   options={(options?.markets ?? []).map((m) => ({ value: m.id, label: m.name }))}
                   value={draft.marketIds}
                   onChange={(marketIds) => set({ marketIds })}
-                  emptyHint="No markets: the team only gets leads assigned by hand."
+                  emptyHint={t("marketsEmpty")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Members</Label>
+                <Label>{t("members")}</Label>
                 <ToggleChips
-                  label="Members"
+                  label={t("members")}
                   options={people}
                   value={draft.memberIds}
                   onChange={(memberIds) => set({ memberIds })}
-                  emptyHint="With no members, routed leads go to the leader."
+                  emptyHint={t("membersEmpty")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Leader</Label>
+                <Label>{t("leader")}</Label>
                 <Select value={draft.leaderId || NONE} onValueChange={(v) => set({ leaderId: v === NONE ? "" : v })}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>No leader</SelectItem>
+                    <SelectItem value={NONE}>{t("noLeader")}</SelectItem>
                     {people.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.label}
@@ -211,7 +208,7 @@ export default function SalesTeamsPage() {
                 </Select>
               </div>
               <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <Label htmlFor="team-active">Active (receives routed leads)</Label>
+                <Label htmlFor="team-active">{t("active")}</Label>
                 <Switch id="team-active" checked={draft.active} onCheckedChange={(active) => set({ active })} />
               </div>
             </form>
@@ -223,15 +220,15 @@ export default function SalesTeamsPage() {
                 variant="ghost"
                 className="text-destructive"
                 disabled={remove.isPending}
-                onClick={() => confirm("Delete this team? Its leads keep their assignee.") && remove.mutate({ id: draft.id! })}
+                onClick={() => confirm(t("confirmDelete")) && remove.mutate({ id: draft.id! })}
               >
-                Delete
+                {tc("delete")}
               </Button>
             ) : (
               <span />
             )}
             <Button type="submit" form="team-form" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save team"}
+              {save.isPending ? tc("saving") : t("save")}
             </Button>
           </SheetFooter>
         </SheetContent>

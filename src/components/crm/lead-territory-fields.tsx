@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { Control, FieldValues, Path } from "react-hook-form";
 
 import { Combobox } from "@/components/ui/combobox";
@@ -14,6 +15,7 @@ const AUTO = "__auto";
  * lead to the team whose markets cover the country.
  */
 export function LeadTerritoryFields<T extends FieldValues>({ control }: { control: Control<T> }) {
+  const t = useTranslations("crm.territory");
   const { data: options } = trpc.crm.salesTeam.options.useQuery();
   const { data: teams } = trpc.crm.salesTeam.list.useQuery();
 
@@ -24,14 +26,14 @@ export function LeadTerritoryFields<T extends FieldValues>({ control }: { contro
         name={"countryId" as Path<T>}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Guest country</FormLabel>
+            <FormLabel>{t("country")}</FormLabel>
             <FormControl>
               <Combobox
                 options={(options?.countries ?? []).map((c) => ({ value: c.id, label: c.name }))}
                 value={field.value || undefined}
                 onValueChange={field.onChange}
-                placeholder="Select country"
-                searchPlaceholder="Search countries…"
+                placeholder={t("selectCountry")}
+                searchPlaceholder={t("searchCountries")}
               />
             </FormControl>
           </FormItem>
@@ -42,7 +44,7 @@ export function LeadTerritoryFields<T extends FieldValues>({ control }: { contro
         name={"teamId" as Path<T>}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Sales team</FormLabel>
+            <FormLabel>{t("team")}</FormLabel>
             <Select value={field.value || AUTO} onValueChange={(v) => field.onChange(v === AUTO ? "" : v)}>
               <FormControl>
                 <SelectTrigger className="w-full">
@@ -50,17 +52,17 @@ export function LeadTerritoryFields<T extends FieldValues>({ control }: { contro
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value={AUTO}>Route by country</SelectItem>
+                <SelectItem value={AUTO}>{t("routeByCountry")}</SelectItem>
                 {(teams ?? [])
-                  .filter((t) => t.active || t.id === field.value)
-                  .map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
+                  .filter((tm) => tm.active || tm.id === field.value)
+                  .map((tm) => (
+                    <SelectItem key={tm.id} value={tm.id}>
+                      {tm.name}
                     </SelectItem>
                   ))}
               </SelectContent>
             </Select>
-            <FormDescription>Leave on “Route by country” to use the team whose markets cover it.</FormDescription>
+            <FormDescription>{t("teamHint")}</FormDescription>
           </FormItem>
         )}
       />

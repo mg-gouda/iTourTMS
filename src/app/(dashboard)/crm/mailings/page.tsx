@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { inferRouterOutputs } from "@trpc/server";
 import { Mail, Plus } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { DataTable, DataTableColumnHeader } from "@/components/shared/data-table";
@@ -20,13 +21,14 @@ type Row = inferRouterOutputs<AppRouter>["crm"]["mailing"]["list"][number];
 const VARIANT: Record<string, "default" | "secondary" | "outline"> = { DRAFT: "outline", SENDING: "secondary", SENT: "default" };
 
 export default function MailingsPage() {
+  const t = useTranslations("crm.mailings");
   const router = useRouter();
   const { data, isLoading } = trpc.crm.mailing.list.useQuery();
 
   const columns: ColumnDef<Row>[] = [
     {
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Mailing" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("mailing")} />,
       cell: ({ row }) => (
         <div className="min-w-0">
           <p className="font-medium">{row.original.name}</p>
@@ -36,18 +38,18 @@ export default function MailingsPage() {
     },
     {
       id: "target",
-      header: "Audience",
+      header: t("audience"),
       accessorFn: (r) => (r.audience as { target?: string }).target ?? "",
-      cell: ({ getValue }) => <span className="capitalize">{getValue() as string}</span>,
+      cell: ({ getValue }) => (getValue() ? t(`target.${getValue() as "leads" | "customers"}`) : "—"),
     },
     {
       accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => <Badge variant={VARIANT[row.original.status]}>{row.original.status.toLowerCase()}</Badge>,
+      header: t("status"),
+      cell: ({ row }) => <Badge variant={VARIANT[row.original.status]}>{t(`state.${row.original.status as "DRAFT"}`)}</Badge>,
     },
     {
       id: "sent",
-      header: "Sent",
+      header: t("sent"),
       accessorFn: (r) => r.sentCount,
       cell: ({ row }) =>
         row.original.status === "DRAFT" ? (
@@ -55,14 +57,14 @@ export default function MailingsPage() {
         ) : (
           <span className="font-mono tabular-nums">
             {row.original.sentCount}/{row.original._count.recipients}
-            {row.original.failedCount > 0 && <span className="text-destructive"> · {row.original.failedCount} failed</span>}
+            {row.original.failedCount > 0 && <span className="text-destructive"> · {t("failedSuffix", { count: row.original.failedCount })}</span>}
           </span>
         ),
     },
     {
       id: "date",
       accessorFn: (r) => new Date(r.sentAt ?? r.createdAt).getTime(),
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t("date")} />,
       cell: ({ row }) => new Date(row.original.sentAt ?? row.original.createdAt).toLocaleDateString(),
     },
   ];
@@ -73,12 +75,12 @@ export default function MailingsPage() {
       <div className="animate-fade-in space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Mailings</h1>
-            <p className="text-muted-foreground">One email to many leads or customers, with unsubscribe handled for you.</p>
+            <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+            <p className="text-muted-foreground">{t("subtitle")}</p>
           </div>
           <Button asChild>
             <Link href="/crm/mailings/new">
-              <Plus className="me-2 size-4" /> New mailing
+              <Plus className="me-2 size-4" /> {t("new")}
             </Link>
           </Button>
         </div>
@@ -89,14 +91,12 @@ export default function MailingsPage() {
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-12 text-center">
             <Mail className="text-muted-foreground size-8" aria-hidden />
             <div>
-              <p className="font-medium">No mailings yet</p>
-              <p className="text-muted-foreground mt-1 max-w-md text-sm">
-                Pick an audience (say, warm UK leads from the website), write once, send yourself a test, then send.
-              </p>
+              <p className="font-medium">{t("emptyTitle")}</p>
+              <p className="text-muted-foreground mt-1 max-w-md text-sm">{t("emptyBody")}</p>
             </div>
             <Button variant="outline" asChild>
               <Link href="/crm/mailings/new">
-                <Plus className="me-2 size-4" /> Write the first mailing
+                <Plus className="me-2 size-4" /> {t("emptyCta")}
               </Link>
             </Button>
           </div>
@@ -105,7 +105,7 @@ export default function MailingsPage() {
             columns={shown}
             data={data}
             searchKey="name"
-            searchPlaceholder="Search mailings…"
+            searchPlaceholder={t("search")}
             onRowClick={(r) => router.push(`/crm/mailings/${r.id}`)}
           />
         )}

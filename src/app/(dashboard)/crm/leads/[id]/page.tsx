@@ -370,8 +370,8 @@ export default function LeadDetailPage() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
                         <div>
-                          <FormLabel>Unsubscribed from mailings</FormLabel>
-                          <FormDescription>Mass mailings skip this lead.</FormDescription>
+                          <FormLabel>{t("optOut.label")}</FormLabel>
+                          <FormDescription>{t("optOut.leadHint")}</FormDescription>
                         </div>
                         <FormControl>
                           <Switch checked={!!field.value} onCheckedChange={field.onChange} />

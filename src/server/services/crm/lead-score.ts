@@ -15,6 +15,9 @@ export interface LeadScoreInput {
 
 export type LeadBand = "hot" | "warm" | "cold";
 
+/** One line of "why": points, a reason code the UI translates, and its argument. */
+export type ScoreReason = [points: number, code: string, arg?: string | number];
+
 const SOURCE: Record<string, number> = {
   REFERRAL: 20,
   PARTNER: 20,
@@ -35,27 +38,32 @@ const STAGE: Record<string, number> = {
 
 const DAY = 86_400_000;
 
-export function scoreLead(l: LeadScoreInput, now = new Date()): { score: number; band: LeadBand; reasons: string[] } {
-  if (l.status === "WON") return { score: 100, band: "hot", reasons: ["Won"] };
-  if (l.status === "LOST" || l.status === "DORMANT") return { score: 0, band: "cold", reasons: [l.status === "LOST" ? "Lost" : "Dormant"] };
+export function scoreLead(
+  l: LeadScoreInput,
+  now = new Date(),
+): { score: number; band: LeadBand; reasons: ScoreReason[] } {
+  if (l.status === "WON") return { score: 100, band: "hot", reasons: [[100, "won"]] };
+  if (l.status === "LOST" || l.status === "DORMANT") {
+    return { score: 0, band: "cold", reasons: [[0, l.status === "LOST" ? "lost" : "dormant"]] };
+  }
 
-  const parts: [number, string][] = [];
-  if (l.email) parts.push([10, "Has email"]);
-  if (l.phone) parts.push([10, "Has phone"]);
-  if (SOURCE[l.source]) parts.push([SOURCE[l.source], `Source: ${l.source.toLowerCase().replace("_", " ")}`]);
-  if (STAGE[l.status]) parts.push([STAGE[l.status], `Stage: ${l.status.toLowerCase()}`]);
-  if (l.activityCount) parts.push([Math.min(l.activityCount * 5, 15), `${l.activityCount} activit${l.activityCount === 1 ? "y" : "ies"}`]);
-  if (l.openOpportunities) parts.push([5, "Open opportunity"]);
+  const parts: ScoreReason[] = [];
+  if (l.email) parts.push([10, "hasEmail"]);
+  if (l.phone) parts.push([10, "hasPhone"]);
+  if (SOURCE[l.source]) parts.push([SOURCE[l.source], "source", l.source]);
+  if (STAGE[l.status]) parts.push([STAGE[l.status], "stage", l.status]);
+  if (l.activityCount) parts.push([Math.min(l.activityCount * 5, 15), "activities", l.activityCount]);
+  if (l.openOpportunities) parts.push([5, "openOpportunity"]);
 
   const idle = (now.getTime() - l.lastTouchAt.getTime()) / DAY;
-  if (idle <= 7) parts.push([10, "Touched this week"]);
-  else if (idle <= 30) parts.push([5, "Touched this month"]);
-  else if (idle > 90) parts.push([-10, "Idle 90+ days"]);
+  if (idle <= 7) parts.push([10, "touchedWeek"]);
+  else if (idle <= 30) parts.push([5, "touchedMonth"]);
+  else if (idle > 90) parts.push([-10, "idle90"]);
 
   const score = Math.max(0, Math.min(100, parts.reduce((s, [n]) => s + n, 0)));
   return {
     score,
     band: score >= 70 ? "hot" : score >= 40 ? "warm" : "cold",
-    reasons: parts.map(([n, r]) => `${n > 0 ? "+" : ""}${n} ${r}`),
+    reasons: parts,
   };
 }

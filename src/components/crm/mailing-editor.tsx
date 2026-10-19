@@ -1,6 +1,7 @@
 "use client";
 
 import { Send } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 import { toast } from "sonner";
@@ -37,17 +38,18 @@ export const NEW_MAILING: MailingDraft = {
   audience: { target: "leads", statuses: [], sources: [], teamId: null, minScore: 0, tiers: [] },
 };
 
-const TIERS = ["STANDARD", "SILVER", "GOLD", "PLATINUM"].map((t) => ({ value: t, label: t[0] + t.slice(1).toLowerCase() }));
+const TIERS = ["STANDARD", "SILVER", "GOLD", "PLATINUM"];
 const SCORES = [
-  { value: "0", label: "Any score" },
-  { value: "40", label: "Warm and hot (40+)" },
-  { value: "70", label: "Hot only (70+)" },
-];
+  { value: "0", key: "anyScore" },
+  { value: "40", key: "warmPlus" },
+  { value: "70", key: "hotOnly" },
+] as const;
 const ANY = "__any";
 const opts = (labels: Record<string, string>) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 
 /** Write a mailing, pick who gets it, see the count live, then test and send. */
 export function MailingEditor({ initial }: { initial: MailingDraft }) {
+  const t = useTranslations("crm.mailings");
   const router = useRouter();
   const utils = trpc.useUtils();
   const [m, setM] = useState(initial);
@@ -60,12 +62,12 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
 
   const save = trpc.crm.mailing.save.useMutation({ onError: (e) => toast.error(e.message) });
   const test = trpc.crm.mailing.sendTest.useMutation({
-    onSuccess: (r) => toast.success(`Test sent to ${r.to}`),
+    onSuccess: (r) => toast.success(t("testSent", { to: r.to })),
     onError: (e) => toast.error(e.message),
   });
   const send = trpc.crm.mailing.send.useMutation({
     onSuccess: (r) => {
-      toast.success(`Sending to ${r.queued} people`);
+      toast.success(t("sendingTo", { count: r.queued }));
       utils.crm.mailing.invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -88,26 +90,26 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
       className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]"
       onSubmit={async (e) => {
         e.preventDefault();
-        if ((await persist()) && m.id) toast.success("Draft saved");
+        if ((await persist()) && m.id) toast.success(t("draftSaved"));
       }}
     >
-      <section className="space-y-4" aria-label="Message">
+      <section className="space-y-4" aria-label={t("message")}>
         <div className="space-y-1.5">
-          <Label htmlFor="ml-name">Internal name</Label>
+          <Label htmlFor="ml-name">{t("name")}</Label>
           <Input
             id="ml-name"
             value={m.name}
             onChange={(e) => setM({ ...m, name: e.target.value })}
-            placeholder="e.g. Winter Nile offer — UK leads"
+            placeholder={t("namePlaceholder")}
             required
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="ml-subject">Subject line</Label>
+          <Label htmlFor="ml-subject">{t("subject")}</Label>
           <Input id="ml-subject" value={m.subject} onChange={(e) => setM({ ...m, subject: e.target.value })} maxLength={200} required />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="ml-body">Message</Label>
+          <Label htmlFor="ml-body">{t("message")}</Label>
           <Textarea
             id="ml-body"
             value={m.body}
@@ -117,26 +119,25 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
             required
           />
           <p className="text-muted-foreground text-xs">
-            Plain text; a blank line starts a new paragraph. <code className="font-mono">{"{{firstName}}"}</code> becomes
-            each person&apos;s first name. An unsubscribe link is added at the bottom.
+            {t("messageHint", { token: "{{firstName}}" })}
           </p>
         </div>
       </section>
 
-      <aside className="bg-muted/40 space-y-5 self-start rounded-lg border p-4" aria-label="Audience">
+      <aside className="bg-muted/40 space-y-5 self-start rounded-lg border p-4" aria-label={t("audience")}>
         <div className="space-y-2">
-          <Label>Send to</Label>
+          <Label>{t("sendTo")}</Label>
           <RadioGroup
             value={a.target}
             onValueChange={(v) => setA({ target: v as "leads" | "customers" })}
             className="grid grid-cols-2 gap-2"
           >
-            {(["leads", "customers"] as const).map((t) => (
+            {(["leads", "customers"] as const).map((target) => (
               <Label
-                key={t}
-                className="has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-background flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 font-normal capitalize"
+                key={target}
+                className="has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-background flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 font-normal"
               >
-                <RadioGroupItem value={t} /> {t}
+                <RadioGroupItem value={target} /> {t(`target.${target}`)}
               </Label>
             ))}
           </RadioGroup>
@@ -145,32 +146,32 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
         {a.target === "leads" ? (
           <>
             <div className="space-y-1.5">
-              <Label>Status</Label>
-              <ToggleChips label="Status" options={opts(CRM_LEAD_STATUS_LABELS)} value={a.statuses} onChange={(statuses) => setA({ statuses })} emptyHint="Any status." />
+              <Label>{t("statusLabel")}</Label>
+              <ToggleChips label={t("statusLabel")} options={opts(CRM_LEAD_STATUS_LABELS)} value={a.statuses} onChange={(statuses) => setA({ statuses })} emptyHint={t("anyStatus")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Source</Label>
-              <ToggleChips label="Source" options={opts(CRM_LEAD_SOURCE_LABELS)} value={a.sources} onChange={(sources) => setA({ sources })} emptyHint="Any source." />
+              <Label>{t("source")}</Label>
+              <ToggleChips label={t("source")} options={opts(CRM_LEAD_SOURCE_LABELS)} value={a.sources} onChange={(sources) => setA({ sources })} emptyHint={t("anySource")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Team</Label>
+                <Label>{t("team")}</Label>
                 <Select value={a.teamId || ANY} onValueChange={(v) => setA({ teamId: v === ANY ? null : v })}>
                   <SelectTrigger className="bg-background w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ANY}>Any team</SelectItem>
-                    {(teams ?? []).map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
+                    <SelectItem value={ANY}>{t("anyTeam")}</SelectItem>
+                    {(teams ?? []).map((tm) => (
+                      <SelectItem key={tm.id} value={tm.id}>
+                        {tm.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Score</Label>
+                <Label>{t("score")}</Label>
                 <Select value={String(a.minScore)} onValueChange={(v) => setA({ minScore: Number(v) })}>
                   <SelectTrigger className="bg-background w-full">
                     <SelectValue />
@@ -178,7 +179,7 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
                   <SelectContent>
                     {SCORES.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
-                        {s.label}
+                        {t(s.key)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -188,17 +189,23 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
           </>
         ) : (
           <div className="space-y-1.5">
-            <Label>Loyalty tier</Label>
-            <ToggleChips label="Loyalty tier" options={TIERS} value={a.tiers} onChange={(tiers) => setA({ tiers })} emptyHint="Every customer." />
+            <Label>{t("tier")}</Label>
+            <ToggleChips
+              label={t("tier")}
+              options={TIERS.map((v) => ({ value: v, label: t(`tiers.${v}`) }))}
+              value={a.tiers}
+              onChange={(tiers) => setA({ tiers })}
+              emptyHint={t("everyCustomer")}
+            />
           </div>
         )}
 
         <div className="border-t pt-4" aria-live="polite">
           <p className="text-sm">
             <span className="font-mono text-2xl font-semibold tabular-nums">{preview.isLoading ? "…" : count}</span>{" "}
-            {count === 1 ? "person" : "people"} will receive it
+            {t("willReceive", { count })}
           </p>
-          <p className="text-muted-foreground mt-0.5 text-xs">With an email address, not unsubscribed, once per address.</p>
+          <p className="text-muted-foreground mt-0.5 text-xs">{t("receiveHint")}</p>
           {!!preview.data?.sample.length && (
             <ul className="text-muted-foreground mt-2 space-y-0.5 text-xs">
               {preview.data.sample.map((p) => (
@@ -206,14 +213,14 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
                   {p.name} · {p.email}
                 </li>
               ))}
-              {count > preview.data.sample.length && <li>and {count - preview.data.sample.length} more</li>}
+              {count > preview.data.sample.length && <li>{t("andMore", { count: count - preview.data.sample.length })}</li>}
             </ul>
           )}
         </div>
 
         <div className="flex flex-col gap-2">
           <Button type="submit" variant="outline" disabled={busy}>
-            {save.isPending ? "Saving…" : m.id ? "Save draft" : "Save draft and continue"}
+            {save.isPending ? t("saving") : m.id ? t("saveDraft") : t("saveContinue")}
           </Button>
           {m.id && (
             <>
@@ -225,18 +232,18 @@ export function MailingEditor({ initial }: { initial: MailingDraft }) {
                   if (await persist()) test.mutate({ id: m.id! });
                 }}
               >
-                {test.isPending ? "Sending test…" : "Send me a test"}
+                {test.isPending ? t("sendingTest") : t("sendTest")}
               </Button>
               <Button
                 type="button"
                 disabled={busy || !count}
                 onClick={async () => {
-                  if (!confirm(`Send “${m.subject}” to ${count} ${count === 1 ? "person" : "people"}? This can't be undone.`)) return;
+                  if (!confirm(t("confirmSend", { subject: m.subject, count }))) return;
                   if (await persist()) send.mutate({ id: m.id! });
                 }}
               >
                 <Send className="me-2 size-4" />
-                {send.isPending ? "Starting…" : `Send to ${count} ${count === 1 ? "person" : "people"}`}
+                {send.isPending ? t("starting") : t("sendCount", { count })}
               </Button>
             </>
           )}

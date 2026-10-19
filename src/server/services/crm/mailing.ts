@@ -152,3 +152,13 @@ export async function deliverMailing(mailingId: string) {
   });
   logger.info({ mailingId, sent: n("SENT"), failed: n("FAILED") }, "crm mailing delivered");
 }
+
+/**
+ * Picks up mailings a restart cut off mid-send. Called once at server boot.
+ * ponytail: assumes one app instance — at boot nothing else is delivering.
+ */
+export async function resumeMailings() {
+  const stuck = await globalDb.crmMailing.findMany({ where: { status: "SENDING" }, select: { id: true } });
+  for (const m of stuck) await deliverMailing(m.id);
+  if (stuck.length) logger.info({ count: stuck.length }, "crm mailings resumed");
+}

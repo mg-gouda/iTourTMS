@@ -65,6 +65,7 @@ export const customerCreateSchema = z.object({
   loyaltyTier: z.string().optional(),
   partnerId: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
+  emailOptOut: z.boolean().optional(),
 });
 
 export const customerUpdateSchema = patch(customerCreateSchema);

@@ -21,11 +21,13 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -81,6 +83,7 @@ export default function ContactDetailPage() {
           ? new Date(customer.dateOfBirth).toISOString().split("T")[0]
           : "",
         loyaltyTier: customer.loyaltyTier ?? "STANDARD",
+        emailOptOut: customer.emailOptOut,
         notes: customer.notes ?? "",
       });
     }
@@ -212,6 +215,17 @@ export default function ContactDetailPage() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="emailOptOut" render={({ field }) => (
+                    <FormItem className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
+                      <div>
+                        <FormLabel>{t("optOut.label")}</FormLabel>
+                        <FormDescription>{t("optOut.customerHint")}</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="notes" render={({ field }) => (
