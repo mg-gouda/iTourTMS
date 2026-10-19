@@ -11,7 +11,7 @@ export const b2cSiteBrandingRouter = createTRPCRouter({
     return ctx.db.publicSiteBranding.findUnique({ where: { companyId } });
   }),
 
-  update: p("b2c-site:branding:update")
+  update: p("b2c-site:branding:manage")
     .input(brandingSchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;

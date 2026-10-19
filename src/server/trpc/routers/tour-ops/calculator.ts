@@ -50,7 +50,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       return file ? { state: file.calculatorState, posted: file.calculatorPosted } : null;
     }),
 
-  post: p("tour-ops:quotation:confirm")
+  post: p("tour-ops:quotation:update")
     .input(
       z.object({
         fileId: z.string().min(1),
@@ -220,7 +220,7 @@ export const opsCalculatorRouter = createTRPCRouter({
       return posted;
     }),
 
-  reopen: p("tour-ops:quotation:manage")
+  reopen: p("tour-ops:quotation:update")
     .input(z.object({ fileId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.opsFile.updateMany({

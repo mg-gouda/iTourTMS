@@ -5,7 +5,7 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const workingFileRouter = createTRPCRouter({
-  list: p("finance:settings:read")
+  list: p("finance:period:read")
     .input(z.object({ state: z.enum(["DRAFT", "IN_PROGRESS", "COMPLETED"]).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.workingFile.findMany({
@@ -15,7 +15,7 @@ export const workingFileRouter = createTRPCRouter({
       });
     }),
 
-  getById: p("finance:settings:read")
+  getById: p("finance:period:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const wf = await ctx.db.workingFile.findFirst({
@@ -26,7 +26,7 @@ export const workingFileRouter = createTRPCRouter({
       return wf;
     }),
 
-  create: p("finance:settings:create")
+  create: p("finance:period:manage")
     .input(z.object({
       name: z.string().min(1),
       periodId: z.string().optional(),
@@ -44,7 +44,7 @@ export const workingFileRouter = createTRPCRouter({
       });
     }),
 
-  update: p("finance:settings:update")
+  update: p("finance:period:manage")
     .input(z.object({
       id: z.string(),
       name: z.string().min(1).optional(),
@@ -63,7 +63,7 @@ export const workingFileRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("finance:settings:delete")
+  delete: p("finance:period:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.workingFile.delete({ where: { id: input.id, companyId: ctx.companyId } });

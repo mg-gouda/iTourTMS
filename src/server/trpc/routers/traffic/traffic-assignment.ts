@@ -26,7 +26,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
       });
     }),
 
-  create: p("traffic:dispatch:create")
+  create: p("traffic:dispatch:manage")
     .input(trafficAssignmentCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const assignment = await ctx.db.ttTrafficAssignment.create({
@@ -45,7 +45,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
       return assignment;
     }),
 
-  update: p("traffic:dispatch:update")
+  update: p("traffic:dispatch:manage")
     .input(z.object({ id: z.string(), data: trafficAssignmentUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficAssignment.update({
@@ -54,7 +54,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("traffic:dispatch:delete")
+  delete: p("traffic:dispatch:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficAssignment.delete({

@@ -65,7 +65,7 @@ export const blogPostRouter = createTRPCRouter({
       return ctx.db.blogPost.delete({ where: { id: input.id } });
     }),
 
-  publish: p("b2c-site:blog:manage")
+  publish: p("b2c-site:blog:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -76,7 +76,7 @@ export const blogPostRouter = createTRPCRouter({
       });
     }),
 
-  unpublish: p("b2c-site:blog:manage")
+  unpublish: p("b2c-site:blog:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;

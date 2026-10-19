@@ -584,7 +584,7 @@ export const opsFlightTicketRouter = createTRPCRouter({
 
   // ── Post (generate P&L journal entry) ─────────────────────────────────────
 
-  post: p("tour-ops:flightTicket:confirm")
+  post: p("tour-ops:flightTicket:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { companyId, db } = ctx;

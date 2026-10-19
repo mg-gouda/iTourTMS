@@ -42,7 +42,7 @@ export const opsCreditOverrideRouter = createTRPCRouter({
       });
     }),
 
-  approve: p("tour-ops:file:manage")
+  approve: p("tour-ops:file:update")
     .input(z.object({ id: z.string(), notes: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const { db, companyId, session } = ctx;
@@ -206,7 +206,7 @@ export const opsCreditOverrideRouter = createTRPCRouter({
       return result;
     }),
 
-  deny: p("tour-ops:file:manage")
+  deny: p("tour-ops:file:update")
     .input(z.object({ id: z.string(), notes: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const { db, companyId, session } = ctx;

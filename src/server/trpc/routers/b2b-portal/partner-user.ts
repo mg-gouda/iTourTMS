@@ -144,7 +144,7 @@ export const partnerUserRouter = createTRPCRouter({
    * again until it enrols a new one at /b2b/enrol — 2FA is not optional here,
    * so this is a re-enrolment, not a bypass.
    */
-  resetTwoFactor: p("b2b-portal:partnerUser:manage")
+  resetTwoFactor: p("b2b-portal:partnerUser:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { count } = await ctx.db.user.updateMany({
@@ -203,7 +203,7 @@ export const partnerUserRouter = createTRPCRouter({
       return { id: input.id, isActive: input.isActive };
     }),
 
-  resetPassword: p("b2b-portal:partnerUser:manage")
+  resetPassword: p("b2b-portal:partnerUser:update")
     .input(z.object({ id: z.string(), newPassword: z.string().min(12) }))
     .mutation(async ({ ctx, input }) => {
       const hash = await hashPassword(input.newPassword);

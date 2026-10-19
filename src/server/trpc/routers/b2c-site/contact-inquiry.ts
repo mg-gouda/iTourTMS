@@ -32,7 +32,7 @@ export const contactInquiryRouter = createTRPCRouter({
       return ctx.db.contactInquiry.findFirst({ where: { id: input.id, companyId } });
     }),
 
-  markRead: p("b2c-site:inquiry:manage")
+  markRead: p("b2c-site:inquiry:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;
@@ -43,7 +43,7 @@ export const contactInquiryRouter = createTRPCRouter({
       });
     }),
 
-  reply: p("b2c-site:inquiry:manage")
+  reply: p("b2c-site:inquiry:update")
     .input(contactInquiryReplySchema)
     .mutation(async ({ ctx, input }) => {
       const companyId = ctx.session.user.companyId!;

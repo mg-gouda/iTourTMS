@@ -233,7 +233,7 @@ export const opsQuotationRouter = createTRPCRouter({
       return ctx.db.opsQuotation.update({ where: { id: input.id }, data: { status: input.status } });
     }),
 
-  finalize: p("tour-ops:quotation:manage")
+  finalize: p("tour-ops:quotation:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const q = await ctx.db.opsQuotation.findFirst({

@@ -99,7 +99,7 @@ export const deadlineRouter = createTRPCRouter({
       });
     }),
 
-  waive: p("reservations:booking:manage")
+  waive: p("reservations:booking:update")
     .input(z.object({ id: z.string(), note: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const dl = await ctx.db.bookingDeadline.findFirstOrThrow({

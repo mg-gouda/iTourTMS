@@ -86,7 +86,7 @@ const C_MARKUP     = ["contracting:markup:read","contracting:markup:create","con
 const C_MARKUP_R   = ["contracting:markup:read"];
 const C_ALLOTMENT  = ["contracting:allotment:read","contracting:allotment:create","contracting:allotment:update"];
 const C_ALLOTMENT_R= ["contracting:allotment:read"];
-const C_TARIFF     = ["contracting:tariff:read","contracting:tariff:export"];
+const C_TARIFF     = ["contracting:tariff:read","contracting:tariff:export","contracting:tariff:manage"];
 const C_TARIFF_R   = ["contracting:tariff:read"];
 const C_REPORT_R   = ["contracting:report:read"];
 
@@ -159,7 +159,7 @@ const CRM_COST_R   = ["crm:costSheet:read"];
 const CRM_REPORT_R = ["crm:report:read"];
 
 // All CRM
-const CRM_ALL = [...CRM_LEAD,...CRM_OPP,...CRM_CUST,...CRM_EXCURSION,...CRM_BOOKING,...CRM_SUPPLIER,...CRM_ACTIVITY,...CRM_COST,CRM_REPORT_R[0]];
+const CRM_ALL = ["crm:supplier:delete",...CRM_LEAD,...CRM_OPP,...CRM_CUST,...CRM_EXCURSION,...CRM_BOOKING,...CRM_SUPPLIER,...CRM_ACTIVITY,...CRM_COST,CRM_REPORT_R[0]];
 
 // Tour Ops
 const TO_FILE      = ["tour-ops:file:read","tour-ops:file:create","tour-ops:file:update","tour-ops:file:delete"];
@@ -179,7 +179,7 @@ const TO_PNL_R     = ["tour-ops:pnl:read"];
 const TO_REPORT_R  = ["tour-ops:report:read"];
 
 // All tour-ops
-const TO_ALL = [...TO_FILE,...TO_PACKAGE,...TO_QUOTATION,...TO_TICKET,...TO_COMPONENT,...TO_DISPATCH,TO_PNL_R[0],TO_REPORT_R[0]];
+const TO_ALL = ["tour-ops:pnl:update",...TO_FILE,...TO_PACKAGE,...TO_QUOTATION,...TO_TICKET,...TO_COMPONENT,...TO_DISPATCH,TO_PNL_R[0],TO_REPORT_R[0]];
 
 // B2C
 const B2C_ALL = [
@@ -189,7 +189,7 @@ const B2C_ALL = [
   "b2c-site:blog:read","b2c-site:blog:create","b2c-site:blog:update","b2c-site:blog:delete",
   "b2c-site:faq:read","b2c-site:faq:create","b2c-site:faq:update","b2c-site:faq:delete",
   "b2c-site:testimonial:read","b2c-site:testimonial:create","b2c-site:testimonial:update","b2c-site:testimonial:delete",
-  "b2c-site:inquiry:read","b2c-site:inquiry:delete",
+  "b2c-site:inquiry:read","b2c-site:inquiry:update","b2c-site:inquiry:delete",
   "b2c-site:newsletter:read","b2c-site:newsletter:manage",
   "b2c-site:markup:read","b2c-site:markup:create","b2c-site:markup:update","b2c-site:markup:delete",
 ];

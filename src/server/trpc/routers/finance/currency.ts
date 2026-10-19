@@ -9,7 +9,7 @@ const p = (code: string) => modulePermissionProcedure("finance", code);
 export const currencyRouter = createTRPCRouter({
   // ── Company base currency ──
 
-  getBaseCurrency: p("finance:settings:read").query(async ({ ctx }) => {
+  getBaseCurrency: p("finance:currency:read").query(async ({ ctx }) => {
     const company = await ctx.db.company.findUnique({
       where: { id: ctx.companyId },
       select: { baseCurrency: { select: { id: true, code: true, symbol: true } } },
@@ -19,7 +19,7 @@ export const currencyRouter = createTRPCRouter({
 
   // ── Currency read procedures ──
 
-  list: p("finance:settings:read")
+  list: p("finance:currency:read")
     .input(z.object({ activeOnly: z.boolean().default(true) }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.currency.findMany({
@@ -29,7 +29,7 @@ export const currencyRouter = createTRPCRouter({
       });
     }),
 
-  getById: p("finance:settings:read")
+  getById: p("finance:currency:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const currency = await ctx.db.currency.findUnique({
@@ -42,7 +42,7 @@ export const currencyRouter = createTRPCRouter({
 
   // ── Rate procedures (company-scoped) ──
 
-  listRates: p("finance:settings:read")
+  listRates: p("finance:currency:read")
     .input(z.object({
       currencyId: z.string(),
       dateFrom: z.coerce.date().optional(),
@@ -77,7 +77,7 @@ export const currencyRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  getRate: p("finance:settings:read")
+  getRate: p("finance:currency:read")
     .input(z.object({ currencyId: z.string(), date: z.coerce.date() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.currencyRate.findFirst({
@@ -91,7 +91,7 @@ export const currencyRouter = createTRPCRouter({
       });
     }),
 
-  upsertRate: p("finance:settings:update")
+  upsertRate: p("finance:currency:manage")
     .input(currencyRateUpsertSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.currencyRate.upsert({
@@ -113,7 +113,7 @@ export const currencyRouter = createTRPCRouter({
       });
     }),
 
-  importRates: p("finance:settings:create")
+  importRates: p("finance:currency:manage")
     .input(z.object({
       currencyId: z.string().min(1),
       rates: z.array(z.object({
@@ -145,7 +145,7 @@ export const currencyRouter = createTRPCRouter({
       );
     }),
 
-  deleteRate: p("finance:settings:delete")
+  deleteRate: p("finance:currency:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const rate = await ctx.db.currencyRate.findFirst({
@@ -157,7 +157,7 @@ export const currencyRouter = createTRPCRouter({
 
   // ── Toggle currency active/inactive ──
 
-  toggleActive: p("finance:settings:update")
+  toggleActive: p("finance:currency:manage")
     .input(z.object({ id: z.string(), isActive: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.currency.update({

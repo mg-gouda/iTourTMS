@@ -46,7 +46,7 @@ function bucketOf(date: Date, bucket: "DAY" | "WEEK" | "MONTH" | "QUARTER" | "YE
 }
 
 export const reportsRouter = createTRPCRouter({
-  occupancy: p("report.read")
+  occupancy: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -93,7 +93,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  revenue: p("report.read")
+  revenue: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -239,7 +239,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  upcomingArrivals: p("report.read")
+  upcomingArrivals: p("reservations:report:read")
     .input(z.object({ days: z.number().int().min(1).max(30).default(7) }).optional())
     .query(async ({ ctx, input }) => {
       const now = new Date();
@@ -260,7 +260,7 @@ export const reportsRouter = createTRPCRouter({
       });
     }),
 
-  upcomingDepartures: p("report.read")
+  upcomingDepartures: p("reservations:report:read")
     .input(z.object({ days: z.number().int().min(1).max(30).default(7) }).optional())
     .query(async ({ ctx, input }) => {
       const now = new Date();
@@ -280,7 +280,7 @@ export const reportsRouter = createTRPCRouter({
       });
     }),
 
-  arrivalList: p("report.read")
+  arrivalList: p("reservations:report:read")
     .input(arrivalListFilterSchema)
     .query(async ({ ctx, input }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -405,7 +405,7 @@ export const reportsRouter = createTRPCRouter({
     }),
 
   // ── EBD list — bookings carrying an early booking discount ──
-  ebdList: p("report.read")
+  ebdList: p("reservations:report:read")
     .input(ebdListFilterSchema)
     .query(async ({ ctx, input }) => {
       const from = new Date(input.dateFrom);
@@ -511,7 +511,7 @@ export const reportsRouter = createTRPCRouter({
     }),
 
   // ── Rebooking gains — what re-securing rates saved, per currency ──
-  rebookingGains: p("report.read")
+  rebookingGains: p("reservations:report:read")
     .input(rebookingGainsFilterSchema)
     .query(async ({ ctx, input }) => {
       const changes = await ctx.db.bookingRateChange.findMany({
@@ -589,7 +589,7 @@ export const reportsRouter = createTRPCRouter({
     }),
 
   // ── P&L by period, optionally broken down by a dimension ──
-  profitAndLoss: p("report.read")
+  profitAndLoss: p("reservations:report:read")
     .input(profitAndLossFilterSchema)
     .query(async ({ ctx, input }) => {
       const from = new Date(input.dateFrom);
@@ -756,7 +756,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  paymentOptionDate: p("report.read")
+  paymentOptionDate: p("reservations:report:read")
     .input(paymentOptionDateFilterSchema)
     .query(async ({ ctx, input }) => {
       const bookings = await ctx.db.booking.findMany({
@@ -824,7 +824,7 @@ export const reportsRouter = createTRPCRouter({
       return { rows, currencyTotals };
     }),
 
-  materialization: p("report.read")
+  materialization: p("reservations:report:read")
     .input(materializationFilterSchema)
     .query(async ({ ctx, input }) => {
       const hotelId = input.hotelId;
@@ -1006,7 +1006,7 @@ export const reportsRouter = createTRPCRouter({
       };
     }),
 
-  dailyOps: p("report.read").query(async ({ ctx }) => {
+  dailyOps: p("reservations:report:read").query(async ({ ctx }) => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 86_400_000);
@@ -1066,7 +1066,7 @@ export const reportsRouter = createTRPCRouter({
     };
   }),
 
-  productionByTO: p("report.read")
+  productionByTO: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -1147,7 +1147,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  cancellationReport: p("report.read")
+  cancellationReport: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -1191,7 +1191,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  noShowReport: p("report.read")
+  noShowReport: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -1235,7 +1235,7 @@ export const reportsRouter = createTRPCRouter({
       }));
     }),
 
-  bookingLeadTime: p("report.read")
+  bookingLeadTime: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {
@@ -1293,7 +1293,7 @@ export const reportsRouter = createTRPCRouter({
       return { averageLeadDays, byHotel };
     }),
 
-  marketMix: p("report.read")
+  marketMix: p("reservations:report:read")
     .input(reportFilterSchema)
     .query(async ({ ctx, input }) => {
       const where: Record<string, unknown> = {

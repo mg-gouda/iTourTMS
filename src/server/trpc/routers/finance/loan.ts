@@ -96,13 +96,13 @@ export const loanRouter = createTRPCRouter({
       return ctx.db.accountLoan.update({ where: { id: loan.id }, data: { state: "OPEN" } });
     }),
 
-  markPaid: p("finance:asset:confirm")
+  markPaid: p("finance:asset:update")
     .input(z.object({ lineId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.loanScheduleLine.update({ where: { id: input.lineId }, data: { isPaid: true } });
     }),
 
-  close: p("finance:asset:confirm")
+  close: p("finance:asset:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountLoan.update({

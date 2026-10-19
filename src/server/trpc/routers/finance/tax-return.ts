@@ -102,7 +102,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  confirm: p("finance:tax:confirm")
+  confirm: p("finance:tax:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxReturn.update({
@@ -111,7 +111,7 @@ export const taxReturnRouter = createTRPCRouter({
       });
     }),
 
-  file: p("finance:tax:confirm")
+  file: p("finance:tax:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.taxReturn.update({

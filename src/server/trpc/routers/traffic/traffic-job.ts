@@ -218,7 +218,7 @@ export const trafficJobRouter = createTRPCRouter({
       return updatedJob;
     }),
 
-  bulkCreate: p("traffic:job:import")
+  bulkCreate: p("traffic:job:create")
     .input(z.object({ jobs: z.array(trafficJobCreateSchema) }))
     .mutation(async ({ ctx, input }) => {
       const results = [];

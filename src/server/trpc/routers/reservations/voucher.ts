@@ -8,7 +8,7 @@ import { logBookingAction } from "@/server/services/reservations/timeline-logger
 const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const voucherRouter = createTRPCRouter({
-  list: p("voucher.read")
+  list: p("reservations:voucher:read")
     .input(
       z
         .object({
@@ -46,7 +46,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  getById: p("voucher.read")
+  getById: p("reservations:voucher:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.voucher.findFirstOrThrow({
@@ -75,7 +75,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  create: p("voucher.create")
+  create: p("reservations:voucher:create")
     .input(voucherCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -110,7 +110,7 @@ export const voucherRouter = createTRPCRouter({
       return voucher;
     }),
 
-  transition: p("voucher.read")
+  transition: p("reservations:voucher:read")
     .input(voucherStatusSchema)
     .mutation(async ({ ctx, input }) => {
       const voucher = await ctx.db.voucher.findFirstOrThrow({

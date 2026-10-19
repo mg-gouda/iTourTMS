@@ -200,7 +200,7 @@ export const assetRouter = createTRPCRouter({
       });
     }),
 
-  close: p("finance:asset:confirm")
+  close: p("finance:asset:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.accountAsset.update({

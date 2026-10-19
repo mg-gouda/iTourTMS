@@ -403,7 +403,7 @@ export default function ImportSejourPage() {
 
   return (
 
-    <PermissionGuard permission="contracting:read">
+    <PermissionGuard permission="contracting:contract:create">
       <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <div className="flex items-center gap-2">

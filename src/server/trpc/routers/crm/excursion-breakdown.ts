@@ -181,7 +181,7 @@ export const excursionBreakdownRouter = createTRPCRouter({
       });
     }),
 
-  unpublish: p("crm:booking:manage")
+  unpublish: p("crm:booking:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursionBreakdown.findFirstOrThrow({ where: { id: input.id, companyId: ctx.companyId } });

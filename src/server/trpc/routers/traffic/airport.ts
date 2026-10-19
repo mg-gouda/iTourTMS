@@ -47,7 +47,7 @@ export const airportRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("traffic:airport:delete")
+  delete: p("traffic:airport:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.airport.delete({ where: { id: input.id } });

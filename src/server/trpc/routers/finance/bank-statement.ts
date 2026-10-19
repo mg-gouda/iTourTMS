@@ -126,7 +126,7 @@ export const bankStatementRouter = createTRPCRouter({
       });
     }),
 
-  update: p("finance:bankStatement:update")
+  update: p("finance:bankStatement:create")
     .input(
       z.object({ id: z.string() }).merge(bankStatementUpdateSchema),
     )

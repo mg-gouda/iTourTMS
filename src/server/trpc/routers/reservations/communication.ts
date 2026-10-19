@@ -5,7 +5,7 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const communicationRouter = createTRPCRouter({
-  listByBooking: p("booking.read")
+  listByBooking: p("reservations:booking:read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       await ctx.db.booking.findFirstOrThrow({

@@ -60,7 +60,7 @@ export const trafficFlightRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("traffic:airport:delete")
+  delete: p("traffic:airport:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.ttTrafficFlight.delete({

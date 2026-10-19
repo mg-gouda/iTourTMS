@@ -35,7 +35,7 @@ const NO_MANAGER = "__none__";
  */
 export default function PortalAccessPage() {
   return (
-    <PermissionGuard permission="b2b-portal:contract:read">
+    <PermissionGuard permission="b2b-portal:tourOperator:read">
       <div className="animate-fade-in space-y-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Portal access</h1>

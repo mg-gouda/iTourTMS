@@ -20,7 +20,7 @@ export const seasonSpoBtcRouter = createTRPCRouter({
       });
     }),
 
-  upsert: p("contracting:offer:manage")
+  upsert: p("contracting:offer:update")
     .input(z.object({
       id: z.string().nullish(),
       spoId: z.string().min(1),

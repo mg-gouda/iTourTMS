@@ -292,7 +292,7 @@ export const rateVerificationRouter = createTRPCRouter({
     }),
 
   // ── Save a simulation result ──
-  saveResult: p("contracting:tariff:update")
+  saveResult: p("contracting:tariff:manage")
     .input(
       z.object({
         contractId: z.string(),
@@ -340,7 +340,7 @@ export const rateVerificationRouter = createTRPCRouter({
     }),
 
   // ── Delete a saved result ──
-  deleteResult: p("contracting:tariff:delete")
+  deleteResult: p("contracting:tariff:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       // Verify ownership

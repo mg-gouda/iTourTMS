@@ -144,7 +144,7 @@ export const dispatchRouter = createTRPCRouter({
       });
     }),
 
-  bulkAssign: p("traffic:dispatch:import")
+  bulkAssign: p("traffic:dispatch:manage")
     .input(z.object({
       assignments: z.array(z.object({
         jobId: z.string(),
@@ -175,7 +175,7 @@ export const dispatchRouter = createTRPCRouter({
       return results;
     }),
 
-  lockDispatch: p("traffic:dispatch:update")
+  lockDispatch: p("traffic:dispatch:manage")
     .input(z.object({ date: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);
@@ -193,7 +193,7 @@ export const dispatchRouter = createTRPCRouter({
       });
     }),
 
-  unlockDispatch: p("traffic:dispatch:update")
+  unlockDispatch: p("traffic:dispatch:manage")
     .input(z.object({ date: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const dayStart = new Date(input.date);

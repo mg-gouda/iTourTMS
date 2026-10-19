@@ -152,6 +152,7 @@ export const P = {
   CONTRACTING_ALLOTMENT_UPDATE:  "contracting:allotment:update",
   CONTRACTING_TARIFF_READ:       "contracting:tariff:read",
   CONTRACTING_TARIFF_EXPORT:     "contracting:tariff:export",
+  CONTRACTING_TARIFF_MANAGE:     "contracting:tariff:manage",
   CONTRACTING_REPORT_READ:       "contracting:report:read",
 
   // ── Reservations ─────────────────────────────────────────────────────────
@@ -242,6 +243,7 @@ export const P = {
   CRM_SUPPLIER_READ:             "crm:supplier:read",
   CRM_SUPPLIER_CREATE:           "crm:supplier:create",
   CRM_SUPPLIER_UPDATE:           "crm:supplier:update",
+  CRM_SUPPLIER_DELETE:           "crm:supplier:delete",
   CRM_ACTIVITY_READ:             "crm:activity:read",
   CRM_ACTIVITY_CREATE:           "crm:activity:create",
   CRM_ACTIVITY_UPDATE:           "crm:activity:update",
@@ -279,6 +281,7 @@ export const P = {
   TOUR_OPS_DISPATCH_READ:        "tour-ops:dispatch:read",
   TOUR_OPS_DISPATCH_MANAGE:      "tour-ops:dispatch:manage",
   TOUR_OPS_PNL_READ:             "tour-ops:pnl:read",
+  TOUR_OPS_PNL_UPDATE:           "tour-ops:pnl:update",
   TOUR_OPS_REPORT_READ:          "tour-ops:report:read",
 
   // ── B2C Website ───────────────────────────────────────────────────────────
@@ -306,6 +309,7 @@ export const P = {
   B2C_TESTIMONIAL_DELETE:        "b2c-site:testimonial:delete",
   B2C_INQUIRY_READ:              "b2c-site:inquiry:read",
   B2C_INQUIRY_DELETE:            "b2c-site:inquiry:delete",
+  B2C_INQUIRY_UPDATE:            "b2c-site:inquiry:update",
   B2C_NEWSLETTER_READ:           "b2c-site:newsletter:read",
   B2C_NEWSLETTER_MANAGE:         "b2c-site:newsletter:manage",
   B2C_MARKUP_READ:               "b2c-site:markup:read",
@@ -521,6 +525,7 @@ export const ALL_PERMISSIONS: { code: PermissionCode; module: string; resource: 
   { code: P.CONTRACTING_ALLOTMENT_UPDATE, module: "contracting", resource: "allotment",    action: "update",    displayName: "Edit Allotments" },
   { code: P.CONTRACTING_TARIFF_READ,      module: "contracting", resource: "tariff",       action: "read",      displayName: "View Tariffs" },
   { code: P.CONTRACTING_TARIFF_EXPORT,    module: "contracting", resource: "tariff",       action: "export",    displayName: "Export Tariffs" },
+  { code: P.CONTRACTING_TARIFF_MANAGE,    module: "contracting", resource: "tariff",       action: "manage",    displayName: "Generate & Edit Tariffs" },
   { code: P.CONTRACTING_REPORT_READ,      module: "contracting", resource: "report",       action: "read",      displayName: "View Contracting Reports" },
   // Reservations
   { code: P.RESERVATIONS_BOOKING_READ,    module: "reservations", resource: "booking",     action: "read",      displayName: "View Bookings" },
@@ -608,6 +613,7 @@ export const ALL_PERMISSIONS: { code: PermissionCode; module: string; resource: 
   { code: P.CRM_SUPPLIER_READ,           module: "crm",       resource: "supplier",       action: "read",      displayName: "View Suppliers" },
   { code: P.CRM_SUPPLIER_CREATE,         module: "crm",       resource: "supplier",       action: "create",    displayName: "Create Suppliers" },
   { code: P.CRM_SUPPLIER_UPDATE,         module: "crm",       resource: "supplier",       action: "update",    displayName: "Edit Suppliers" },
+  { code: P.CRM_SUPPLIER_DELETE,         module: "crm",       resource: "supplier",       action: "delete",    displayName: "Delete Suppliers" },
   { code: P.CRM_ACTIVITY_READ,           module: "crm",       resource: "activity",       action: "read",      displayName: "View Activities" },
   { code: P.CRM_ACTIVITY_CREATE,         module: "crm",       resource: "activity",       action: "create",    displayName: "Create Activities" },
   { code: P.CRM_ACTIVITY_UPDATE,         module: "crm",       resource: "activity",       action: "update",    displayName: "Edit Activities" },
@@ -644,6 +650,7 @@ export const ALL_PERMISSIONS: { code: PermissionCode; module: string; resource: 
   { code: P.TOUR_OPS_DISPATCH_READ,      module: "tour-ops",  resource: "dispatch",       action: "read",      displayName: "View Tour Dispatch" },
   { code: P.TOUR_OPS_DISPATCH_MANAGE,    module: "tour-ops",  resource: "dispatch",       action: "manage",    displayName: "Manage Tour Dispatch" },
   { code: P.TOUR_OPS_PNL_READ,           module: "tour-ops",  resource: "pnl",            action: "read",      displayName: "View P&L Reports" },
+  { code: P.TOUR_OPS_PNL_UPDATE,         module: "tour-ops",  resource: "pnl",            action: "update",    displayName: "Edit & Close P&L" },
   { code: P.TOUR_OPS_REPORT_READ,        module: "tour-ops",  resource: "report",         action: "read",      displayName: "View Tour Ops Reports" },
   // B2C
   { code: P.B2C_BRANDING_READ,           module: "b2c-site",  resource: "branding",       action: "read",      displayName: "View B2C Branding" },
@@ -670,6 +677,7 @@ export const ALL_PERMISSIONS: { code: PermissionCode; module: string; resource: 
   { code: P.B2C_TESTIMONIAL_DELETE,      module: "b2c-site",  resource: "testimonial",    action: "delete",    displayName: "Delete Testimonials" },
   { code: P.B2C_INQUIRY_READ,            module: "b2c-site",  resource: "inquiry",        action: "read",      displayName: "View Inquiries" },
   { code: P.B2C_INQUIRY_DELETE,          module: "b2c-site",  resource: "inquiry",        action: "delete",    displayName: "Delete Inquiries" },
+  { code: P.B2C_INQUIRY_UPDATE,          module: "b2c-site",  resource: "inquiry",        action: "update",    displayName: "Handle Inquiries" },
   { code: P.B2C_NEWSLETTER_READ,         module: "b2c-site",  resource: "newsletter",     action: "read",      displayName: "View Newsletter Subscribers" },
   { code: P.B2C_NEWSLETTER_MANAGE,       module: "b2c-site",  resource: "newsletter",     action: "manage",    displayName: "Manage Newsletter" },
   { code: P.B2C_MARKUP_READ,             module: "b2c-site",  resource: "markup",         action: "read",      displayName: "View B2C Markup Rules" },

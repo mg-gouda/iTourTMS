@@ -150,7 +150,7 @@ export const deferredRevenueRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) => postLines(ctx, input.id)),
 
-  close: p("finance:deferred:confirm")
+  close: p("finance:deferred:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.deferredRevenue.update({

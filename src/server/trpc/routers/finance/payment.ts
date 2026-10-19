@@ -508,7 +508,7 @@ export const paymentRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("finance:payment:delete")
+  delete: p("finance:payment:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.payment.findFirst({
@@ -529,7 +529,7 @@ export const paymentRouter = createTRPCRouter({
       return ctx.db.payment.delete({ where: { id: input.id } });
     }),
 
-  registerPayment: p("finance:payment:manage")
+  registerPayment: p("finance:payment:confirm")
     .input(registerPaymentSchema)
     .mutation(async ({ ctx, input }) => {
       // Fetch the invoice to determine payment type and currency

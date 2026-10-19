@@ -14,7 +14,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
     });
   }),
 
-  getById: p("finance:settings:read")
+  getById: p("finance:currency:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const rec = await ctx.db.unrealizedCurrencyEntry.findFirst({
@@ -25,7 +25,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
       return rec;
     }),
 
-  create: p("finance:settings:create")
+  create: p("finance:currency:manage")
     .input(z.object({
       name: z.string().min(1),
       date: z.string(),
@@ -44,7 +44,7 @@ export const unrealizedCurrencyRouter = createTRPCRouter({
       });
     }),
 
-  reverse: p("finance:settings:cancel")
+  reverse: p("finance:currency:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const rec = await ctx.db.unrealizedCurrencyEntry.findFirst({

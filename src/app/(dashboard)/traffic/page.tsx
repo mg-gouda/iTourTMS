@@ -157,7 +157,7 @@ function KpiCard({
   color: string;
 }) {
   return (
-    <PermissionGuard permission="traffic:read">
+    <PermissionGuard permission="traffic:job:read">
       <Card>
       <CardContent className="flex items-center gap-4 p-6">
         <div className={`rounded-lg bg-muted p-3 ${color}`}>

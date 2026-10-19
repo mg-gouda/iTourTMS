@@ -218,7 +218,7 @@ export default function CrmDashboardPage() {
                           ? activity.booking.code
                           : null;
                     return (
-                      <PermissionGuard permission="crm:read">
+                      <PermissionGuard permission="crm:lead:read">
                         <div key={activity.id} className="flex items-center justify-between rounded-md border p-3">
                         <div>
                           <p className="text-sm font-medium">{activity.subject}</p>

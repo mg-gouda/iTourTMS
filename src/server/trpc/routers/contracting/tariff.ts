@@ -134,7 +134,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Generate a tariff ──
-  generate: p("contracting:tariff:create")
+  generate: p("contracting:tariff:manage")
     .input(tariffGenerateSchema)
     .mutation(async ({ ctx, input }) => {
       const { generateTariffRates, resolveMarkupRule } = await import(
@@ -451,7 +451,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Bulk generate: tariffs for all contracts assigned to a TO ──
-  generateBulk: p("contracting:tariff:create")
+  generateBulk: p("contracting:tariff:manage")
     .input(tariffBulkGenerateSchema)
     .mutation(async ({ ctx, input }) => {
       const { generateTariffRates, resolveMarkupRule } = await import(
@@ -626,7 +626,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Delete ──
-  delete: p("contracting:tariff:delete")
+  delete: p("contracting:tariff:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.tariff.delete({
@@ -635,7 +635,7 @@ export const tariffRouter = createTRPCRouter({
     }),
 
   // ── Bulk delete ──
-  deleteBulk: p("contracting:tariff:delete")
+  deleteBulk: p("contracting:tariff:manage")
     .input(z.object({ ids: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db.tariff.deleteMany({

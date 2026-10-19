@@ -36,7 +36,7 @@ export const contractAllotmentRouter = createTRPCRouter({
       });
     }),
 
-  bulkSave: p("contracting:allotment:import")
+  bulkSave: p("contracting:allotment:create")
     .input(allotmentBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);
@@ -209,7 +209,7 @@ export const contractAllotmentRouter = createTRPCRouter({
       return stopSale;
     }),
 
-  deleteStopSale: p("contracting:allotment:delete")
+  deleteStopSale: p("contracting:allotment:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const stopSale = await ctx.db.contractStopSale.findFirstOrThrow({

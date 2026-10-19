@@ -5,7 +5,7 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const coaTemplateRouter = createTRPCRouter({
-  list: p("finance:settings:read").query(async ({ ctx }) => {
+  list: p("finance:account:read").query(async ({ ctx }) => {
     return ctx.db.coaTemplate.findMany({
       include: {
         _count: { select: { groups: true, accounts: true } },
@@ -14,7 +14,7 @@ export const coaTemplateRouter = createTRPCRouter({
     });
   }),
 
-  getById: p("finance:settings:read")
+  getById: p("finance:account:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const tpl = await ctx.db.coaTemplate.findUnique({
@@ -29,7 +29,7 @@ export const coaTemplateRouter = createTRPCRouter({
     }),
 
   // Save the calling company's current COA (accounts + groups) as a named template
-  saveFromCompany: p("finance:settings:update")
+  saveFromCompany: p("finance:settings:manage")
     .input(z.object({
       name: z.string().min(1).max(100),
       description: z.string().optional(),
@@ -184,7 +184,7 @@ export const coaTemplateRouter = createTRPCRouter({
       return { created, skipped, groups: groupIdMap.size };
     }),
 
-  delete: p("finance:settings:delete")
+  delete: p("finance:settings:manage")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.coaTemplate.delete({ where: { id: input.id } });

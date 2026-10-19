@@ -54,7 +54,7 @@ export const seasonSpoRouter = createTRPCRouter({
 
   // Smart upsert: update existing SPOs (preserving their IDs), create new ones,
   // delete removed ones. This keeps SPO codes stable across saves.
-  bulkSave: p("contracting:offer:import")
+  bulkSave: p("contracting:offer:create")
     .input(seasonSpoBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await verifyContract(ctx.db, input.contractId, ctx.companyId);

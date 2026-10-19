@@ -43,7 +43,7 @@ const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const bookingRouter = createTRPCRouter({
   // ── List with filters ──
-  list: p("booking.read")
+  list: p("reservations:booking:read")
     .input(
       z
         .object({
@@ -90,7 +90,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Get by ID (full detail) ──
-  getById: p("booking.read")
+  getById: p("reservations:booking:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -171,7 +171,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Check stop sales for a hotel + date range ──
-  checkStopSales: p("booking.read")
+  checkStopSales: p("reservations:booking:read")
     .input(
       z.object({
         hotelId: z.string().min(1),
@@ -208,7 +208,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Create booking ──
-  create: p("booking.create")
+  create: p("reservations:booking:create")
     .input(bookingCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const nights = computeNights(input.checkIn, input.checkOut);
@@ -489,7 +489,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Approve / Reject stop-sale override ──
-  approveStopSale: p("booking.confirm")
+  approveStopSale: p("reservations:booking:confirm")
     .input(
       z.object({
         bookingId: z.string().min(1),
@@ -555,7 +555,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Update booking (DRAFT only) ──
-  update: p("booking.update")
+  update: p("reservations:booking:update")
     .input(z.object({ id: z.string(), data: bookingUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -594,7 +594,7 @@ export const bookingRouter = createTRPCRouter({
    * What a rebook would cost if recalculated today, without writing anything —
    * the modal shows this next to the current cost before the agent commits.
    */
-  previewRebookRate: p("booking.read")
+  previewRebookRate: p("reservations:booking:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -664,7 +664,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Rebook: record a re-secured rate and keep the gain auditable ──
-  rebook: p("booking.update")
+  rebook: p("reservations:booking:update")
     .input(bookingRebookSchema)
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.booking.findFirstOrThrow({
@@ -824,7 +824,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Currency lines (multi-currency P&L; base line stays engine-owned) ──
-  setCurrencyLine: p("booking.update")
+  setCurrencyLine: p("reservations:booking:update")
     .input(bookingCurrencyLineSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -882,7 +882,7 @@ export const bookingRouter = createTRPCRouter({
       return line;
     }),
 
-  deleteCurrencyLine: p("booking.update")
+  deleteCurrencyLine: p("reservations:booking:update")
     .input(bookingCurrencyLineDeleteSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -905,7 +905,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Amend booking (any status except CANCELLED / CHECKED_OUT) ──
-  amend: p("booking.update")
+  amend: p("reservations:booking:update")
     .input(z.object({ id: z.string(), data: bookingAmendSchema }))
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -1230,7 +1230,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Delete booking (DRAFT only) ──
-  delete: p("booking.delete")
+  delete: p("reservations:booking:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -1246,7 +1246,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Lock / Unlock ──
-  lock: p("booking.update")
+  lock: p("reservations:booking:update")
     .input(bookingLockSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -1277,7 +1277,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Status transitions ──
-  transition: p("booking.confirm")
+  transition: p("reservations:booking:confirm")
     .input(bookingStatusTransitionSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -1498,7 +1498,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Calculate rates preview ──
-  calculateRates: p("booking.read")
+  calculateRates: p("reservations:booking:read")
     .input(bookingRateCalcSchema)
     .query(async ({ ctx, input }) => {
       return calculateBookingRates(ctx.db, ctx.companyId, {
@@ -1519,7 +1519,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Dashboard KPIs ──
-  dashboard: p("booking.read").query(async ({ ctx }) => {
+  dashboard: p("reservations:booking:read").query(async ({ ctx }) => {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
     const weekFromNow = new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
@@ -1607,7 +1607,7 @@ export const bookingRouter = createTRPCRouter({
   }),
 
   // ── Cancellation penalty preview ──
-  getCancellationPenalty: p("booking.read")
+  getCancellationPenalty: p("reservations:booking:read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify booking belongs to company
@@ -1619,7 +1619,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Cancel with penalty ──
-  cancelWithPenalty: p("booking.cancel")
+  cancelWithPenalty: p("reservations:booking:cancel")
     .input(z.object({
       bookingId: z.string(),
       reason: z.string().optional(),
@@ -1675,7 +1675,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Group booking (10+ rooms) ──
-  createGroup: p("booking.create")
+  createGroup: p("reservations:booking:create")
     .input(z.object({
       hotelId: z.string(),
       contractId: z.string().optional(),
@@ -1757,7 +1757,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Series / recurring bookings ──
-  createSeries: p("booking.create")
+  createSeries: p("reservations:booking:create")
     .input(z.object({
       templateBookingId: z.string(),
       frequency: z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY"]),
@@ -1831,7 +1831,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Update booking date (for rebook / SPO re-validation) ──
-  updateBookingDate: p("booking.update")
+  updateBookingDate: p("reservations:booking:update")
     .input(z.object({ id: z.string(), bookingDate: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -1851,7 +1851,7 @@ export const bookingRouter = createTRPCRouter({
     }),
 
   // ── Recalculate buying rates from current contract/SPO ──
-  recalculateBuying: p("booking.update")
+  recalculateBuying: p("reservations:booking:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -1916,7 +1916,7 @@ export const bookingRouter = createTRPCRouter({
       return { ...updated, warnings: rates.warnings };
     }),
 
-  recalculateSelling: p("booking.update")
+  recalculateSelling: p("reservations:booking:update")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({

@@ -49,7 +49,7 @@ export const opsPnlRouter = createTRPCRouter({
       });
     }),
 
-  close: p("tour-ops:pnl:manage")
+  close: p("tour-ops:pnl:update")
     .input(z.object({ fileId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const pnl = await ctx.db.opsPnL.findUnique({ where: { fileId: input.fileId } });

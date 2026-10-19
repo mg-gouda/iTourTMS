@@ -38,7 +38,7 @@ export const auditTrailRouter = createTRPCRouter({
       return { items, total, pages: Math.ceil(total / pageSize) };
     }),
 
-  log: p("finance:auditTrail:manage")
+  log: p("finance:settings:manage")
     .input(z.object({
       modelName: z.string(),
       recordId: z.string(),

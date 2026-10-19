@@ -6,7 +6,7 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const guestRouter = createTRPCRouter({
-  list: p("guest.read")
+  list: p("reservations:guest:read")
     .input(
       z
         .object({
@@ -43,7 +43,7 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  getById: p("guest.read")
+  getById: p("reservations:guest:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.guest.findFirstOrThrow({
@@ -70,7 +70,7 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  create: p("guest.create")
+  create: p("reservations:guest:create")
     .input(guestCreateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.guest.create({
@@ -83,7 +83,7 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  update: p("guest.update")
+  update: p("reservations:guest:update")
     .input(z.object({ id: z.string(), data: guestUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = { ...input.data };
@@ -99,7 +99,7 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("guest.delete")
+  delete: p("reservations:guest:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const count = await ctx.db.bookingGuest.count({ where: { guestId: input.id } });
@@ -111,7 +111,7 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  search: p("guest.read")
+  search: p("reservations:guest:read")
     .input(z.object({ query: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       return ctx.db.guest.findMany({

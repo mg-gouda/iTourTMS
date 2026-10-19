@@ -85,7 +85,7 @@ export const bookingPaymentRouter = createTRPCRouter({
       });
     }),
 
-  listByBooking: p("payment.read")
+  listByBooking: p("reservations:payment:read")
     .input(z.object({ bookingId: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify booking belongs to company
@@ -104,7 +104,7 @@ export const bookingPaymentRouter = createTRPCRouter({
       });
     }),
 
-  create: p("payment.create")
+  create: p("reservations:payment:create")
     .input(bookingPaymentCreateSchema)
     .mutation(async ({ ctx, input }) => {
       const booking = await ctx.db.booking.findFirstOrThrow({
@@ -166,7 +166,7 @@ export const bookingPaymentRouter = createTRPCRouter({
       return payment;
     }),
 
-  delete: p("payment.cancel")
+  delete: p("reservations:payment:cancel")
     .input(z.object({ id: z.string(), bookingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const payment = await ctx.db.bookingPayment.findFirstOrThrow({

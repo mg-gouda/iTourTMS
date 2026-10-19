@@ -9,7 +9,7 @@ import { optionalId } from "@/lib/validations/contracting";
 const p = (code: string) => modulePermissionProcedure("b2b-portal", code);
 
 export const tourOperatorRouter = createTRPCRouter({
-  list: p("b2b-portal:contract:read")
+  list: p("b2b-portal:tourOperator:read")
     .input(
       z
         .object({
@@ -48,7 +48,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  getById: p("b2b-portal:contract:read")
+  getById: p("b2b-portal:tourOperator:read")
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const record = await ctx.db.tourOperator.findFirst({
@@ -70,7 +70,7 @@ export const tourOperatorRouter = createTRPCRouter({
       return record;
     }),
 
-  create: p("b2b-portal:contract:create")
+  create: p("b2b-portal:tourOperator:create")
     .input(
       z.object({
         name: z.string().min(1),
@@ -105,7 +105,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  update: p("b2b-portal:contract:update")
+  update: p("b2b-portal:tourOperator:update")
     .input(
       z.object({
         id: z.string(),
@@ -150,7 +150,7 @@ export const tourOperatorRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("b2b-portal:contract:delete")
+  delete: p("b2b-portal:tourOperator:delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const to = await ctx.db.tourOperator.findUnique({

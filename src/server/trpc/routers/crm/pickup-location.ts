@@ -20,7 +20,7 @@ export const pickupLocationRouter = createTRPCRouter({
     }),
 
   // Bulk save: delete all for excursion, recreate. Tiers cascade.
-  bulkSave: p("crm:booking:import")
+  bulkSave: p("crm:booking:create")
     .input(pickupLocationBulkSaveSchema)
     .mutation(async ({ ctx, input }) => {
       await ctx.db.crmExcursion.findFirstOrThrow({

@@ -28,7 +28,7 @@ async function requireOperator(
 
 export const portalAccessRouter = createTRPCRouter({
   /** Everything that decides whether and how a partner may use the portal. */
-  getSettings: p("b2b-portal:contract:read")
+  getSettings: p("b2b-portal:tourOperator:read")
     .input(z.object({ tourOperatorId: z.string() }))
     .query(async ({ ctx, input }) => {
       const operator = await ctx.db.tourOperator.findFirst({
@@ -49,7 +49,7 @@ export const portalAccessRouter = createTRPCRouter({
       return operator;
     }),
 
-  updateSettings: p("b2b-portal:contract:update")
+  updateSettings: p("b2b-portal:tourOperator:update")
     .input(
       z.object({
         tourOperatorId: z.string(),
@@ -99,7 +99,7 @@ export const portalAccessRouter = createTRPCRouter({
    * allowlist edited by diff drifts, and drift here means a partner keeps
    * access to a hotel that was removed from their deal.
    */
-  setHotelAllowlist: p("b2b-portal:contract:update")
+  setHotelAllowlist: p("b2b-portal:tourOperator:update")
     .input(z.object({ tourOperatorId: z.string(), hotelIds: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       await requireOperator(ctx.db, ctx.companyId, input.tourOperatorId);
@@ -122,7 +122,7 @@ export const portalAccessRouter = createTRPCRouter({
     }),
 
   /** Hotels to choose from when editing an allowlist, under the b2b permission. */
-  listHotels: p("b2b-portal:contract:read").query(async ({ ctx }) => {
+  listHotels: p("b2b-portal:tourOperator:read").query(async ({ ctx }) => {
     return ctx.db.hotel.findMany({
       where: { companyId: ctx.companyId },
       select: { id: true, name: true, code: true },
@@ -131,7 +131,7 @@ export const portalAccessRouter = createTRPCRouter({
   }),
 
   /** Staff who can be named as an account manager. */
-  listAccountManagers: p("b2b-portal:contract:read").query(async ({ ctx }) => {
+  listAccountManagers: p("b2b-portal:tourOperator:read").query(async ({ ctx }) => {
     return ctx.db.user.findMany({
       where: { companyId: ctx.companyId, tourOperatorId: null, isActive: true },
       select: { id: true, name: true, email: true },
@@ -140,7 +140,7 @@ export const portalAccessRouter = createTRPCRouter({
   }),
 
   /** Every partner with the settings that decide their portal access. */
-  listPartners: p("b2b-portal:contract:read").query(async ({ ctx }) => {
+  listPartners: p("b2b-portal:tourOperator:read").query(async ({ ctx }) => {
     return ctx.db.tourOperator.findMany({
       where: { companyId: ctx.companyId },
       select: {
@@ -160,7 +160,7 @@ export const portalAccessRouter = createTRPCRouter({
   }),
 
   /** One-time invitation link. The token is shown once; only its hash is kept. */
-  createInvite: p("b2b-portal:partnerUser:manage")
+  createInvite: p("b2b-portal:partnerUser:update")
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.findFirst({
@@ -202,7 +202,7 @@ export const portalAccessRouter = createTRPCRouter({
     }),
 
   /** What a partner and their people have been doing. */
-  listAudit: p("b2b-portal:contract:read")
+  listAudit: p("b2b-portal:tourOperator:read")
     .input(
       z.object({
         tourOperatorId: z.string().optional(),
@@ -240,7 +240,7 @@ export const portalAccessRouter = createTRPCRouter({
 
   // ── Terms of use ─────────────────────────────────────────────────────────
 
-  listTerms: p("b2b-portal:contract:read").query(async ({ ctx }) => {
+  listTerms: p("b2b-portal:tourOperator:read").query(async ({ ctx }) => {
     return ctx.db.partnerTermsVersion.findMany({
       where: { companyId: ctx.companyId },
       orderBy: { publishedAt: "desc" },
@@ -252,7 +252,7 @@ export const portalAccessRouter = createTRPCRouter({
    * Publishing a version makes every partner accept it again on their next
    * page load — the portal layout compares it against what each user signed.
    */
-  publishTerms: p("b2b-portal:contract:update")
+  publishTerms: p("b2b-portal:tourOperator:update")
     .input(z.object({ version: z.string().min(1).max(50), body: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.partnerTermsVersion.findUnique({

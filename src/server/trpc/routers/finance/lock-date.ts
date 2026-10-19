@@ -4,13 +4,13 @@ import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 const p = (code: string) => modulePermissionProcedure("finance", code);
 
 export const lockDateRouter = createTRPCRouter({
-  get: p("finance:lockDate:read").query(async ({ ctx }) => {
+  get: p("finance:period:read").query(async ({ ctx }) => {
     return ctx.db.accountLockDate.findUnique({
       where: { companyId: ctx.companyId },
     });
   }),
 
-  upsert: p("finance:lockDate:update")
+  upsert: p("finance:lockDate:manage")
     .input(z.object({
       taxLockDate: z.string().optional().nullable(),
       saleLockDate: z.string().optional().nullable(),

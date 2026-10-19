@@ -543,7 +543,7 @@ export const batchPaymentRouter = createTRPCRouter({
       });
     }),
 
-  delete: p("finance:payment:delete")
+  delete: p("finance:payment:cancel")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const batch = await ctx.db.batchPayment.findFirst({

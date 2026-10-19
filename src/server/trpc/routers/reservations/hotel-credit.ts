@@ -12,7 +12,7 @@ import { logBookingAction } from "@/server/services/reservations/timeline-logger
 const p = (code: string) => modulePermissionProcedure("reservations", code);
 
 export const hotelCreditRouter = createTRPCRouter({
-  list: p("hotelCredit.read")
+  list: p("reservations:hotelCredit:read")
     .input(
       z
         .object({
@@ -47,7 +47,7 @@ export const hotelCreditRouter = createTRPCRouter({
       });
     }),
 
-  getById: p("hotelCredit.read").input(z.string()).query(async ({ ctx, input }) => {
+  getById: p("reservations:hotelCredit:read").input(z.string()).query(async ({ ctx, input }) => {
     return ctx.db.hotelCreditNote.findFirst({
       where: { id: input, companyId: ctx.companyId },
       include: {
@@ -66,7 +66,7 @@ export const hotelCreditRouter = createTRPCRouter({
     });
   }),
 
-  getAvailableByHotel: p("hotelCredit.read").input(z.string()).query(async ({ ctx, input }) => {
+  getAvailableByHotel: p("reservations:hotelCredit:read").input(z.string()).query(async ({ ctx, input }) => {
     return ctx.db.hotelCreditNote.findMany({
       where: {
         companyId: ctx.companyId,
@@ -81,7 +81,7 @@ export const hotelCreditRouter = createTRPCRouter({
     });
   }),
 
-  getByBooking: p("hotelCredit.read").input(z.string()).query(async ({ ctx, input }) => {
+  getByBooking: p("reservations:hotelCredit:read").input(z.string()).query(async ({ ctx, input }) => {
     const issued = await ctx.db.hotelCreditNote.findFirst({
       where: { sourceBookingId: input, companyId: ctx.companyId },
       include: {
@@ -112,7 +112,7 @@ export const hotelCreditRouter = createTRPCRouter({
     return { issued, consumed };
   }),
 
-  create: p("hotelCredit.create").input(hotelCreditCreateSchema).mutation(async ({ ctx, input }) => {
+  create: p("reservations:hotelCredit:create").input(hotelCreditCreateSchema).mutation(async ({ ctx, input }) => {
     const booking = await ctx.db.booking.findFirstOrThrow({
       where: { id: input.bookingId, companyId: ctx.companyId },
       select: {
@@ -175,7 +175,7 @@ export const hotelCreditRouter = createTRPCRouter({
     return creditNote;
   }),
 
-  consume: p("hotelCredit.update").input(hotelCreditApplySchema).mutation(async ({ ctx, input }) => {
+  consume: p("reservations:hotelCredit:update").input(hotelCreditApplySchema).mutation(async ({ ctx, input }) => {
     const creditNote = await ctx.db.hotelCreditNote.findFirstOrThrow({
       where: { id: input.creditNoteId, companyId: ctx.companyId },
       select: {
@@ -240,7 +240,7 @@ export const hotelCreditRouter = createTRPCRouter({
     return { ok: true };
   }),
 
-  cancel: p("hotelCredit.update").input(z.string()).mutation(async ({ ctx, input }) => {
+  cancel: p("reservations:hotelCredit:update").input(z.string()).mutation(async ({ ctx, input }) => {
     const creditNote = await ctx.db.hotelCreditNote.findFirstOrThrow({
       where: { id: input, companyId: ctx.companyId },
       select: { id: true, code: true, status: true },

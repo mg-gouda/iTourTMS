@@ -365,7 +365,7 @@ export const tourOperatorRouter = createTRPCRouter({
     }),
 
   // ── Bulk Assign: multiple hotels × multiple TOs ──
-  bulkAssign: p("contracting:contract:import")
+  bulkAssign: p("contracting:contract:create")
     .input(
       z.object({
         hotelIds: z.array(z.string()).min(1),

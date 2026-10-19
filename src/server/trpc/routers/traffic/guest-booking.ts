@@ -81,7 +81,7 @@ export const guestBookingRouter = createTRPCRouter({
       return priceItem;
     }),
 
-  confirmPayment: p("traffic:guestBooking:confirm")
+  confirmPayment: p("traffic:guestBooking:update")
     .input(z.object({
       bookingId: z.string(),
       amount: z.number().min(0),
