@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { trafficAssignmentCreateSchema, trafficAssignmentUpdateSchema } from "@/lib/validations/traffic";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
+import { assertAssignable } from "@/server/services/traffic/assignment-guard";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -29,6 +30,7 @@ export const trafficAssignmentRouter = createTRPCRouter({
   create: p("traffic:dispatch:manage")
     .input(trafficAssignmentCreateSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertAssignable(ctx.db, ctx.companyId, input);
       const assignment = await ctx.db.ttTrafficAssignment.create({
         data: { ...input, companyId: ctx.companyId },
       });
@@ -49,6 +51,11 @@ export const trafficAssignmentRouter = createTRPCRouter({
   update: p("traffic:dispatch:manage")
     .input(z.object({ id: z.string(), data: trafficAssignmentUpdateSchema }))
     .mutation(async ({ ctx, input }) => {
+      const current = await ctx.db.ttTrafficAssignment.findFirstOrThrow({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: { jobId: true },
+      });
+      await assertAssignable(ctx.db, ctx.companyId, { jobId: current.jobId, ...input.data });
       const a = await ctx.db.ttTrafficAssignment.update({
         where: { id: input.id, companyId: ctx.companyId },
         data: input.data,

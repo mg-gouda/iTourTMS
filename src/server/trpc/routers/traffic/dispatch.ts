@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { smsConfigured } from "@/server/services/shared/sms";
 import { sendDispatchSms } from "@/server/services/traffic/dispatch-sms";
+import { assertAssignable } from "@/server/services/traffic/assignment-guard";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -158,6 +159,7 @@ export const dispatchRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const results = [];
       for (const item of input.assignments) {
+        await assertAssignable(ctx.db, ctx.companyId, item);
         const assignment = await ctx.db.ttTrafficAssignment.create({
           data: {
             companyId: ctx.companyId,

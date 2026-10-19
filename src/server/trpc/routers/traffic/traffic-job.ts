@@ -5,6 +5,7 @@ import { trafficJobCreateSchema, trafficJobUpdateSchema } from "@/lib/validation
 import { createTRPCRouter, modulePermissionProcedure } from "@/server/trpc";
 import { generateSequenceNumber } from "@/server/services/finance/sequence-generator";
 import { activeBranch } from "@/server/branch-scope";
+import { companyToday } from "@/server/services/shared/company-day";
 
 const p = (code: string) => modulePermissionProcedure("traffic", code);
 
@@ -248,10 +249,9 @@ export const trafficJobRouter = createTRPCRouter({
     }),
 
   dashboard: p("traffic:job:read").query(async ({ ctx }) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const company = await ctx.db.company.findUnique({ where: { id: ctx.companyId }, select: { timezone: true } });
+    const today = companyToday(company?.timezone);
+    const tomorrow = new Date(today.getTime() + 86_400_000);
 
     const [
       totalJobs,
