@@ -157,6 +157,6 @@ export const config = {
   // screenshot in the partner manual broke for partners, who hold no staff
   // cookie: the PNG 307'd to /login and the image optimiser then 400'd on it.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|uploads|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico|css|js|map|txt|woff|woff2|ttf|otf)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|uploads|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico|css|js|map|txt|woff|woff2|ttf|otf|webmanifest|html)$).*)",
   ],
 };

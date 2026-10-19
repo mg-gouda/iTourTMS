@@ -9,6 +9,7 @@ import { DensityProvider } from "@/components/providers/density-provider";
 import { PermissionsProvider } from "@/components/providers/permissions-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { MODULE_REGISTRY } from "@/lib/constants/modules";
+import { ServiceWorker } from "@/components/providers/service-worker";
 
 export default async function DashboardLayout({
   children,
@@ -90,6 +91,7 @@ export default async function DashboardLayout({
       />
       {/* min-w-0: wide tables scroll inside the page instead of widening it. */}
       <SidebarInset className="min-w-0">
+        <ServiceWorker />
         <Topbar
           user={{
             name: session.user.name,

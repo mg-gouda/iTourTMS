@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
@@ -12,6 +12,8 @@ import "./globals.css";
 
 export const dynamic = "force-dynamic";
 
+export const viewport: Viewport = { themeColor: "#660066" };
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const company = await db.company.findFirst({
@@ -22,7 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
         ? `${company.name} — iTourTMS`
         : "iTourTMS — Travel Management System",
       description: "Enterprise Travel Management System",
-      icons: company?.faviconUrl ? { icon: company.faviconUrl } : undefined,
+      icons: { ...(company?.faviconUrl && { icon: company.faviconUrl }), apple: "/icons/apple-touch-icon.png" },
+      appleWebApp: { capable: true, title: "iTour", statusBarStyle: "black-translucent" },
     };
   } catch {
     return {
