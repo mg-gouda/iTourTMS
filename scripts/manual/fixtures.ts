@@ -153,6 +153,29 @@ async function main() {
     },
   });
 
+  // A hotel guest profile for the reservations guest windows.
+  await db.guest.upsert({
+    where: { id: "mnl_guest_1" },
+    update: {},
+    create: {
+      id: "mnl_guest_1",
+      companyId,
+      firstName: "Sarah",
+      lastName: "Mitchell",
+      email: "sarah.mitchell@example.com",
+      mobile: "+44 7700 900111",
+      nationality: "British",
+      passportNo: "533380006",
+      passportExpiry: dateOnly(900),
+      dateOfBirth: new Date("1984-05-12"),
+      gender: "F",
+      city: "Manchester",
+      countryId: gb?.id,
+      isVip: true,
+      notes: "Prefers a high floor, sea view. Celebrating a 40th birthday.",
+    },
+  });
+
   console.log("manual fixtures ready in", branch.name);
 }
 

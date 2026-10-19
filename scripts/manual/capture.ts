@@ -30,7 +30,9 @@ async function settle(page: Page) {
   await page.waitForLoadState("networkidle").catch(() => {});
   // Skeletons and spinners mean data is still arriving.
   for (let i = 0; i < 20; i++) {
-    const busy = await page.locator('[data-slot="skeleton"], .animate-pulse, .animate-spin').count();
+    const busy = await page
+      .locator('[data-slot="skeleton"], .animate-pulse, .animate-spin, main main :text-is("Loading...")')
+      .count();
     if (!busy) break;
     await page.waitForTimeout(500);
   }

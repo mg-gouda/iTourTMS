@@ -84,7 +84,7 @@ export default function NewGroupBookingPage() {
       hotelId: "",
       contractId: "",
       tourOperatorId: "",
-      currencyId: "USD",
+      currencyId: "",
       source: "DIRECT",
       checkIn: "",
       checkOut: "",
@@ -126,6 +126,20 @@ export default function NewGroupBookingPage() {
 
   const watchedRooms = form.watch("rooms");
   const selectedHotelId = form.watch("hotelId");
+  const { data: roomTypes } = trpc.contracting.roomType.list.useQuery(
+    { hotelId: selectedHotelId },
+    { enabled: !!selectedHotelId },
+  );
+  const { data: mealBases } = trpc.contracting.mealBasis.list.useQuery(
+    { hotelId: selectedHotelId },
+    { enabled: !!selectedHotelId },
+  );
+
+  // Pre-select USD once currencies arrive (the field holds the currency's id, not its code).
+  useEffect(() => {
+    const usd = currencies?.find((c: { code: string }) => c.code === "USD");
+    if (usd && !form.getValues("currencyId")) form.setValue("currencyId", usd.id);
+  }, [currencies, form]);
 
   const filteredContracts = useMemo(() => {
     if (!contracts) return [];
@@ -314,7 +328,8 @@ export default function NewGroupBookingPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency *</FormLabel>
-                      <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
+                      {/* Keyed so the label shows when the default arrives after mount. */}
+                      <Select key={field.value || "unset"} onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                         <FormControl>
                           <SelectTrigger><SelectValue placeholder="Select currency..." /></SelectTrigger>
                         </FormControl>
@@ -518,15 +533,23 @@ export default function NewGroupBookingPage() {
                           <FormItem>
                             {index === 0 && (
                               <FormLabel className="text-xs">
-                                Room Type ID
+                                Room Type
                               </FormLabel>
                             )}
-                            <FormControl>
-                              <Input
-                                placeholder="Room type ID"
-                                {...field}
-                              />
-                            </FormControl>
+                            <Select value={field.value} onValueChange={(v) => { if (v) field.onChange(v); }} disabled={!selectedHotelId}>
+                              <FormControl>
+                                <SelectTrigger aria-label="Room Type">
+                                  <SelectValue placeholder={selectedHotelId ? "Select room type" : "Choose the hotel first"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {(roomTypes ?? []).map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {o.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -538,15 +561,23 @@ export default function NewGroupBookingPage() {
                           <FormItem>
                             {index === 0 && (
                               <FormLabel className="text-xs">
-                                Meal Basis ID
+                                Meal Basis
                               </FormLabel>
                             )}
-                            <FormControl>
-                              <Input
-                                placeholder="Meal basis ID"
-                                {...field}
-                              />
-                            </FormControl>
+                            <Select value={field.value} onValueChange={(v) => { if (v) field.onChange(v); }} disabled={!selectedHotelId}>
+                              <FormControl>
+                                <SelectTrigger aria-label="Meal Basis">
+                                  <SelectValue placeholder={selectedHotelId ? "Select meal basis" : "Choose the hotel first"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {(mealBases ?? []).map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {o.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

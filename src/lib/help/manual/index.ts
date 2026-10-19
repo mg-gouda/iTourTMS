@@ -1,5 +1,7 @@
 import crmManifest from "./crm.manifest.json";
 import { crmDocs } from "./crm";
+import reservationsManifest from "./reservations.manifest.json";
+import { reservationsDocs } from "./reservations";
 import type { Manifest, ManualDocs } from "./types";
 
 /**
@@ -9,4 +11,5 @@ import type { Manifest, ManualDocs } from "./types";
  */
 export const MANUALS: Record<string, { manifest: Manifest; docs: ManualDocs }> = {
   crm: { manifest: crmManifest as Manifest, docs: crmDocs },
+  reservations: { manifest: reservationsManifest as Manifest, docs: reservationsDocs },
 };

@@ -1,0 +1,5847 @@
+{
+  "dashboard": {
+    "route": "/reservations",
+    "items": [
+      {
+        "n": 1,
+        "kind": "tile",
+        "key": "All bookings",
+        "x": 280,
+        "y": 164,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Confirmed today",
+        "x": 568,
+        "y": 164,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 3,
+        "kind": "tile",
+        "key": "Arriving in # days",
+        "x": 856,
+        "y": 164,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Revenue this month",
+        "x": 1144,
+        "y": 164,
+        "w": 272,
+        "h": 122
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Bookings",
+        "x": 280,
+        "y": 310,
+        "w": 560,
+        "h": 398
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Hotel",
+        "x": 856,
+        "y": 310,
+        "w": 560,
+        "h": 398
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Booking Code",
+        "x": 305,
+        "y": 805,
+        "w": 137,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Hotel",
+        "x": 442,
+        "y": 805,
+        "w": 419,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Guest Name",
+        "x": 861,
+        "y": 805,
+        "w": 171,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Check-in",
+        "x": 1031,
+        "y": 805,
+        "w": 119,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Status",
+        "x": 1150,
+        "y": 805,
+        "w": 138,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Rate",
+        "x": 1288,
+        "y": 805,
+        "w": 103,
+        "h": 36
+      }
+    ]
+  },
+  "bookings": {
+    "route": "/reservations/bookings",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Export",
+        "x": 984,
+        "y": 88,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "New Group Booking",
+        "x": 1064,
+        "y": 88,
+        "w": 197,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "New Group Booking",
+        "x": 1064,
+        "y": 88,
+        "w": 197,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "New Booking",
+        "x": 1269,
+        "y": 88,
+        "w": 147,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "link",
+        "key": "New Booking",
+        "x": 1269,
+        "y": 88,
+        "w": 147,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Search by code, guest, or ref...",
+        "x": 280,
+        "y": 156,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Booking Code",
+        "x": 281,
+        "y": 209,
+        "w": 139,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Hotel",
+        "x": 420,
+        "y": 209,
+        "w": 407,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Guest Name",
+        "x": 826,
+        "y": 209,
+        "w": 166,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Check-in",
+        "x": 992,
+        "y": 209,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Nights",
+        "x": 1108,
+        "y": 209,
+        "w": 63,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Rooms",
+        "x": 1170,
+        "y": 209,
+        "w": 64,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "column",
+        "key": "Status",
+        "x": 1234,
+        "y": 209,
+        "w": 134,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "column",
+        "key": "Payment",
+        "x": 1369,
+        "y": 209,
+        "w": 94,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "column",
+        "key": "Selling",
+        "x": 1462,
+        "y": 209,
+        "w": 100,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "column",
+        "key": "Type",
+        "x": 1562,
+        "y": 209,
+        "w": 107,
+        "h": 36
+      }
+    ]
+  },
+  "booking-new": {
+    "route": "/reservations/bookings/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Parse email",
+        "x": 1191,
+        "y": 120,
+        "w": 135,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1335,
+        "y": 120,
+        "w": 81,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "BKG Date",
+        "x": 305,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "HTL BKG Status",
+        "x": 581,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "T/O BKG Status",
+        "x": 856,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "T/O BKG Ref",
+        "x": 1132,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Market",
+        "x": 305,
+        "y": 381,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Tour Operator",
+        "x": 581,
+        "y": 381,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Hotel Name",
+        "x": 856,
+        "y": 381,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Arrival Date",
+        "x": 305,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Flight Number",
+        "x": 489,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Flight Time",
+        "x": 672,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Origin Airport",
+        "x": 856,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Dest. Airport",
+        "x": 1040,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "field",
+        "key": "Terminal",
+        "x": 1223,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 17,
+        "kind": "field",
+        "key": "Departure Date",
+        "x": 305,
+        "y": 789,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Calculate Rates",
+        "x": 1130,
+        "y": 899,
+        "w": 135,
+        "h": 32
+      },
+      {
+        "n": 19,
+        "kind": "button",
+        "key": "Add Room",
+        "x": 1274,
+        "y": 899,
+        "w": 117,
+        "h": 32
+      },
+      {
+        "n": 20,
+        "kind": "field",
+        "key": "Meal Basis",
+        "x": 305,
+        "y": 1001,
+        "w": 320,
+        "h": 36
+      },
+      {
+        "n": 21,
+        "kind": "field",
+        "key": "Room Type",
+        "x": 330,
+        "y": 1172,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 22,
+        "kind": "field",
+        "key": "Occ.",
+        "x": 681,
+        "y": 1172,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 23,
+        "kind": "field",
+        "key": "AD",
+        "x": 856,
+        "y": 1172,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 24,
+        "kind": "field",
+        "key": "CH",
+        "x": 1031,
+        "y": 1172,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 25,
+        "kind": "field",
+        "key": "INF",
+        "x": 1207,
+        "y": 1172,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 26,
+        "kind": "field",
+        "key": "Adult # first name",
+        "x": 474,
+        "y": 1233,
+        "w": 442,
+        "h": 36
+      },
+      {
+        "n": 27,
+        "kind": "field",
+        "key": "Adult # family name",
+        "x": 924,
+        "y": 1233,
+        "w": 442,
+        "h": 36
+      },
+      {
+        "n": 28,
+        "kind": "field",
+        "key": "Payment Method",
+        "x": 305,
+        "y": 1506,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 29,
+        "kind": "field",
+        "key": "EBD %",
+        "x": 581,
+        "y": 1506,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 30,
+        "kind": "field",
+        "key": "EBD Payment Date",
+        "x": 856,
+        "y": 1506,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 31,
+        "kind": "field",
+        "key": "Internal Remarks",
+        "x": 305,
+        "y": 1710,
+        "w": 535,
+        "h": 64
+      },
+      {
+        "n": 32,
+        "kind": "field",
+        "key": "Special Requests",
+        "x": 856,
+        "y": 1710,
+        "w": 535,
+        "h": 64
+      },
+      {
+        "n": 33,
+        "kind": "field",
+        "key": "Booking Notes",
+        "x": 305,
+        "y": 1812,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 34,
+        "kind": "checkbox",
+        "key": "Meet, Assist & Visa",
+        "x": 318,
+        "y": 1915,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 35,
+        "kind": "button",
+        "key": "Create Booking",
+        "x": 1277,
+        "y": 2003,
+        "w": 139,
+        "h": 36
+      }
+    ]
+  },
+  "booking-new-group": {
+    "route": "/reservations/bookings/new-group",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Name",
+        "x": 425,
+        "y": 295,
+        "w": 415,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 856,
+        "y": 295,
+        "w": 133,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Contract",
+        "x": 425,
+        "y": 369,
+        "w": 228,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Tour Operator",
+        "x": 856,
+        "y": 369,
+        "w": 263,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Currency",
+        "x": 425,
+        "y": 443,
+        "w": 170,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Source",
+        "x": 856,
+        "y": 443,
+        "w": 92,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Check-in",
+        "x": 425,
+        "y": 631,
+        "w": 415,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Check-out",
+        "x": 856,
+        "y": 631,
+        "w": 415,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Guest Name — First",
+        "x": 425,
+        "y": 705,
+        "w": 415,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Guest Name — Family",
+        "x": 856,
+        "y": 705,
+        "w": 415,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Lead Guest Email",
+        "x": 425,
+        "y": 779,
+        "w": 415,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Special Requests",
+        "x": 425,
+        "y": 853,
+        "w": 846,
+        "h": 64
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Internal Remarks",
+        "x": 425,
+        "y": 955,
+        "w": 846,
+        "h": 64
+      },
+      {
+        "n": 15,
+        "kind": "button",
+        "key": "Add Room",
+        "x": 1152,
+        "y": 1093,
+        "w": 119,
+        "h": 32
+      },
+      {
+        "n": 16,
+        "kind": "field",
+        "key": "Room Type",
+        "x": 438,
+        "y": 1194,
+        "w": 201,
+        "h": 36
+      },
+      {
+        "n": 17,
+        "kind": "field",
+        "key": "Meal Basis",
+        "x": 690,
+        "y": 1194,
+        "w": 201,
+        "h": 36
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Adults",
+        "x": 942,
+        "y": 1194,
+        "w": 80,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Children",
+        "x": 1034,
+        "y": 1194,
+        "w": 80,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "field",
+        "key": "Qty",
+        "x": 1126,
+        "y": 1194,
+        "w": 80,
+        "h": 36
+      },
+      {
+        "n": 21,
+        "kind": "button",
+        "key": "New Group Booking",
+        "x": 400,
+        "y": 1352,
+        "w": 171,
+        "h": 36
+      },
+      {
+        "n": 22,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 579,
+        "y": 1352,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "booking-overview": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Add next segment",
+        "x": 1215,
+        "y": 285,
+        "w": 176,
+        "h": 32
+      },
+      {
+        "n": 19,
+        "kind": "link",
+        "key": "Add next segment",
+        "x": 1215,
+        "y": 285,
+        "w": 176,
+        "h": 32
+      },
+      {
+        "n": 20,
+        "kind": "switch",
+        "key": "This booking has a special offer",
+        "x": 305,
+        "y": 461,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 21,
+        "kind": "button",
+        "key": "Attach document",
+        "x": 509,
+        "y": 540,
+        "w": 169,
+        "h": 32
+      },
+      {
+        "n": 22,
+        "kind": "tile",
+        "key": "Financial Summary",
+        "x": 856,
+        "y": 645,
+        "w": 560,
+        "h": 382
+      },
+      {
+        "n": 23,
+        "kind": "button",
+        "key": "Add currency",
+        "x": 674,
+        "y": 1068,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 24,
+        "kind": "button",
+        "key": "Rebook",
+        "x": 1291,
+        "y": 1068,
+        "w": 100,
+        "h": 32
+      },
+      {
+        "n": 25,
+        "kind": "tile",
+        "key": "Lead Guest",
+        "x": 280,
+        "y": 1291,
+        "w": 560,
+        "h": 202
+      }
+    ]
+  },
+  "booking-rooms": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Recalculate buying rates",
+        "x": 725,
+        "y": 506,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "n": 19,
+        "kind": "button",
+        "key": "Recalculate selling rates",
+        "x": 1179,
+        "y": 506,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  },
+  "booking-payments": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Go to Booking Reconciliation",
+        "x": 1189,
+        "y": 260,
+        "w": 227,
+        "h": 32
+      },
+      {
+        "n": 19,
+        "kind": "link",
+        "key": "Go to Booking Reconciliation",
+        "x": 1189,
+        "y": 260,
+        "w": 227,
+        "h": 32
+      },
+      {
+        "n": 20,
+        "kind": "tile",
+        "key": "Selling Total",
+        "x": 280,
+        "y": 348,
+        "w": 368,
+        "h": 106
+      },
+      {
+        "n": 21,
+        "kind": "tile",
+        "key": "Collected",
+        "x": 664,
+        "y": 348,
+        "w": 368,
+        "h": 106
+      },
+      {
+        "n": 22,
+        "kind": "tile",
+        "key": "Balance Due",
+        "x": 1048,
+        "y": 348,
+        "w": 368,
+        "h": 106
+      },
+      {
+        "n": 23,
+        "kind": "tile",
+        "key": "Buying Total",
+        "x": 280,
+        "y": 579,
+        "w": 272,
+        "h": 106
+      },
+      {
+        "n": 24,
+        "kind": "tile",
+        "key": "Paid to Hotel",
+        "x": 568,
+        "y": 579,
+        "w": 272,
+        "h": 106
+      },
+      {
+        "n": 25,
+        "kind": "tile",
+        "key": "Credit Applied",
+        "x": 856,
+        "y": 579,
+        "w": 272,
+        "h": 106
+      },
+      {
+        "n": 26,
+        "kind": "tile",
+        "key": "Net Due to Hotel",
+        "x": 1144,
+        "y": 579,
+        "w": 272,
+        "h": 106
+      }
+    ]
+  },
+  "booking-vouchers": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      }
+    ]
+  },
+  "booking-hotel-credits": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Apply Hotel Credit",
+        "x": 1215,
+        "y": 285,
+        "w": 176,
+        "h": 32
+      }
+    ]
+  },
+  "booking-timeline": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      }
+    ]
+  },
+  "booking-requests": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Add a special request...",
+        "x": 280,
+        "y": 260,
+        "w": 1077,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "button",
+        "key": "Add",
+        "x": 1365,
+        "y": 260,
+        "w": 51,
+        "h": 32
+      }
+    ]
+  },
+  "booking-communications": {
+    "route": "/reservations/bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Amend",
+        "x": 855,
+        "y": 116,
+        "w": 96,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Confirm",
+        "x": 958,
+        "y": 116,
+        "w": 99,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1066,
+        "y": 116,
+        "w": 78,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1152,
+        "y": 116,
+        "w": 91,
+        "h": 32
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Send to Hotel",
+        "x": 1251,
+        "y": 116,
+        "w": 141,
+        "h": 32
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Create Series",
+        "x": 855,
+        "y": 156,
+        "w": 140,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1003,
+        "y": 156,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "Overview",
+        "x": 282,
+        "y": 219,
+        "w": 92,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "Rooms (#)",
+        "x": 374,
+        "y": 219,
+        "w": 97,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Payments (#)",
+        "x": 471,
+        "y": 219,
+        "w": 119,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Vouchers (#)",
+        "x": 590,
+        "y": 219,
+        "w": 114,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Hotel Credits",
+        "x": 705,
+        "y": 219,
+        "w": 117,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "Timeline",
+        "x": 822,
+        "y": 219,
+        "w": 86,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Requests",
+        "x": 907,
+        "y": 219,
+        "w": 90,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Comms",
+        "x": 997,
+        "y": 219,
+        "w": 79,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Communication subject",
+        "x": 305,
+        "y": 317,
+        "w": 537,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Enter message...",
+        "x": 305,
+        "y": 381,
+        "w": 1086,
+        "h": 78
+      },
+      {
+        "n": 20,
+        "kind": "button",
+        "key": "Log Communication",
+        "x": 305,
+        "y": 478,
+        "w": 164,
+        "h": 32
+      }
+    ]
+  },
+  "booking-edit": {
+    "route": "/reservations/bookings/:id/edit",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "BKG Date",
+        "x": 305,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "HTL BKG Status",
+        "x": 581,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "T/O BKG Status",
+        "x": 856,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "T/O BKG Ref",
+        "x": 1132,
+        "y": 307,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Market",
+        "x": 305,
+        "y": 381,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Tour Operator",
+        "x": 581,
+        "y": 381,
+        "w": 294,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Hotel Name",
+        "x": 856,
+        "y": 381,
+        "w": 522,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Arrival Date",
+        "x": 305,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Flight No",
+        "x": 489,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Time",
+        "x": 672,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Origin Airport",
+        "x": 856,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Dest. Airport",
+        "x": 1040,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Terminal",
+        "x": 1223,
+        "y": 585,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Departure Date",
+        "x": 305,
+        "y": 789,
+        "w": 168,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "button",
+        "key": "Calculate Rates",
+        "x": 1110,
+        "y": 937,
+        "w": 155,
+        "h": 32
+      },
+      {
+        "n": 17,
+        "kind": "button",
+        "key": "Add Room",
+        "x": 1274,
+        "y": 937,
+        "w": 117,
+        "h": 32
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Meal Basis",
+        "x": 305,
+        "y": 1039,
+        "w": 320,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Room Type",
+        "x": 330,
+        "y": 1210,
+        "w": 281,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "field",
+        "key": "Occ.",
+        "x": 681,
+        "y": 1210,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 21,
+        "kind": "field",
+        "key": "AD",
+        "x": 856,
+        "y": 1210,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 22,
+        "kind": "field",
+        "key": "CH",
+        "x": 1031,
+        "y": 1210,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 23,
+        "kind": "field",
+        "key": "INF",
+        "x": 1207,
+        "y": 1210,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 24,
+        "kind": "field",
+        "key": "Adult # first name",
+        "x": 474,
+        "y": 1271,
+        "w": 442,
+        "h": 36
+      },
+      {
+        "n": 25,
+        "kind": "field",
+        "key": "Adult # family name",
+        "x": 924,
+        "y": 1271,
+        "w": 442,
+        "h": 36
+      },
+      {
+        "n": 26,
+        "kind": "field",
+        "key": "Payment Method",
+        "x": 305,
+        "y": 1544,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 27,
+        "kind": "field",
+        "key": "P. Option Date",
+        "x": 581,
+        "y": 1544,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 28,
+        "kind": "field",
+        "key": "EBD %",
+        "x": 856,
+        "y": 1544,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 29,
+        "kind": "field",
+        "key": "EBD Payment Date",
+        "x": 1132,
+        "y": 1544,
+        "w": 260,
+        "h": 36
+      },
+      {
+        "n": 30,
+        "kind": "field",
+        "key": "Internal Remarks",
+        "x": 305,
+        "y": 1748,
+        "w": 535,
+        "h": 64
+      },
+      {
+        "n": 31,
+        "kind": "field",
+        "key": "Special Requests",
+        "x": 856,
+        "y": 1748,
+        "w": 535,
+        "h": 64
+      },
+      {
+        "n": 32,
+        "kind": "field",
+        "key": "Booking Notes",
+        "x": 305,
+        "y": 1850,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 33,
+        "kind": "checkbox",
+        "key": "Meet, Assist & Visa",
+        "x": 318,
+        "y": 1953,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 34,
+        "kind": "field",
+        "key": "Describe the reason for this amendment...",
+        "x": 305,
+        "y": 2138,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 35,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 1166,
+        "y": 2251,
+        "w": 81,
+        "h": 36
+      },
+      {
+        "n": 36,
+        "kind": "link",
+        "key": "Cancel",
+        "x": 1166,
+        "y": 2251,
+        "w": 81,
+        "h": 36
+      },
+      {
+        "n": 37,
+        "kind": "button",
+        "key": "Save Amendment",
+        "x": 1259,
+        "y": 2251,
+        "w": 157,
+        "h": 36
+      }
+    ]
+  },
+  "guests": {
+    "route": "/reservations/guests",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Guest",
+        "x": 1284,
+        "y": 88,
+        "w": 132,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Guest",
+        "x": 1284,
+        "y": 88,
+        "w": 132,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Search guests...",
+        "x": 280,
+        "y": 156,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Name",
+        "x": 281,
+        "y": 209,
+        "w": 246,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Email",
+        "x": 527,
+        "y": 209,
+        "w": 339,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Phone",
+        "x": 866,
+        "y": 209,
+        "w": 89,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Nationality",
+        "x": 956,
+        "y": 209,
+        "w": 199,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Passport",
+        "x": 1155,
+        "y": 209,
+        "w": 145,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Bookings",
+        "x": 1300,
+        "y": 209,
+        "w": 115,
+        "h": 36
+      }
+    ]
+  },
+  "guest-new": {
+    "route": "/reservations/guests/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "First Name",
+        "x": 464,
+        "y": 258,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Last Name",
+        "x": 856,
+        "y": 258,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Gender",
+        "x": 464,
+        "y": 332,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Date of Birth",
+        "x": 725,
+        "y": 332,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Country",
+        "x": 987,
+        "y": 332,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Email",
+        "x": 464,
+        "y": 466,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Phone",
+        "x": 725,
+        "y": 466,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Mobile",
+        "x": 987,
+        "y": 466,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Nationality",
+        "x": 464,
+        "y": 600,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Passport No.",
+        "x": 725,
+        "y": 600,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Passport Expiry",
+        "x": 987,
+        "y": 600,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Address",
+        "x": 464,
+        "y": 734,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "City",
+        "x": 856,
+        "y": 734,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Notes",
+        "x": 464,
+        "y": 824,
+        "w": 768,
+        "h": 64
+      },
+      {
+        "n": 16,
+        "kind": "checkbox",
+        "key": "VIP Guest",
+        "x": 464,
+        "y": 920,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 17,
+        "kind": "button",
+        "key": "Create Guest",
+        "x": 464,
+        "y": 968,
+        "w": 124,
+        "h": 36
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 596,
+        "y": 968,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "guest-detail": {
+    "route": "/reservations/guests/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Edit",
+        "x": 1245,
+        "y": 124,
+        "w": 73,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Delete",
+        "x": 1326,
+        "y": 124,
+        "w": 90,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Personal Details",
+        "x": 280,
+        "y": 192,
+        "w": 560,
+        "h": 230
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Travel Documents",
+        "x": 856,
+        "y": 192,
+        "w": 560,
+        "h": 230
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Booking History",
+        "x": 280,
+        "y": 446,
+        "w": 1136,
+        "h": 182
+      }
+    ]
+  },
+  "guest-edit": {
+    "route": "/reservations/guests/:id/edit",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "First Name",
+        "x": 464,
+        "y": 258,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Last Name",
+        "x": 856,
+        "y": 258,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Gender",
+        "x": 464,
+        "y": 332,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Date of Birth",
+        "x": 725,
+        "y": 332,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Country",
+        "x": 987,
+        "y": 332,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Email",
+        "x": 464,
+        "y": 466,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Phone",
+        "x": 725,
+        "y": 466,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Mobile",
+        "x": 987,
+        "y": 466,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Nationality",
+        "x": 464,
+        "y": 600,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Passport No.",
+        "x": 725,
+        "y": 600,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Passport Expiry",
+        "x": 987,
+        "y": 600,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Address",
+        "x": 464,
+        "y": 734,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "City",
+        "x": 856,
+        "y": 734,
+        "w": 376,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Notes",
+        "x": 464,
+        "y": 824,
+        "w": 768,
+        "h": 64
+      },
+      {
+        "n": 16,
+        "kind": "checkbox",
+        "key": "VIP Guest",
+        "x": 464,
+        "y": 920,
+        "w": 16,
+        "h": 16
+      },
+      {
+        "n": 17,
+        "kind": "button",
+        "key": "Save Changes",
+        "x": 464,
+        "y": 968,
+        "w": 132,
+        "h": 36
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 604,
+        "y": 968,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "operations": {
+    "route": "/reservations/operations",
+    "items": [
+      {
+        "n": 1,
+        "kind": "tile",
+        "key": "Arrivals Today",
+        "x": 280,
+        "y": 152,
+        "w": 214,
+        "h": 138
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Departures Today",
+        "x": 510,
+        "y": 152,
+        "w": 214,
+        "h": 138
+      },
+      {
+        "n": 3,
+        "kind": "tile",
+        "key": "In-House",
+        "x": 741,
+        "y": 152,
+        "w": 214,
+        "h": 138
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "New Bookings",
+        "x": 971,
+        "y": 152,
+        "w": 214,
+        "h": 138
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Cancellations",
+        "x": 1202,
+        "y": 152,
+        "w": 214,
+        "h": 138
+      }
+    ]
+  },
+  "deadlines": {
+    "route": "/reservations/deadlines",
+    "items": [
+      {
+        "n": 1,
+        "kind": "tile",
+        "key": "Overdue",
+        "x": 304,
+        "y": 172,
+        "w": 352,
+        "h": 134
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Warning (# days)",
+        "x": 672,
+        "y": 172,
+        "w": 352,
+        "h": 134
+      },
+      {
+        "n": 3,
+        "kind": "tile",
+        "key": "Upcoming",
+        "x": 1040,
+        "y": 172,
+        "w": 352,
+        "h": 134
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "No deadlines in the next # days.",
+        "x": 304,
+        "y": 330,
+        "w": 1088,
+        "h": 122
+      }
+    ]
+  },
+  "vouchers": {
+    "route": "/reservations/vouchers",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Search vouchers...",
+        "x": 280,
+        "y": 156,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "column",
+        "key": "Voucher Code",
+        "x": 281,
+        "y": 209,
+        "w": 142,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Booking",
+        "x": 423,
+        "y": 209,
+        "w": 133,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Hotel",
+        "x": 556,
+        "y": 209,
+        "w": 280,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Lead Guest",
+        "x": 836,
+        "y": 209,
+        "w": 166,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Check-in",
+        "x": 1002,
+        "y": 209,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Status",
+        "x": 1117,
+        "y": 209,
+        "w": 90,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Issued",
+        "x": 1207,
+        "y": 209,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "View booking",
+        "x": 1334,
+        "y": 254,
+        "w": 28,
+        "h": 28
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Mark as Used",
+        "x": 1366,
+        "y": 254,
+        "w": 28,
+        "h": 28
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "Cancel voucher",
+        "x": 1398,
+        "y": 254,
+        "w": 28,
+        "h": 28
+      }
+    ]
+  },
+  "hotel-credits": {
+    "route": "/reservations/hotel-credits",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Search by code...",
+        "x": 304,
+        "y": 172,
+        "w": 384,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "column",
+        "key": "Code",
+        "x": 305,
+        "y": 225,
+        "w": 142,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Hotel",
+        "x": 447,
+        "y": 225,
+        "w": 214,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Source Booking",
+        "x": 660,
+        "y": 225,
+        "w": 149,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Original Amount",
+        "x": 810,
+        "y": 225,
+        "w": 154,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Remaining",
+        "x": 964,
+        "y": 225,
+        "w": 120,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Status",
+        "x": 1083,
+        "y": 225,
+        "w": 116,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Created",
+        "x": 1199,
+        "y": 225,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "View Booking",
+        "x": 1327,
+        "y": 270,
+        "w": 118,
+        "h": 32
+      }
+    ]
+  },
+  "report-revenue": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "tile",
+        "key": "Selling (€)",
+        "x": 280,
+        "y": 390,
+        "w": 214,
+        "h": 122
+      },
+      {
+        "n": 19,
+        "kind": "tile",
+        "key": "Buying (€)",
+        "x": 510,
+        "y": 390,
+        "w": 214,
+        "h": 122
+      },
+      {
+        "n": 20,
+        "kind": "tile",
+        "key": "Margin (€)",
+        "x": 741,
+        "y": 390,
+        "w": 214,
+        "h": 122
+      },
+      {
+        "n": 21,
+        "kind": "tile",
+        "key": "Paid (€)",
+        "x": 971,
+        "y": 390,
+        "w": 214,
+        "h": 122
+      },
+      {
+        "n": 22,
+        "kind": "tile",
+        "key": "Outstanding (€)",
+        "x": 1202,
+        "y": 390,
+        "w": 214,
+        "h": 122
+      },
+      {
+        "n": 23,
+        "kind": "tile",
+        "key": "Revenue by Hotel",
+        "x": 280,
+        "y": 528,
+        "w": 1136,
+        "h": 398
+      },
+      {
+        "n": 24,
+        "kind": "column",
+        "key": "Source",
+        "x": 305,
+        "y": 1015,
+        "w": 331,
+        "h": 36
+      },
+      {
+        "n": 25,
+        "kind": "column",
+        "key": "Bookings",
+        "x": 636,
+        "y": 1015,
+        "w": 179,
+        "h": 36
+      },
+      {
+        "n": 26,
+        "kind": "column",
+        "key": "Tour Operator",
+        "x": 881,
+        "y": 1015,
+        "w": 188,
+        "h": 36
+      },
+      {
+        "n": 27,
+        "kind": "column",
+        "key": "Currency",
+        "x": 1069,
+        "y": 1015,
+        "w": 78,
+        "h": 36
+      },
+      {
+        "n": 28,
+        "kind": "column",
+        "key": "Selling",
+        "x": 1225,
+        "y": 1015,
+        "w": 74,
+        "h": 36
+      },
+      {
+        "n": 29,
+        "kind": "column",
+        "key": "Buying",
+        "x": 1300,
+        "y": 1015,
+        "w": 74,
+        "h": 36
+      },
+      {
+        "n": 30,
+        "kind": "column",
+        "key": "Margin",
+        "x": 1374,
+        "y": 1015,
+        "w": 66,
+        "h": 36
+      }
+    ]
+  },
+  "report-occupancy": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "column",
+        "key": "Hotel",
+        "x": 305,
+        "y": 435,
+        "w": 579,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "column",
+        "key": "Total Rooms",
+        "x": 884,
+        "y": 435,
+        "w": 199,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "column",
+        "key": "Room Nights Booked",
+        "x": 1083,
+        "y": 435,
+        "w": 308,
+        "h": 36
+      }
+    ]
+  },
+  "report-arrivals": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "tile",
+        "key": "Upcoming Arrivals (# days)",
+        "x": 280,
+        "y": 362,
+        "w": 560,
+        "h": 182
+      },
+      {
+        "n": 19,
+        "kind": "tile",
+        "key": "Upcoming Departures (# days)",
+        "x": 856,
+        "y": 362,
+        "w": 560,
+        "h": 182
+      }
+    ]
+  },
+  "report-arrival-list": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Date From",
+        "x": 305,
+        "y": 431,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Date To",
+        "x": 481,
+        "y": 431,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "field",
+        "key": "City",
+        "x": 657,
+        "y": 431,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 21,
+        "kind": "field",
+        "key": "Booking Status",
+        "x": 873,
+        "y": 431,
+        "w": 180,
+        "h": 36
+      },
+      {
+        "n": 22,
+        "kind": "tile",
+        "key": "Select a date range to view the arrival list.",
+        "x": 280,
+        "y": 508,
+        "w": 1136,
+        "h": 166
+      }
+    ]
+  },
+  "report-payment-option": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Date From",
+        "x": 305,
+        "y": 431,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Date To",
+        "x": 481,
+        "y": 431,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "tile",
+        "key": "Select a date range to view the payment option date report.",
+        "x": 280,
+        "y": 508,
+        "w": 1136,
+        "h": 166
+      }
+    ]
+  },
+  "report-materialization": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      },
+      {
+        "n": 18,
+        "kind": "field",
+        "key": "Date From",
+        "x": 541,
+        "y": 431,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "field",
+        "key": "Date To",
+        "x": 717,
+        "y": 431,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 20,
+        "kind": "tile",
+        "key": "Select a hotel and date range to view the materialization report.",
+        "x": 280,
+        "y": 508,
+        "w": 1136,
+        "h": 166
+      }
+    ]
+  },
+  "report-pl": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-ebd-list": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-rebooking": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-production-to": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 305,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 521,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 697,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 282,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 369,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 473,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 650,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 750,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 926,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 1056,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 1109,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1193,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1293,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1439,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1559,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1654,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1753,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-cancellation": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": 186,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 402,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 578,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": 163,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": 250,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 354,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 531,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 631,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 807,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 937,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 990,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 1074,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 1174,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1320,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1440,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1535,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1634,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-no-show": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": -112,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 104,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 280,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": -135,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": -48,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 56,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 233,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 333,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 509,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 639,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 692,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 776,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 876,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1022,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1142,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1237,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1336,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-lead-time": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": -112,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 104,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 280,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": -135,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": -48,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 56,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 233,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 333,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 509,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 639,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 692,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 776,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 876,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1022,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1142,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1237,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1336,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  },
+  "report-market-mix": {
+    "route": "/reservations/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Hotel",
+        "x": -112,
+        "y": 233,
+        "w": 200,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 104,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 280,
+        "y": 233,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Revenue",
+        "x": -135,
+        "y": 321,
+        "w": 87,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Occupancy",
+        "x": -48,
+        "y": 321,
+        "w": 104,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Arrivals & Departures",
+        "x": 56,
+        "y": 321,
+        "w": 177,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tab",
+        "key": "Arrival List",
+        "x": 233,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 8,
+        "kind": "tab",
+        "key": "Payment Option Date",
+        "x": 333,
+        "y": 321,
+        "w": 176,
+        "h": 31
+      },
+      {
+        "n": 9,
+        "kind": "tab",
+        "key": "Materialization",
+        "x": 509,
+        "y": 321,
+        "w": 130,
+        "h": 31
+      },
+      {
+        "n": 10,
+        "kind": "tab",
+        "key": "P&L",
+        "x": 639,
+        "y": 321,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 11,
+        "kind": "tab",
+        "key": "EBD List",
+        "x": 692,
+        "y": 321,
+        "w": 84,
+        "h": 31
+      },
+      {
+        "n": 12,
+        "kind": "tab",
+        "key": "Rebooking",
+        "x": 776,
+        "y": 321,
+        "w": 100,
+        "h": 31
+      },
+      {
+        "n": 13,
+        "kind": "tab",
+        "key": "Production by TO",
+        "x": 876,
+        "y": 321,
+        "w": 146,
+        "h": 31
+      },
+      {
+        "n": 14,
+        "kind": "tab",
+        "key": "Cancellations",
+        "x": 1022,
+        "y": 321,
+        "w": 120,
+        "h": 31
+      },
+      {
+        "n": 15,
+        "kind": "tab",
+        "key": "No-Shows",
+        "x": 1142,
+        "y": 321,
+        "w": 95,
+        "h": 31
+      },
+      {
+        "n": 16,
+        "kind": "tab",
+        "key": "Lead Time",
+        "x": 1237,
+        "y": 321,
+        "w": 98,
+        "h": 31
+      },
+      {
+        "n": 17,
+        "kind": "tab",
+        "key": "Market Mix",
+        "x": 1336,
+        "y": 321,
+        "w": 103,
+        "h": 31
+      }
+    ]
+  }
+}

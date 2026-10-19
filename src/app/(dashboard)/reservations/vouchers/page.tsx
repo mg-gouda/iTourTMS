@@ -42,7 +42,7 @@ type VoucherRow = {
     checkIn: Date | string;
     checkOut: Date | string;
     hotel: { id: string; name: string };
-  };
+  } | null; // ponytail: required relation, but rows restored with FK checks off can lose it
   createdBy: { id: string; name: string | null } | null;
 };
 
@@ -78,7 +78,7 @@ const columns: ColumnDef<VoucherRow>[] = [
     id: "checkIn",
     header: "Check-in",
     cell: ({ row }) =>
-      format(new Date(row.original.booking.checkIn), "dd MMM yyyy"),
+      row.original.booking ? format(new Date(row.original.booking.checkIn), "dd MMM yyyy") : "—",
   },
   {
     accessorKey: "status",
@@ -120,7 +120,7 @@ const columns: ColumnDef<VoucherRow>[] = [
             title="View booking"
             onClick={(e) => {
               e.stopPropagation();
-              window.location.href = `/reservations/bookings/${v.booking.id}`;
+              if (v.booking) window.location.href = `/reservations/bookings/${v.booking.id}`;
             }}
           >
             <Download className="h-3.5 w-3.5" />
@@ -245,7 +245,7 @@ export default function VouchersPage() {
             searchPlaceholder="Search vouchers..."
             toolbar={filterToolbar}
             onRowClick={(row) =>
-              router.push(`/reservations/bookings/${row.booking.id}`)
+              row.booking && router.push(`/reservations/bookings/${row.booking.id}`)
             }
           />
         )}
