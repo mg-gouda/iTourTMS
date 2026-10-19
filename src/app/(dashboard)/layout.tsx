@@ -88,7 +88,8 @@ export default async function DashboardLayout({
         roles={session.user.roles ?? []}
         permissions={session.user.permissions ?? []}
       />
-      <SidebarInset>
+      {/* min-w-0: wide tables scroll inside the page instead of widening it. */}
+      <SidebarInset className="min-w-0">
         <Topbar
           user={{
             name: session.user.name,

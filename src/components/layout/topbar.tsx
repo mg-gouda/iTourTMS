@@ -139,7 +139,7 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
           })}
         </nav>
       ) : (
-        <Breadcrumb>
+        <Breadcrumb className="hidden min-w-0 sm:block">
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbPage>{title}</BreadcrumbPage>
@@ -148,7 +148,7 @@ export function Topbar({ title = "Dashboard", user, installedModules = [] }: Top
         </Breadcrumb>
       )}
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
         <BranchSwitcher />
 
         {/* Search */}
