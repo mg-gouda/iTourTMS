@@ -108,7 +108,7 @@ export default async function DashboardLayout({
         <main className="relative flex-1 overflow-auto p-4 md:p-6">
           {companyBranding?.innerBgUrl && (
             <div
-              className="pointer-events-none fixed inset-0 opacity-50"
+              className="pointer-events-none fixed inset-0 opacity-50 dark:opacity-[0.07]"
               style={{
                 backgroundImage: `url(${companyBranding.innerBgUrl})`,
                 backgroundSize: "cover",
@@ -118,7 +118,7 @@ export default async function DashboardLayout({
             />
           )}
           <div className="relative">
-            <div className="mb-4">
+            <div className="mb-2 empty:hidden">
               <BackButton />
             </div>
             {children}

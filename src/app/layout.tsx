@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
@@ -43,9 +44,11 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
   const dir = isRTL(locale) ? "rtl" : "ltr";
+  // "public" for the B2C site (set by the proxy), "app" for staff and partner screens.
+  const area = (await headers()).get("x-app-area") ?? "app";
 
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html lang={locale} dir={dir} data-area={area} suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
         <NextIntlClientProvider messages={messages}>
           <TRPCProvider>

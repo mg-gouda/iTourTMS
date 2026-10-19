@@ -2,6 +2,7 @@ import {
   Briefcase,
   Bus,
   CalendarCheck,
+  ChevronRight,
   FileText,
   FolderOpen,
   Globe,
@@ -29,16 +30,17 @@ const iconMap: Record<string, LucideIcon> = {
   Ship,
 };
 
-const accentMap: Record<string, string> = {
-  finance: "from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  contracting: "from-blue-500/15 to-blue-500/5 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  crm: "from-violet-500/15 to-violet-500/5 text-violet-600 dark:text-violet-400 border-violet-500/20",
-  reservations: "from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  traffic: "from-orange-500/15 to-orange-500/5 text-orange-600 dark:text-orange-400 border-orange-500/20",
-  "b2c-site": "from-cyan-500/15 to-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-  "b2b-portal": "from-indigo-500/15 to-indigo-500/5 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
-  "tour-ops": "from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400 border-rose-500/20",
-  "nile-cruises": "from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400 border-sky-500/20",
+// Settings-style icon tiles: a solid hue per module, white glyph (all ≥3:1).
+const tileMap: Record<string, string> = {
+  finance: "bg-emerald-600",
+  contracting: "bg-blue-600",
+  crm: "bg-violet-600",
+  reservations: "bg-amber-600",
+  traffic: "bg-orange-600",
+  "b2c-site": "bg-cyan-600",
+  "b2b-portal": "bg-indigo-600",
+  "tour-ops": "bg-rose-600",
+  "nile-cruises": "bg-sky-600",
 };
 
 const hrefMap: Record<string, string> = {
@@ -67,38 +69,42 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="page-header">
+      <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
           {t("welcomeBack", { name: session?.user?.name ?? "User" })}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {/* Grouped list, as in iOS Settings: one row per module. */}
+      <ul className="max-w-3xl divide-y overflow-hidden rounded-xl border bg-card">
         {installedModules.map((mod) => {
           const registry = MODULE_REGISTRY.find((r) => r.name === mod.name);
           const Icon = iconMap[registry?.icon ?? ""] ?? FileText;
-          const accent = accentMap[mod.name] ?? "from-muted to-muted/50 text-foreground border-border";
           const href = hrefMap[mod.name] ?? "/";
-
           return (
-            <Link
-              key={mod.name}
-              href={href}
-              className="group relative overflow-hidden rounded-xl border bg-card p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div className={`mb-3 inline-flex rounded-lg bg-gradient-to-br p-2.5 ${accent}`}>
-                <Icon className="h-5 w-5" />
-              </div>
-              <h3 className="font-semibold tracking-tight">{mod.displayName}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {registry?.description ?? t("moduleActive")}
-              </p>
-              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-            </Link>
+            <li key={mod.name}>
+              <Link
+                href={href}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+              >
+                <span
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-[9px] text-white ${tileMap[mod.name] ?? "bg-gray-500"}`}
+                >
+                  <Icon className="size-[18px]" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-medium">{mod.displayName}</span>
+                  <span className="text-muted-foreground block truncate text-[13px]">
+                    {registry?.description ?? t("moduleActive")}
+                  </span>
+                </span>
+                <ChevronRight className="text-muted-foreground/60 size-4 shrink-0 rtl:rotate-180" aria-hidden />
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }

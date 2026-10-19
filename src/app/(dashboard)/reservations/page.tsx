@@ -41,13 +41,18 @@ import { trpc } from "@/lib/trpc";
 
 import { PermissionGuard } from "@/components/shared/permission-guard";
 
+// One hue per status, same meaning everywhere (status colours are never reused for
+// anything else); every slice is also labelled, so colour is never the only cue.
 const STATUS_COLORS: Record<string, string> = {
+  NEW_BOOKING: "#2563eb",
   DRAFT: "#94a3b8",
-  CONFIRMED: "#3b82f6",
-  CHECKED_IN: "#22c55e",
+  ON_REQUEST: "#c2410c",
+  PENDING_APPROVAL: "#7c3aed",
+  CONFIRMED: "#16a34a",
+  CHECKED_IN: "#0d9488",
   CHECKED_OUT: "#64748b",
-  CANCELLED: "#ef4444",
-  NO_SHOW: "#f59e0b",
+  CANCELLED: "#dc2626",
+  NO_SHOW: "#d97706",
 };
 
 const PIE_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"];
@@ -76,37 +81,35 @@ export default function ReservationsDashboardPage() {
     <PermissionGuard permission="reservations:booking:read">
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground">
-          {t("bookings")}
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("moduleTitle")}</h1>
+        <p className="text-muted-foreground">{t("dashSubtitle")}</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title={t("bookings")}
+          title={t("kpiTotal")}
           value={totalBookings}
           isLoading={isLoading}
           icon={CalendarCheck}
           accent="text-blue-600 dark:text-blue-400 bg-blue-500/10"
         />
         <KpiCard
-          title={tCommon("confirmed")}
+          title={t("kpiConfirmedToday")}
           value={data?.confirmedToday}
           isLoading={isLoading}
           icon={TrendingUp}
           accent="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
         />
         <KpiCard
-          title={t("checkIn")}
+          title={t("kpiArriving")}
           value={data?.upcomingCheckIns}
           isLoading={isLoading}
           icon={LogIn}
           accent="text-violet-600 dark:text-violet-400 bg-violet-500/10"
         />
         <KpiCard
-          title={t("reports")}
+          title={t("kpiRevenueMonth")}
           value={data?.monthRevenue?.selling}
           isLoading={isLoading}
           icon={DollarSign}
@@ -173,7 +176,7 @@ export default function ReservationsDashboardPage() {
                   />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

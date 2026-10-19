@@ -1383,7 +1383,13 @@
       "removed": "Document removed",
       "types": "PDF, Word (.docx), PNG, JPEG or WebP, up to 10 MB. Kept private with the booking.",
       "by": "{name}, {date}"
-    }
+    },
+    "moduleTitle": "Reservations",
+    "dashSubtitle": "Bookings, arrivals and this month's revenue at a glance.",
+    "kpiTotal": "All bookings",
+    "kpiConfirmedToday": "Confirmed today",
+    "kpiArriving": "Arriving in 7 days",
+    "kpiRevenueMonth": "Revenue this month"
   },
   "traffic": {
     "title": "Traffic & Transport",

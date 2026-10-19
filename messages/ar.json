@@ -1383,7 +1383,13 @@
       "removed": "تمت إزالة المستند",
       "types": "PDF أو Word (.docx) أو PNG أو JPEG أو WebP حتى 10 ميجابايت. يُحفظ بشكل خاص مع الحجز.",
       "by": "{name}، {date}"
-    }
+    },
+    "moduleTitle": "الحجوزات",
+    "dashSubtitle": "الحجوزات والوصول وإيرادات هذا الشهر في لمحة.",
+    "kpiTotal": "كل الحجوزات",
+    "kpiConfirmedToday": "تأكدت اليوم",
+    "kpiArriving": "وصول خلال 7 أيام",
+    "kpiRevenueMonth": "إيرادات هذا الشهر"
   },
   "traffic": {
     "title": "النقل والمواصلات",

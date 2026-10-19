@@ -16,6 +16,7 @@ const TRUSTED_GEO_PLATFORM = !!process.env.TRUSTED_GEO_PLATFORM;
 function geoHeaders(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.delete("x-geo-country");
+  headers.delete("x-app-area"); // ours to set, never the client's
 
   // cf-ipcountry only means anything when Cloudflare is actually in front,
   // because Cloudflare overwrites any inbound copy. This deployment terminates
@@ -97,6 +98,8 @@ export function proxy(request: NextRequest) {
     pathname === "/" ||
     b2cSiteRoutes.some((p) => pathname === p || pathname.startsWith(p + "/"))
   ) {
+    // The public site keeps its own light theme; only the apps follow the device's dark mode.
+    headers.set("x-app-area", "public");
     return NextResponse.next({ request: { headers } });
   }
 
