@@ -30,6 +30,13 @@ import { trpc } from "@/lib/trpc";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 
 const THEME_PRESETS = {
+  // Apple's own approach: system fonts, near-black on white, light gray sections, one blue accent.
+  APPLE: {
+    label: "Apple",
+    colors: { primary: "#0071e3", secondary: "#1d1d1f", accent: "#0071e3", bg: "#ffffff", fg: "#1d1d1f" },
+    fonts: { heading: "system", body: "system" },
+    extra: { mutedColor: "#f5f5f7", cardColor: "#ffffff", buttonStyle: "PILL", headerStyle: "SOLID" },
+  },
   MODERN_BOLD: {
     label: "Modern Bold",
     colors: { primary: "#2563eb", secondary: "#f97316", accent: "#06b6d4", bg: "#ffffff", fg: "#0f172a" },
@@ -53,6 +60,7 @@ const THEME_PRESETS = {
 } as const;
 
 const FONT_OPTIONS = [
+  "system",
   "Inter", "Poppins", "Roboto", "Open Sans", "Lato", "Montserrat", "Raleway",
   "Playfair Display", "DM Sans", "DM Serif Display", "Nunito", "Source Sans 3",
   "Manrope", "Plus Jakarta Sans",
@@ -124,20 +132,20 @@ export default function B2cSiteBrandingPage() {
 
   const [form, setForm] = useState<FormState | null>(null);
 
-  const defaultPreset = THEME_PRESETS.MODERN_BOLD;
+  const defaultPreset = THEME_PRESETS.APPLE;
   const defaultForm: FormState = {
-    themePreset: "MODERN_BOLD",
+    themePreset: "APPLE",
     primaryColor: defaultPreset.colors.primary,
     secondaryColor: defaultPreset.colors.secondary,
     accentColor: defaultPreset.colors.accent,
     backgroundColor: defaultPreset.colors.bg,
     foregroundColor: defaultPreset.colors.fg,
     cardColor: "#ffffff",
-    mutedColor: "#f1f5f9",
+    mutedColor: "#f5f5f7",
     headingFont: defaultPreset.fonts.heading,
     bodyFont: defaultPreset.fonts.body,
-    headerStyle: "MEGA_MENU",
-    buttonStyle: "ROUNDED",
+    headerStyle: "SOLID",
+    buttonStyle: "PILL",
     heroStyle: "SLIDER",
     footerColumns: 4,
     siteTitle: "",
@@ -251,6 +259,7 @@ export default function B2cSiteBrandingPage() {
             foregroundColor: p.colors.fg,
             headingFont: p.fonts.heading,
             bodyFont: p.fonts.body,
+            ...("extra" in p ? p.extra : {}),
           }
         : prev,
     );
@@ -259,7 +268,7 @@ export default function B2cSiteBrandingPage() {
   const handleSave = () => {
     if (!form) return;
     updateMutation.mutate({
-      themePreset: form.themePreset as "MODERN_BOLD",
+      themePreset: form.themePreset as "APPLE",
       primaryColor: form.primaryColor,
       secondaryColor: form.secondaryColor,
       accentColor: form.accentColor,
@@ -401,7 +410,7 @@ export default function B2cSiteBrandingPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {FONT_OPTIONS.map((f) => (
-                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                      <SelectItem key={f} value={f}>{f === "system" ? "System (SF Pro on Apple devices)" : f}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -412,7 +421,7 @@ export default function B2cSiteBrandingPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {FONT_OPTIONS.map((f) => (
-                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                      <SelectItem key={f} value={f}>{f === "system" ? "System (SF Pro on Apple devices)" : f}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

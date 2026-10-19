@@ -12,6 +12,7 @@ import type {
 // ── Theme Presets ─────────────────────────────────────────────────────────────
 
 export const THEME_PRESET_LABELS: Record<ThemePreset, string> = {
+  APPLE: "Apple (system design)",
   MODERN_BOLD: "Modern & Bold",
   CLEAN_TRUSTWORTHY: "Clean & Trustworthy",
   WARM_INVITING: "Warm & Inviting",

@@ -158,7 +158,11 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative flex min-h-[600px] items-center justify-center bg-[var(--pub-foreground)]">
+      <section
+        data-pub="hero"
+        data-pub-photo={heroSlides.length > 0 ? "yes" : "no"}
+        className="relative flex min-h-[600px] items-center justify-center bg-[var(--pub-foreground)]"
+      >
         {/* Background */}
         {heroSlides.length > 0 ? (
           <img
@@ -167,9 +171,9 @@ export default async function HomePage() {
             className="absolute inset-0 h-full w-full object-cover opacity-50"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-foreground)]" />
+          <div data-pub="art" className="absolute inset-0 bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-foreground)]" />
         )}
-        <div className="absolute inset-0 bg-black/40" />
+        <div data-pub="scrim" className="absolute inset-0 bg-black/40" />
 
         <div className="pub-container relative z-10 py-16 text-center text-white">
           <h1
@@ -360,10 +364,11 @@ export default async function HomePage() {
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--pub-primary)] via-[var(--pub-foreground)] to-[var(--pub-accent)] opacity-90" />
+                  <div data-pub="art" className="absolute inset-0 bg-gradient-to-br from-[var(--pub-primary)] via-[var(--pub-foreground)] to-[var(--pub-accent)] opacity-90" />
                 )}
                 <div className="relative z-10 p-8 text-center text-white">
                   <h3
+                    data-pub="art-title"
                     className="text-3xl font-extrabold italic leading-tight md:text-4xl"
                     style={{ fontFamily: "var(--pub-heading-font)" }}
                   >
@@ -473,7 +478,7 @@ export default async function HomePage() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-accent)]">
+                      <div data-pub="art" className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--pub-primary)] to-[var(--pub-accent)]">
                         <Palmtree className="h-12 w-12 text-white/60" />
                       </div>
                     )}

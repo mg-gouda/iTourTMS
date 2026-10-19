@@ -4,7 +4,7 @@ import { patch } from "@/lib/validations/patch";
 // ── Branding ────────────────────────────────────────────
 
 export const brandingSchema = z.object({
-  themePreset: z.enum(["MODERN_BOLD", "CLEAN_TRUSTWORTHY", "WARM_INVITING", "LUXURY_ELEGANT"]),
+  themePreset: z.enum(["APPLE", "MODERN_BOLD", "CLEAN_TRUSTWORTHY", "WARM_INVITING", "LUXURY_ELEGANT"]),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),

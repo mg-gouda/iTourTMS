@@ -3,53 +3,17 @@
 import { useEffect } from "react";
 
 import type { PublicBranding } from "@/lib/b2c/get-branding";
+import { brandingVars } from "@/lib/b2c/branding-vars";
 
 /**
- * Compute contrasting foreground color (black or white) for a given bg hex.
+ * Mirrors the site's theme variables onto <html> so content portalled outside
+ * the site wrapper (date pickers, dialogs) is themed too. The wrapper already
+ * carries the same variables from the server, so the first paint is right.
  */
-function contrastForeground(hex: string): string {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  // Relative luminance
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? "#0f172a" : "#ffffff";
-}
-
-interface ThemeInjectorProps {
-  branding: PublicBranding;
-}
-
-export function ThemeInjector({ branding }: ThemeInjectorProps) {
+export function ThemeInjector({ branding }: { branding: PublicBranding }) {
   useEffect(() => {
     const root = document.documentElement;
-
-    root.style.setProperty("--pub-primary", branding.primaryColor);
-    root.style.setProperty(
-      "--pub-primary-foreground",
-      contrastForeground(branding.primaryColor),
-    );
-    root.style.setProperty("--pub-secondary", branding.secondaryColor);
-    root.style.setProperty(
-      "--pub-secondary-foreground",
-      contrastForeground(branding.secondaryColor),
-    );
-    root.style.setProperty("--pub-accent", branding.accentColor);
-    root.style.setProperty(
-      "--pub-accent-foreground",
-      contrastForeground(branding.accentColor),
-    );
-    root.style.setProperty("--pub-background", branding.backgroundColor);
-    root.style.setProperty("--pub-foreground", branding.foregroundColor);
-    root.style.setProperty("--pub-card", branding.cardColor);
-    root.style.setProperty(
-      "--pub-card-foreground",
-      contrastForeground(branding.cardColor),
-    );
-    root.style.setProperty("--pub-muted", branding.mutedColor);
-    root.style.setProperty("--pub-heading-font", `"${branding.headingFont}", sans-serif`);
-    root.style.setProperty("--pub-body-font", `"${branding.bodyFont}", sans-serif`);
+    for (const [k, v] of Object.entries(brandingVars(branding))) root.style.setProperty(k, v);
   }, [branding]);
 
   return null;

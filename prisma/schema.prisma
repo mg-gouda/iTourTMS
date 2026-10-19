@@ -4572,6 +4572,7 @@ model TtPushToken {
 // ============================================================================
 
 enum ThemePreset {
+  APPLE
   MODERN_BOLD
   CLEAN_TRUSTWORTHY
   WARM_INVITING
@@ -4617,21 +4618,21 @@ model PublicSiteBranding {
   id              String       @id @default(cuid())
   companyId       String       @unique
   // Theme preset
-  themePreset     ThemePreset  @default(MODERN_BOLD)
+  themePreset     ThemePreset  @default(APPLE)
   // Colors
-  primaryColor    String       @default("#2563eb") // blue-600
-  secondaryColor  String       @default("#f97316") // orange-500
-  accentColor     String       @default("#06b6d4") // cyan-500
+  primaryColor    String       @default("#0071e3")
+  secondaryColor  String       @default("#1d1d1f")
+  accentColor     String       @default("#0071e3")
   backgroundColor String       @default("#ffffff")
-  foregroundColor String       @default("#0f172a")
+  foregroundColor String       @default("#1d1d1f")
   cardColor       String       @default("#ffffff")
-  mutedColor      String       @default("#f1f5f9")
+  mutedColor      String       @default("#f5f5f7")
   // Typography (Google Fonts names)
-  headingFont     String       @default("Poppins")
-  bodyFont        String       @default("Inter")
+  headingFont     String       @default("system")
+  bodyFont        String       @default("system")
   // Layout
-  headerStyle     HeaderStyle  @default(MEGA_MENU)
-  buttonStyle     ButtonStyle  @default(ROUNDED)
+  headerStyle     HeaderStyle  @default(SOLID)
+  buttonStyle     ButtonStyle  @default(PILL)
   heroStyle       HeroStyle    @default(SLIDER)
   footerColumns   Int          @default(4)
   // Logos & images

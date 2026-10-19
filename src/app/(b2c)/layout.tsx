@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { B2cHeader } from "@/components/b2c/header";
 import { B2cFooter } from "@/components/b2c/footer";
 import { ThemeInjector } from "@/components/b2c/theme-injector";
+import { brandingVars } from "@/lib/b2c/branding-vars";
 import { GeoMarketGuard } from "@/components/b2c/geo-market-guard";
 import { getBranding, getCompanyInfo } from "@/lib/b2c/get-branding";
 import { buildGoogleFontsUrl } from "@/lib/b2c/fonts";
@@ -47,6 +48,8 @@ export default async function B2cLayout({
     <div
       className="pub-body flex min-h-screen flex-col"
       data-pub-button={branding.buttonStyle.toLowerCase()}
+      data-pub-preset={branding.themePreset.toLowerCase()}
+      style={brandingVars(branding) as React.CSSProperties}
     >
       {/* Google Fonts */}
       {fontsUrl && (

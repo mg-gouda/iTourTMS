@@ -32,6 +32,9 @@
   --pub-radius-full: 9999px;
 }
 
+/* Base classes live in the components layer so Tailwind utilities on the same
+   element (hidden, py-*, rounded-*) win, as they are meant to. */
+@layer components {
 /* ─── B2C Layout Base ────────────────────────────── */
 
 .pub-body {
@@ -130,8 +133,10 @@
 .pub-container {
   width: 100%;
   max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
+  margin-inline: auto;
+  /* Inline only: a "padding: 0 …" shorthand here (unlayered) silently beat every
+     py-* utility used on a container, which is how the footer rows collided. */
+  padding-inline: 1.5rem;
 }
 
 /* ─── Star Rating ────────────────────────────────── */
@@ -140,6 +145,8 @@
   display: inline-flex;
   gap: 2px;
   color: #f59e0b;
+}
+
 }
 
 /* ─── Animations ─────────────────────────────────── */
@@ -162,3 +169,119 @@
 .pub-animate-delay-2 { animation-delay: 0.2s; }
 .pub-animate-delay-3 { animation-delay: 0.3s; }
 .pub-animate-delay-4 { animation-delay: 0.4s; }
+
+/* ─── Apple preset ───────────────────────────────────────────────
+   Apple's own site language: system type, near-black on white, light gray
+   (#f5f5f7) for the hero and alternate bands, one blue accent, pill buttons,
+   a thin translucent bar, no gradients or lifts. Only applies when a company
+   picks this preset in B2C Site › Branding.
+   ──────────────────────────────────────────────────────────────── */
+
+[data-pub-preset="apple"] {
+  --pub-border: #d2d2d7;
+  --pub-muted-foreground: #6e6e73;
+  --pub-radius: 0.75rem;
+  --pub-radius-lg: 1.125rem;
+  letter-spacing: -0.01em;
+}
+
+[data-pub-preset="apple"] :is(h1, h2, h3) {
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+[data-pub-preset="apple"] .font-extrabold,
+[data-pub-preset="apple"] .font-black { font-weight: 600; }
+[data-pub-preset="apple"] .italic { font-style: normal; }
+
+/* Labels in sentence case, quiet */
+[data-pub-preset="apple"] .pub-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+/* Header: one thin translucent bar; the utility row turns light */
+[data-pub-preset="apple"] [data-pub="header"] {
+  background: rgb(255 255 255 / 0.8);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.08);
+}
+[data-pub-preset="apple"] [data-pub="topbar"] {
+  background: #f5f5f7;
+  color: #1d1d1f;
+  border-color: transparent;
+}
+[data-pub-preset="apple"] [data-pub="topbar"] > div { height: 2rem; }
+[data-pub-preset="apple"] [data-pub="topbar"] :is(a, button, span) { color: #424245; }
+[data-pub-preset="apple"] [data-pub="topbar"] :is(a, button):hover { color: #1d1d1f; }
+
+/* Hero without photography: light gray stage, dark type */
+[data-pub-preset="apple"] [data-pub="hero"][data-pub-photo="no"] {
+  background: var(--pub-muted);
+  color: var(--pub-foreground);
+}
+[data-pub-preset="apple"] [data-pub="hero"][data-pub-photo="no"] :is([data-pub="art"], [data-pub="scrim"]) { display: none; }
+[data-pub-preset="apple"] [data-pub="hero"][data-pub-photo="no"] .text-white { color: var(--pub-foreground); }
+[data-pub-preset="apple"] [data-pub="hero"][data-pub-photo="no"] .text-white\/90 { color: #424245; }
+[data-pub-preset="apple"] [data-pub="hero"] h1 { font-size: clamp(2.5rem, 5.5vw, 4.5rem); line-height: 1.05; }
+
+/* Decorative gradient panels become a quiet gray tile */
+[data-pub-preset="apple"] [data-pub="art"] { background: #e8e8ed; opacity: 1; }
+[data-pub-preset="apple"] [data-pub="art"] ~ div .text-white,
+[data-pub-preset="apple"] [data-pub="art-title"] { color: #1d1d1f; }
+
+/* Search tabs as a segmented control on a frosted panel */
+[data-pub-preset="apple"] [data-pub="seg"] {
+  display: inline-flex;
+  margin-inline: auto;
+  margin-bottom: 0.75rem;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9999px;
+  background: rgb(118 118 128 / 0.12);
+  overflow: visible;
+}
+[data-pub-preset="apple"] [data-pub="hero"] > div > div > div:has(> [data-pub="seg"]) { text-align: center; }
+[data-pub-preset="apple"] [data-pub="seg"] > button {
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  background: transparent;
+  color: #1d1d1f;
+}
+[data-pub-preset="apple"] [data-pub="seg"] > button[data-active="true"] {
+  background: #fff;
+  color: #1d1d1f;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+[data-pub-preset="apple"] [data-pub="panel"] {
+  border-radius: var(--pub-radius-lg);
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.08);
+  text-align: start;
+}
+
+/* Cards and buttons: no lift, no glow — state shows in color only */
+[data-pub-preset="apple"] .pub-card:hover { transform: none; box-shadow: 0 4px 18px rgb(0 0 0 / 0.08); }
+[data-pub-preset="apple"] .pub-btn { font-weight: 500; }
+[data-pub-preset="apple"] .pub-btn-primary:hover { transform: none; box-shadow: none; opacity: 1; filter: brightness(1.08); }
+[data-pub-preset="apple"] .pub-btn-outline { border-width: 1px; }
+
+/* Footer: Apple's light, small-print footer */
+[data-pub-preset="apple"] [data-pub="footer"] {
+  background: #f5f5f7;
+  color: #6e6e73;
+  border-color: #d2d2d7;
+  font-size: 0.8125rem;
+}
+[data-pub-preset="apple"] [data-pub="footer"] :is(h4, .text-white) { color: #1d1d1f; }
+[data-pub-preset="apple"] [data-pub="footer"] :is(.text-white\/80, .text-white\/70, .text-white\/60, .text-white\/50) { color: #6e6e73; }
+[data-pub-preset="apple"] [data-pub="footer"] a:hover { color: #1d1d1f; text-decoration: underline; }
+[data-pub-preset="apple"] [data-pub="footer"] :is(.border-white\/10, .border-white\/20) { border-color: #d2d2d7; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-pub-preset="apple"] .pub-animate-in { animation: none; }
+}

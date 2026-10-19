@@ -24,7 +24,7 @@ export function B2cFooter({ branding, companyName, logoUrl }: B2cFooterProps) {
   ].filter((s) => s.url);
 
   return (
-    <footer className="border-t border-[var(--pub-border)] bg-[var(--pub-foreground)] py-[30px] text-white/80">
+    <footer data-pub="footer" className="border-t border-[var(--pub-border)] bg-[var(--pub-foreground)] py-[30px] text-white/80">
       {/* Main footer */}
       <div className="pub-container">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -65,7 +65,7 @@ export function B2cFooter({ branding, companyName, logoUrl }: B2cFooterProps) {
 
           {/* Column 2: Quick Links */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">
+            <h4 className="pub-label mb-4 text-sm font-semibold uppercase tracking-wider text-white">
               Explore
             </h4>
             <ul className="space-y-2 text-sm">
@@ -79,7 +79,7 @@ export function B2cFooter({ branding, companyName, logoUrl }: B2cFooterProps) {
 
           {/* Column 3: Company */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">
+            <h4 className="pub-label mb-4 text-sm font-semibold uppercase tracking-wider text-white">
               Company
             </h4>
             <ul className="space-y-2 text-sm">
@@ -95,7 +95,7 @@ export function B2cFooter({ branding, companyName, logoUrl }: B2cFooterProps) {
 
           {/* Column 4: Contact */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">
+            <h4 className="pub-label mb-4 text-sm font-semibold uppercase tracking-wider text-white">
               Contact Us
             </h4>
             <ul className="space-y-3 text-sm">

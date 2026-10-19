@@ -42,7 +42,7 @@ const inputCls =
   "w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--pub-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--pub-primary)]";
 
 const labelCls =
-  "mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500";
+  "pub-label mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500";
 
 const searchBtnCls =
   "pub-btn pub-btn-primary w-full justify-center py-2.5 text-sm font-semibold";
@@ -111,10 +111,13 @@ export function BookingEngine({ destinations, countries }: BookingEngineProps) {
   return (
     <div className="w-full max-w-6xl mx-auto">
       {/* Tabs */}
-      <div className="flex rounded-t-xl overflow-hidden">
+      <div data-pub="seg" className="flex rounded-t-xl overflow-hidden">
         {tabs.map((tab) => (
           <button
             key={tab.key}
+            data-active={activeTab === tab.key}
+            aria-label={tab.label}
+            aria-pressed={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === tab.key
@@ -129,7 +132,7 @@ export function BookingEngine({ destinations, countries }: BookingEngineProps) {
       </div>
 
       {/* Form body */}
-      <div className="rounded-b-xl bg-white/95 backdrop-blur-sm p-5 shadow-xl">
+      <div data-pub="panel" className="rounded-b-xl bg-white/95 backdrop-blur-sm p-5 shadow-xl">
         {activeTab === "hotels" && (
           <HotelForm destinations={destinations} countries={countries} router={router} />
         )}

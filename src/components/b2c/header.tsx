@@ -30,6 +30,7 @@ export function B2cHeader({ branding, companyName, logoUrl }: B2cHeaderProps) {
 
   return (
     <header
+      data-pub="header"
       className={`sticky top-0 z-50 w-full transition-all duration-300 ${
         isTransparent
           ? "bg-transparent text-white"
@@ -37,7 +38,7 @@ export function B2cHeader({ branding, companyName, logoUrl }: B2cHeaderProps) {
       }`}
     >
       {/* Top bar */}
-      <div className="border-b border-[var(--pub-border)] bg-[var(--pub-foreground)] text-white/80">
+      <div data-pub="topbar" className="border-b border-[var(--pub-border)] bg-[var(--pub-foreground)] text-white/80">
         <div className="pub-container flex h-[50px] items-center justify-between text-xs">
           {/* Left: Social media & email */}
           <div className="flex items-center gap-3">
@@ -110,7 +111,7 @@ export function B2cHeader({ branding, companyName, logoUrl }: B2cHeaderProps) {
               <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain" />
             ) : (
               <span
-                className="text-xl font-bold"
+                className="text-xl font-bold whitespace-nowrap"
                 style={{
                   fontFamily: "var(--pub-heading-font)",
                   color: "var(--pub-primary)",
