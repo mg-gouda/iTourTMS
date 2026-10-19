@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { todayISO } from "@/lib/utils";
 
 // ── Date Range Filter ──
 
@@ -79,7 +80,7 @@ interface AsOfDateFilterProps {
 
 export function AsOfDateFilter({ onGenerate, isPending }: AsOfDateFilterProps) {
   const [asOfDate, setAsOfDate] = useState(
-    new Date().toISOString().split("T")[0],
+    todayISO(),
   );
 
   return (

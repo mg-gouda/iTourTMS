@@ -26,9 +26,9 @@ export default function DriverPerformancePage() {
       <div className="page-header flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">{t("driverPerformanceReport")}</h1></div>
         <div className="flex items-center gap-3">
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
+          <Input type="date" aria-label="From" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
           <span className="text-muted-foreground">{tc("to")}</span>
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
+          <Input type="date" aria-label="To" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
           <Button
             variant="outline"
             size="sm"

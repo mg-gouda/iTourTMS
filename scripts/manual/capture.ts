@@ -23,6 +23,7 @@ import { WINDOWS, type ManualWindow } from "./windows";
 const BASE = process.env.MANUAL_BASE_URL ?? "http://localhost:3000";
 const EMAIL = process.env.MANUAL_EMAIL ?? "dens@local.test";
 const PASSWORD = process.env.MANUAL_PASSWORD ?? "Test1234!x";
+const MAX_H = 4000;
 
 export const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -58,12 +59,13 @@ async function main() {
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.includes("/login"));
 
+  const { companyId } = await db.user.findUniqueOrThrow({ where: { email: EMAIL }, select: { companyId: true } });
   for (const mod of modules) {
     const outDir = path.join(process.cwd(), "public", "help", mod);
     await mkdir(outDir, { recursive: true });
     const manifest: Record<string, { route: string; items: unknown[] }> = {};
     for (const w of WINDOWS[mod] as ManualWindow[]) {
-      const route = w.resolve ? await w.resolve(db) : w.route;
+      const route = w.resolve ? await w.resolve(db, companyId!) : w.route;
       if (!route) {
         console.warn(`skip ${mod}/${w.id}: no record to show`);
         continue;
@@ -75,8 +77,14 @@ async function main() {
         await settle(page);
       }
       await page.evaluate((skip) => ((window as unknown as { __manualSkip: string[] }).__manualSkip = skip), w.skip ?? []);
-      const items = (await page.evaluate(discover)) as unknown[];
-      await page.screenshot({ path: path.join(outDir, `${w.id}.png`), fullPage: true });
+      // Long lists (every airport…) are cut: the top shows every control worth numbering.
+      const items = ((await page.evaluate(discover)) as { y: number; h: number }[]).filter((i) => i.y + i.h <= MAX_H);
+      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      await page.screenshot({
+        path: path.join(outDir, `${w.id}.png`),
+        fullPage: true,
+        ...(height > MAX_H && { clip: { x: 0, y: 0, width: 1440, height: MAX_H } }),
+      });
       manifest[w.id] = { route: w.route, items };
       console.log(`${mod}/${w.id}: ${items.length} items`);
     }

@@ -17,9 +17,10 @@ import {
 import { exportReportToExcel } from "@/lib/export/report-excel";
 import { exportReportToPdf } from "@/lib/export/report-pdf";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 const yearStart = () => `${new Date().getFullYear()}-01-01`;
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayISO();
 
 const date = (d: Date | string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";

@@ -45,6 +45,7 @@ import { trpc } from "@/lib/trpc";
 import { bookingAmendSchema } from "@/lib/validations/reservations";
 
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 type FormValues = z.input<typeof bookingAmendSchema>;
 
@@ -153,7 +154,7 @@ export default function AmendBookingPage() {
       bookingNotes: "",
       meetAssistVisa: false,
       amendmentReason: "",
-      bookingDate: new Date().toISOString().slice(0, 10),
+      bookingDate: todayISO(),
     },
   });
 
@@ -375,7 +376,7 @@ export default function AmendBookingPage() {
             tourOperatorId: tourOperatorId || undefined,
             checkIn,
             checkOut,
-            bookingDate: bookingDate || new Date().toISOString().slice(0, 10),
+            bookingDate: bookingDate || todayISO(),
             rooms: watchedRooms.map((r) => ({
               roomTypeId: r.roomTypeId,
               mealBasisId: r.mealBasisId,

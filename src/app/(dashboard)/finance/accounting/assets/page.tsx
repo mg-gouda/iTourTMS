@@ -23,6 +23,7 @@ import { useAccountOptions } from "@/hooks/use-account-options";
 import { toast } from "sonner";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
+import { todayISO } from "@/lib/utils";
 
 const STATE_VARIANTS: Record<string, "default" | "outline" | "secondary" | "destructive"> = {
   DRAFT: "outline",
@@ -68,7 +69,7 @@ export default function AssetsPage() {
   const closeMut = trpc.finance.asset.close.useMutation({ onSuccess: () => { utils.finance.asset.list.invalidate(); toast.success(t("assetClosed")); } });
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", accountId: "", depreciationAccountId: "", accumulationAccountId: "", originalValue: "", salvageValue: "0", usefulLifeYears: "5", acquisitionDate: new Date().toISOString().split("T")[0], method: "STRAIGHT_LINE" });
+  const [form, setForm] = useState({ name: "", accountId: "", depreciationAccountId: "", accumulationAccountId: "", originalValue: "", salvageValue: "0", usefulLifeYears: "5", acquisitionDate: todayISO(), method: "STRAIGHT_LINE" });
 
   const columns: ColumnDef<AssetRow, unknown>[] = [
     { accessorKey: "name", header: t("assetName"), cell: ({ row }) => <Link href={`/finance/accounting/assets/${row.original.id}`} className="font-medium hover:underline">{row.original.name}</Link> },

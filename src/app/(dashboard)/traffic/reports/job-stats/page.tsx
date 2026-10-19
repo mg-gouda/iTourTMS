@@ -27,9 +27,9 @@ export default function JobStatsPage() {
       <div className="page-header flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">{t("jobStatsReport")}</h1></div>
         <div className="flex items-center gap-3">
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
+          <Input type="date" aria-label="From" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
           <span className="text-muted-foreground">{tc("to")}</span>
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
+          <Input type="date" aria-label="To" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
         </div>
       </div>
       {isLoading ? <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}</div> : (

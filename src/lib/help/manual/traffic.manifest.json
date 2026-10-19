@@ -1,0 +1,2871 @@
+{
+  "dashboard": {
+    "route": "/traffic",
+    "items": [
+      {
+        "n": 1,
+        "kind": "tile",
+        "key": "Traffic Jobs",
+        "x": 280,
+        "y": 164,
+        "w": 272,
+        "h": 150
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Pending",
+        "x": 568,
+        "y": 164,
+        "w": 272,
+        "h": 150
+      },
+      {
+        "n": 3,
+        "kind": "tile",
+        "key": "Vehicles",
+        "x": 856,
+        "y": 164,
+        "w": 272,
+        "h": 150
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Drivers",
+        "x": 1144,
+        "y": 164,
+        "w": 272,
+        "h": 150
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Job Statistics",
+        "x": 280,
+        "y": 338,
+        "w": 556,
+        "h": 578
+      }
+    ]
+  },
+  "jobs": {
+    "route": "/traffic/jobs",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Export Excel",
+        "x": 1128,
+        "y": 82,
+        "w": 121,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "New Traffic Job",
+        "x": 1257,
+        "y": 82,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "New Traffic Job",
+        "x": 1257,
+        "y": 82,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Code",
+        "x": 281,
+        "y": 261,
+        "w": 133,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Branch",
+        "x": 414,
+        "y": 261,
+        "w": 66,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Service Type",
+        "x": 481,
+        "y": 261,
+        "w": 172,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Status",
+        "x": 652,
+        "y": 261,
+        "w": 108,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Date",
+        "x": 760,
+        "y": 261,
+        "w": 96,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Pickup",
+        "x": 856,
+        "y": 261,
+        "w": 64,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Passengers",
+        "x": 920,
+        "y": 261,
+        "w": 92,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Lead Passenger",
+        "x": 1012,
+        "y": 261,
+        "w": 306,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Vehicle Type",
+        "x": 1318,
+        "y": 261,
+        "w": 98,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "column",
+        "key": "Route",
+        "x": 1416,
+        "y": 261,
+        "w": 59,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "column",
+        "key": "Drop-off",
+        "x": 1676,
+        "y": 261,
+        "w": 202,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "column",
+        "key": "Booking Link",
+        "x": 1878,
+        "y": 261,
+        "w": 176,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "column",
+        "key": "Arrival Flight",
+        "x": 2054,
+        "y": 261,
+        "w": 115,
+        "h": 36
+      },
+      {
+        "n": 17,
+        "kind": "column",
+        "key": "Departure Flight",
+        "x": 2169,
+        "y": 261,
+        "w": 122,
+        "h": 36
+      }
+    ]
+  },
+  "job-new": {
+    "route": "/traffic/jobs/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Service Type",
+        "x": 305,
+        "y": 299,
+        "w": 50,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Pickup Airport",
+        "x": 885,
+        "y": 299,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Service Date",
+        "x": 305,
+        "y": 373,
+        "w": 506,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Pickup Address",
+        "x": 885,
+        "y": 373,
+        "w": 506,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Pickup Time",
+        "x": 305,
+        "y": 447,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Dropoff Time",
+        "x": 566,
+        "y": 447,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Dropoff Airport",
+        "x": 885,
+        "y": 447,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Vehicle Type",
+        "x": 305,
+        "y": 521,
+        "w": 184,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Dropoff Address",
+        "x": 885,
+        "y": 521,
+        "w": 506,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Zone",
+        "x": 305,
+        "y": 595,
+        "w": 133,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Passengers",
+        "x": 885,
+        "y": 595,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Amount",
+        "x": 1146,
+        "y": 595,
+        "w": 245,
+        "h": 36
+      },
+      {
+        "n": 14,
+        "kind": "field",
+        "key": "Flights",
+        "x": 305,
+        "y": 669,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "field",
+        "key": "Lead Passenger",
+        "x": 885,
+        "y": 669,
+        "w": 506,
+        "h": 36
+      },
+      {
+        "n": 16,
+        "kind": "field",
+        "key": "Passenger Phone",
+        "x": 885,
+        "y": 743,
+        "w": 506,
+        "h": 36
+      },
+      {
+        "n": 17,
+        "kind": "field",
+        "key": "Notes",
+        "x": 885,
+        "y": 817,
+        "w": 506,
+        "h": 64
+      },
+      {
+        "n": 18,
+        "kind": "button",
+        "key": "Create Job",
+        "x": 280,
+        "y": 930,
+        "w": 105,
+        "h": 36
+      },
+      {
+        "n": 19,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 397,
+        "y": 930,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "job-info": {
+    "route": "/traffic/jobs/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Save",
+        "x": 1358,
+        "y": 122,
+        "w": 58,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Job Details",
+        "x": 282,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Assign Resources (#)",
+        "x": 383,
+        "y": 195,
+        "w": 172,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Status Log (#)",
+        "x": 555,
+        "y": 195,
+        "w": 124,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Add Operational Cost (#)",
+        "x": 679,
+        "y": 195,
+        "w": 200,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "Job Details",
+        "x": 280,
+        "y": 236,
+        "w": 560,
+        "h": 451
+      },
+      {
+        "n": 8,
+        "kind": "tile",
+        "key": "Passenger & Locations",
+        "x": 856,
+        "y": 236,
+        "w": 560,
+        "h": 451
+      },
+      {
+        "n": 9,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 711,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "job-assignments": {
+    "route": "/traffic/jobs/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Save",
+        "x": 1358,
+        "y": 122,
+        "w": 58,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Job Details",
+        "x": 282,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Assign Resources (#)",
+        "x": 383,
+        "y": 195,
+        "w": 172,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Status Log (#)",
+        "x": 555,
+        "y": 195,
+        "w": 124,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Add Operational Cost (#)",
+        "x": 679,
+        "y": 195,
+        "w": 200,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "No assignments yet.",
+        "x": 280,
+        "y": 236,
+        "w": 1136,
+        "h": 126
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 386,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "job-status-log": {
+    "route": "/traffic/jobs/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Save",
+        "x": 1358,
+        "y": 122,
+        "w": 58,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Job Details",
+        "x": 282,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Assign Resources (#)",
+        "x": 383,
+        "y": 195,
+        "w": 172,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Status Log (#)",
+        "x": 555,
+        "y": 195,
+        "w": 124,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Add Operational Cost (#)",
+        "x": 679,
+        "y": 195,
+        "w": 200,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "tile",
+        "key": "No status changes yet.",
+        "x": 280,
+        "y": 236,
+        "w": 1136,
+        "h": 126
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 386,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "job-costs": {
+    "route": "/traffic/jobs/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Save",
+        "x": 1358,
+        "y": 122,
+        "w": 58,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Job Details",
+        "x": 282,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Assign Resources (#)",
+        "x": 383,
+        "y": 195,
+        "w": 172,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tab",
+        "key": "Status Log (#)",
+        "x": 555,
+        "y": 195,
+        "w": 124,
+        "h": 31
+      },
+      {
+        "n": 6,
+        "kind": "tab",
+        "key": "Add Operational Cost (#)",
+        "x": 679,
+        "y": 195,
+        "w": 200,
+        "h": 31
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Type",
+        "x": 318,
+        "y": 346,
+        "w": 112,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Amount",
+        "x": 586,
+        "y": 346,
+        "w": 256,
+        "h": 32
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Notes",
+        "x": 854,
+        "y": 346,
+        "w": 256,
+        "h": 32
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Add",
+        "x": 1122,
+        "y": 350,
+        "w": 256,
+        "h": 32
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 512,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "dispatch": {
+    "route": "/traffic/dispatch",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Date",
+        "x": 913,
+        "y": 82,
+        "w": 180,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "button",
+        "key": "Export PDF",
+        "x": 1105,
+        "y": 84,
+        "w": 104,
+        "h": 32
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Lock",
+        "x": 1221,
+        "y": 84,
+        "w": 84,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Unlock",
+        "x": 1317,
+        "y": 84,
+        "w": 99,
+        "h": 32
+      }
+    ]
+  },
+  "flights": {
+    "route": "/traffic/flights",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Flight",
+        "x": 1286,
+        "y": 82,
+        "w": 130,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Flight",
+        "x": 1286,
+        "y": 82,
+        "w": 130,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Flight Number",
+        "x": 281,
+        "y": 181,
+        "w": 147,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Branch",
+        "x": 428,
+        "y": 181,
+        "w": 89,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Airline",
+        "x": 518,
+        "y": 181,
+        "w": 84,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Date",
+        "x": 601,
+        "y": 181,
+        "w": 141,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Arr Airport",
+        "x": 742,
+        "y": 181,
+        "w": 117,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Arr Time",
+        "x": 859,
+        "y": 181,
+        "w": 101,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Dep Airport",
+        "x": 960,
+        "y": 181,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Dep Time",
+        "x": 1085,
+        "y": 181,
+        "w": 110,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Terminal",
+        "x": 1195,
+        "y": 181,
+        "w": 101,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "column",
+        "key": "Traffic Jobs",
+        "x": 1296,
+        "y": 181,
+        "w": 119,
+        "h": 36
+      }
+    ]
+  },
+  "flight-new": {
+    "route": "/traffic/flights/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Flight Number",
+        "x": 305,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Airline Code",
+        "x": 856,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Flight Date",
+        "x": 305,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Terminal",
+        "x": 856,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Arrival Airport",
+        "x": 305,
+        "y": 423,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Arrival Time",
+        "x": 856,
+        "y": 423,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Departure Airport",
+        "x": 305,
+        "y": 497,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Departure Time",
+        "x": 856,
+        "y": 497,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Create Flight",
+        "x": 280,
+        "y": 582,
+        "w": 122,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 414,
+        "y": 582,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "flight-detail": {
+    "route": "/traffic/flights/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Flight Info",
+        "x": 280,
+        "y": 192,
+        "w": 556,
+        "h": 314
+      },
+      {
+        "n": 3,
+        "kind": "tile",
+        "key": "Linked Jobs (#)",
+        "x": 860,
+        "y": 192,
+        "w": 556,
+        "h": 314
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 530,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "guest-bookings": {
+    "route": "/traffic/guest-bookings",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Guest Booking",
+        "x": 1223,
+        "y": 82,
+        "w": 193,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Guest Booking",
+        "x": 1223,
+        "y": 82,
+        "w": 193,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Code",
+        "x": 281,
+        "y": 181,
+        "w": 139,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Branch",
+        "x": 420,
+        "y": 181,
+        "w": 85,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Status",
+        "x": 505,
+        "y": 181,
+        "w": 148,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Service Type",
+        "x": 653,
+        "y": 181,
+        "w": 128,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Date",
+        "x": 781,
+        "y": 181,
+        "w": 134,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Guest Name",
+        "x": 915,
+        "y": 181,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Passengers",
+        "x": 1074,
+        "y": 181,
+        "w": 118,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Quoted Price",
+        "x": 1192,
+        "y": 181,
+        "w": 130,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Paid",
+        "x": 1321,
+        "y": 181,
+        "w": 94,
+        "h": 36
+      }
+    ]
+  },
+  "guest-booking-new": {
+    "route": "/traffic/guest-bookings/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Guest Name",
+        "x": 305,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Email",
+        "x": 856,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Phone",
+        "x": 305,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Service Type",
+        "x": 856,
+        "y": 349,
+        "w": 50,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Vehicle Type",
+        "x": 305,
+        "y": 423,
+        "w": 129,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Service Date",
+        "x": 856,
+        "y": 423,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Passengers",
+        "x": 305,
+        "y": 497,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Currency",
+        "x": 856,
+        "y": 497,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "field",
+        "key": "Quoted Price",
+        "x": 305,
+        "y": 571,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "field",
+        "key": "Pickup Address",
+        "x": 856,
+        "y": 571,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 12,
+        "kind": "field",
+        "key": "Dropoff Address",
+        "x": 305,
+        "y": 645,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 13,
+        "kind": "field",
+        "key": "Notes",
+        "x": 305,
+        "y": 719,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 14,
+        "kind": "button",
+        "key": "Create Booking",
+        "x": 280,
+        "y": 832,
+        "w": 139,
+        "h": 36
+      },
+      {
+        "n": 15,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 431,
+        "y": 832,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "guest-booking-detail": {
+    "route": "/traffic/guest-bookings/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Details",
+        "x": 280,
+        "y": 192,
+        "w": 556,
+        "h": 342
+      },
+      {
+        "n": 3,
+        "kind": "button",
+        "key": "Record Payment",
+        "x": 1253,
+        "y": 217,
+        "w": 138,
+        "h": 32
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Get Quote",
+        "x": 1293,
+        "y": 583,
+        "w": 98,
+        "h": 32
+      }
+    ]
+  },
+  "vehicles": {
+    "route": "/traffic/vehicles",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Vehicle",
+        "x": 1275,
+        "y": 82,
+        "w": 141,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Vehicle",
+        "x": 1275,
+        "y": 82,
+        "w": 141,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "License Plate",
+        "x": 281,
+        "y": 181,
+        "w": 176,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Branch",
+        "x": 457,
+        "y": 181,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Type",
+        "x": 550,
+        "y": 181,
+        "w": 110,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Make/Model",
+        "x": 659,
+        "y": 181,
+        "w": 180,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Year",
+        "x": 840,
+        "y": 181,
+        "w": 84,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Ownership",
+        "x": 923,
+        "y": 181,
+        "w": 124,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Status",
+        "x": 1047,
+        "y": 181,
+        "w": 124,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Supplier Price",
+        "x": 1171,
+        "y": 181,
+        "w": 150,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "column",
+        "key": "Drivers",
+        "x": 1321,
+        "y": 181,
+        "w": 94,
+        "h": 36
+      }
+    ]
+  },
+  "vehicle-new": {
+    "route": "/traffic/vehicles/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Vehicle Type",
+        "x": 305,
+        "y": 275,
+        "w": 129,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Plate Number",
+        "x": 856,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "Make",
+        "x": 305,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Model",
+        "x": 856,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "field",
+        "key": "Year",
+        "x": 305,
+        "y": 423,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "field",
+        "key": "Color",
+        "x": 856,
+        "y": 423,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "field",
+        "key": "Ownership",
+        "x": 305,
+        "y": 497,
+        "w": 99,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "field",
+        "key": "Notes",
+        "x": 305,
+        "y": 571,
+        "w": 1086,
+        "h": 64
+      },
+      {
+        "n": 10,
+        "kind": "button",
+        "key": "Create Vehicle",
+        "x": 280,
+        "y": 684,
+        "w": 133,
+        "h": 36
+      },
+      {
+        "n": 11,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 425,
+        "y": 684,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "vehicle-info": {
+    "route": "/traffic/vehicles/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 195,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Compliance (#)",
+        "x": 335,
+        "y": 195,
+        "w": 133,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Drivers (#)",
+        "x": 467,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Plate Number",
+        "x": 280,
+        "y": 236,
+        "w": 1136,
+        "h": 318
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 578,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "vehicle-compliance": {
+    "route": "/traffic/vehicles/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 195,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Compliance (#)",
+        "x": 335,
+        "y": 195,
+        "w": 133,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Drivers (#)",
+        "x": 467,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Add Compliance",
+        "x": 1253,
+        "y": 261,
+        "w": 138,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 418,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "vehicle-drivers": {
+    "route": "/traffic/vehicles/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Info",
+        "x": 282,
+        "y": 195,
+        "w": 53,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Compliance (#)",
+        "x": 335,
+        "y": 195,
+        "w": 133,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Drivers (#)",
+        "x": 467,
+        "y": 195,
+        "w": 101,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 380,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "vehicle-types": {
+    "route": "/traffic/vehicle-types",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Type",
+        "x": 1293,
+        "y": 82,
+        "w": 123,
+        "h": 36
+      }
+    ]
+  },
+  "drivers": {
+    "route": "/traffic/drivers",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Driver",
+        "x": 1282,
+        "y": 82,
+        "w": 134,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Driver",
+        "x": 1282,
+        "y": 82,
+        "w": 134,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Name",
+        "x": 281,
+        "y": 181,
+        "w": 182,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Branch",
+        "x": 463,
+        "y": 181,
+        "w": 101,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Email",
+        "x": 564,
+        "y": 181,
+        "w": 191,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Phone",
+        "x": 755,
+        "y": 181,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "License Number",
+        "x": 848,
+        "y": 181,
+        "w": 185,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Status",
+        "x": 1033,
+        "y": 181,
+        "w": 135,
+        "h": 36
+      },
+      {
+        "n": 9,
+        "kind": "column",
+        "key": "Vehicles",
+        "x": 1168,
+        "y": 181,
+        "w": 112,
+        "h": 36
+      },
+      {
+        "n": 10,
+        "kind": "column",
+        "key": "Traffic Jobs",
+        "x": 1280,
+        "y": 181,
+        "w": 135,
+        "h": 36
+      }
+    ]
+  },
+  "driver-new": {
+    "route": "/traffic/drivers/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "User Account",
+        "x": 305,
+        "y": 275,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "License Number",
+        "x": 856,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "field",
+        "key": "License Expiry",
+        "x": 305,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "field",
+        "key": "Phone",
+        "x": 856,
+        "y": 349,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Create Driver",
+        "x": 280,
+        "y": 434,
+        "w": 126,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 418,
+        "y": 434,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "driver-info": {
+    "route": "/traffic/drivers/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 195,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Vehicles (#)",
+        "x": 357,
+        "y": 195,
+        "w": 108,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Traffic Jobs (#)",
+        "x": 464,
+        "y": 195,
+        "w": 126,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Name",
+        "x": 280,
+        "y": 236,
+        "w": 1136,
+        "h": 206
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 466,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "driver-vehicles": {
+    "route": "/traffic/drivers/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 195,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Vehicles (#)",
+        "x": 357,
+        "y": 195,
+        "w": 108,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Traffic Jobs (#)",
+        "x": 464,
+        "y": 195,
+        "w": 126,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Assign Vehicle",
+        "x": 1267,
+        "y": 261,
+        "w": 124,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Unassign",
+        "x": 1290,
+        "y": 330,
+        "w": 88,
+        "h": 28
+      },
+      {
+        "n": 7,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 420,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "driver-history": {
+    "route": "/traffic/drivers/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Details",
+        "x": 282,
+        "y": 195,
+        "w": 75,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Vehicles (#)",
+        "x": 357,
+        "y": 195,
+        "w": 108,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Traffic Jobs (#)",
+        "x": 464,
+        "y": 195,
+        "w": 126,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 438,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "reps": {
+    "route": "/traffic/reps",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Rep",
+        "x": 1298,
+        "y": 82,
+        "w": 118,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "link",
+        "key": "New Rep",
+        "x": 1298,
+        "y": 82,
+        "w": 118,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Name",
+        "x": 281,
+        "y": 181,
+        "w": 224,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Branch",
+        "x": 505,
+        "y": 181,
+        "w": 125,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Email",
+        "x": 630,
+        "y": 181,
+        "w": 236,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Phone",
+        "x": 866,
+        "y": 181,
+        "w": 268,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Zones",
+        "x": 1134,
+        "y": 181,
+        "w": 114,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Traffic Jobs",
+        "x": 1248,
+        "y": 181,
+        "w": 167,
+        "h": 36
+      }
+    ]
+  },
+  "rep-new": {
+    "route": "/traffic/reps/new",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "User Account",
+        "x": 305,
+        "y": 275,
+        "w": 93,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "Phone",
+        "x": 856,
+        "y": 275,
+        "w": 535,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Create Rep",
+        "x": 280,
+        "y": 360,
+        "w": 110,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Cancel",
+        "x": 402,
+        "y": 360,
+        "w": 81,
+        "h": 36
+      }
+    ]
+  },
+  "rep-info": {
+    "route": "/traffic/reps/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Rep Details",
+        "x": 282,
+        "y": 195,
+        "w": 106,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Zones (#)",
+        "x": 388,
+        "y": 195,
+        "w": 93,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Traffic Jobs (#)",
+        "x": 481,
+        "y": 195,
+        "w": 126,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Name",
+        "x": 280,
+        "y": 236,
+        "w": 1136,
+        "h": 178
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 438,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "rep-zones": {
+    "route": "/traffic/reps/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Rep Details",
+        "x": 282,
+        "y": 195,
+        "w": 106,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Zones (#)",
+        "x": 388,
+        "y": 195,
+        "w": 93,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Traffic Jobs (#)",
+        "x": 481,
+        "y": 195,
+        "w": 126,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Manage Zones",
+        "x": 1264,
+        "y": 261,
+        "w": 127,
+        "h": 32
+      },
+      {
+        "n": 6,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 418,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "rep-history": {
+    "route": "/traffic/reps/:id",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "tab",
+        "key": "Rep Details",
+        "x": 282,
+        "y": 195,
+        "w": 106,
+        "h": 31
+      },
+      {
+        "n": 3,
+        "kind": "tab",
+        "key": "Zones (#)",
+        "x": 388,
+        "y": 195,
+        "w": 93,
+        "h": 31
+      },
+      {
+        "n": 4,
+        "kind": "tab",
+        "key": "Traffic Jobs (#)",
+        "x": 481,
+        "y": 195,
+        "w": 126,
+        "h": 31
+      },
+      {
+        "n": 5,
+        "kind": "button",
+        "key": "Delete",
+        "x": 360,
+        "y": 382,
+        "w": 78,
+        "h": 36
+      }
+    ]
+  },
+  "airports": {
+    "route": "/traffic/airports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Airport",
+        "x": 1312,
+        "y": 82,
+        "w": 104,
+        "h": 36
+      }
+    ]
+  },
+  "zones": {
+    "route": "/traffic/zones",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "New Zone",
+        "x": 1289,
+        "y": 82,
+        "w": 127,
+        "h": 36
+      }
+    ]
+  },
+  "pricing": {
+    "route": "/traffic/pricing",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Add Price Item",
+        "x": 1258,
+        "y": 88,
+        "w": 158,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "column",
+        "key": "Vehicle Type",
+        "x": 281,
+        "y": 181,
+        "w": 177,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Service Type",
+        "x": 458,
+        "y": 181,
+        "w": 180,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Price Type",
+        "x": 638,
+        "y": 181,
+        "w": 153,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "From Zone",
+        "x": 790,
+        "y": 181,
+        "w": 159,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "To Zone",
+        "x": 949,
+        "y": 181,
+        "w": 128,
+        "h": 36
+      },
+      {
+        "n": 7,
+        "kind": "column",
+        "key": "Amount",
+        "x": 1077,
+        "y": 181,
+        "w": 128,
+        "h": 36
+      },
+      {
+        "n": 8,
+        "kind": "column",
+        "key": "Description",
+        "x": 1205,
+        "y": 181,
+        "w": 166,
+        "h": 36
+      }
+    ]
+  },
+  "supplier-prices": {
+    "route": "/traffic/supplier-prices",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Add Price",
+        "x": 1294,
+        "y": 88,
+        "w": 122,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "column",
+        "key": "Supplier",
+        "x": 281,
+        "y": 181,
+        "w": 271,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Vehicle Type",
+        "x": 552,
+        "y": 181,
+        "w": 362,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "Route",
+        "x": 914,
+        "y": 181,
+        "w": 217,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "Price",
+        "x": 1130,
+        "y": 181,
+        "w": 196,
+        "h": 36
+      }
+    ]
+  },
+  "partner-overrides": {
+    "route": "/traffic/partner-overrides",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Add Override",
+        "x": 1268,
+        "y": 88,
+        "w": 148,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "column",
+        "key": "Partner",
+        "x": 281,
+        "y": 181,
+        "w": 167,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "column",
+        "key": "Vehicle Type",
+        "x": 448,
+        "y": 181,
+        "w": 243,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "column",
+        "key": "From Zone",
+        "x": 692,
+        "y": 181,
+        "w": 218,
+        "h": 36
+      },
+      {
+        "n": 5,
+        "kind": "column",
+        "key": "To Zone",
+        "x": 910,
+        "y": 181,
+        "w": 176,
+        "h": 36
+      },
+      {
+        "n": 6,
+        "kind": "column",
+        "key": "Override Price",
+        "x": 1086,
+        "y": 181,
+        "w": 270,
+        "h": 36
+      }
+    ]
+  },
+  "settings": {
+    "route": "/traffic/settings",
+    "items": [
+      {
+        "n": 1,
+        "kind": "field",
+        "key": "Dispatch Lock Hours",
+        "x": 305,
+        "y": 259,
+        "w": 1086,
+        "h": 36
+      },
+      {
+        "n": 2,
+        "kind": "switch",
+        "key": "Driver Portal",
+        "x": 1346,
+        "y": 466,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 3,
+        "kind": "switch",
+        "key": "Rep Portal",
+        "x": 1346,
+        "y": 542,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 4,
+        "kind": "switch",
+        "key": "Supplier Portal",
+        "x": 1346,
+        "y": 618,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 5,
+        "kind": "switch",
+        "key": "Guest Bookings",
+        "x": 1346,
+        "y": 694,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 6,
+        "kind": "switch",
+        "key": "WhatsApp Notifications",
+        "x": 1346,
+        "y": 876,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 7,
+        "kind": "switch",
+        "key": "Push Notifications",
+        "x": 1346,
+        "y": 952,
+        "w": 32,
+        "h": 18
+      },
+      {
+        "n": 8,
+        "kind": "button",
+        "key": "Save Settings",
+        "x": 280,
+        "y": 1040,
+        "w": 128,
+        "h": 36
+      }
+    ]
+  },
+  "reports": {
+    "route": "/traffic/reports",
+    "items": [
+      {
+        "n": 1,
+        "kind": "link",
+        "key": "Daily Dispatch ReportDaily Dispatch",
+        "x": 280,
+        "y": 164,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 2,
+        "kind": "tile",
+        "key": "Daily Dispatch Report",
+        "x": 280,
+        "y": 164,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 3,
+        "kind": "link",
+        "key": "Job StatisticsBy Status",
+        "x": 856,
+        "y": 164,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Job Statistics",
+        "x": 856,
+        "y": 164,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 5,
+        "kind": "link",
+        "key": "Driver PerformancePerformance Summary",
+        "x": 280,
+        "y": 274,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 6,
+        "kind": "tile",
+        "key": "Driver Performance",
+        "x": 280,
+        "y": 274,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 7,
+        "kind": "link",
+        "key": "Revenue by Service TypeRevenue Summary",
+        "x": 856,
+        "y": 274,
+        "w": 560,
+        "h": 94
+      },
+      {
+        "n": 8,
+        "kind": "tile",
+        "key": "Revenue by Service Type",
+        "x": 856,
+        "y": 274,
+        "w": 560,
+        "h": 94
+      }
+    ]
+  },
+  "report-daily-dispatch": {
+    "route": "/traffic/reports/daily-dispatch",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "Date",
+        "x": 1236,
+        "y": 112,
+        "w": 180,
+        "h": 36
+      }
+    ]
+  },
+  "report-driver-performance": {
+    "route": "/traffic/reports/driver-performance",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 930,
+        "y": 112,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 1131,
+        "y": 112,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "button",
+        "key": "Export Excel",
+        "x": 1303,
+        "y": 114,
+        "w": 113,
+        "h": 32
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "Performance Summary",
+        "x": 280,
+        "y": 184,
+        "w": 1136,
+        "h": 186
+      }
+    ]
+  },
+  "report-job-stats": {
+    "route": "/traffic/reports/job-stats",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 1055,
+        "y": 112,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 1256,
+        "y": 112,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "By Status",
+        "x": 280,
+        "y": 184,
+        "w": 556,
+        "h": 150
+      },
+      {
+        "n": 5,
+        "kind": "tile",
+        "key": "By Service Type",
+        "x": 860,
+        "y": 184,
+        "w": 556,
+        "h": 150
+      }
+    ]
+  },
+  "report-revenue-by-service": {
+    "route": "/traffic/reports/revenue-by-service",
+    "items": [
+      {
+        "n": 1,
+        "kind": "button",
+        "key": "Back",
+        "x": 272,
+        "y": 72,
+        "w": 72,
+        "h": 32
+      },
+      {
+        "n": 2,
+        "kind": "field",
+        "key": "From",
+        "x": 1055,
+        "y": 112,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 3,
+        "kind": "field",
+        "key": "To",
+        "x": 1256,
+        "y": 112,
+        "w": 160,
+        "h": 36
+      },
+      {
+        "n": 4,
+        "kind": "tile",
+        "key": "Revenue Summary",
+        "x": 280,
+        "y": 184,
+        "w": 1136,
+        "h": 186
+      }
+    ]
+  }
+}

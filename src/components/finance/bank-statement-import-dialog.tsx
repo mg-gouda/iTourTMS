@@ -17,13 +17,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 export function BankStatementImportDialog() {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [journalId, setJournalId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(todayISO());
   const [balanceStart, setBalanceStart] = useState(0);
   const [csvContent, setCsvContent] = useState("");
   const [fileName, setFileName] = useState("");

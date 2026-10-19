@@ -39,6 +39,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
+import { todayISO } from "@/lib/utils";
 
 export default function BookingReconciliationPage() {
   const t = useTranslations("finance");
@@ -62,7 +63,7 @@ export default function BookingReconciliationPage() {
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("BANK_TRANSFER");
   const [payReference, setPayReference] = useState("");
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(todayISO());
   const [payIsRefund, setPayIsRefund] = useState(false);
   const [payDirection, setPayDirection] = useState<"FROM_SOURCE" | "TO_HOTEL">("FROM_SOURCE");
 
@@ -109,7 +110,7 @@ export default function BookingReconciliationPage() {
     });
     setPayAmount(balance > 0 ? balance.toFixed(2) : "");
     setPayReference("");
-    setPayDate(new Date().toISOString().slice(0, 10));
+    setPayDate(todayISO());
     setPayIsRefund(false);
     setPayMethod("BANK_TRANSFER");
     setPayDirection("FROM_SOURCE");

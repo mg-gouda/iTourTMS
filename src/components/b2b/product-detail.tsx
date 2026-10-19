@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 type ProductType = "EXCURSION" | "TRANSFER" | "PACKAGE";
 
@@ -86,7 +87,7 @@ export function ProductDetail({
   }
 
   const perVehicle = data.unitLabel === "per vehicle";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
 
   return (
     <div className="animate-fade-in space-y-6">

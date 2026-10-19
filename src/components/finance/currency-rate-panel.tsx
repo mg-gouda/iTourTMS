@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 interface CurrencyRatePanelProps {
   currencyId: string;
@@ -29,7 +30,7 @@ export function CurrencyRatePanel({
   const utils = trpc.useUtils();
 
   const [date, setDate] = useState(
-    new Date().toISOString().split("T")[0],
+    todayISO(),
   );
   const [rate, setRate] = useState("");
 

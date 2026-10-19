@@ -57,6 +57,7 @@ import { MinimumStayDialog } from "@/components/reservations/minimum-stay-dialog
 import { ParseEmailDialog } from "@/components/reservations/parse-email-dialog";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
+import { todayISO } from "@/lib/utils";
 
 type FormValues = z.input<typeof bookingCreateSchema>;
 
@@ -121,7 +122,7 @@ export default function NewBookingPage() {
       internalNotes: "",
       bookingNotes: "",
       meetAssistVisa: false,
-      bookingDate: new Date().toISOString().slice(0, 10),
+      bookingDate: todayISO(),
       leadGuestName: "",
       leadGuestFirstName: "",
       leadGuestLastName: "",
@@ -379,7 +380,7 @@ export default function NewBookingPage() {
             tourOperatorId: tourOperatorId || undefined,
             checkIn,
             checkOut,
-            bookingDate: bookingDate || new Date().toISOString().slice(0, 10),
+            bookingDate: bookingDate || todayISO(),
             rooms: rooms.map((r) => ({
               roomTypeId: r.roomTypeId,
               mealBasisId: r.mealBasisId,

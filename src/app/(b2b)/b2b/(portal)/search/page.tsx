@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_STAY_NIGHTS } from "@/lib/b2b/limits";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 /**
  * Availability as the partner sees it: only their hotels, at their net rate,
@@ -26,7 +27,7 @@ import { trpc } from "@/lib/trpc";
  * without opening a spreadsheet.
  */
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => todayISO();
 const addDays = (iso: string, days: number) =>
   new Date(new Date(iso).getTime() + days * 86_400_000).toISOString().slice(0, 10);
 

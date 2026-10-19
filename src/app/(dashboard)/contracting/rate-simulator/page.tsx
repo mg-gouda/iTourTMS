@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 export default function RateSimulatorPage() {
   const t = useTranslations("contracting");
@@ -30,7 +31,7 @@ export default function RateSimulatorPage() {
   const [adults, setAdults] = useState(2);
   const [childAges, setChildAges] = useState<number[]>([]);
   const [bookingDate, setBookingDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    todayISO(),
   );
   const [showOffers, setShowOffers] = useState(true);
 

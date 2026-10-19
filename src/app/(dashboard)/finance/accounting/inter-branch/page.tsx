@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { P } from "@/lib/constants/permissions";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
-const today = () => new Date().toISOString().split("T")[0];
+const today = () => todayISO();
 
 /** Money moving between branches: two entries, one in each branch's books. */
 export default function InterBranchTransferPage() {

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 const BASIS_COLORS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   FREESALE: "default",
@@ -47,7 +48,7 @@ export default function AllotmentsPage() {
   };
 
   // Get calendar for next 12 months
-  const dateFrom = new Date().toISOString().slice(0, 10);
+  const dateFrom = todayISO();
   const dateTo = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
 
   const { data, isLoading } = trpc.contracting.contractAllotment.calendar.useQuery({

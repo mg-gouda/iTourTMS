@@ -9,9 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TT_JOB_STATUS_LABELS, TT_JOB_STATUS_VARIANTS, TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 export default function DailyDispatchReportPage() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayISO();
   const [dateStr, setDateStr] = useState(today);
   const t = useTranslations("traffic");
   const tc = useTranslations("common");
@@ -24,7 +25,7 @@ export default function DailyDispatchReportPage() {
       <div className="animate-fade-in space-y-6">
       <div className="page-header flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">{t("dailyDispatchReport")}</h1></div>
-        <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className="w-[180px]" />
+        <Input type="date" aria-label="Date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className="w-[180px]" />
       </div>
       {isLoading ? <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div> : (
         <div className="space-y-2">

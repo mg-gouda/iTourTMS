@@ -176,6 +176,54 @@ async function main() {
     },
   });
 
+  // A flight and a private-transfer guest booking for the traffic detail windows.
+  const hrg = await db.airport.findFirst({ where: { code: "HRG" } });
+  const lgw = await db.airport.findFirst({ where: { code: "LGW" } });
+  await db.ttTrafficFlight.upsert({
+    where: { id: "mnl_flight_1" },
+    update: {},
+    create: {
+      id: "mnl_flight_1",
+      ...base,
+      flightNumber: "BA2615",
+      airlineCode: "BA",
+      depAirportId: lgw?.id,
+      arrAirportId: hrg?.id,
+      depTime: "08:40",
+      arrTime: "15:25",
+      flightDate: dateOnly(5),
+      terminal: "T1",
+    },
+  });
+  const vType = await db.ttVehicleType.findFirst({ where: { companyId }, orderBy: { capacity: "asc" } });
+  const usd = await db.currency.findFirst({ where: { code: "USD" } });
+  if (vType && usd) {
+    await db.ttGuestBooking.upsert({
+      where: { id: "mnl_tgb_1" },
+      update: {},
+      create: {
+        id: "mnl_tgb_1",
+        ...base,
+        code: "GB-MNL-001",
+        status: "CONFIRMED",
+        vehicleTypeId: vType.id,
+        serviceType: "ARR",
+        serviceDate: dateOnly(5),
+        pickupTime: "15:45",
+        pickupAddress: "Hurghada Airport (HRG), Terminal 1",
+        dropoffAddress: "Steigenberger Al Dau Beach, Hurghada",
+        paxCount: 2,
+        guestName: "Sarah Mitchell",
+        guestEmail: "sarah.mitchell@example.com",
+        guestPhone: "+44 7700 900111",
+        currencyId: usd.id,
+        quotedPrice: 35,
+        paidAmount: 35,
+        notes: "Flight BA2615. Child seat not needed.",
+      },
+    });
+  }
+
   console.log("manual fixtures ready in", branch.name);
 }
 

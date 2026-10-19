@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, Users, CalendarDays, MinusCircle, PlusCircle } from "lucide-react";
+import { todayISO } from "@/lib/utils";
 
 interface SearchBarProps {
   destinations: { id: string; name: string }[];
@@ -76,7 +77,7 @@ export function SearchBar({ destinations, initialValues, onSearch, isLoading }: 
             name="checkIn"
             required
             defaultValue={initialValues.checkIn}
-            min={new Date().toISOString().split("T")[0]}
+            min={todayISO()}
             className="w-full rounded-[var(--pub-radius)] border border-[var(--pub-border)] bg-[var(--pub-background)] px-3 py-2 text-sm"
           />
         </div>
@@ -92,7 +93,7 @@ export function SearchBar({ destinations, initialValues, onSearch, isLoading }: 
             name="checkOut"
             required
             defaultValue={initialValues.checkOut}
-            min={new Date().toISOString().split("T")[0]}
+            min={todayISO()}
             className="w-full rounded-[var(--pub-radius)] border border-[var(--pub-border)] bg-[var(--pub-background)] px-3 py-2 text-sm"
           />
         </div>

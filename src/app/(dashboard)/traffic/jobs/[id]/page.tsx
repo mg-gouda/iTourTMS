@@ -360,9 +360,9 @@ function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) 
       <p className="text-sm font-medium">{t("addOperationalCost")}</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <Label className="text-xs">{tc("type")}</Label>
+          <Label htmlFor="cost-type" className="text-xs">{tc("type")}</Label>
           <Select value={costType} onValueChange={setCostType}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="cost-type" className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(TT_COST_TYPE_LABELS).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -371,12 +371,12 @@ function CostForm({ jobId, currencyId }: { jobId: string; currencyId: string }) 
           </Select>
         </div>
         <div>
-          <Label className="text-xs">{tc("amount")}</Label>
-          <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs" placeholder="0.00" />
+          <Label htmlFor="cost-amount" className="text-xs">{tc("amount")}</Label>
+          <Input id="cost-amount" type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs" placeholder="0.00" />
         </div>
         <div>
-          <Label className="text-xs">{tc("notes")}</Label>
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-xs" placeholder={tc("optional")} />
+          <Label htmlFor="cost-notes" className="text-xs">{tc("notes")}</Label>
+          <Input id="cost-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-xs" placeholder={tc("optional")} />
         </div>
         <div className="flex items-end">
           <Button

@@ -18,3 +18,9 @@ export function formatSeasonLabel(
   const eFmt = format(e, "dd MMM yyyy");
   return `${sFmt} – ${eFmt}`;
 }
+
+/** Today as YYYY-MM-DD in the viewer's own time zone (toISOString gives UTC: yesterday after midnight in Cairo). */
+export function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}

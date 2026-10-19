@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 type UCRow = {
   id: string;
@@ -38,7 +39,7 @@ export default function UnrealizedCurrenciesPage() {
 
   const [open, setOpen] = useState(false);
   const { data: currencies } = trpc.finance.currency.list.useQuery();
-  const [form, setForm] = useState({ name: "", date: new Date().toISOString().split("T")[0], currencyId: "", gainLoss: "", notes: "" });
+  const [form, setForm] = useState({ name: "", date: todayISO(), currencyId: "", gainLoss: "", notes: "" });
 
   const totalGain = (entries ?? []).filter((e: any) => !e.isReversed).reduce((s: number, e: any) => s + Number(e.gainLoss), 0);
 

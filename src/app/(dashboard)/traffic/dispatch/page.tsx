@@ -16,12 +16,13 @@ import { toast } from "sonner";
 import { TT_JOB_STATUS_LABELS, TT_JOB_STATUS_VARIANTS, TT_SERVICE_TYPE_LABELS } from "@/lib/constants/traffic";
 import { trpc } from "@/lib/trpc";
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 export default function DispatchConsolePage() {
   const t = useTranslations("traffic");
   const tCommon = useTranslations("common");
   const utils = trpc.useUtils();
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayISO();
   const [dateStr, setDateStr] = useState(today);
   const date = new Date(dateStr);
 
@@ -45,7 +46,7 @@ export default function DispatchConsolePage() {
       <div className="page-header flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">{t("dispatchConsole")}</h1><p className="text-muted-foreground">{t("dailyDispatch")}</p></div>
         <div className="flex items-center gap-3">
-          <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className="w-[180px]" />
+          <Input type="date" aria-label="Date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} className="w-[180px]" />
           <Button
             variant="outline"
             size="sm"

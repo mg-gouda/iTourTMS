@@ -20,6 +20,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { PermissionGuard } from "@/components/shared/permission-guard";
 import { useTranslations } from "next-intl";
+import { todayISO } from "@/lib/utils";
 
 const STATE_VARIANTS: Record<string, "default" | "outline" | "secondary"> = { DRAFT: "outline", OPEN: "default", CLOSED: "secondary" };
 
@@ -61,7 +62,7 @@ export default function LoansPage() {
   const closeMut = trpc.finance.loan.close.useMutation({ onSuccess: () => { utils.finance.loan.list.invalidate(); toast.success(t("loanClosed")); } });
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", loanType: "RECEIVED", accountId: "", amount: "", rate: "", termMonths: "12", startDate: new Date().toISOString().split("T")[0] });
+  const [form, setForm] = useState({ name: "", loanType: "RECEIVED", accountId: "", amount: "", rate: "", termMonths: "12", startDate: todayISO() });
 
   const columns: ColumnDef<LoanRow, unknown>[] = [
     { accessorKey: "name", header: t("loanName") },

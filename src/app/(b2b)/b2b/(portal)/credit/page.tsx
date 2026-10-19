@@ -14,12 +14,13 @@ import {
   B2B_CREDIT_TX_TYPE_VARIANTS,
 } from "@/lib/constants/b2b-portal";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 const monthStart = () => {
   const d = new Date();
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
 };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayISO();
 
 const date = (d: Date | string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });

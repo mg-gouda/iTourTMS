@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, Users, Search, Bed, UtensilsCrossed, Tag } from "lucide-react";
 import { AvailabilityBadge } from "./availability-badge";
+import { todayISO } from "@/lib/utils";
 
 interface HotelAvailabilityWidgetProps {
   hotelId: string;
@@ -102,7 +103,7 @@ export function HotelAvailabilityWidget({
             type="date"
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
-            min={new Date().toISOString().split("T")[0]}
+            min={todayISO()}
             className="w-full rounded-[var(--pub-radius)] border border-[var(--pub-border)] bg-[var(--pub-background)] px-3 py-2 text-sm"
           />
         </div>
@@ -115,7 +116,7 @@ export function HotelAvailabilityWidget({
             type="date"
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
-            min={checkIn || new Date().toISOString().split("T")[0]}
+            min={checkIn || todayISO()}
             className="w-full rounded-[var(--pub-radius)] border border-[var(--pub-border)] bg-[var(--pub-background)] px-3 py-2 text-sm"
           />
         </div>

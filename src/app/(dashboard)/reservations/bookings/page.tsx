@@ -32,6 +32,7 @@ import {
 import { trpc } from "@/lib/trpc";
 
 import { PermissionGuard } from "@/components/shared/permission-guard";
+import { todayISO } from "@/lib/utils";
 
 type BookingRow = {
   id: string;
@@ -272,7 +273,7 @@ export default function BookingsPage() {
               }));
               const ws = XLSX.utils.json_to_sheet(rows);
               XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-              XLSX.writeFile(wb, `bookings-${new Date().toISOString().slice(0, 10)}.xlsx`);
+              XLSX.writeFile(wb, `bookings-${todayISO()}.xlsx`);
             }}
           >
             Export

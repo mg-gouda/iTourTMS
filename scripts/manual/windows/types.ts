@@ -7,7 +7,7 @@ export interface ManualWindow {
   /** Route as shown in the manual (":id" for a record). */
   route: string;
   /** Turns ":id" routes into a real record's URL; null skips the window. */
-  resolve?: (db: PrismaClient) => Promise<string | null>;
+  resolve?: (db: PrismaClient, companyId: string) => Promise<string | null>;
   /** Put the page in the state to capture (open a tab, a dialog…). */
   setup?: (page: Page) => Promise<void>;
   /** Regexes for element labels that are data (names, codes) — described in prose, not numbered. */
@@ -20,7 +20,8 @@ export const tab = (value: string) => async (page: Page) => {
 
 /** "/crm/leads/:id" with the first record found. */
 export const first =
-  (route: string, find: (db: PrismaClient) => Promise<{ id: string } | null>) => async (db: PrismaClient) => {
-    const r = await find(db);
+  (route: string, find: (db: PrismaClient, companyId: string) => Promise<{ id: string } | null>) =>
+  async (db: PrismaClient, companyId: string) => {
+    const r = await find(db, companyId);
     return r ? route.replace(":id", r.id) : null;
   };

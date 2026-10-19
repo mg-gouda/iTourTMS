@@ -25,6 +25,7 @@ import {
   PAYMENT_TYPE_LABELS,
 } from "@/lib/constants/finance";
 import { trpc } from "@/lib/trpc";
+import { todayISO } from "@/lib/utils";
 
 interface BatchPaymentFormProps {
   defaultValues?: {
@@ -64,7 +65,7 @@ export function BatchPaymentForm({ defaultValues }: BatchPaymentFormProps) {
   // For new batch creation
   const [paymentType, setPaymentType] = useState<"INBOUND" | "OUTBOUND">("OUTBOUND");
   const [journalId, setJournalId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(todayISO());
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
 
   const { data: journals } = trpc.finance.journal.list.useQuery();
