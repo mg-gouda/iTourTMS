@@ -17,11 +17,13 @@ import { userRouter } from "@/server/trpc/routers/shared/user";
 import { notificationRouter } from "@/server/trpc/routers/shared/notification";
 import { giataRouter } from "@/server/trpc/routers/shared/giata";
 import { branchRouter } from "@/server/trpc/routers/shared/branch";
+import { analyticsRouter } from "@/server/trpc/routers/shared/analytics";
 
 export const appRouter = createTRPCRouter({
   admin: adminRouter,
   setup: setupRouter,
   branch: branchRouter,
+  analytics: analyticsRouter,
   settings: settingsRouter,
   user: userRouter,
   finance: financeRouter,

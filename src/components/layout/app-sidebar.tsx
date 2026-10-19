@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BarChart3,
   Briefcase,
   Bus,
   CalendarCheck,
@@ -778,11 +779,12 @@ export function AppSidebar({ installedModules, sidebarLogoUrl, roles = [], permi
   const side = isRTL(useLocale()) ? "right" : "left";
 
   const moduleRoutes = getModuleRoutes(tNav);
+  const isSuperAdmin = roles.includes("super_admin");
+  const canSeeAnalytics = isSuperAdmin || permissions.some((p) => /:reports?:read$/.test(p));
   const mainNav = [
     { name: tNav("dashboard"), href: "/dashboard", icon: Home },
+    ...(canSeeAnalytics ? [{ name: tNav("analytics"), href: "/analytics", icon: BarChart3 }] : []),
   ];
-
-  const isSuperAdmin = roles.includes("super_admin");
 
   const canManageUsers = isSuperAdmin || permissions.includes("system:user:read");
   const canManageRoles = isSuperAdmin || permissions.includes("system:role:read");

@@ -155,6 +155,9 @@
   --chart-3: #B366B3;
   --chart-4: #800080;
   --chart-5: #AF031D;
+  /* Occupancy forecast: rooms on the books, expected pickup (validated pair) */
+  --chart-otb: #7E2A7E;
+  --chart-pickup: #B56AB5;
   --sidebar: #1A0A1A;
   --sidebar-foreground: #d5d0e3;
   --sidebar-primary: #B366B3;
@@ -190,6 +193,8 @@
   --chart-3: #800080;
   --chart-4: #7F879C;
   --chart-5: #cf2640;
+  --chart-otb: #BD72BD;
+  --chart-pickup: #8A3A8A;
   --sidebar: #1A0A1A;
   --sidebar-foreground: #d5d0e3;
   --sidebar-primary: #B366B3;

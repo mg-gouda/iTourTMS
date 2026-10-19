@@ -246,7 +246,8 @@
       "commercial": "Commercial",
       "masterData": "Master Data",
       "reports": "Reports"
-    }
+    },
+    "analytics": "Analytics"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2031,6 +2032,85 @@
         "title": "Explore Guides",
         "description": "Select any module below to read its full tutorial with step-by-step instructions."
       }
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "How the business is doing across modules, where occupancy is heading, and which partners carry it.",
+    "tabs": {
+      "overview": "Overview",
+      "forecast": "Occupancy forecast",
+      "partners": "Partner performance"
+    },
+    "noAccess": "You don't have report access to any module yet. Ask an administrator for a module's report permission.",
+    "period": {
+      "label": "Period",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "thisQuarter": "This quarter",
+      "yearToDate": "Year to date",
+      "last12": "Last 12 months"
+    },
+    "vsPrevious": "vs previous period",
+    "noPrevious": "no previous data",
+    "currencyNote": "Money in {code} at each currency's latest rate.",
+    "missingRates": "No exchange rate for {codes}: those amounts are left out. Add rates in Finance › Currencies.",
+    "sections": {
+      "hotels": "Hotel reservations",
+      "excursions": "Excursions & CRM",
+      "transfers": "Transfers",
+      "cruises": "Nile cruises",
+      "tourOps": "Tour operations",
+      "finance": "Receivables & payables (now)"
+    },
+    "metrics": {
+      "bookings": "Bookings",
+      "roomNights": "Room nights",
+      "revenue": "Revenue",
+      "margin": "Margin",
+      "newLeads": "New leads",
+      "openPipeline": "Open pipeline",
+      "jobs": "Completed jobs",
+      "created": "Files opened",
+      "confirmed": "Files confirmed",
+      "receivable": "Owed to us",
+      "receivableOverdue": "of which overdue",
+      "payable": "We owe",
+      "payableOverdue": "of which overdue"
+    },
+    "forecast": {
+      "weeks": "Weeks ahead",
+      "chartTitle": "Room nights per week, all hotels",
+      "chartDesc": "Booked now, expected further bookings from your usual booking pace, and the allotment you hold.",
+      "otb": "On the books",
+      "pickup": "Expected pickup",
+      "forecast": "Forecast",
+      "capacity": "Allotment",
+      "hotel": "Hotel",
+      "weekOf": "Week of {date}",
+      "utilisation": "{pct}% of allotment",
+      "noCapacity": "no allotment",
+      "history": "Pace learned from {count, plural, one {# stay} other {# stays}} in the last 12 months.",
+      "noHistory": "No past stays to learn a booking pace from yet, so the forecast equals what's on the books.",
+      "empty": "Nothing booked in the coming weeks.",
+      "sourceAllotment": "Capacity: contract allotments",
+      "sourceRooms": "Capacity: hotel room count",
+      "table": "By hotel (room nights: forecast / allotment)"
+    },
+    "partners": {
+      "partner": "Partner",
+      "bookings": "Bookings",
+      "roomNights": "Room nights",
+      "revenue": "Revenue",
+      "margin": "Margin",
+      "marginPct": "Margin %",
+      "cancelPct": "Cancelled",
+      "noShowPct": "No-show",
+      "lead": "Avg lead (days)",
+      "growth": "vs last year",
+      "credit": "Credit used",
+      "empty": "No partner stays in this period.",
+      "stays": "Stays arriving in the period."
     }
   }
 }
